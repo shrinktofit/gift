@@ -247,6 +247,9 @@ class BundleGenerator {
     _dumpMethodDeclaration(methodDeclaration) {
         return this._copyComments(methodDeclaration, (typescript_1.default.createMethod(undefined, this._dumpModifiers(methodDeclaration), this._dumpToken(methodDeclaration.asteriskToken), methodDeclaration.name.getText(), this._dumpToken(methodDeclaration.questionToken), this._dumpTypeParameterArray(methodDeclaration.typeParameters), methodDeclaration.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodDeclaration.type), undefined)));
     }
+    _dumpConstructorDeclaration(constructorDeclaration) {
+        return this._copyComments(constructorDeclaration, (typescript_1.default.createConstructor(undefined, this._dumpModifiers(constructorDeclaration), constructorDeclaration.parameters.map((p) => this._dumpParameter(p)), undefined)));
+    }
     _dumpParameter(parameter) {
         return typescript_1.default.createParameter(undefined, this._dumpModifiers(parameter), this._dumpToken(parameter.dotDotDotToken), parameter.name.getText(), this._dumpToken(parameter.questionToken), this._dumpType(parameter.type));
     }
@@ -274,6 +277,9 @@ class BundleGenerator {
             // console.log(`  Dump member ${name}`);
             if (typescript_1.default.isMethodDeclaration(element)) {
                 classElements.push(this._dumpMethodDeclaration(element));
+            }
+            else if (typescript_1.default.isConstructorDeclaration(element)) {
+                classElements.push(this._dumpConstructorDeclaration(element));
             }
             else if (typescript_1.default.isPropertyDeclaration(element)) {
                 classElements.push(this._dumpPropertyDeclaration(element));

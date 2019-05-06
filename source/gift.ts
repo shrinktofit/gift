@@ -357,6 +357,15 @@ class BundleGenerator {
         )));
     }
 
+    private _dumpConstructorDeclaration(constructorDeclaration: ts.ConstructorDeclaration) {
+        return this._copyComments(constructorDeclaration, (ts.createConstructor(
+            undefined,
+            this._dumpModifiers(constructorDeclaration),
+            constructorDeclaration.parameters.map((p) => this._dumpParameter(p)),
+            undefined,
+        )));
+    }
+
     private _dumpParameter(parameter: ts.ParameterDeclaration) {
         return ts.createParameter(
             undefined,
@@ -398,6 +407,8 @@ class BundleGenerator {
             // console.log(`  Dump member ${name}`);
             if (ts.isMethodDeclaration(element)) {
                 classElements.push(this._dumpMethodDeclaration(element));
+            } else if (ts.isConstructorDeclaration(element)) {
+                classElements.push(this._dumpConstructorDeclaration(element));
             } else if (ts.isPropertyDeclaration(element)) {
                 classElements.push(this._dumpPropertyDeclaration(element));
             }
