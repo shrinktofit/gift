@@ -1,13 +1,13 @@
 {
-  "name": "gift",
-  "version": "1.0.1",
+  "name": "tfig",
+  "version": "1.0.4",
   "description": "",
-  "main": "build/index.js",
+  "main": "build/gift.js",
   "types": "build/gift.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Leslie",
+  "author": "Leslie Leigh",
   "license": "MIT",
   "dependencies": {
     "fs-extra": "^7.0.1",

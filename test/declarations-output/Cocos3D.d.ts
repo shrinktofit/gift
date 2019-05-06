@@ -21,67 +21,67 @@ declare module "Cocos3D" {
             static getTypeFromHandle: (handle: number) => number;
             static getBindingFromHandle: (handle: number) => number;
             static getIndexFromHandle: (handle: number) => number;
-            protected _buffers: Record<number, __unexported.cocos_gfx_buffer_GFXBuffer>;
-            protected _samplers: Record<number, __unexported.cocos_gfx_sampler_GFXSampler>;
-            protected _textureViews: Record<number, __unexported.cocos_gfx_texture_view_GFXTextureView>;
-            protected _resources: __unexported.cocos_renderer_core_pass_IPassResources[];
+            protected _buffers: Record<number, __internal.cocos_gfx_buffer_GFXBuffer>;
+            protected _samplers: Record<number, __internal.cocos_gfx_sampler_GFXSampler>;
+            protected _textureViews: Record<number, __internal.cocos_gfx_texture_view_GFXTextureView>;
+            protected _resources: __internal.cocos_renderer_core_pass_IPassResources[];
             protected _idxInTech: number;
             protected _programName: string;
-            protected _priority: __unexported.cocos_pipeline_define_RenderPriority;
-            protected _primitive: __unexported.cocos_gfx_define_GFXPrimitiveMode;
-            protected _stage: __unexported.cocos_pipeline_define_RenderPassStage;
-            protected _bindings: __unexported.cocos_gfx_binding_layout_IGFXBinding[];
-            protected _bs: __unexported.cocos_gfx_pipeline_state_GFXBlendState;
-            protected _dss: __unexported.cocos_gfx_pipeline_state_GFXDepthStencilState;
-            protected _rs: __unexported.cocos_gfx_pipeline_state_GFXRasterizerState;
-            protected _dynamicStates: __unexported.cocos_gfx_define_GFXDynamicState[];
-            protected _dynamics: __unexported.cocos_renderer_core_pass_IPassDynamics;
+            protected _priority: __internal.cocos_pipeline_define_RenderPriority;
+            protected _primitive: __internal.cocos_gfx_define_GFXPrimitiveMode;
+            protected _stage: __internal.cocos_pipeline_define_RenderPassStage;
+            protected _bindings: __internal.cocos_gfx_binding_layout_IGFXBinding[];
+            protected _bs: __internal.cocos_gfx_pipeline_state_GFXBlendState;
+            protected _dss: __internal.cocos_gfx_pipeline_state_GFXDepthStencilState;
+            protected _rs: __internal.cocos_gfx_pipeline_state_GFXRasterizerState;
+            protected _dynamicStates: __internal.cocos_gfx_define_GFXDynamicState[];
+            protected _dynamics: __internal.cocos_renderer_core_pass_IPassDynamics;
             protected _customizations: string[];
             protected _handleMap: Record<string, number>;
-            protected _blocks: __unexported.cocos_renderer_core_pass_IBlock[];
-            protected _shaderInfo: __unexported.cocos_3d_assets_effect_asset_IShaderInfo;
-            protected _defines: __unexported.cocos_renderer_core_pass_IDefineMap;
+            protected _blocks: __internal.cocos_renderer_core_pass_IBlock[];
+            protected _shaderInfo: __internal.cocos_3d_assets_effect_asset_IShaderInfo;
+            protected _defines: __internal.cocos_renderer_core_pass_IDefineMap;
             protected _phase: number;
-            protected _device: __unexported.cocos_gfx_device_GFXDevice;
-            protected _renderPass: __unexported.cocos_gfx_render_pass_GFXRenderPass | null;
-            protected _shader: __unexported.cocos_gfx_shader_GFXShader | null;
-            initialize(info: __unexported.cocos_renderer_core_pass_IPassInfoFull): void;
+            protected _device: __internal.cocos_gfx_device_GFXDevice;
+            protected _renderPass: __internal.cocos_gfx_render_pass_GFXRenderPass | null;
+            protected _shader: __internal.cocos_gfx_shader_GFXShader | null;
+            initialize(info: __internal.cocos_renderer_core_pass_IPassInfoFull): void;
             getHandle(name: string): number;
             getBinding(name: string): number;
             setUniform(handle: number, value: any): void;
             setUniformArray(handle: number, value: any[]): void;
-            bindBuffer(binding: number, value: __unexported.cocos_gfx_buffer_GFXBuffer): void;
-            bindTextureView(binding: number, value: __unexported.cocos_gfx_texture_view_GFXTextureView): void;
-            bindSampler(binding: number, value: __unexported.cocos_gfx_sampler_GFXSampler): void;
-            setDynamicState(state: __unexported.cocos_gfx_define_GFXDynamicState, value: any): void;
-            overridePipelineStates(original: __unexported.cocos_3d_assets_effect_asset_IPassInfo, overrides: __unexported.cocos_renderer_core_pass_PassOverrides): void;
+            bindBuffer(binding: number, value: __internal.cocos_gfx_buffer_GFXBuffer): void;
+            bindTextureView(binding: number, value: __internal.cocos_gfx_texture_view_GFXTextureView): void;
+            bindSampler(binding: number, value: __internal.cocos_gfx_sampler_GFXSampler): void;
+            setDynamicState(state: __internal.cocos_gfx_define_GFXDynamicState, value: any): void;
+            overridePipelineStates(original: __internal.cocos_3d_assets_effect_asset_IPassInfo, overrides: __internal.cocos_renderer_core_pass_PassOverrides): void;
             update(): void;
             destroy(): void;
-            tryCompile(defineOverrides?: __unexported.cocos_renderer_core_pass_IDefineMap): boolean;
-            createPipelineState(): __unexported.cocos_gfx_pipeline_state_GFXPipelineState | null;
-            destroyPipelineState(pipelineStates: __unexported.cocos_gfx_pipeline_state_GFXPipelineState): void;
+            tryCompile(defineOverrides?: __internal.cocos_renderer_core_pass_IDefineMap): boolean;
+            createPipelineState(): __internal.cocos_gfx_pipeline_state_GFXPipelineState | null;
+            destroyPipelineState(pipelineStates: __internal.cocos_gfx_pipeline_state_GFXPipelineState): void;
             serializePipelineStates(): string;
-            protected _fillinPipelineInfo(info: __unexported.cocos_renderer_core_pass_PassOverrides): void;
+            protected _fillinPipelineInfo(info: __internal.cocos_renderer_core_pass_PassOverrides): void;
             readonly idxInTech: number;
             readonly programName: string;
-            readonly priority: __unexported.cocos_pipeline_define_RenderPriority;
-            readonly primitive: __unexported.cocos_gfx_define_GFXPrimitiveMode;
-            readonly stage: __unexported.cocos_pipeline_define_RenderPassStage;
+            readonly priority: __internal.cocos_pipeline_define_RenderPriority;
+            readonly primitive: __internal.cocos_gfx_define_GFXPrimitiveMode;
+            readonly stage: __internal.cocos_pipeline_define_RenderPassStage;
             readonly phase: number;
-            readonly bindings: __unexported.cocos_gfx_binding_layout_IGFXBinding[];
-            readonly blendState: __unexported.cocos_gfx_pipeline_state_GFXBlendState;
-            readonly depthStencilState: __unexported.cocos_gfx_pipeline_state_GFXDepthStencilState;
-            readonly rasterizerState: __unexported.cocos_gfx_pipeline_state_GFXRasterizerState;
-            readonly dynamics: __unexported.cocos_renderer_core_pass_IPassDynamics;
+            readonly bindings: __internal.cocos_gfx_binding_layout_IGFXBinding[];
+            readonly blendState: __internal.cocos_gfx_pipeline_state_GFXBlendState;
+            readonly depthStencilState: __internal.cocos_gfx_pipeline_state_GFXDepthStencilState;
+            readonly rasterizerState: __internal.cocos_gfx_pipeline_state_GFXRasterizerState;
+            readonly dynamics: __internal.cocos_renderer_core_pass_IPassDynamics;
             readonly customizations: string[];
-            readonly shader: __unexported.cocos_gfx_shader_GFXShader;
+            readonly shader: __internal.cocos_gfx_shader_GFXShader;
         }
         export class Effect {
-            static getPassesInfo(effect: EffectAsset, techIdx: number): __unexported.cocos_3d_assets_effect_asset_IPassInfo[];
-            static parseEffect(effect: EffectAsset, info: __unexported.cocos_renderer_core_effect_IEffectInfo): Pass[];
+            static getPassesInfo(effect: EffectAsset, techIdx: number): __internal.cocos_3d_assets_effect_asset_IPassInfo[];
+            static parseEffect(effect: EffectAsset, info: __internal.cocos_renderer_core_effect_IEffectInfo): Pass[];
         }
-        var programLib: __unexported.cocos_renderer_core_program_lib_ProgramLib;
-        var samplerLib: __unexported.cocos_renderer_core_sampler_lib_SamplerLib;
+        var programLib: __internal.cocos_renderer_core_program_lib_ProgramLib;
+        var samplerLib: __internal.cocos_renderer_core_sampler_lib_SamplerLib;
         export class Light {
             enabled: any;
             color: Vec3;
@@ -89,16 +89,16 @@ declare module "Cocos3D" {
             colorTemperature: number;
             readonly colorTemperatureRGB: Vec3;
             node: any;
-            readonly type: __unexported.cocos_renderer_scene_light_LightType;
+            readonly type: __internal.cocos_renderer_scene_light_LightType;
             readonly name: string;
             protected _enabled: boolean;
             protected _color: Vec3;
             protected _useColorTemp: boolean;
             protected _colorTemp: number;
             protected _colorTempRGB: Vec3;
-            protected _scene: __unexported.cocos_renderer_scene_render_scene_RenderScene;
+            protected _scene: __internal.cocos_renderer_scene_render_scene_RenderScene;
             protected _node: Node;
-            protected _type: __unexported.cocos_renderer_scene_light_LightType;
+            protected _type: __internal.cocos_renderer_scene_light_LightType;
             protected _name: string;
             update(): void;
         }
@@ -148,7 +148,7 @@ declare module "Cocos3D" {
             getSplitFrustum(out: geometry.frustum, nearClip: number, farClip: number): void;
             screenScale: any;
             enabled: any;
-            readonly view: __unexported.cocos_pipeline_render_view_RenderView;
+            readonly view: __internal.cocos_pipeline_render_view_RenderView;
             node: Node;
             readonly isWindowSize: boolean;
             orthoHeight: any;
@@ -161,7 +161,7 @@ declare module "Cocos3D" {
             clearDepth: any;
             clearStencil: any;
             clearFlag: any;
-            readonly scene: __unexported.cocos_renderer_scene_render_scene_RenderScene;
+            readonly scene: __internal.cocos_renderer_scene_render_scene_RenderScene;
             readonly name: string;
             readonly width: number;
             readonly height: number;
@@ -175,11 +175,11 @@ declare module "Cocos3D" {
             readonly position: Vec3;
             visibility: any;
             priority: number;
-            aperture: __unexported.cocos_renderer_scene_camera_CameraAperture;
+            aperture: __internal.cocos_renderer_scene_camera_CameraAperture;
             readonly apertureValue: number;
-            shutter: __unexported.cocos_renderer_scene_camera_CameraShutter;
+            shutter: __internal.cocos_renderer_scene_camera_CameraShutter;
             readonly shutterValue: number;
-            iso: __unexported.cocos_renderer_scene_camera_CameraISO;
+            iso: __internal.cocos_renderer_scene_camera_CameraISO;
             readonly isoValue: number;
             ec: number;
             readonly exposure: number;
@@ -198,7 +198,7 @@ declare module "Cocos3D" {
         /**
              * A representation of a model
              */ export class Model {
-            scene: __unexported.cocos_renderer_scene_render_scene_RenderScene;
+            scene: __internal.cocos_renderer_scene_render_scene_RenderScene;
             readonly id: number;
             readonly subModelNum: number;
             readonly inited: boolean;
@@ -217,12 +217,12 @@ declare module "Cocos3D" {
                      * Set the user key
                      * @param {number} key
                      */ userKey: number;
-            readonly uboLocal: __unexported.cocos_pipeline_define_UBOLocal;
-            readonly localUBO: __unexported.cocos_gfx_buffer_GFXBuffer | null;
-            readonly localBindings: Map<string, __unexported.cocos_pipeline_define_IInternalBindingInst>;
+            readonly uboLocal: __internal.cocos_pipeline_define_UBOLocal;
+            readonly localUBO: __internal.cocos_gfx_buffer_GFXBuffer | null;
+            readonly localBindings: Map<string, __internal.cocos_pipeline_define_IInternalBindingInst>;
             protected _type: string;
-            protected _device: __unexported.cocos_gfx_device_GFXDevice;
-            protected _scene: __unexported.cocos_renderer_scene_render_scene_RenderScene;
+            protected _device: __internal.cocos_gfx_device_GFXDevice;
+            protected _scene: __internal.cocos_renderer_scene_render_scene_RenderScene;
             protected _node: Node;
             protected _id: number;
             protected _enabled: boolean;
@@ -231,16 +231,16 @@ declare module "Cocos3D" {
             protected _userKey: number;
             protected _worldBounds: geometry.aabb | null;
             protected _modelBounds: geometry.aabb | null;
-            protected _subModels: __unexported.cocos_renderer_scene_submodel_SubModel[];
-            protected _matPSORecord: Map<Material, __unexported.cocos_gfx_pipeline_state_GFXPipelineState[]>;
+            protected _subModels: __internal.cocos_renderer_scene_submodel_SubModel[];
+            protected _matPSORecord: Map<Material, __internal.cocos_gfx_pipeline_state_GFXPipelineState[]>;
             protected _matRefCount: Map<Material, number>;
-            protected _uboLocal: __unexported.cocos_pipeline_define_UBOLocal;
-            protected _localUBO: __unexported.cocos_gfx_buffer_GFXBuffer | null;
-            protected _localBindings: Map<string, __unexported.cocos_pipeline_define_IInternalBindingInst>;
+            protected _uboLocal: __internal.cocos_pipeline_define_UBOLocal;
+            protected _localUBO: __internal.cocos_gfx_buffer_GFXBuffer | null;
+            protected _localBindings: Map<string, __internal.cocos_pipeline_define_IInternalBindingInst>;
             protected _inited: boolean;
             protected _uboUpdated: boolean;
             destroy(): void;
-            getSubModel(idx: number): __unexported.cocos_renderer_scene_submodel_SubModel;
+            getSubModel(idx: number): __internal.cocos_renderer_scene_submodel_SubModel;
             updateTransform(): void;
             _resetUBOUpdateFlag(): void;
             updateUBOs(): void;
@@ -249,13 +249,13 @@ declare module "Cocos3D" {
                      * @param {vec3} minPos the min position of the model
                      * @param {vec3} maxPos the max position of the model
                      */ createBoundingShape(minPos?: Vec3, maxPos?: Vec3): void;
-            initSubModel(idx: number, subMeshData: __unexported.cocos_3d_assets_mesh_IRenderingSubmesh, mat: Material): void;
-            setSubModelMesh(idx: number, subMeshData: __unexported.cocos_3d_assets_mesh_IRenderingSubmesh): void;
+            initSubModel(idx: number, subMeshData: __internal.cocos_3d_assets_mesh_IRenderingSubmesh, mat: Material): void;
+            setSubModelMesh(idx: number, subMeshData: __internal.cocos_3d_assets_mesh_IRenderingSubmesh): void;
             setSubModelMaterial(idx: number, mat: Material | null): void;
             onPipelineChange(): void;
-            protected createPipelineState(mat: Material): __unexported.cocos_gfx_pipeline_state_GFXPipelineState[];
-            protected destroyPipelineState(mat: Material, pso: __unexported.cocos_gfx_pipeline_state_GFXPipelineState[]): void;
-            protected _doCreatePSO(pass: Pass): __unexported.cocos_gfx_pipeline_state_GFXPipelineState;
+            protected createPipelineState(mat: Material): __internal.cocos_gfx_pipeline_state_GFXPipelineState[];
+            protected destroyPipelineState(mat: Material, pso: __internal.cocos_gfx_pipeline_state_GFXPipelineState[]): void;
+            protected _doCreatePSO(pass: Pass): __internal.cocos_gfx_pipeline_state_GFXPipelineState;
             protected onSetLocalBindings(mat: Material): void;
             protected initLocalBindings(mat: Material | null): void;
             private allocatePSO;
@@ -276,7 +276,7 @@ declare module "Cocos3D" {
             private _vertCount;
             private _indexCount;
             setCapacity(capacity: number): void;
-            setVertexAttributes(mesh: Mesh | null, attrs: __unexported.cocos_gfx_input_assembler_IGFXAttribute[]): void;
+            setVertexAttributes(mesh: Mesh | null, attrs: __internal.cocos_gfx_input_assembler_IGFXAttribute[]): void;
             _createSubMeshData(): ArrayBuffer;
             setSubModelMaterial(idx: number, mat: Material | null): void;
             addParticleVertexData(index: number, pvdata: any[]): void;
@@ -291,7 +291,7 @@ declare module "Cocos3D" {
             bindSkeleton(skeleton: Skeleton): void;
             updateJointMatrix(iMatrix: number, matrix: vmath.mat4): void;
             commitJointMatrices(): void;
-            protected _doCreatePSO(pass: Pass): __unexported.cocos_gfx_pipeline_state_GFXPipelineState;
+            protected _doCreatePSO(pass: Pass): __internal.cocos_gfx_pipeline_state_GFXPipelineState;
             private _destroyJointStorage;
         }
     }
@@ -3479,7 +3479,7 @@ declare module "Cocos3D" {
                      * !#zh 设置对象池容量。
                      */ resize(length: number): void;
         }
-        var array: typeof __unexported.cocos_core_utils_array_cocos_core_utils_array;
+        var array: typeof __internal.cocos_core_utils_array_cocos_core_utils_array;
         /**
              * Check the object whether is number or not
              * If a number is created by using 'new Number(10086)', the typeof it will be "object"...
@@ -3842,7 +3842,7 @@ declare module "Cocos3D" {
         export type PropertyType = SimplePropertyType | SimplePropertyType[];
         /**
              * cc 属性选项。
-             */ export interface IPropertyOptions extends __unexported.cocos_core_data_utils_attibute_defines_IExposedAttributes {
+             */ export interface IPropertyOptions extends __internal.cocos_core_data_utils_attibute_defines_IExposedAttributes {
         }
         var executeInEditMode: any;
         var requireComponent: any;
@@ -4106,7 +4106,7 @@ declare module "Cocos3D" {
          *
          * @class EventTarget
          * @extends CallbacksInvoker
-         */ export class EventTarget extends __unexported.cocos_core_event_callbacks_invoker_CallbacksInvoker {
+         */ export class EventTarget extends __internal.cocos_core_event_callbacks_invoker_CallbacksInvoker {
         /**
                  * !#en Checks whether the EventTarget object has any callback registered for a specific type of event.
                  * !#zh 检查事件目标对象是否有为特定类型的事件注册的回调。
@@ -4252,7 +4252,7 @@ declare module "Cocos3D" {
                  * @param {Function} onFullScreenChange
                  */ autoFullScreen(element: any, onFullScreenChange: any): void;
     };
-    var eventManager: __unexported.cocos_core_platform_event_manager_event_manager_EventManager;
+    var eventManager: __internal.cocos_core_platform_event_manager_event_manager_EventManager;
     export class SystemEvent extends EventTarget {
         static EventType: typeof EventType;
         /**
@@ -4454,8 +4454,8 @@ declare module "Cocos3D" {
         /**
                  * !#en The current touch object
                  * !#zh 当前触点对象
-                 */ touch: __unexported.cocos_core_platform_event_manager_CCTouch_default | null;
-        currentTouch: __unexported.cocos_core_platform_event_manager_CCTouch_default | null;
+                 */ touch: __internal.cocos_core_platform_event_manager_CCTouch_default | null;
+        currentTouch: __internal.cocos_core_platform_event_manager_CCTouch_default | null;
         _eventCode: number;
         simulate: boolean;
         private _touches;
@@ -4466,9 +4466,9 @@ declare module "Cocos3D" {
         /**
                  * !#en Returns touches of event.
                  * !#zh 获取触摸点的列表。
-                 */ getTouches(): __unexported.cocos_core_platform_event_manager_CCTouch_default[];
+                 */ getTouches(): __internal.cocos_core_platform_event_manager_CCTouch_default[];
         _setEventCode(eventCode: number): void;
-        _setTouches(touches: __unexported.cocos_core_platform_event_manager_CCTouch_default[]): void;
+        _setTouches(touches: __internal.cocos_core_platform_event_manager_CCTouch_default[]): void;
         /**
                  * !#en Sets touch location.
                  * !#zh 设置当前触点位置
@@ -6368,7 +6368,7 @@ declare module "Cocos3D" {
                  * @example
                  * // get sprite component.
                  * var sprite = node.getComponent(cc.Sprite);
-                 */ getComponent<T extends Component>(classConstructor: __unexported.cocos_scene_graph_base_node_Constructor<T>): T | null;
+                 */ getComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
         /**
                  * !#en
                  * Returns the component of supplied type if the node has one attached, null if it doesn't.<br/>
@@ -6385,7 +6385,7 @@ declare module "Cocos3D" {
                  * !#zh 返回节点上指定类型的所有组件。
                  * @example
                  * var sprites = node.getComponents(cc.Sprite);
-                 */ getComponents<T extends Component>(classConstructor: __unexported.cocos_scene_graph_base_node_Constructor<T>): T[];
+                 */ getComponents<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T[];
         /**
                  * !#en Returns all components of supplied type in the node.
                  * !#zh 返回节点上指定类型的所有组件。
@@ -6397,7 +6397,7 @@ declare module "Cocos3D" {
                  * !#zh 递归查找所有子节点中第一个匹配指定类型的组件。
                  * @example
                  * var sprite = node.getComponentInChildren(cc.Sprite);
-                 */ getComponentInChildren<T extends Component>(classConstructor: __unexported.cocos_scene_graph_base_node_Constructor<T>): T | null;
+                 */ getComponentInChildren<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
         /**
                  * !#en Returns the component of supplied type in any of its children using depth first search.
                  * !#zh 递归查找所有子节点中第一个匹配指定类型的组件。
@@ -6409,7 +6409,7 @@ declare module "Cocos3D" {
                  * !#zh 递归查找自身或所有子节点中指定类型的组件
                  * @example
                  * var sprites = node.getComponentsInChildren(cc.Sprite);
-                 */ getComponentsInChildren<T extends Component>(classConstructor: __unexported.cocos_scene_graph_base_node_Constructor<T>): T[];
+                 */ getComponentsInChildren<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T[];
         /**
                  * !#en Returns all components of supplied type in self or any of its children.
                  * !#zh 递归查找自身或所有子节点中指定类型的组件
@@ -6421,7 +6421,7 @@ declare module "Cocos3D" {
                  * !#zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
                  * @example
                  * var sprite = node.addComponent(cc.Sprite);
-                 */ addComponent<T extends Component>(classConstructor: __unexported.cocos_scene_graph_base_node_Constructor<T>): T | null;
+                 */ addComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
         /**
                  * !#en Adds a component class to the node. You can also add component to node by passing in the name of the script.
                  * !#zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
@@ -6438,7 +6438,7 @@ declare module "Cocos3D" {
                  * @deprecated please destroy the component to remove it.
                  * @example
                  * node.removeComponent(cc.Sprite);
-                 */ removeComponent<T extends Component>(classConstructor: __unexported.cocos_scene_graph_base_node_Constructor<T>): void;
+                 */ removeComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): void;
         /**
                  * !#en
                  * Removes a component identified by the given name or removes the component object given.
@@ -6484,7 +6484,7 @@ declare module "Cocos3D" {
     }
     class Node extends BaseNode {
         static EventType: typeof EventType;
-        static NodeSpace: typeof __unexported.cocos_scene_graph_node_NodeSpace;
+        static NodeSpace: typeof __internal.cocos_scene_graph_node_NodeSpace;
         static isNode(obj: object): boolean;
         _pos: Vec3;
         _rot: Quat;
@@ -6524,27 +6524,27 @@ declare module "Cocos3D" {
                  * Translate the node
                  * @param trans - translation
                  * @param ns - the operating space
-                 */ translate(trans: Vec3, ns?: __unexported.cocos_scene_graph_node_NodeSpace): void;
+                 */ translate(trans: Vec3, ns?: __internal.cocos_scene_graph_node_NodeSpace): void;
         /**
                  * Rotate the node
                  * @param rot - rotation to apply
                  * @param ns - the operating space
-                 */ rotate(rot: Quat, ns?: __unexported.cocos_scene_graph_node_NodeSpace): void;
+                 */ rotate(rot: Quat, ns?: __internal.cocos_scene_graph_node_NodeSpace): void;
         /**
                  * rotate the node around X axis
                  * @param rad - rotating angle
                  * @param ns - the operating space
-                 */ pitch(rad: number, ns?: __unexported.cocos_scene_graph_node_NodeSpace): void;
+                 */ pitch(rad: number, ns?: __internal.cocos_scene_graph_node_NodeSpace): void;
         /**
                  * rotate the node around Y axis
                  * @param rad - rotating angle
                  * @param ns - the operating space
-                 */ yaw(rad: number, ns?: __unexported.cocos_scene_graph_node_NodeSpace): void;
+                 */ yaw(rad: number, ns?: __internal.cocos_scene_graph_node_NodeSpace): void;
         /**
                  * rotate the node around Z axis
                  * @param rad - rotating angle
                  * @param ns - the operating space
-                 */ roll(rad: number, ns?: __unexported.cocos_scene_graph_node_NodeSpace): void;
+                 */ roll(rad: number, ns?: __internal.cocos_scene_graph_node_NodeSpace): void;
         direction: Vec3;
         /**
                  * Set rotation by lookAt target point
@@ -6710,16 +6710,16 @@ declare module "Cocos3D" {
         /**
                  * !#en Per-scene level rendering info
                  * !#zh 场景级别的渲染信息
-                 */ _globals: __unexported.cocos_scene_graph_scene_globals_SceneGlobals;
+                 */ _globals: __internal.cocos_scene_graph_scene_globals_SceneGlobals;
         /**
                  * For internal usage.
-                 */ _renderScene: __unexported.cocos_renderer_scene_render_scene_RenderScene | null;
+                 */ _renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
         protected _inited: boolean;
         protected _prefabSyncedInLiveReload: boolean;
         protected dependAssets: null;
         destroy(): void;
-        readonly renderScene: __unexported.cocos_renderer_scene_render_scene_RenderScene | null;
-        readonly globals: __unexported.cocos_scene_graph_scene_globals_SceneGlobals;
+        readonly renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
+        readonly globals: __internal.cocos_scene_graph_scene_globals_SceneGlobals;
         _onHierarchyChanged(): void;
         protected _instantiate(): void;
         protected _load(): void;
@@ -6913,7 +6913,7 @@ declare module "Cocos3D" {
                  * !#zh
                  * 使用该资源在场景中创建一个新节点。<br/>
                  * 如果这类资源没有相应的节点类型，该方法应该是空的。
-                 */ createNode?(callback: __unexported.cocos_assets_asset_CreateNodeCallback): void;
+                 */ createNode?(callback: __internal.cocos_assets_asset_CreateNodeCallback): void;
     }
     /**
          * !#en Class for scene handling.
@@ -6934,7 +6934,7 @@ declare module "Cocos3D" {
                  */ asyncLoadAssets: boolean;
     }
     export class SpriteAtlas extends Asset {
-        spriteFrames: __unexported.cocos_assets_sprite_atlas_ISpriteFrameList;
+        spriteFrames: __internal.cocos_assets_sprite_atlas_ISpriteFrameList;
         /**
                  * Returns the texture of the sprite atlas
                  * @method getTexture
@@ -6995,12 +6995,12 @@ declare module "Cocos3D" {
     }
     /**
          * Class ImageAsset.
-         */ export class ImageAsset extends __unexported.cocos_assets_image_asset_ImageAsset_base {
-        _nativeAsset: __unexported.cocos_assets_image_asset_ImageSource;
+         */ export class ImageAsset extends __internal.cocos_assets_image_asset_ImageAsset_base {
+        _nativeAsset: __internal.cocos_assets_image_asset_ImageSource;
         readonly data: ArrayBufferView | HTMLCanvasElement | HTMLImageElement | null;
         readonly width: number;
         readonly height: number;
-        readonly format: __unexported.cocos_assets_asset_enum_PixelFormat;
+        readonly format: __internal.cocos_assets_asset_enum_PixelFormat;
         /**
                  * !#en
                  * The url of the texture, this could be empty if the texture wasn't created via a file.
@@ -7012,14 +7012,14 @@ declare module "Cocos3D" {
         private _url;
         private _exportedExts;
         private _format;
-        reset(data: __unexported.cocos_assets_image_asset_ImageSource): void;
+        reset(data: __internal.cocos_assets_image_asset_ImageSource): void;
         _serialize(): string;
         _deserialize(data: string, handle: any): void;
         _onDataComplete(): void;
     }
     /**
          * Represents a 2-dimension texture.
-         */ export class Texture2D extends __unexported.cocos_assets_texture_base_TextureBase {
+         */ export class Texture2D extends __internal.cocos_assets_texture_base_TextureBase {
         /**
                  * Gets the mipmap images.
                  * Note that the result do not contains the auto generated mipmaps.
@@ -7107,7 +7107,7 @@ declare module "Cocos3D" {
         fntDataStr: string;
         spriteFrame: SpriteFrame | null;
         fontSize: number;
-        fntConfig: __unexported.cocos_assets_bitmap_font_IConfig | null;
+        fntConfig: __internal.cocos_assets_bitmap_font_IConfig | null;
     }
     /**
          * !#en Class for Font handling.
@@ -7370,7 +7370,7 @@ declare module "Cocos3D" {
                  * @type {Boolean}
                  * @private
                  */ _enabled: boolean;
-        _sceneGetter: null | (() => __unexported.cocos_renderer_scene_render_scene_RenderScene);
+        _sceneGetter: null | (() => __internal.cocos_renderer_scene_render_scene_RenderScene);
         /**
                  * For internal usage.
                  */ _id: string;
@@ -7379,7 +7379,7 @@ declare module "Cocos3D" {
                  * all event callbacks will be removed in _onPreDestroy
                  */ private _eventTargets;
         private __scriptUuid;
-        _getRenderScene(): __unexported.cocos_renderer_scene_render_scene_RenderScene;
+        _getRenderScene(): __internal.cocos_renderer_scene_render_scene_RenderScene;
         /**
                  * !#en Adds a component class to the node. You can also add component to node by passing in the name of the script.
                  * !#zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
@@ -7713,17 +7713,17 @@ declare module "Cocos3D" {
          *  - resume : 恢复播放时
          *  - lastframe : 假如动画循环次数大于 1，当动画播放到最后一帧时
          *  - finished : 动画播放完成时
-         */ export class AnimationComponent extends __unexported.cocos_components_animation_component_AnimationComponent_base {
+         */ export class AnimationComponent extends __internal.cocos_components_animation_component_AnimationComponent_base {
         /**
                  * !#en Animation will play the default clip when start game.
                  * !#zh 在勾选自动播放或调用 play() 时默认播放的动画剪辑。
-                 */ defaultClip: __unexported.cocos_animation_animation_clip_AnimationClip | null;
+                 */ defaultClip: __internal.cocos_animation_animation_clip_AnimationClip | null;
         /**
                  * !#en Current played clip.
                  * !#zh 当前播放的动画剪辑。
-                 */ currentClip: __unexported.cocos_animation_animation_clip_AnimationClip | null;
-        clips: (__unexported.cocos_animation_animation_clip_AnimationClip | null)[];
-        static EventType: typeof __unexported.cocos_components_animation_component_EventType;
+                 */ currentClip: __internal.cocos_animation_animation_clip_AnimationClip | null;
+        clips: (__internal.cocos_animation_animation_clip_AnimationClip | null)[];
+        static EventType: typeof __internal.cocos_components_animation_component_EventType;
         /**
                  * !#en Whether the animation should auto play the default clip when start game.
                  * !#zh 是否在运行游戏后自动播放默认动画剪辑。
@@ -7744,7 +7744,7 @@ declare module "Cocos3D" {
         /**
                  * !#en Get all the clips used in this animation.
                  * !#zh 获取动画组件上的所有动画剪辑。
-                 */ getClips(): (__unexported.cocos_animation_animation_clip_AnimationClip | null)[];
+                 */ getClips(): (__internal.cocos_animation_animation_clip_AnimationClip | null)[];
         /**
                  * !#en Plays an animation and stop other animations.
                  * !#zh 播放指定的动画，并且停止当前正在播放动画。如果没有指定动画，则播放默认动画。
@@ -7755,18 +7755,18 @@ declare module "Cocos3D" {
                  * @example
                  * var animCtrl = this.node.getComponent(cc.Animation);
                  * animCtrl.play("linear");
-                 */ play(name?: string, startTime?: number): __unexported.cocos_animation_animation_state_AnimationState;
-        crossFade(name?: string, duration?: number): __unexported.cocos_animation_animation_state_AnimationState;
+                 */ play(name?: string, startTime?: number): __internal.cocos_animation_animation_state_AnimationState;
+        crossFade(name?: string, duration?: number): __internal.cocos_animation_animation_state_AnimationState;
         /**
                  * !#en Returns the animation state named name. If no animation with the specified name, the function will return null.
                  * !#zh 获取当前或者指定的动画状态，如果未找到指定动画剪辑则返回 null。
-                 */ getAnimationState(name: string): __unexported.cocos_animation_animation_state_AnimationState;
+                 */ getAnimationState(name: string): __internal.cocos_animation_animation_state_AnimationState;
         /**
                  * !#en Adds a clip to the animation with name newName. If a clip with that name already exists it will be replaced with the new clip.
                  * !#zh 添加动画剪辑，并且可以重新设置该动画剪辑的名称。
                  * @param clip the clip to add
                  * @return The AnimationState which gives full control over the animation clip.
-                 */ addClip(clip: __unexported.cocos_animation_animation_clip_AnimationClip, newName?: string): __unexported.cocos_animation_animation_state_AnimationState | undefined;
+                 */ addClip(clip: __internal.cocos_animation_animation_clip_AnimationClip, newName?: string): __internal.cocos_animation_animation_state_AnimationState | undefined;
         /**
                  * !#en
                  * Remove clip from the animation list. This will remove the clip and any animation states based on it.
@@ -7777,7 +7777,7 @@ declare module "Cocos3D" {
                  * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。
                  * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。
                  * @param {Boolean} [force=false] - If force is true, then will always remove the clip and any animation states based on it.
-                 */ removeClip(clip: __unexported.cocos_animation_animation_clip_AnimationClip, force?: boolean): void;
+                 */ removeClip(clip: __internal.cocos_animation_animation_clip_AnimationClip, force?: boolean): void;
         /**
                  * !#en
                  * Register animation event callback.
@@ -7808,7 +7808,7 @@ declare module "Cocos3D" {
                  *
                  * // register event to all animation
                  * animation.on('play', this.onPlay, this);
-                 */ on(type: string, callback: (state: __unexported.cocos_animation_animation_state_AnimationState) => void, target?: Object | null, useCapture?: boolean): __unexported.cocos_core_event_event_target_factory_IEventTargetCallback | undefined;
+                 */ on(type: string, callback: (state: __internal.cocos_animation_animation_state_AnimationState) => void, target?: Object | null, useCapture?: boolean): __internal.cocos_core_event_event_target_factory_IEventTargetCallback | undefined;
         /**
                  * !#en
                  * Unregister animation event callback.
@@ -7826,18 +7826,18 @@ declare module "Cocos3D" {
                  * @example
                  * // unregister event to all animation
                  * animation.off('play', this.onPlay, this);
-                 */ off(type: string, callback: __unexported.cocos_core_event_event_target_factory_IEventTargetCallback, target?: Object | null, useCapture?: boolean): void;
+                 */ off(type: string, callback: __internal.cocos_core_event_event_target_factory_IEventTargetCallback, target?: Object | null, useCapture?: boolean): void;
         private _init;
         private _startCrossFade;
         private _createStates;
         private _createState;
     }
-    export function createRaycastResult(): __unexported.cocos_3d_physics_raycast_result_RaycastResult;
+    export function createRaycastResult(): __internal.cocos_3d_physics_raycast_result_RaycastResult;
     namespace utils {
         /**
              * save a color buffer to a PPM file
              */ export function toPPM(buffer: Uint8Array, w: number, h: number): string;
-        export function createMesh(geometry: __unexported.cocos_3d_primitive_define_IGeometry, out?: Mesh, options?: ICreateMeshOptions): Mesh;
+        export function createMesh(geometry: __internal.cocos_3d_primitive_define_IGeometry, out?: Mesh, options?: ICreateMeshOptions): Mesh;
         export function calculateBoneSpaceBounds(mesh: Mesh, skeleton: Skeleton): (geometry.aabb | null)[];
         /**
              * Finds a node by hierarchy path, the path is case-sensitive.
@@ -7854,19 +7854,19 @@ declare module "Cocos3D" {
              * This function generates a box with specified extents and centered at origin,
              * but may be repositioned through `center` option).
              * @param options Options.
-             */ export function box(options?: __unexported.cocos_3d_primitive_box_IBoxOptions): __unexported.cocos_3d_primitive_define_IGeometry;
-        export function cone(radius?: number, height?: number, opts?: RecursivePartial<__unexported.cocos_3d_primitive_cone_IConeOptions>): __unexported.cocos_3d_primitive_define_IGeometry;
-        export function cylinder(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__unexported.cocos_3d_primitive_cylinder_ICylinderOptions>): __unexported.cocos_3d_primitive_define_IGeometry;
+             */ export function box(options?: __internal.cocos_3d_primitive_box_IBoxOptions): __internal.cocos_3d_primitive_define_IGeometry;
+        export function cone(radius?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cone_IConeOptions>): __internal.cocos_3d_primitive_define_IGeometry;
+        export function cylinder(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cylinder_ICylinderOptions>): __internal.cocos_3d_primitive_define_IGeometry;
         /**
              * This function generates a plane on XOZ plane with positive Y direction.
              * @param options Options.
-             */ export function plane(options?: __unexported.cocos_3d_primitive_plane_IPlaneOptions): __unexported.cocos_3d_primitive_define_IGeometry;
+             */ export function plane(options?: __internal.cocos_3d_primitive_plane_IPlaneOptions): __internal.cocos_3d_primitive_define_IGeometry;
         /**
              * Generate a quad with width and height both to 1, centered at origin.
              * @param options Options.
-             */ export function quad(options?: __unexported.cocos_3d_primitive_define_IGeometryOptions): __unexported.cocos_3d_primitive_define_IGeometry;
-        export function sphere(radius?: number, opts?: RecursivePartial<__unexported.cocos_3d_primitive_sphere_ISphereOptions>): __unexported.cocos_3d_primitive_define_IGeometry;
-        export function torus(radius?: number, tube?: number, opts?: RecursivePartial<__unexported.cocos_3d_primitive_torus_ITorusOptions>): {
+             */ export function quad(options?: __internal.cocos_3d_primitive_define_IGeometryOptions): __internal.cocos_3d_primitive_define_IGeometry;
+        export function sphere(radius?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_sphere_ISphereOptions>): __internal.cocos_3d_primitive_define_IGeometry;
+        export function torus(radius?: number, tube?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_torus_ITorusOptions>): {
             positions: number[];
             normals: number[];
             uvs: number[];
@@ -7875,7 +7875,7 @@ declare module "Cocos3D" {
             maxPos: vmath.vec3;
             boundingRadius: number;
         };
-        export function capsule(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__unexported.cocos_3d_primitive_capsule_ICapsuteOptions>): {
+        export function capsule(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_capsule_ICapsuteOptions>): {
             positions: number[];
             normals: number[];
             uvs: number[];
@@ -7887,18 +7887,18 @@ declare module "Cocos3D" {
         /**
              * Generate a circle with radius 1, centered at origin.
              * @param options Options.
-             */ export function circle(options?: RecursivePartial<__unexported.cocos_3d_primitive_circle_ICircleOptions> | __unexported.cocos_3d_primitive_circle_ICircleOptions): __unexported.cocos_3d_primitive_define_IGeometry;
-        export function translate(geometry: __unexported.cocos_3d_primitive_define_IGeometry, offset: {
+             */ export function circle(options?: RecursivePartial<__internal.cocos_3d_primitive_circle_ICircleOptions> | __internal.cocos_3d_primitive_circle_ICircleOptions): __internal.cocos_3d_primitive_define_IGeometry;
+        export function translate(geometry: __internal.cocos_3d_primitive_define_IGeometry, offset: {
             x?: number;
             y?: number;
             z?: number;
-        }): __unexported.cocos_3d_primitive_define_IGeometry;
-        export function scale(geometry: __unexported.cocos_3d_primitive_define_IGeometry, value: {
+        }): __internal.cocos_3d_primitive_define_IGeometry;
+        export function scale(geometry: __internal.cocos_3d_primitive_define_IGeometry, value: {
             x?: number;
             y?: number;
             z?: number;
-        }): __unexported.cocos_3d_primitive_define_IGeometry;
-        export function wireframed(geometry: __unexported.cocos_3d_primitive_define_IGeometry): __unexported.cocos_3d_primitive_define_IGeometry;
+        }): __internal.cocos_3d_primitive_define_IGeometry;
+        export function wireframed(geometry: __internal.cocos_3d_primitive_define_IGeometry): __internal.cocos_3d_primitive_define_IGeometry;
         /**
              * @deprecated
              */ export function wireframe(indices: number[]): number[];
@@ -7907,7 +7907,7 @@ declare module "Cocos3D" {
              */ export function invWinding(indices: number[]): number[];
         /**
              * @deprecated
-             */ export function toWavefrontOBJ(primitive: __unexported.cocos_3d_primitive_define_IGeometry, scale?: number): string;
+             */ export function toWavefrontOBJ(primitive: __internal.cocos_3d_primitive_define_IGeometry, scale?: number): string;
         /**
              * @deprecated
              */ export function normals(positions: number[], normals: number[], length?: number): any[];
@@ -8448,10 +8448,10 @@ declare module "Cocos3D" {
                      * @param {number} maxDepth - maximum depth of this tree
                      * @param {function(entry: Object): Object} getBoundingShape - a function takes an entry and returns its primitive info
                      * @return {OctreeBlock[]} the sub blocks
-                     */ static createBlocks(worldMin: any, worldMax: any, entries: any, blockCapacity: any, curDepth: any, maxDepth: any, getBoundingShape: any): __unexported.cocos_3d_geom_utils_octree_OctreeBlock[];
+                     */ static createBlocks(worldMin: any, worldMax: any, entries: any, blockCapacity: any, curDepth: any, maxDepth: any, getBoundingShape: any): __internal.cocos_3d_geom_utils_octree_OctreeBlock[];
             blockCapacity: number;
             maxDepth: number;
-            blocks: __unexported.cocos_3d_geom_utils_octree_OctreeBlock[];
+            blocks: __internal.cocos_3d_geom_utils_octree_OctreeBlock[];
             dynamics: any[];
             private _selection;
             private _getBoundingShape;
@@ -8496,11 +8496,11 @@ declare module "Cocos3D" {
             addKey(keyFrame: Keyframe): void;
             evaluate_slow(time: number): number;
             evaluate(time: number): number;
-            calcOptimizedKey(optKey: __unexported.cocos_3d_geom_utils_curve_OptimizedKey, leftIndex: number, rightIndex: number): void;
+            calcOptimizedKey(optKey: __internal.cocos_3d_geom_utils_curve_OptimizedKey, leftIndex: number, rightIndex: number): void;
             private findIndex;
         }
     }
-    export class AudioClip extends __unexported.cocos_3d_assets_audio_clip_AudioClip_base {
+    export class AudioClip extends __internal.cocos_3d_assets_audio_clip_AudioClip_base {
         _nativeAsset: any;
         readonly loadMode: number;
         readonly state: number;
@@ -8537,16 +8537,16 @@ declare module "Cocos3D" {
         static get(name: string): EffectAsset | null;
         static getAll(): Record<string, EffectAsset>;
         protected static _effects: Record<string, EffectAsset>;
-        techniques: __unexported.cocos_3d_assets_effect_asset_ITechniqueInfo[];
-        shaders: __unexported.cocos_3d_assets_effect_asset_IShaderInfo[];
+        techniques: __internal.cocos_3d_assets_effect_asset_ITechniqueInfo[];
+        shaders: __internal.cocos_3d_assets_effect_asset_IShaderInfo[];
         onLoaded(): void;
     }
     export class Material extends Asset {
         static getInstantiatedMaterial(mat: Material, rndCom: RenderableComponent, inEditor: boolean): Material;
         protected _effectAsset: EffectAsset | null;
         protected _techIdx: number;
-        protected _defines: __unexported.cocos_renderer_core_pass_IDefineMap[];
-        protected _states: __unexported.cocos_renderer_core_pass_PassOverrides[];
+        protected _defines: __internal.cocos_renderer_core_pass_IDefineMap[];
+        protected _states: __internal.cocos_renderer_core_pass_PassOverrides[];
         protected _props: Array<Record<string, any>>;
         protected _passes: renderer.Pass[];
         protected _owner: RenderableComponent | null;
@@ -8556,7 +8556,7 @@ declare module "Cocos3D" {
         readonly technique: number;
         readonly passes: renderer.Pass[];
         readonly hash: number;
-        initialize(info: __unexported.cocos_3d_assets_material_IMaterialInfo): void;
+        initialize(info: __internal.cocos_3d_assets_material_IMaterialInfo): void;
         destroy(): void;
         /**
                  * Convenient setter provided for quick material setup.
@@ -8565,8 +8565,8 @@ declare module "Cocos3D" {
                  */ setProperty(name: string, val: any, passIdx?: number): void;
         getProperty(name: string, passIdx?: number): any;
         copy(mat: Material): void;
-        recompileShaders(defineOverrides: __unexported.cocos_renderer_core_pass_IDefineMap | __unexported.cocos_renderer_core_pass_IDefineMap[]): void;
-        overridePipelineStates(overrides: __unexported.cocos_renderer_core_pass_PassOverrides, passIdx?: number): void;
+        recompileShaders(defineOverrides: __internal.cocos_renderer_core_pass_IDefineMap | __internal.cocos_renderer_core_pass_IDefineMap[]): void;
+        overridePipelineStates(overrides: __internal.cocos_renderer_core_pass_PassOverrides, passIdx?: number): void;
         onLoaded(): void;
         protected _prepareInfo(patch: object | object[], cur: object[]): void;
         protected _update(keepProps?: boolean): void;
@@ -8587,7 +8587,7 @@ declare module "Cocos3D" {
                  * Max position of this mesh.
                  * @deprecated Use this.struct.maxPosition instead.
                  */ readonly maxPosition: Vec3 | undefined;
-        readonly struct: __unexported.cocos_3d_assets_mesh_IMeshStruct;
+        readonly struct: __internal.cocos_3d_assets_mesh_IMeshStruct;
         readonly data: Uint8Array | null;
         private _struct;
         private _data;
@@ -8600,20 +8600,20 @@ declare module "Cocos3D" {
                  * Assigns new mesh struct to this.
                  * @param struct The new mesh's struct.
                  * @param data The new mesh's data.
-                 */ assign(struct: __unexported.cocos_3d_assets_mesh_IMeshStruct, data: Uint8Array): void;
+                 */ assign(struct: __internal.cocos_3d_assets_mesh_IMeshStruct, data: Uint8Array): void;
         /**
                  * Gets the rendering mesh.
-                 */ readonly renderingMesh: __unexported.cocos_3d_assets_mesh_RenderingMesh;
+                 */ readonly renderingMesh: __internal.cocos_3d_assets_mesh_RenderingMesh;
         /**
                  * !#en
                  * Gets the specified submesh.
                  * @param index Index of the specified submesh.
                  * @deprecated Use this.renderingMesh.getSubmesh(index).inputAssembler instead.
-                 */ getSubMesh(index: number): __unexported.cocos_3d_assets_mesh_IRenderingSubmesh;
+                 */ getSubMesh(index: number): __internal.cocos_3d_assets_mesh_IRenderingSubmesh;
         merge(mesh: Mesh, validate?: boolean): boolean;
         validateMergingMesh(mesh: Mesh): boolean;
-        readAttribute(primitiveIndex: number, attributeName: __unexported.cocos_gfx_define_GFXAttributeName): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
-        copyAttribute(primitiveIndex: number, attributeName: __unexported.cocos_gfx_define_GFXAttributeName, buffer: ArrayBuffer, stride: number, offset: number): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
+        readAttribute(primitiveIndex: number, attributeName: __internal.cocos_gfx_define_GFXAttributeName): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
+        copyAttribute(primitiveIndex: number, attributeName: __internal.cocos_gfx_define_GFXAttributeName, buffer: ArrayBuffer, stride: number, offset: number): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
         readIndices(primitiveIndex: number): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
         copyIndices(primitiveIndex: number, typedArray: any): null | undefined;
         private _init;
@@ -8660,7 +8660,7 @@ declare module "Cocos3D" {
                  * If there's no matching ContactMaterial, the value from .defaultContactMaterial in the World will be used
                  */ restitution: number;
     }
-    var builtinResMgr: __unexported.cocos_3d_builtin_init_BuiltinResMgr;
+    var builtinResMgr: __internal.cocos_3d_builtin_init_BuiltinResMgr;
     /**
          * A representation of a single audio source,
          * contains basic functionalities like play, pause and stop.
@@ -8850,12 +8850,12 @@ declare module "Cocos3D" {
         protected onSceneChanged(scene: Scene): void;
     }
     export class LightComponent extends Component {
-        static Type: typeof __unexported.cocos_renderer_scene_light_LightType;
+        static Type: typeof __internal.cocos_renderer_scene_light_LightType;
         static PhotometricTerm: any;
         protected _color: Color;
         protected _useColorTemperature: boolean;
         protected _colorTemperature: number;
-        protected _type: __unexported.cocos_renderer_scene_light_LightType;
+        protected _type: __internal.cocos_renderer_scene_light_LightType;
         protected _light: renderer.Light | null;
         /**
                  * @en
@@ -8880,12 +8880,12 @@ declare module "Cocos3D" {
                  * The light type
                  * @zh
                  * 光源类型
-                 */ readonly type: __unexported.cocos_renderer_scene_light_LightType;
+                 */ readonly type: __internal.cocos_renderer_scene_light_LightType;
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        protected _createLight(scene?: __unexported.cocos_renderer_scene_render_scene_RenderScene): void;
-        protected _destroyLight(scene?: __unexported.cocos_renderer_scene_render_scene_RenderScene): void;
+        protected _createLight(scene?: __internal.cocos_renderer_scene_render_scene_RenderScene): void;
+        protected _destroyLight(scene?: __internal.cocos_renderer_scene_render_scene_RenderScene): void;
     }
     /**
          * 模型组件
@@ -8956,7 +8956,7 @@ declare module "Cocos3D" {
         private _bindSkeleton;
         private _resetSkinningTarget;
     }
-    export class BoxColliderComponent extends __unexported.cocos_3d_framework_physics_collider_component_ColliderComponentBase {
+    export class BoxColliderComponent extends __internal.cocos_3d_framework_physics_collider_component_ColliderComponentBase {
         private _size;
         private _shape;
         __preload(): void;
@@ -8972,22 +8972,22 @@ declare module "Cocos3D" {
                  */ capacity: number;
         /**
                  * 粒子初始颜色
-                 */ startColor: __unexported.cocos_3d_framework_particle_animator_gradient_range_default;
+                 */ startColor: __internal.cocos_3d_framework_particle_animator_gradient_range_default;
         /**
                  * 粒子初始大小
-                 */ startSize: __unexported.cocos_3d_framework_particle_animator_curve_range_default;
+                 */ startSize: __internal.cocos_3d_framework_particle_animator_curve_range_default;
         /**
                  * 粒子初始速度
-                 */ startSpeed: __unexported.cocos_3d_framework_particle_animator_curve_range_default;
+                 */ startSpeed: __internal.cocos_3d_framework_particle_animator_curve_range_default;
         /**
                  * 粒子初始旋转角度
-                 */ startRotation: __unexported.cocos_3d_framework_particle_animator_curve_range_default;
+                 */ startRotation: __internal.cocos_3d_framework_particle_animator_curve_range_default;
         /**
                  * 粒子系统开始运行后，延迟粒子发射的时间
-                 */ startDelay: __unexported.cocos_3d_framework_particle_animator_curve_range_default;
+                 */ startDelay: __internal.cocos_3d_framework_particle_animator_curve_range_default;
         /**
                  * 粒子生命周期
-                 */ startLifetime: __unexported.cocos_3d_framework_particle_animator_curve_range_default;
+                 */ startLifetime: __internal.cocos_3d_framework_particle_animator_curve_range_default;
         /**
                  * 粒子系统运行时间
                  */ duration: number;
@@ -9013,43 +9013,43 @@ declare module "Cocos3D" {
                  */ playOnAwake: boolean;
         /**
                  * 粒子受重力影响的重力系数
-                 */ gravityModifier: __unexported.cocos_3d_framework_particle_animator_curve_range_default;
+                 */ gravityModifier: __internal.cocos_3d_framework_particle_animator_curve_range_default;
         /**
                  * 每秒发射的粒子数
-                 */ rateOverTime: __unexported.cocos_3d_framework_particle_animator_curve_range_default;
+                 */ rateOverTime: __internal.cocos_3d_framework_particle_animator_curve_range_default;
         /**
                  * 每移动单位距离发射的粒子数
-                 */ rateOverDistance: __unexported.cocos_3d_framework_particle_animator_curve_range_default;
+                 */ rateOverDistance: __internal.cocos_3d_framework_particle_animator_curve_range_default;
         /**
                  * 设定在指定时间发射指定数量的粒子的 Brust 的数量
                  */ bursts: any[];
         /**
                  * 颜色控制模块
-                 */ colorOverLifetimeModule: __unexported.cocos_3d_framework_particle_animator_color_overtime_default;
+                 */ colorOverLifetimeModule: __internal.cocos_3d_framework_particle_animator_color_overtime_default;
         /**
                  * 粒子发射器模块
-                 */ shapeModule: __unexported.cocos_3d_framework_particle_emitter_shape_module_default;
+                 */ shapeModule: __internal.cocos_3d_framework_particle_emitter_shape_module_default;
         /**
                  * 粒子大小模块
-                 */ sizeOvertimeModule: __unexported.cocos_3d_framework_particle_animator_size_overtime_default;
+                 */ sizeOvertimeModule: __internal.cocos_3d_framework_particle_animator_size_overtime_default;
         /**
                  * 粒子速度模块
-                 */ velocityOvertimeModule: __unexported.cocos_3d_framework_particle_animator_velocity_overtime_default;
+                 */ velocityOvertimeModule: __internal.cocos_3d_framework_particle_animator_velocity_overtime_default;
         /**
                  * 粒子加速度模块
-                 */ forceOvertimeModule: __unexported.cocos_3d_framework_particle_animator_force_overtime_default;
+                 */ forceOvertimeModule: __internal.cocos_3d_framework_particle_animator_force_overtime_default;
         /**
                  * 粒子限制速度模块（只支持 CPU 粒子）
-                 */ limitVelocityOvertimeModule: __unexported.cocos_3d_framework_particle_animator_limit_velocity_overtime_default;
+                 */ limitVelocityOvertimeModule: __internal.cocos_3d_framework_particle_animator_limit_velocity_overtime_default;
         /**
                  * 粒子旋转模块
-                 */ rotationOvertimeModule: __unexported.cocos_3d_framework_particle_animator_rotation_overtime_default;
+                 */ rotationOvertimeModule: __internal.cocos_3d_framework_particle_animator_rotation_overtime_default;
         /**
                  * 贴图动画模块
-                 */ textureAnimationModule: __unexported.cocos_3d_framework_particle_animator_texture_animation_default;
+                 */ textureAnimationModule: __internal.cocos_3d_framework_particle_animator_texture_animation_default;
         /**
                  * 粒子轨迹模块
-                 */ trailModule: __unexported.cocos_3d_framework_particle_renderer_trail_default;
+                 */ trailModule: __internal.cocos_3d_framework_particle_renderer_trail_default;
         private renderer;
         private _isPlaying;
         private _isPaused;
@@ -9096,7 +9096,7 @@ declare module "Cocos3D" {
         readonly isEmitting: boolean;
         readonly time: number;
     }
-    export class RigidBodyComponent extends __unexported.cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent {
+    export class RigidBodyComponent extends __internal.cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent {
         private _material;
         private _mass;
         private _linearDamping;
@@ -9123,7 +9123,7 @@ declare module "Cocos3D" {
         sleep(): void;
         setCollisionFilter(group: number, mask: number): void;
     }
-    export class SphereColliderComponent extends __unexported.cocos_3d_framework_physics_collider_component_ColliderComponentBase {
+    export class SphereColliderComponent extends __internal.cocos_3d_framework_physics_collider_component_ColliderComponentBase {
         private _radius;
         private _shape;
         __preload(): void;
@@ -9162,7 +9162,7 @@ declare module "Cocos3D" {
         resume(): void;
         pause(): void;
         update(deltaTime: number): void;
-        readonly world: __unexported.cocos_3d_physics_api_PhysicsWorldBase;
+        readonly world: __internal.cocos_3d_physics_api_PhysicsWorldBase;
     }
     export class CircularPool<T = {}> {
         private _cursor;
@@ -9188,10 +9188,10 @@ declare module "Cocos3D" {
         private _head;
         private _tail;
         private _pool;
-        readonly head: __unexported.cocos_3d_memop_linked_array_INode | null;
-        readonly tail: __unexported.cocos_3d_memop_linked_array_INode | null;
+        readonly head: __internal.cocos_3d_memop_linked_array_INode | null;
+        readonly tail: __internal.cocos_3d_memop_linked_array_INode | null;
         readonly length: number;
-        add(): __unexported.cocos_3d_memop_linked_array_INode;
+        add(): __internal.cocos_3d_memop_linked_array_INode;
         remove(node: any): void;
         forEach(fn: any, binder: any): void;
     }
@@ -9229,12 +9229,12 @@ declare module "Cocos3D" {
         reset(): void;
     };
     export class MeshBuffer {
-        batcher: __unexported.cocos_renderer_ui_ui_UI;
+        batcher: __internal.cocos_renderer_ui_ui_UI;
         vData: Float32Array | null;
         iData: Uint16Array | null;
-        vb: __unexported.cocos_gfx_buffer_GFXBuffer | null;
-        ib: __unexported.cocos_gfx_buffer_GFXBuffer | null;
-        ia: __unexported.cocos_gfx_input_assembler_GFXInputAssembler | null;
+        vb: __internal.cocos_gfx_buffer_GFXBuffer | null;
+        ib: __internal.cocos_gfx_buffer_GFXBuffer | null;
+        ia: __internal.cocos_gfx_input_assembler_GFXInputAssembler | null;
         byteStart: number;
         byteOffset: number;
         indiceStart: number;
@@ -9246,7 +9246,7 @@ declare module "Cocos3D" {
         private _initVDataCount;
         private _initIDataCount;
         private _outofCallback;
-        initialize(attrs: __unexported.cocos_gfx_input_assembler_IGFXAttribute[], outofCallback: ((...args: number[]) => void) | null): void;
+        initialize(attrs: __internal.cocos_gfx_input_assembler_IGFXAttribute[], outofCallback: ((...args: number[]) => void) | null): void;
         request(vertexCount: number, indiceCount: number): boolean;
         reset(): void;
         destroy(): void;
@@ -9356,8 +9356,8 @@ declare module "Cocos3D" {
                  */ readonly visibility: number;
         protected _priority: number;
         protected _visibility: number;
-        updateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): void;
-        postUpdateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): void;
+        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
+        postUpdateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
     }
     /**
          * !#en
@@ -9432,7 +9432,7 @@ declare module "Cocos3D" {
                  * !#zh 按钮状态改变时过渡方式。
                  * @property {Button.Transition} transition
                  * @default Button.Transition.Node
-                 */ transition: __unexported.cocos_3d_ui_components_button_component_Transition;
+                 */ transition: __internal.cocos_3d_ui_components_button_component_Transition;
         /**
                  * !#en Normal state color.
                  * !#zh 普通状态下按钮所显示的颜色。
@@ -9499,7 +9499,7 @@ declare module "Cocos3D" {
                  * -如果 Transition type 选择 Button.Transition.Sprite，按钮会对目标 Sprite 进行 Sprite 之间的过渡。
                  * @property {Node} target
                  */ target: Node | null;
-        static Transition: typeof __unexported.cocos_3d_ui_components_button_component_Transition;
+        static Transition: typeof __internal.cocos_3d_ui_components_button_component_Transition;
         /**
                  * !#en If Button is clicked, it will trigger event's handler
                  * !#zh 按钮的点击事件列表。
@@ -9578,13 +9578,13 @@ declare module "Cocos3D" {
                  * 注意：这个选项对 web 平台与 desktop 平台无效。
                  * @property {EditBox.KeyboardReturnType} returnType
                  * @default KeyboardReturnType.DEFAULT
-                 */ returnType: __unexported.cocos_3d_ui_components_editbox_types_KeyboardReturnType;
+                 */ returnType: __internal.cocos_3d_ui_components_editbox_types_KeyboardReturnType;
         /**
                  * !#en Set the input flags that are to be applied to the EditBox.
                  * !#zh 指定输入标志位，可以指定输入方式为密码或者单词首字母大写。
                  * @property {EditBox.InputFlag} inputFlag
                  * @default InputFlag.DEFAULT
-                 */ inputFlag: __unexported.cocos_3d_ui_components_editbox_types_InputFlag;
+                 */ inputFlag: __internal.cocos_3d_ui_components_editbox_types_InputFlag;
         /**
                  * !#en
                  * Set the input mode of the edit box.
@@ -9593,7 +9593,7 @@ declare module "Cocos3D" {
                  * 指定输入模式: ANY表示多行输入，其它都是单行输入，移动平台上还可以指定键盘样式。
                  * @property {EditBox.InputMode} inputMode
                  * @default InputMode.ANY
-                 */ inputMode: __unexported.cocos_3d_ui_components_editbox_types_InputMode;
+                 */ inputMode: __internal.cocos_3d_ui_components_editbox_types_InputMode;
         /**
                  * !#en Font size of the input text.
                  * !#zh 输入框文本的字体大小
@@ -9644,10 +9644,10 @@ declare module "Cocos3D" {
                  * !#zh 修改 DOM 输入元素的 tabIndex（这个属性只有在 Web 上面修改有意义）。
                  * @property {Number} tabIndex
                  */ tabIndex: number;
-        static _EditBoxImpl: typeof __unexported.cocos_3d_ui_components_editbox_edit_box_impl_EditBoxImpl;
-        static KeyboardReturnType: typeof __unexported.cocos_3d_ui_components_editbox_types_KeyboardReturnType;
-        static InputFlag: typeof __unexported.cocos_3d_ui_components_editbox_types_InputFlag;
-        static InputMode: typeof __unexported.cocos_3d_ui_components_editbox_types_InputMode;
+        static _EditBoxImpl: typeof __internal.cocos_3d_ui_components_editbox_edit_box_impl_EditBoxImpl;
+        static KeyboardReturnType: typeof __internal.cocos_3d_ui_components_editbox_types_KeyboardReturnType;
+        static InputFlag: typeof __internal.cocos_3d_ui_components_editbox_types_InputFlag;
+        static InputMode: typeof __internal.cocos_3d_ui_components_editbox_types_InputMode;
         /**
                  * !#en The event handler to be called when EditBox began to edit text.
                  * !#zh 开始编辑文本输入框触发的事件回调。
@@ -9668,7 +9668,7 @@ declare module "Cocos3D" {
                  * !#zh 当用户按下回车按键时的事件回调，目前不支持 windows 平台
                  * @property {Component.EventHandler[]} editingReturn
                  */ editingReturn: EventHandler[];
-        _impl: __unexported.cocos_3d_ui_components_editbox_edit_box_impl_EditBoxImpl | null;
+        _impl: __internal.cocos_3d_ui_components_editbox_edit_box_impl_EditBoxImpl | null;
         _textLabel: LabelComponent | null;
         _placeholderLabel: LabelComponent | null;
         _background: SpriteComponent | null;
@@ -9743,7 +9743,7 @@ declare module "Cocos3D" {
                  * !#zh 布局类型
                  * @property {Layout.Type} type
                  * @default Layout.Type.NONE
-                 */ type: __unexported.cocos_3d_ui_components_layout_component_Type;
+                 */ type: __internal.cocos_3d_ui_components_layout_component_Type;
         /**
                  * !#en
                  * The are three resize modes for Layout.
@@ -9751,7 +9751,7 @@ declare module "Cocos3D" {
                  * !#zh 缩放模式
                  * @property {Layout.ResizeMode} resizeMode
                  * @default ResizeMode.NONE
-                 */ resizeMode: __unexported.cocos_3d_ui_components_layout_component_ResizeMode;
+                 */ resizeMode: __internal.cocos_3d_ui_components_layout_component_ResizeMode;
         /**
                  * !#en The cell size for grid layout.
                  * !#zh 每个格子的大小，只有布局类型为 GRID 的时候才有效。
@@ -9764,7 +9764,7 @@ declare module "Cocos3D" {
                  * and then break line on demand. Choose vertical if you want to layout vertically at first .
                  * !#zh 起始轴方向类型，可进行水平和垂直布局排列，只有布局类型为 GRID 的时候才有效。
                  * @property {Layout.AxisDirection} startAxis
-                 */ startAxis: __unexported.cocos_3d_ui_components_layout_component_AxisDirection;
+                 */ startAxis: __internal.cocos_3d_ui_components_layout_component_AxisDirection;
         /**
                  * !#en The left padding of layout, it only effect the layout in one direction.
                  * !#zh 容器内左边距，只会在一个布局方向上生效。
@@ -9801,14 +9801,14 @@ declare module "Cocos3D" {
                  * This option changes the start element's positioning.
                  * !#zh 垂直排列子节点的方向。
                  * @property {VerticalDirection} verticalDirection
-                 */ verticalDirection: __unexported.cocos_3d_ui_components_layout_component_VerticalDirection;
+                 */ verticalDirection: __internal.cocos_3d_ui_components_layout_component_VerticalDirection;
         /**
                  * !#en
                  * Only take effect in Horizontal layout mode.
                  * This option changes the start element's positioning.
                  * !#zh 水平排列子节点的方向。
                  * @property {Layout.HorizontalDirection} horizontalDirection
-                 */ horizontalDirection: __unexported.cocos_3d_ui_components_layout_component_HorizontalDirection;
+                 */ horizontalDirection: __internal.cocos_3d_ui_components_layout_component_HorizontalDirection;
         /**
                  * !#en The padding of layout, it effects the layout in four direction.
                  * !#zh 容器内边距，该属性会在四个布局方向上生效。
@@ -9821,11 +9821,11 @@ declare module "Cocos3D" {
                  * @type {Boolean}
                  * @default false
                  */ affectedByScale: boolean;
-        static Type: typeof __unexported.cocos_3d_ui_components_layout_component_Type;
-        static VerticalDirection: typeof __unexported.cocos_3d_ui_components_layout_component_VerticalDirection;
-        static HorizontalDirection: typeof __unexported.cocos_3d_ui_components_layout_component_HorizontalDirection;
-        static ResizeMode: typeof __unexported.cocos_3d_ui_components_layout_component_ResizeMode;
-        static AxisDirection: typeof __unexported.cocos_3d_ui_components_layout_component_AxisDirection;
+        static Type: typeof __internal.cocos_3d_ui_components_layout_component_Type;
+        static VerticalDirection: typeof __internal.cocos_3d_ui_components_layout_component_VerticalDirection;
+        static HorizontalDirection: typeof __internal.cocos_3d_ui_components_layout_component_HorizontalDirection;
+        static ResizeMode: typeof __internal.cocos_3d_ui_components_layout_component_ResizeMode;
+        static AxisDirection: typeof __internal.cocos_3d_ui_components_layout_component_AxisDirection;
         private _layoutDirty;
         private _resizeMode;
         private _N$layoutType;
@@ -9885,7 +9885,7 @@ declare module "Cocos3D" {
         /**
                  * !#en The mask type.
                  * !#zh 遮罩类型。
-                 */ type: __unexported.cocos_3d_ui_components_mask_component_MaskType;
+                 */ type: __internal.cocos_3d_ui_components_mask_component_MaskType;
         /**
                  * !#en The mask image
                  * !#zh 遮罩所需要的贴图
@@ -9912,10 +9912,10 @@ declare module "Cocos3D" {
                  */ segments: number;
         readonly graphics: GraphicsComponent | null;
         readonly clearGraphics: GraphicsComponent | null;
-        readonly dstBlendFactor: __unexported.cocos_gfx_define_GFXBlendFactor;
-        readonly srcBlendFactor: __unexported.cocos_gfx_define_GFXBlendFactor;
+        readonly dstBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
+        readonly srcBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         readonly color: import("cocos/core/value-types").Color;
-        static Type: typeof __unexported.cocos_3d_ui_components_mask_component_MaskType;
+        static Type: typeof __internal.cocos_3d_ui_components_mask_component_MaskType;
         private _type;
         private _segments;
         private _graphics;
@@ -9925,8 +9925,8 @@ declare module "Cocos3D" {
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        updateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): boolean;
-        postUpdateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): void;
+        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
+        postUpdateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
         isHit(cameraPt: Vec2): boolean;
         _resizeNodeToTargetNode(): void;
         protected _nodeStateChange(): void;
@@ -9970,7 +9970,7 @@ declare module "Cocos3D" {
                  * !#en The progress mode, there are two modes supported now: horizontal and vertical.
                  * !#zh 进度条的模式
                  * @property {ProgressBar.Mode} mode
-                 */ mode: __unexported.cocos_3d_ui_components_progress_bar_component_Mode;
+                 */ mode: __internal.cocos_3d_ui_components_progress_bar_component_Mode;
         /**
                  * !#en The total width or height of the bar sprite.
                  * !#zh 进度条实际的总长度
@@ -9986,7 +9986,7 @@ declare module "Cocos3D" {
                  * !#zh 进度条是否进行反方向变化。
                  * @property {Boolean} reverse
                  */ reverse: boolean;
-        static Mode: typeof __unexported.cocos_3d_ui_components_progress_bar_component_Mode;
+        static Mode: typeof __internal.cocos_3d_ui_components_progress_bar_component_Mode;
         private _barSprite;
         private _mode;
         private _totalLength;
@@ -10108,7 +10108,7 @@ declare module "Cocos3D" {
                  * !#en The direction of scrollbar.
                  * !#zh ScrollBar 的滚动方向。
                  * @property {Scrollbar.Direction} direction
-                 */ direction: __unexported.cocos_3d_ui_components_scroll_bar_component_Direction;
+                 */ direction: __internal.cocos_3d_ui_components_scroll_bar_component_Direction;
         /**
                  * !#en Whether enable auto hide or not.
                  * !#zh 是否在没有滚动动作时自动隐藏 ScrollBar。
@@ -10123,7 +10123,7 @@ declare module "Cocos3D" {
                  * 注意：只要当 “enableAutoHide” 为 true 时，才有效。
                  * @property {Number} autoHideTime
                  */ autoHideTime: number;
-        static Direction: typeof __unexported.cocos_3d_ui_components_scroll_bar_component_Direction;
+        static Direction: typeof __internal.cocos_3d_ui_components_scroll_bar_component_Direction;
         private _scrollView;
         private _handle;
         private _direction;
@@ -10177,7 +10177,7 @@ declare module "Cocos3D" {
                  * @property {Scrollbar} verticalScrollBar
                  */ verticalScrollBar: ScrollBarComponent | null;
         readonly view: Node | null;
-        static EventType: typeof __unexported.cocos_3d_ui_components_scroll_view_component_EventType;
+        static EventType: typeof __internal.cocos_3d_ui_components_scroll_view_component_EventType;
         /**
                  * !#en Enable horizontal scroll.
                  * !#zh 是否开启水平滚动。
@@ -10505,7 +10505,7 @@ declare module "Cocos3D" {
                  * !#zh 当前进度值，该数值的区间是 0-1 之间
                  * @property {Number} progress
                  */ progress: number;
-        static Direction: typeof __unexported.cocos_3d_ui_components_slider_component_Direction;
+        static Direction: typeof __internal.cocos_3d_ui_components_slider_component_Direction;
         /**
                  * !#en The slider events callback
                  * !#zh 滑动器组件事件回调函数
@@ -10550,7 +10550,7 @@ declare module "Cocos3D" {
                  * @type {SpriteType}
                  * @example
                  * sprite.type = cc.Sprite.Type.SIMPLE;
-                 */ type: __unexported.cocos_3d_ui_components_sprite_component_SpriteType;
+                 */ type: __internal.cocos_3d_ui_components_sprite_component_SpriteType;
         /**
                  * !#en
                  * The fill type, This will only have any effect if the "type" is set to “cc.Sprite.Type.FILLED”.
@@ -10560,7 +10560,7 @@ declare module "Cocos3D" {
                  * @type {FillType}
                  * @example
                  * sprite.fillType = SpriteComponent.FillType.HORIZONTAL;
-                 */ fillType: __unexported.cocos_3d_ui_components_sprite_component_FillType;
+                 */ fillType: __internal.cocos_3d_ui_components_sprite_component_FillType;
         /**
                  * !#en
                  * The fill Center, This will only have any effect if the "type" is set to “cc.Sprite.Type.FILLED”.
@@ -10608,10 +10608,10 @@ declare module "Cocos3D" {
                  * @type {Sprite.SizeMode}
                  * @example
                  * sprite.sizeMode = cc.Sprite.SizeMode.CUSTOM;
-                 */ sizeMode: __unexported.cocos_3d_ui_components_sprite_component_SizeMode;
-        static FillType: typeof __unexported.cocos_3d_ui_components_sprite_component_FillType;
-        static Type: typeof __unexported.cocos_3d_ui_components_sprite_component_SpriteType;
-        static SizeMode: typeof __unexported.cocos_3d_ui_components_sprite_component_SizeMode;
+                 */ sizeMode: __internal.cocos_3d_ui_components_sprite_component_SizeMode;
+        static FillType: typeof __internal.cocos_3d_ui_components_sprite_component_FillType;
+        static Type: typeof __internal.cocos_3d_ui_components_sprite_component_SpriteType;
+        static SizeMode: typeof __internal.cocos_3d_ui_components_sprite_component_SizeMode;
         private _spriteFrame;
         private _type;
         private _fillType;
@@ -10623,7 +10623,7 @@ declare module "Cocos3D" {
         private _atlas;
         __preload(): void;
         onEnable(): void;
-        updateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): boolean;
+        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         onDestroy(): void;
         _applySpriteSize(): void;
         _resized(): void;
@@ -10721,7 +10721,7 @@ declare module "Cocos3D" {
         private _modelComponent;
         onLoad(): void;
         onEnable(): void;
-        updateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): boolean;
+        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         update(): void;
         private _fitUIRenderQueue;
     }
@@ -10740,7 +10740,7 @@ declare module "Cocos3D" {
                  * !#zh 指定原图的混合模式，这会克隆一个新的材质对象，注意这带来的
                  * @property srcBlendFactor
                  * sprite.srcBlendFactor = macro.BlendFactor.ONE;
-                 */ srcBlendFactor: __unexported.cocos_gfx_define_GFXBlendFactor;
+                 */ srcBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         /**
                  * !#en specify the destination Blend Factor.
                  * !#zh 指定目标的混合模式
@@ -10748,7 +10748,7 @@ declare module "Cocos3D" {
                  * @type {macro.BlendFactor}
                  * @example
                  * sprite.dstBlendFactor = GFXBlendFactor.ONE;
-                 */ dstBlendFactor: __unexported.cocos_gfx_define_GFXBlendFactor;
+                 */ dstBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         /**
                  * !#en render color
                  * !#zh 渲染颜色
@@ -10760,27 +10760,27 @@ declare module "Cocos3D" {
                  * @property material
                  */ sharedMaterial: Material | null;
         readonly material: Material | null;
-        readonly renderData: __unexported.cocos_renderer_ui_renderData_RenderData | null;
-        static BlendState: typeof __unexported.cocos_gfx_define_GFXBlendFactor;
+        readonly renderData: __internal.cocos_renderer_ui_renderData_RenderData | null;
+        static BlendState: typeof __internal.cocos_gfx_define_GFXBlendFactor;
         static Assembler: IAssemblerManager | null;
         static PostAssembler: IAssemblerManager | null;
-        protected _srcBlendFactor: __unexported.cocos_gfx_define_GFXBlendFactor;
-        protected _dstBlendFactor: __unexported.cocos_gfx_define_GFXBlendFactor;
+        protected _srcBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
+        protected _dstBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         protected _color: Color;
         protected _sharedMaterial: Material | null;
         protected _assembler: IAssembler | null;
         protected _postAssembler: IAssembler | null;
         protected _renderDataPoolID: number;
-        protected _renderData: __unexported.cocos_renderer_ui_renderData_RenderData | null;
+        protected _renderData: __internal.cocos_renderer_ui_renderData_RenderData | null;
         protected _renderDataDirty: boolean;
         protected _renderPermit: boolean;
         protected _material: Material | null;
-        protected _instanceMaterialType: __unexported.cocos_3d_ui_components_ui_render_component_InstanceMaterialType;
+        protected _instanceMaterialType: __internal.cocos_3d_ui_components_ui_render_component_InstanceMaterialType;
         protected _blendTemplate: {
             blendState: {
                 targets: {
-                    blendSrc: __unexported.cocos_gfx_define_GFXBlendFactor;
-                    blendDst: __unexported.cocos_gfx_define_GFXBlendFactor;
+                    blendSrc: __internal.cocos_gfx_define_GFXBlendFactor;
+                    blendDst: __internal.cocos_gfx_define_GFXBlendFactor;
                 }[];
             };
             depthStencilState: {};
@@ -10791,9 +10791,9 @@ declare module "Cocos3D" {
         onDisable(): void;
         onDestroy(): void;
         markForUpdateRenderData(enable?: boolean): void;
-        requestRenderData(): __unexported.cocos_renderer_ui_renderData_RenderData;
+        requestRenderData(): __internal.cocos_renderer_ui_renderData_RenderData;
         destroyRenderData(): void;
-        updateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): boolean;
+        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         protected _checkAndUpdateRenderData(): void;
         protected _canRender(): boolean;
         protected _updateColor(): void;
@@ -10850,7 +10850,7 @@ declare module "Cocos3D" {
                  * node.setAnchorPoint(cc.v2(1, 1));
                  * node.setAnchorPoint(1, 1);
                  */ setAnchorPoint(point: Vec2 | number, y?: number): void;
-        isHit(point: Vec2, listener?: __unexported.cocos_core_platform_event_manager_event_listener_EventListener): any;
+        isHit(point: Vec2, listener?: __internal.cocos_core_platform_event_manager_event_listener_EventListener): any;
         /**
                  * !#en
                  * Converts a UI Point to UI Node (Local) Space coordinates in which the anchor point is the origin position.
@@ -10914,7 +10914,7 @@ declare module "Cocos3D" {
                  * !#zh 指定 WebView 加载的网址，它应该是一个 http 或者 https 开头的字符串
                  * @property {String} url
                  */ url: string;
-        static EventType: typeof __unexported.cocos_3d_ui_components_webview_webview_impl_WebViewEventType;
+        static EventType: typeof __internal.cocos_3d_ui_components_webview_webview_impl_WebViewEventType;
         /**
                  * !#en The webview's event callback , it will be triggered when certain webview event occurs.
                  * !#zh WebView 的回调事件，当网页加载过程中，加载完成后或者加载出错时都会回调此函数
@@ -11154,7 +11154,7 @@ declare module "Cocos3D" {
                  * @property {Widget.AlignMode} alignMode
                  * @example
                  * widget.alignMode = cc.Widget.AlignMode.ON_WINDOW_RESIZE;
-                 */ alignMode: __unexported.cocos_3d_ui_components_widget_component_AlignMode;
+                 */ alignMode: __internal.cocos_3d_ui_components_widget_component_AlignMode;
         /**
                  * !#en If true, horizontalCenter is pixel margin, otherwise is percentage (0 - 1) margin.
                  * !#zh 如果为 true，"horizontalCenter" 将会以像素作为偏移值，反之为百分比（0 到 1）。
@@ -11176,7 +11176,7 @@ declare module "Cocos3D" {
                  * @default 0
                  * @private
                  */ alignFlags: number;
-        static AlignMode: typeof __unexported.cocos_3d_ui_components_widget_component_AlignMode;
+        static AlignMode: typeof __internal.cocos_3d_ui_components_widget_component_AlignMode;
         private _alignFlags;
         private _target;
         private _left;
@@ -11255,7 +11255,7 @@ declare module "Cocos3D" {
                  * lineJoin 用来设置2个长度不为0的相连部分（线段，圆弧，曲线）如何连接在一起的属性。
                  * @property {Graphics.LineJoin} lineJoin
                  * @default LineJoin.MITER
-                 */ lineJoin: __unexported.cocos_3d_ui_assembler_graphics_types_LineJoin;
+                 */ lineJoin: __internal.cocos_3d_ui_assembler_graphics_types_LineJoin;
         /**
                  * !#en
                  * lineCap determines how the end points of every line are drawn.
@@ -11263,7 +11263,7 @@ declare module "Cocos3D" {
                  * lineCap 指定如何绘制每一条线段末端。
                  * @property {Graphics.LineCap} lineCap
                  * @default LineCap.BUTT
-                 */ lineCap: __unexported.cocos_3d_ui_assembler_graphics_types_LineCap;
+                 */ lineCap: __internal.cocos_3d_ui_assembler_graphics_types_LineCap;
         /**
                  * !#en
                  * stroke color
@@ -11289,9 +11289,9 @@ declare module "Cocos3D" {
                  * @default 10
                  */ miterLimit: number;
         readonly color: Color;
-        static LineJoin: typeof __unexported.cocos_3d_ui_assembler_graphics_types_LineJoin;
-        static LineCap: typeof __unexported.cocos_3d_ui_assembler_graphics_types_LineCap;
-        impl: __unexported.cocos_3d_ui_assembler_graphics_webgl_impl_Impl | null;
+        static LineJoin: typeof __internal.cocos_3d_ui_assembler_graphics_types_LineJoin;
+        static LineCap: typeof __internal.cocos_3d_ui_assembler_graphics_types_LineCap;
+        impl: __internal.cocos_3d_ui_assembler_graphics_webgl_impl_Impl | null;
         private _lineWidth;
         private _strokeColor;
         private _lineJoin;
@@ -11416,14 +11416,14 @@ declare module "Cocos3D" {
                  * !#zh 根据当前的画线样式，填充当前或已经存在的路径。
                  * @method fill
                  */ fill(): void;
-        updateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): boolean;
+        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         helpInstanceMaterial(): void;
         protected _flushAssembler(): void;
     }
     var widgetManager: {
         isAligning: boolean;
         _nodesOrderDirty: boolean;
-        _activeWidgetsIterator: __unexported.cocos_core_utils_mutable_forward_iterator_default<WidgetComponent>;
+        _activeWidgetsIterator: __internal.cocos_core_utils_mutable_forward_iterator_default<WidgetComponent>;
         animationState: {
             previewing: boolean;
             time: number;
@@ -11434,10 +11434,10 @@ declare module "Cocos3D" {
         remove(widget: WidgetComponent): void;
         onResized(): void;
         refreshWidgetOnResized(node: Node): void;
-        updateOffsetsToStayPut(widget: WidgetComponent, e?: __unexported.cocos_3d_ui_components_widget_component_AlignFlags | undefined): void;
-        updateAlignment: typeof __unexported.cocos_3d_ui_components_widget_manager_updateAlignment;
-        AlignMode: typeof __unexported.cocos_3d_ui_components_widget_component_AlignMode;
-        AlignFlags: typeof __unexported.cocos_3d_ui_components_widget_component_AlignFlags;
+        updateOffsetsToStayPut(widget: WidgetComponent, e?: __internal.cocos_3d_ui_components_widget_component_AlignFlags | undefined): void;
+        updateAlignment: typeof __internal.cocos_3d_ui_components_widget_manager_updateAlignment;
+        AlignMode: typeof __internal.cocos_3d_ui_components_widget_component_AlignMode;
+        AlignFlags: typeof __internal.cocos_3d_ui_components_widget_component_AlignFlags;
     };
     /**
          * !#en Enum for vertical text alignment.
@@ -11583,7 +11583,7 @@ declare module "Cocos3D" {
                  * !#zh 文本缓存模式, 该模式只支持系统字体。
                  * @property {Label.CacheMode} cacheMode
                  */ cacheMode: CacheMode;
-        readonly spriteFrame: SpriteFrame | __unexported.cocos_3d_ui_assembler_label_letter_font_LetterRenderTexture | null;
+        readonly spriteFrame: SpriteFrame | __internal.cocos_3d_ui_assembler_label_letter_font_LetterRenderTexture | null;
         /**
                  * !#en Whether the font is bold or not.
                  * !#zh 字体是否加粗。
@@ -11599,15 +11599,15 @@ declare module "Cocos3D" {
                  * !#zh 字体是否加下划线。
                  * @property {Boolean} isUnderline
                  */ isUnderline: boolean;
-        readonly assemblerData: __unexported.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData | null;
-        fontAtlas: __unexported.cocos_3d_ui_assembler_label_bmfontUtils_FontAtlas | null;
+        readonly assemblerData: __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData | null;
+        fontAtlas: __internal.cocos_3d_ui_assembler_label_bmfontUtils_FontAtlas | null;
         spacingX: number;
         readonly _bmFontOriginalSize: number;
         static HorizontalAlign: typeof HorizontalTextAlignment;
         static VerticalAlign: typeof VerticalTextAlignment;
         static Overflow: typeof Overflow;
         static CacheMode: typeof CacheMode;
-        static CanvasPool: __unexported.cocos_3d_ui_assembler_label_font_utils_CanvasPool;
+        static CanvasPool: __internal.cocos_3d_ui_assembler_label_font_utils_CanvasPool;
         private _useOriginalSize;
         private _string;
         private _horizontalAlign;
@@ -11636,7 +11636,7 @@ declare module "Cocos3D" {
         onDisable(): void;
         onDestroy(): void;
         updateRenderData(force?: boolean): void;
-        updateAssembler(render: __unexported.cocos_renderer_ui_ui_UI): boolean;
+        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         protected _updateColor(): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
@@ -11732,7 +11732,7 @@ declare module "Cocos3D" {
                  *   let newNode = this.myPool.get();
                  */ get(...args: any[]): Node | null;
     }
-    namespace __unexported {
+    namespace __internal {
         export enum cocos_gfx_define_GFXBufferUsageBit {
             NONE,
             TRANSFER_SRC,

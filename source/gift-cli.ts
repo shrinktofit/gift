@@ -2,7 +2,7 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as yargs from 'yargs';
-import { bundle, GiftErrors } from './gift';
+import { bundle, GiftErrors, IOptions } from './gift';
 
 main();
 
@@ -12,9 +12,11 @@ function main() {
     yargs.alias('r', 'root').describe('r', 'The root module name.');
     yargs.alias('n', 'name').describe('n', 'The generated module name.');
     yargs.alias('o', 'output').describe('o', 'The output file.');
+    yargs.alias('u', 'shelter-name').describe(
+        'u', 'Name of the unexported symbols\' namespace.(defaulted to "__internal")');
 
     const argv = yargs.parse(process.argv);
-    const { i, n, o, r } = argv;
+    const { i, n, o, r, u } = argv;
 
     let name: undefined | string;
     if (typeof n === 'string') {
@@ -38,16 +40,23 @@ function main() {
         }
     }
 
-    const error = bundle({
+    const options: IOptions = {
         input: i as string,
         name,
         output,
         rootModule: r as string,
-    });
-    if (error !== GiftErrors.Ok) {
-        console.error(`Error occurred: ${GiftErrors[error]}`);
+        shelterName: u as (string | undefined),
+    };
+
+    const bundleResult = bundle(options);
+    if (bundleResult.error !== GiftErrors.Ok) {
+        console.error(`Error occurred: ${GiftErrors[bundleResult.error]}`);
         return -1;
     }
+
+    const outputPath = options.output;
+    fs.ensureDirSync(path.dirname(outputPath));
+    fs.writeFileSync(outputPath, bundleResult.code);
 
     return 0;
 }

@@ -3,11 +3,17 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import ts, { isUnionTypeNode, Token } from 'typescript';
 
-interface IOptions {
+export interface IOptions {
     input: string;
     output: string;
     name: string;
     rootModule: string;
+    shelterName?: string;
+}
+
+export interface IBundleResult {
+    error: GiftErrors;
+    code?: string;
 }
 
 export enum GiftErrors {
@@ -17,21 +23,17 @@ export enum GiftErrors {
     Fatal,
 }
 
-export function bundle(options: IOptions) {
+export function bundle(options: IOptions): IBundleResult {
     console.log(`Cwd: ${process.cwd()}`);
     console.log(`Options: ${JSON.stringify(options)}`);
 
     // Check the input.
     if (!fs.existsSync(options.input)) {
-        return GiftErrors.InputFileNotFound;
+        return { error: GiftErrors.InputFileNotFound };
     }
 
-    // Check the output path.
-    const outputPath = options.output;
-    fs.ensureDirSync(path.dirname(outputPath));
-
     const bundleGenerator = new BundleGenerator(options);
-    return bundleGenerator.generate(outputPath);
+    return bundleGenerator.generate(options.output);
 }
 
 interface ISymbolInf {
@@ -45,10 +47,9 @@ interface ISymbolInf {
     dumpedDeclarations?: ts.Statement[];
 }
 
-const UnexportedNamePrefix = '__unexported';
-
 class BundleGenerator {
     private _options: IOptions;
+    private _shelterName: string;
     private _program: ts.Program;
     private _typeChecker: ts.TypeChecker;
     private _pass1Result = {
@@ -62,6 +63,7 @@ class BundleGenerator {
 
     constructor(options: IOptions) {
         this._options = options;
+        this._shelterName = options.shelterName || '__internal';
         this._program = ts.createProgram({
             rootNames: [ options.input ],
             options: {
@@ -71,13 +73,13 @@ class BundleGenerator {
         this._typeChecker = this._program.getTypeChecker();
     }
 
-    public generate(outputPath: string) {
+    public generate(outputPath: string): IBundleResult {
         const ambientModules = this._typeChecker.getAmbientModules();
         const rootModuleName = `"${this._options.rootModule}"`;
         const rootModule = ambientModules.find(
             (ambientModule) => ambientModule.name === rootModuleName);
         if (!rootModule) {
-            return GiftErrors.RootModuleAbsent;
+            return { error: GiftErrors.RootModuleAbsent };
         }
 
         const rootModuleSymbolInf = this._bundleSymbolPass1(rootModule, '');
@@ -85,7 +87,7 @@ class BundleGenerator {
 
         const bundledRootModule = this._bundleSymbolPass2(rootModuleSymbolInf, true);
         if (!bundledRootModule) {
-            return GiftErrors.Fatal;
+            return { error: GiftErrors.Fatal };
         }
 
         const printer = ts.createPrinter({
@@ -112,8 +114,8 @@ class BundleGenerator {
         const statementsArray = ts.createNodeArray(statements);
         const result = printer.printList(ts.ListFormat.None, statementsArray, sourceFile);
         lines.push(result);
-        fs.writeFileSync(outputPath, lines.join('\n'));
-        return GiftErrors.Ok;
+        const code = lines.join('\n');
+        return { error: GiftErrors.Ok, code };
     }
 
     private _bundleSymbolPass1(symbol: ts.Symbol, name: string): ISymbolInf {
@@ -193,7 +195,7 @@ class BundleGenerator {
                 }
                 if (topLevel) {
                     const unexportedDecls: ts.Statement[] = [];
-                    this._scopeStack.push(UnexportedNamePrefix);
+                    this._scopeStack.push(this._shelterName);
                     for (const unexportedSymbolInf of this._unexportedSymbolsDetail.pending) {
                         const decl = unexportedSymbolInf.dumpedDeclarations;
                         if (decl) {
@@ -204,7 +206,7 @@ class BundleGenerator {
                     const unexportedNs = ts.createModuleDeclaration(
                         undefined,
                         undefined,
-                        ts.createIdentifier(UnexportedNamePrefix),
+                        ts.createIdentifier(this._shelterName),
                         ts.createModuleBlock(unexportedDecls),
                         ts.NodeFlags.Namespace,
                     );
@@ -634,11 +636,11 @@ class BundleGenerator {
         }
         const name = `${moduleSymbol.name}_${symbol.name}`.split('"').join('').replace(/[\/-]/g, '_');
         const backupStack = this._scopeStack;
-        this._scopeStack = [ UnexportedNamePrefix ];
+        this._scopeStack = [ this._shelterName ];
         const result: ISymbolInf = {
             name,
             symbol,
-            fullPrefix: [UnexportedNamePrefix],
+            fullPrefix: [this._shelterName],
         };
         this._unexportedSymbolsDetail.map.set(symbol, result);
 

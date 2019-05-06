@@ -22,16 +22,12 @@ function bundle(options) {
     console.log(`Options: ${JSON.stringify(options)}`);
     // Check the input.
     if (!fs.existsSync(options.input)) {
-        return GiftErrors.InputFileNotFound;
+        return { error: GiftErrors.InputFileNotFound };
     }
-    // Check the output path.
-    const outputPath = options.output;
-    fs.ensureDirSync(path.dirname(outputPath));
     const bundleGenerator = new BundleGenerator(options);
-    return bundleGenerator.generate(outputPath);
+    return bundleGenerator.generate(options.output);
 }
 exports.bundle = bundle;
-const UnexportedNamePrefix = '__unexported';
 class BundleGenerator {
     constructor(options) {
         this._pass1Result = {
@@ -43,6 +39,7 @@ class BundleGenerator {
         };
         this._scopeStack = [];
         this._options = options;
+        this._shelterName = options.shelterName || '__internal';
         this._program = typescript_1.default.createProgram({
             rootNames: [options.input],
             options: {
@@ -56,13 +53,13 @@ class BundleGenerator {
         const rootModuleName = `"${this._options.rootModule}"`;
         const rootModule = ambientModules.find((ambientModule) => ambientModule.name === rootModuleName);
         if (!rootModule) {
-            return GiftErrors.RootModuleAbsent;
+            return { error: GiftErrors.RootModuleAbsent };
         }
         const rootModuleSymbolInf = this._bundleSymbolPass1(rootModule, '');
         this._completePath(rootModuleSymbolInf);
         const bundledRootModule = this._bundleSymbolPass2(rootModuleSymbolInf, true);
         if (!bundledRootModule) {
-            return GiftErrors.Fatal;
+            return { error: GiftErrors.Fatal };
         }
         const printer = typescript_1.default.createPrinter({
             newLine: typescript_1.default.NewLineKind.LineFeed,
@@ -80,8 +77,8 @@ class BundleGenerator {
         const statementsArray = typescript_1.default.createNodeArray(statements);
         const result = printer.printList(typescript_1.default.ListFormat.None, statementsArray, sourceFile);
         lines.push(result);
-        fs.writeFileSync(outputPath, lines.join('\n'));
-        return GiftErrors.Ok;
+        const code = lines.join('\n');
+        return { error: GiftErrors.Ok, code };
     }
     _bundleSymbolPass1(symbol, name) {
         let originalSymbol = symbol;
@@ -154,7 +151,7 @@ class BundleGenerator {
                 }
                 if (topLevel) {
                     const unexportedDecls = [];
-                    this._scopeStack.push(UnexportedNamePrefix);
+                    this._scopeStack.push(this._shelterName);
                     for (const unexportedSymbolInf of this._unexportedSymbolsDetail.pending) {
                         const decl = unexportedSymbolInf.dumpedDeclarations;
                         if (decl) {
@@ -162,7 +159,7 @@ class BundleGenerator {
                         }
                     }
                     this._scopeStack.pop();
-                    const unexportedNs = typescript_1.default.createModuleDeclaration(undefined, undefined, typescript_1.default.createIdentifier(UnexportedNamePrefix), typescript_1.default.createModuleBlock(unexportedDecls), typescript_1.default.NodeFlags.Namespace);
+                    const unexportedNs = typescript_1.default.createModuleDeclaration(undefined, undefined, typescript_1.default.createIdentifier(this._shelterName), typescript_1.default.createModuleBlock(unexportedDecls), typescript_1.default.NodeFlags.Namespace);
                     const moduleDeclaration = typescript_1.default.createModuleDeclaration(undefined, [typescript_1.default.createModifier(typescript_1.default.SyntaxKind.DeclareKeyword)], typescript_1.default.createStringLiteral(this._options.name), typescript_1.default.createModuleBlock(statements.concat([unexportedNs])));
                     return [moduleDeclaration];
                 }
@@ -465,11 +462,11 @@ class BundleGenerator {
         }
         const name = `${moduleSymbol.name}_${symbol.name}`.split('"').join('').replace(/[\/-]/g, '_');
         const backupStack = this._scopeStack;
-        this._scopeStack = [UnexportedNamePrefix];
+        this._scopeStack = [this._shelterName];
         const result = {
             name,
             symbol,
-            fullPrefix: [UnexportedNamePrefix],
+            fullPrefix: [this._shelterName],
         };
         this._unexportedSymbolsDetail.map.set(symbol, result);
         if (declaration0.kind === typescript_1.default.SyntaxKind.ModuleDeclaration) {

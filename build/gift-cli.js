@@ -18,8 +18,9 @@ function main() {
     yargs.alias('r', 'root').describe('r', 'The root module name.');
     yargs.alias('n', 'name').describe('n', 'The generated module name.');
     yargs.alias('o', 'output').describe('o', 'The output file.');
+    yargs.alias('u', 'shelter-name').describe('u', 'Name of the unexported symbols\' namespace.(defaulted to "__internal")');
     const argv = yargs.parse(process.argv);
-    const { i, n, o, r } = argv;
+    const { i, n, o, r, u } = argv;
     let name;
     if (typeof n === 'string') {
         name = n;
@@ -44,16 +45,21 @@ function main() {
             output = o;
         }
     }
-    const error = gift_1.bundle({
+    const options = {
         input: i,
         name,
         output,
         rootModule: r,
-    });
-    if (error !== gift_1.GiftErrors.Ok) {
-        console.error(`Error occurred: ${gift_1.GiftErrors[error]}`);
+        shelterName: u,
+    };
+    const bundleResult = gift_1.bundle(options);
+    if (bundleResult.error !== gift_1.GiftErrors.Ok) {
+        console.error(`Error occurred: ${gift_1.GiftErrors[bundleResult.error]}`);
         return -1;
     }
+    const outputPath = options.output;
+    fs.ensureDirSync(path.dirname(outputPath));
+    fs.writeFileSync(outputPath, bundleResult.code);
     return 0;
 }
-//# sourceMappingURL=index.js.map
+//# sourceMappingURL=gift-cli.js.map
