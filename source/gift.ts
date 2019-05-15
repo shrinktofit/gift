@@ -498,7 +498,7 @@ class BundleGenerator {
             enumDeclaration.members.map((enumerator) => {
                 return ts.createEnumMember(
                     enumerator.name.getText(),
-                    undefined,
+                    this._dumpExpression(enumerator.initializer),
                 );
             }),
         );
@@ -605,6 +605,25 @@ class BundleGenerator {
 
     private _dumpToken<TKind extends ts.SyntaxKind>(token?: Token<TKind>) {
         return token ? ts.createToken(token.kind) : undefined;
+    }
+
+    // Only literals are supported
+    private _dumpExpression(expression?: ts.Expression) {
+        if (!expression) {
+            return undefined;
+        }
+        if (ts.isStringLiteral(expression)) {
+            return ts.createStringLiteral(expression.text);
+        } else if (ts.isNumericLiteral(expression)) {
+            return ts.createNumericLiteral(expression.text);
+        } else if (expression.kind === ts.SyntaxKind.TrueKeyword) {
+            return ts.createTrue();
+        } else if (expression.kind === ts.SyntaxKind.FalseKeyword) {
+            return ts.createFalse();
+        } else if (expression.kind === ts.SyntaxKind.NullKeyword) {
+            return ts.createNull();
+        }
+        return undefined;
     }
 
     private _getInf(symbol: ts.Symbol): ISymbolInf | null {

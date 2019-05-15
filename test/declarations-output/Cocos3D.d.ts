@@ -7,14 +7,14 @@ declare module "Cocos3D" {
         export function createIA(device: any, data: any): any;
         var addStage: (name: any) => void;
         export enum RenderQueue {
-            OPAQUE,
-            TRANSPARENT,
-            OVERLAY
+            OPAQUE = 0,
+            TRANSPARENT = 1,
+            OVERLAY = 2
         }
         export enum PassStage {
-            DEFAULT,
-            FORWARD,
-            SHADOWCAST
+            DEFAULT = 1,
+            FORWARD = 2,
+            SHADOWCAST = 4
         }
         export class Pass {
             static getBindingTypeFromHandle: (handle: number) => number;
@@ -28,7 +28,7 @@ declare module "Cocos3D" {
             protected _idxInTech: number;
             protected _programName: string;
             protected _priority: __internal.cocos_pipeline_define_RenderPriority;
-            protected _primitive: __internal.cocos_gfx_define_GFXPrimitiveMode;
+            protected _primitive: GFXPrimitiveMode;
             protected _stage: __internal.cocos_pipeline_define_RenderPassStage;
             protected _bindings: __internal.cocos_gfx_binding_layout_IGFXBinding[];
             protected _bs: __internal.cocos_gfx_pipeline_state_GFXBlendState;
@@ -66,7 +66,7 @@ declare module "Cocos3D" {
             readonly idxInTech: number;
             readonly programName: string;
             readonly priority: __internal.cocos_pipeline_define_RenderPriority;
-            readonly primitive: __internal.cocos_gfx_define_GFXPrimitiveMode;
+            readonly primitive: GFXPrimitiveMode;
             readonly stage: __internal.cocos_pipeline_define_RenderPassStage;
             readonly phase: number;
             readonly bindings: __internal.cocos_gfx_binding_layout_IGFXBinding[];
@@ -297,12 +297,13 @@ declare module "Cocos3D" {
             constructor(scene: __internal.cocos_renderer_scene_render_scene_RenderScene, node: Node);
             isTextureStorage(): boolean | null;
             bindSkeleton(skeleton: Skeleton): void;
-            updateJointMatrix(iMatrix: number, matrix: vmath.mat4): void;
+            updateJointData(iMatrix: number, pos: vmath.vec3, rot: vmath.quat, scale: vmath.vec3): void;
             commitJointMatrices(): void;
             protected _doCreatePSO(pass: Pass): __internal.cocos_gfx_pipeline_state_GFXPipelineState;
             private _destroyJointStorage;
         }
     }
+    var cclegacy: {};
     namespace vmath {
         namespace bits {
             /**
@@ -968,14 +969,14 @@ declare module "Cocos3D" {
                      * @param out - Vector to store result.
                      * @param a - Vector to invert.
                      * @return out.
-                     */ static inverse<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static invert<Out extends vec3>(out: Out, a: vec3): Out;
             /**
                      * Safely inverts the components of a vector.
                      *
                      * @param out - Vector to store result.
                      * @param a - Vector to invert.
                      * @return out.
-                     */ static inverseSafe<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static invertSafe<Out extends vec3>(out: Out, a: vec3): Out;
             /**
                      * Normalizes a vector.
                      *
@@ -1555,6 +1556,15 @@ declare module "Cocos3D" {
                      * @param b - The scale number.
                      * @return out.
                      */ static scale<Out extends quat>(out: Out, a: quat, b: number): Out;
+            /**
+                     * Add two quaternions after scaling the second operand by a number.
+                     *
+                     * @param out - Quaternion to store result.
+                     * @param a - The first operand.
+                     * @param b - The second operand.
+                     * @param scale - The scale number before adding.
+                     * @return out.
+                     */ static scaleAndAdd<Out extends quat>(out: Out, a: quat, b: quat, scale: number): Out;
             /**
                      * Rotates a quaternion by the given angle about the X axis.
                      *
@@ -2871,6 +2881,14 @@ declare module "Cocos3D" {
                      * @return out.
                      */ static getRotation(out: any, mat: any): any;
             /**
+                     * Decompose an affine matrix to a quaternion rotation, a translation offset and a scale vector.
+                     * Assumes the transformation is combined in the order of Scale -> Rotate -> Translate.
+                     * @param m - Matrix to decompose.
+                     * @param q - Resulting rotation quaternion.
+                     * @param v - Resulting translation offset.
+                     * @param s - Resulting scale vector.
+                     */ static toRTS(m: mat4, q: quat, v: vec3, s: vec3): void;
+            /**
                      * Creates a matrix from a quaternion rotation, translation offset and scale vector.
                      * This is equivalent to (but much faster than):
                      *
@@ -3047,7 +3065,7 @@ declare module "Cocos3D" {
                      * @param a - The first matrix.
                      * @param b - The second matrix.
                      * @return True if the matrices are equal, false otherwise.
-                     */ static equals(a: any, b: any): boolean;
+                     */ static equals(a: any, b: any, epsilon?: number): boolean;
             m00: number;
             m01: number;
             m02: number;
@@ -3562,7 +3580,7 @@ declare module "Cocos3D" {
                      * !#zh
                      * 获取并初始化对象池中的对象。这个方法默认为空，需要用户自己实现。
                      * @param args - parameters to used to initialize the object
-                     */ get: null | ((...args: any[]) => T);
+                     */ get(): T | null;
             private _pool;
             private _cleanup;
             /**
@@ -3802,57 +3820,59 @@ declare module "Cocos3D" {
          */ export function nextPOT(x: any): any;
     export function pushToMap(map: any, key: any, value: any, pushFront: any): void;
     /**
-         * !#en Clamp a value between from and to.
-         * !#zh
-         * 限定浮点数的最大最小值。<br/>
-         * 数值大于 max_inclusive 则返回 max_inclusive。<br/>
-         * 数值小于 min_inclusive 则返回 min_inclusive。<br/>
+         * @zh
+         * 限定浮点数的最大最小值。
+         * 数值大于 max_inclusive 则返回 max_inclusive。
+         * 数值小于 min_inclusive 则返回 min_inclusive。
          * 否则返回自身。
-         * @method clampf
-         * @param {Number} value
-         * @param {Number} min_inclusive
-         * @param {Number} max_inclusive
-         * @return {Number}
+         *
+         * @param value
+         * @param min_inclusive
+         * @param max_inclusive
+         * @return
          * @example
          * var v1 = cc.misc.clampf(20, 0, 20); // 20;
          * var v2 = cc.misc.clampf(-1, 0, 20); //  0;
          * var v3 = cc.misc.clampf(10, 0, 20); // 10;
-         */ export function clampf(value: any, min_inclusive: any, max_inclusive: any): any;
+         */ export function clampf(value: number, min_inclusive: number, max_inclusive: number): number;
     /**
-         * !#en Clamp a value between 0 and 1.
-         * !#zh 限定浮点数的取值范围为 0 ~ 1 之间。
-         * @method clamp01
-         * @param {Number} value
-         * @return {Number}
+         * @zh
+         * 限定浮点数的取值范围为 0 ~ 1 之间。
+         *
+         * @param value
+         * @return
          * @example
          * var v1 = cc.misc.clamp01(20);  // 1;
          * var v2 = cc.misc.clamp01(-1);  // 0;
          * var v3 = cc.misc.clamp01(0.5); // 0.5;
-         */ export function clamp01(value: any): any;
+         */ export function clamp01(value: number): number;
     /**
-         * Linear interpolation between 2 numbers, the ratio sets how much it is biased to each end
-         * @method lerp
-         * @param {Number} a number A
-         * @param {Number} b number B
-         * @param {Number} r ratio between 0 and 1
-         * @return {Number}
+         * @zh
+         * 两个数字之间的线性插值，比率决定了它对两端的偏向程度。
+         *
+         * @param a number A
+         * @param b number B
+         * @param r ratio between 0 and 1
+         * @return
          * @example {@link utils/api/engine/docs/cocos2d/core/platform/CCMacro/lerp.js}
-         */ export function lerp(a: any, b: any, r: any): any;
+         */ export function lerp(a: number, b: number, r: number): number;
     /**
-         * converts degrees to radians
-         * @param {Number} angle
-         * @return {Number}
-         * @method degreesToRadians
-         */ export function degreesToRadians(angle: any): number;
+         * @zh
+         * 角度转弧度
+         *
+         * @param angle
+         * @return
+         */ export function degreesToRadians(angle: number): number;
     /**
-         * converts radians to degrees
-         * @param {Number} angle
-         * @return {Number}
-         * @method radiansToDegrees
-         */ export function radiansToDegrees(angle: any): number;
+         * @zh
+         * 弧度转角度
+         *
+         * @param angle
+         * @return
+         */ export function radiansToDegrees(angle: number): number;
     export function contains(refNode: any, otherNode: any): any;
     export function isDomNode(obj: any): boolean;
-    export function callInNextTick(callback: any, p1: any, p2: any): void;
+    export function callInNextTick(callback: any, p1?: any, p2?: any): void;
     export function tryCatchFunctor_EDITOR(funcName: any, forwardArgs: any, afterCall: any, bindArg: any): any;
     export function isPlainEmptyObj_DEV(obj: any): boolean;
     export function cloneable_DEV(obj: any): any;
@@ -4209,75 +4229,41 @@ declare module "Cocos3D" {
                  */ getType(): string;
     }
     /**
-         * !#en
-         * EventTarget is an object to which an event is dispatched when something has occurred.
-         * Entity are the most common event targets, but other objects can be event targets too.
-         *
-         * Event targets are an important part of the Fireball event model.
-         * The event target serves as the focal point for how events flow through the scene graph.
-         * When an event such as a mouse click or a keypress occurs, Fireball dispatches an event object
-         * into the event flow from the root of the hierarchy. The event object then makes its way through
-         * the scene graph until it reaches the event target, at which point it begins its return trip through
-         * the scene graph. This round-trip journey to the event target is conceptually divided into three phases:
-         * - The capture phase comprises the journey from the root to the last node before the event target's node
-         * - The target phase comprises only the event target node
-         * - The bubbling phase comprises any subsequent nodes encountered on the return trip to the root of the tree
-         * See also: http://www.w3.org/TR/DOM-Level-3-Events/#event-flow
-         *
-         * Event targets can implement the following methods:
-         *  - _getCapturingTargets
-         *  - _getBubblingTargets
-         *
-         * !#zh
+         * @zh
          * 事件目标是事件触发时，分派的事件对象，Node 是最常见的事件目标，
-         * 但是其他对象也可以是事件目标。<br/>
-         *
-         * @class EventTarget
-         * @extends CallbacksInvoker
+         * 但是其他对象也可以是事件目标。
          */ export class EventTarget extends __internal.cocos_core_event_callbacks_invoker_CallbacksInvoker {
         /**
-                 * !#en Checks whether the EventTarget object has any callback registered for a specific type of event.
-                 * !#zh 检查事件目标对象是否有为特定类型的事件注册的回调。
-                 * @method hasEventListener
-                 * @param {String} type - The type of event.
-                 * @return {Boolean} True if a callback of the specified type is registered; false otherwise.
-                 */ /**
-                 * !#en
-                 * Register an callback of a specific event type on the EventTarget.
-                 * This type of event should be triggered via `emit`.
-                 * !#zh
+                 * @zh
                  * 注册事件目标的特定事件类型回调。这种类型的事件应该被 `emit` 触发。
                  *
-                 * @method on
-                 * @param {String} type - A string representing the event type to listen for.
-                 * @param {Function} callback - The callback that will be invoked when the event is dispatched.
-                 *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-                 * @param {any} [callback.arg1] arg1
-                 * @param {any} [callback.arg2] arg2
-                 * @param {any} [callback.arg3] arg3
-                 * @param {any} [callback.arg4] arg4
-                 * @param {any} [callback.arg5] arg5
-                 * @param {Object} [target] - The target (this object) to invoke the callback, can be null
-                 * @return {Function} - Just returns the incoming callback so you can save the anonymous function easier.
-                 * @typescript
-                 * on<T extends Function>(type: string, callback: T, target?: any, useCapture?: boolean): T
+                 * @param type - 一个监听事件类型的字符串.
+                 * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加.
+                 * @param callback.arg1 回调的第一个参数
+                 * @param callback.arg2 回调的第二个参数
+                 * @param callback.arg3 回调的第三个参数
+                 * @param callback.arg4 回调的第四个参数
+                 * @param callback.arg5 回调的第五个参数
+                 * @param target - 回调的目标。可以为空。
+                 * @return - 返回监听回调函数自身。
+                 *
                  * @example
+                 * ```ts
                  * eventTarget.on('fire', function () {
                  *     cc.log("fire in the hole");
                  * }, node);
+                 * ```
                  */ on(type: string, callback: Function, target?: Object): Function | undefined;
         /**
-                 * !#en
-                 * Removes the listeners previously registered with the same type, callback, target and or useCapture,
-                 * if only type is passed as parameter, all listeners registered with that type will be removed.
-                 * !#zh
+                 * @zh
                  * 删除之前用同类型，回调，目标或 useCapture 注册的事件监听器，如果只传递 type，将会删除 type 类型的所有事件监听器。
                  *
-                 * @method off
-                 * @param {String} type - A string representing the event type being removed.
-                 * @param {Function} [callback] - The callback to remove.
-                 * @param {Object} [target] - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
+                 * @param type - 一个监听事件类型的字符串。
+                 * @param callback - 事件分派时将被调用的回调函数。
+                 * @param target - 调用回调的目标。如果为空, 只有没有目标的事件会被移除。
+                 *
                  * @example
+                 * ```ts
                  * // register fire eventListener
                  * var callback = eventTarget.on('fire', function () {
                  *     cc.log("fire in the hole");
@@ -4286,66 +4272,36 @@ declare module "Cocos3D" {
                  * eventTarget.off('fire', callback, target);
                  * // remove all fire event listeners
                  * eventTarget.off('fire');
+                 * ```
                  */ off(type: string, callback?: Function, target?: Object): void;
         /**
-                 * !#en Removes all callbacks previously registered with the same target (passed as parameter).
-                 * This is not for removing all listeners in the current event target,
-                 * and this is not for removing all listeners the target parameter have registered.
-                 * It's only for removing all listeners (callback and target couple) registered on the current event target by the target parameter.
-                 * !#zh 在当前 EventTarget 上删除指定目标（target 参数）注册的所有事件监听器。
+                 * @zh
+                 * 在当前 EventTarget 上删除指定目标（target 参数）注册的所有事件监听器。
                  * 这个函数无法删除当前 EventTarget 的所有事件监听器，也无法删除 target 参数所注册的所有事件监听器。
                  * 这个函数只能删除 target 参数在当前 EventTarget 上注册的所有事件监听器。
-                 * @method targetOff
-                 * @param {Object} target - The target to be searched for all related listeners
+                 *
+                 * @param target - 注销所有指定目标的监听
                  */ targetOff(keyOrTarget?: string | Object): void;
         /**
-                 * !#en
-                 * Register an callback of a specific event type on the EventTarget,
-                 * the callback will remove itself after the first time it is triggered.
-                 * !#zh
+                 * @zh
                  * 注册事件目标的特定事件类型回调，回调会在第一时间被触发后删除自身。
                  *
-                 * @method once
-                 * @param {String} type - A string representing the event type to listen for.
-                 * @param {Function} callback - The callback that will be invoked when the event is dispatched.
-                 *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-                 * @param {any} [callback.arg1] arg1
-                 * @param {any} [callback.arg2] arg2
-                 * @param {any} [callback.arg3] arg3
-                 * @param {any} [callback.arg4] arg4
-                 * @param {any} [callback.arg5] arg5
-                 * @param {Object} [target] - The target (this object) to invoke the callback, can be null
+                 * @param type - 一个监听事件类型的字符串。
+                 * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
+                 * @param callback.arg1 回调的第一个参数。
+                 * @param callback.arg2 第二个参数。
+                 * @param callback.arg3 第三个参数。
+                 * @param callback.arg4 第四个参数。
+                 * @param callback.arg5 第五个参数。
+                 * @param target - 调用回调的目标。可以为空。
+                 *
                  * @example
+                 * ```ts
                  * eventTarget.once('fire', function () {
                  *     cc.log("this is the callback and will be invoked only once");
                  * }, node);
-                 */ once(type: string, callback: Function, target?: Object): void;
-        /**
-                 * !#en
-                 * Trigger an event directly with the event name and necessary arguments.
-                 * !#zh
-                 * 通过事件名发送自定义事件
-                 *
-                 * @method emit
-                 * @param {String} type - event type
-                 * @param {*} [arg1] - First argument
-                 * @param {*} [arg2] - Second argument
-                 * @param {*} [arg3] - Third argument
-                 * @param {*} [arg4] - Fourth argument
-                 * @param {*} [arg5] - Fifth argument
-                 * @example
-                 *
-                 * eventTarget.emit('fire', event);
-                 * eventTarget.emit('fire', message, emitter);
-                 */ /**
-                 * !#en
-                 * Send an event with the event object.
-                 * !#zh
-                 * 通过事件对象派发事件
-                 *
-                 * @method dispatchEvent
-                 * @param {Event} event
-                 */ dispatchEvent(event: any): void;
+                 * ```
+                 */ once(type: string, callback: Function, target?: Object): Function | undefined;
     }
     var screen: {
         _supportsFullScreen: boolean;
@@ -4379,6 +4335,994 @@ declare module "Cocos3D" {
                  * @param {Element} element
                  * @param {Function} onFullScreenChange
                  */ autoFullScreen(element: any, onFullScreenChange: any): void;
+    };
+    var macro: {
+        /**
+                 * !en
+                 * The image format supported by the engine defaults, and the supported formats may differ in different build platforms and device types.
+                 * Currently all platform and device support ['.webp', '.jpg', '.jpeg', '.bmp', '.png'], ios mobile platform
+                 * !zh
+                 * 引擎默认支持的图片格式，支持的格式可能在不同的构建平台和设备类型上有所差别。
+                 * 目前所有平台和设备支持的格式有 ['.webp', '.jpg', '.jpeg', '.bmp', '.png']. The iOS mobile platform also supports the PVR format。
+                 * @property {[String]} SUPPORT_TEXTURE_FORMATS
+                 */ SUPPORT_TEXTURE_FORMATS: string[];
+        KEY: {
+            /**
+                         * !#en None
+                         * !#zh 没有分配
+                         * @property none
+                         * @type {Number}
+                         * @readonly
+                         */ 'none': number;
+            /**
+                         * !#en The back key
+                         * !#zh 返回键
+                         * @property back
+                         * @type {Number}
+                         * @readonly
+                         */ 'back': number;
+            /**
+                         * !#en The menu key
+                         * !#zh 菜单键
+                         * @property menu
+                         * @type {Number}
+                         * @readonly
+                         */ 'menu': number;
+            /**
+                         * !#en The backspace key
+                         * !#zh 退格键
+                         * @property backspace
+                         * @type {Number}
+                         * @readonly
+                         */ 'backspace': number;
+            /**
+                         * !#en The tab key
+                         * !#zh Tab 键
+                         * @property tab
+                         * @type {Number}
+                         * @readonly
+                         */ 'tab': number;
+            /**
+                         * !#en The enter key
+                         * !#zh 回车键
+                         * @property enter
+                         * @type {Number}
+                         * @readonly
+                         */ 'enter': number;
+            /**
+                         * !#en The shift key
+                         * !#zh Shift 键
+                         * @property shift
+                         * @type {Number}
+                         * @readonly
+                         */ 'shift': number;
+            /**
+                         * !#en The ctrl key
+                         * !#zh Ctrl 键
+                         * @property ctrl
+                         * @type {Number}
+                         * @readonly
+                         */ 'ctrl': number;
+            /**
+                         * !#en The alt key
+                         * !#zh Alt 键
+                         * @property alt
+                         * @type {Number}
+                         * @readonly
+                         */ 'alt': number;
+            /**
+                         * !#en The pause key
+                         * !#zh 暂停键
+                         * @property pause
+                         * @type {Number}
+                         * @readonly
+                         */ 'pause': number;
+            /**
+                         * !#en The caps lock key
+                         * !#zh 大写锁定键
+                         * @property capslock
+                         * @type {Number}
+                         * @readonly
+                         */ 'capslock': number;
+            /**
+                         * !#en The esc key
+                         * !#zh ESC 键
+                         * @property escape
+                         * @type {Number}
+                         * @readonly
+                         */ 'escape': number;
+            /**
+                         * !#en The space key
+                         * !#zh 空格键
+                         * @property space
+                         * @type {Number}
+                         * @readonly
+                         */ 'space': number;
+            /**
+                         * !#en The page up key
+                         * !#zh 向上翻页键
+                         * @property pageup
+                         * @type {Number}
+                         * @readonly
+                         */ 'pageup': number;
+            /**
+                         * !#en The page down key
+                         * !#zh 向下翻页键
+                         * @property pagedown
+                         * @type {Number}
+                         * @readonly
+                         */ 'pagedown': number;
+            /**
+                         * !#en The end key
+                         * !#zh 结束键
+                         * @property end
+                         * @type {Number}
+                         * @readonly
+                         */ 'end': number;
+            /**
+                         * !#en The home key
+                         * !#zh 主菜单键
+                         * @property home
+                         * @type {Number}
+                         * @readonly
+                         */ 'home': number;
+            /**
+                         * !#en The left key
+                         * !#zh 向左箭头键
+                         * @property left
+                         * @type {Number}
+                         * @readonly
+                         */ 'left': number;
+            /**
+                         * !#en The up key
+                         * !#zh 向上箭头键
+                         * @property up
+                         * @type {Number}
+                         * @readonly
+                         */ 'up': number;
+            /**
+                         * !#en The right key
+                         * !#zh 向右箭头键
+                         * @property right
+                         * @type {Number}
+                         * @readonly
+                         */ 'right': number;
+            /**
+                         * !#en The down key
+                         * !#zh 向下箭头键
+                         * @property down
+                         * @type {Number}
+                         * @readonly
+                         */ 'down': number;
+            /**
+                         * !#en The select key
+                         * !#zh Select 键
+                         * @property select
+                         * @type {Number}
+                         * @readonly
+                         */ 'select': number;
+            /**
+                         * !#en The insert key
+                         * !#zh 插入键
+                         * @property insert
+                         * @type {Number}
+                         * @readonly
+                         */ 'insert': number;
+            /**
+                         * !#en The Delete key
+                         * !#zh 删除键
+                         * @property Delete
+                         * @type {Number}
+                         * @readonly
+                         */ 'Delete': number;
+            /**
+                         * !#en The '0' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 0 键
+                         * @property 0
+                         * @type {Number}
+                         * @readonly
+                         */ '0': number;
+            /**
+                         * !#en The '1' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 1 键
+                         * @property 1
+                         * @type {Number}
+                         * @readonly
+                         */ '1': number;
+            /**
+                         * !#en The '2' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 2 键
+                         * @property 2
+                         * @type {Number}
+                         * @readonly
+                         */ '2': number;
+            /**
+                         * !#en The '3' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 3 键
+                         * @property 3
+                         * @type {Number}
+                         * @readonly
+                         */ '3': number;
+            /**
+                         * !#en The '4' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 4 键
+                         * @property 4
+                         * @type {Number}
+                         * @readonly
+                         */ '4': number;
+            /**
+                         * !#en The '5' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 5 键
+                         * @property 5
+                         * @type {Number}
+                         * @readonly
+                         */ '5': number;
+            /**
+                         * !#en The '6' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 6 键
+                         * @property 6
+                         * @type {Number}
+                         * @readonly
+                         */ '6': number;
+            /**
+                         * !#en The '7' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 7 键
+                         * @property 7
+                         * @type {Number}
+                         * @readonly
+                         */ '7': number;
+            /**
+                         * !#en The '8' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 8 键
+                         * @property 8
+                         * @type {Number}
+                         * @readonly
+                         */ '8': number;
+            /**
+                         * !#en The '9' key on the top of the alphanumeric keyboard.
+                         * !#zh 字母键盘上的 9 键
+                         * @property 9
+                         * @type {Number}
+                         * @readonly
+                         */ '9': number;
+            /**
+                         * !#en The a key
+                         * !#zh A 键
+                         * @property a
+                         * @type {Number}
+                         * @readonly
+                         */ 'a': number;
+            /**
+                         * !#en The b key
+                         * !#zh B 键
+                         * @property b
+                         * @type {Number}
+                         * @readonly
+                         */ 'b': number;
+            /**
+                         * !#en The c key
+                         * !#zh C 键
+                         * @property c
+                         * @type {Number}
+                         * @readonly
+                         */ 'c': number;
+            /**
+                         * !#en The d key
+                         * !#zh D 键
+                         * @property d
+                         * @type {Number}
+                         * @readonly
+                         */ 'd': number;
+            /**
+                         * !#en The e key
+                         * !#zh E 键
+                         * @property e
+                         * @type {Number}
+                         * @readonly
+                         */ 'e': number;
+            /**
+                         * !#en The f key
+                         * !#zh F 键
+                         * @property f
+                         * @type {Number}
+                         * @readonly
+                         */ 'f': number;
+            /**
+                         * !#en The g key
+                         * !#zh G 键
+                         * @property g
+                         * @type {Number}
+                         * @readonly
+                         */ 'g': number;
+            /**
+                         * !#en The h key
+                         * !#zh H 键
+                         * @property h
+                         * @type {Number}
+                         * @readonly
+                         */ 'h': number;
+            /**
+                         * !#en The i key
+                         * !#zh I 键
+                         * @property i
+                         * @type {Number}
+                         * @readonly
+                         */ 'i': number;
+            /**
+                         * !#en The j key
+                         * !#zh J 键
+                         * @property j
+                         * @type {Number}
+                         * @readonly
+                         */ 'j': number;
+            /**
+                         * !#en The k key
+                         * !#zh K 键
+                         * @property k
+                         * @type {Number}
+                         * @readonly
+                         */ 'k': number;
+            /**
+                         * !#en The l key
+                         * !#zh L 键
+                         * @property l
+                         * @type {Number}
+                         * @readonly
+                         */ 'l': number;
+            /**
+                         * !#en The m key
+                         * !#zh M 键
+                         * @property m
+                         * @type {Number}
+                         * @readonly
+                         */ 'm': number;
+            /**
+                         * !#en The n key
+                         * !#zh N 键
+                         * @property n
+                         * @type {Number}
+                         * @readonly
+                         */ 'n': number;
+            /**
+                         * !#en The o key
+                         * !#zh O 键
+                         * @property o
+                         * @type {Number}
+                         * @readonly
+                         */ 'o': number;
+            /**
+                         * !#en The p key
+                         * !#zh P 键
+                         * @property p
+                         * @type {Number}
+                         * @readonly
+                         */ 'p': number;
+            /**
+                         * !#en The q key
+                         * !#zh Q 键
+                         * @property q
+                         * @type {Number}
+                         * @readonly
+                         */ 'q': number;
+            /**
+                         * !#en The r key
+                         * !#zh R 键
+                         * @property r
+                         * @type {Number}
+                         * @readonly
+                         */ 'r': number;
+            /**
+                         * !#en The s key
+                         * !#zh S 键
+                         * @property s
+                         * @type {Number}
+                         * @readonly
+                         */ 's': number;
+            /**
+                         * !#en The t key
+                         * !#zh T 键
+                         * @property t
+                         * @type {Number}
+                         * @readonly
+                         */ 't': number;
+            /**
+                         * !#en The u key
+                         * !#zh U 键
+                         * @property u
+                         * @type {Number}
+                         * @readonly
+                         */ 'u': number;
+            /**
+                         * !#en The v key
+                         * !#zh V 键
+                         * @property v
+                         * @type {Number}
+                         * @readonly
+                         */ 'v': number;
+            /**
+                         * !#en The w key
+                         * !#zh W 键
+                         * @property w
+                         * @type {Number}
+                         * @readonly
+                         */ 'w': number;
+            /**
+                         * !#en The x key
+                         * !#zh X 键
+                         * @property x
+                         * @type {Number}
+                         * @readonly
+                         */ 'x': number;
+            /**
+                         * !#en The y key
+                         * !#zh Y 键
+                         * @property y
+                         * @type {Number}
+                         * @readonly
+                         */ 'y': number;
+            /**
+                         * !#en The z key
+                         * !#zh Z 键
+                         * @property z
+                         * @type {Number}
+                         * @readonly
+                         */ 'z': number;
+            /**
+                         * !#en The numeric keypad 0
+                         * !#zh 数字键盘 0
+                         * @property num0
+                         * @type {Number}
+                         * @readonly
+                         */ 'num0': number;
+            /**
+                         * !#en The numeric keypad 1
+                         * !#zh 数字键盘 1
+                         * @property num1
+                         * @type {Number}
+                         * @readonly
+                         */ 'num1': number;
+            /**
+                         * !#en The numeric keypad 2
+                         * !#zh 数字键盘 2
+                         * @property num2
+                         * @type {Number}
+                         * @readonly
+                         */ 'num2': number;
+            /**
+                         * !#en The numeric keypad 3
+                         * !#zh 数字键盘 3
+                         * @property num3
+                         * @type {Number}
+                         * @readonly
+                         */ 'num3': number;
+            /**
+                         * !#en The numeric keypad 4
+                         * !#zh 数字键盘 4
+                         * @property num4
+                         * @type {Number}
+                         * @readonly
+                         */ 'num4': number;
+            /**
+                         * !#en The numeric keypad 5
+                         * !#zh 数字键盘 5
+                         * @property num5
+                         * @type {Number}
+                         * @readonly
+                         */ 'num5': number;
+            /**
+                         * !#en The numeric keypad 6
+                         * !#zh 数字键盘 6
+                         * @property num6
+                         * @type {Number}
+                         * @readonly
+                         */ 'num6': number;
+            /**
+                         * !#en The numeric keypad 7
+                         * !#zh 数字键盘 7
+                         * @property num7
+                         * @type {Number}
+                         * @readonly
+                         */ 'num7': number;
+            /**
+                         * !#en The numeric keypad 8
+                         * !#zh 数字键盘 8
+                         * @property num8
+                         * @type {Number}
+                         * @readonly
+                         */ 'num8': number;
+            /**
+                         * !#en The numeric keypad 9
+                         * !#zh 数字键盘 9
+                         * @property num9
+                         * @type {Number}
+                         * @readonly
+                         */ 'num9': number;
+            /**
+                         * !#en The numeric keypad '*'
+                         * !#zh 数字键盘 *
+                         * @property *
+                         * @type {Number}
+                         * @readonly
+                         */ '*': number;
+            /**
+                         * !#en The numeric keypad '+'
+                         * !#zh 数字键盘 +
+                         * @property +
+                         * @type {Number}
+                         * @readonly
+                         */ '+': number;
+            /**
+                         * !#en The numeric keypad '-'
+                         * !#zh 数字键盘 -
+                         * @property -
+                         * @type {Number}
+                         * @readonly
+                         */ '-': number;
+            /**
+                         * !#en The numeric keypad 'delete'
+                         * !#zh 数字键盘删除键
+                         * @property numdel
+                         * @type {Number}
+                         * @readonly
+                         */ 'numdel': number;
+            /**
+                         * !#en The numeric keypad '/'
+                         * !#zh 数字键盘 /
+                         * @property /
+                         * @type {Number}
+                         * @readonly
+                         */ '/': number;
+            /**
+                         * !#en The F1 function key
+                         * !#zh F1 功能键
+                         * @property f1
+                         * @type {Number}
+                         * @readonly
+                         */ 'f1': number;
+            /**
+                         * !#en The F2 function key
+                         * !#zh F2 功能键
+                         * @property f2
+                         * @type {Number}
+                         * @readonly
+                         */ 'f2': number;
+            /**
+                         * !#en The F3 function key
+                         * !#zh F3 功能键
+                         * @property f3
+                         * @type {Number}
+                         * @readonly
+                         */ 'f3': number;
+            /**
+                         * !#en The F4 function key
+                         * !#zh F4 功能键
+                         * @property f4
+                         * @type {Number}
+                         * @readonly
+                         */ 'f4': number;
+            /**
+                         * !#en The F5 function key
+                         * !#zh F5 功能键
+                         * @property f5
+                         * @type {Number}
+                         * @readonly
+                         */ 'f5': number;
+            /**
+                         * !#en The F6 function key
+                         * !#zh F6 功能键
+                         * @property f6
+                         * @type {Number}
+                         * @readonly
+                         */ 'f6': number;
+            /**
+                         * !#en The F7 function key
+                         * !#zh F7 功能键
+                         * @property f7
+                         * @type {Number}
+                         * @readonly
+                         */ 'f7': number;
+            /**
+                         * !#en The F8 function key
+                         * !#zh F8 功能键
+                         * @property f8
+                         * @type {Number}
+                         * @readonly
+                         */ 'f8': number;
+            /**
+                         * !#en The F9 function key
+                         * !#zh F9 功能键
+                         * @property f9
+                         * @type {Number}
+                         * @readonly
+                         */ 'f9': number;
+            /**
+                         * !#en The F10 function key
+                         * !#zh F10 功能键
+                         * @property f10
+                         * @type {Number}
+                         * @readonly
+                         */ 'f10': number;
+            /**
+                         * !#en The F11 function key
+                         * !#zh F11 功能键
+                         * @property f11
+                         * @type {Number}
+                         * @readonly
+                         */ 'f11': number;
+            /**
+                         * !#en The F12 function key
+                         * !#zh F12 功能键
+                         * @property f12
+                         * @type {Number}
+                         * @readonly
+                         */ 'f12': number;
+            /**
+                         * !#en The numlock key
+                         * !#zh 数字锁定键
+                         * @property numlock
+                         * @type {Number}
+                         * @readonly
+                         */ 'numlock': number;
+            /**
+                         * !#en The scroll lock key
+                         * !#zh 滚动锁定键
+                         * @property scrolllock
+                         * @type {Number}
+                         * @readonly
+                         */ 'scrolllock': number;
+            /**
+                         * !#en The ';' key.
+                         * !#zh 分号键
+                         * @property ;
+                         * @type {Number}
+                         * @readonly
+                         */ ';': number;
+            /**
+                         * !#en The ';' key.
+                         * !#zh 分号键
+                         * @property semicolon
+                         * @type {Number}
+                         * @readonly
+                         */ 'semicolon': number;
+            /**
+                         * !#en The '=' key.
+                         * !#zh 等于号键
+                         * @property equal
+                         * @type {Number}
+                         * @readonly
+                         */ 'equal': number;
+            /**
+                         * !#en The '=' key.
+                         * !#zh 等于号键
+                         * @property =
+                         * @type {Number}
+                         * @readonly
+                         */ '=': number;
+            /**
+                         * !#en The ',' key.
+                         * !#zh 逗号键
+                         * @property ,
+                         * @type {Number}
+                         * @readonly
+                         */ ',': number;
+            /**
+                         * !#en The ',' key.
+                         * !#zh 逗号键
+                         * @property comma
+                         * @type {Number}
+                         * @readonly
+                         */ 'comma': number;
+            /**
+                         * !#en The dash '-' key.
+                         * !#zh 中划线键
+                         * @property dash
+                         * @type {Number}
+                         * @readonly
+                         */ 'dash': number;
+            /**
+                         * !#en The '.' key.
+                         * !#zh 句号键
+                         * @property .
+                         * @type {Number}
+                         * @readonly
+                         */ '.': number;
+            /**
+                         * !#en The '.' key
+                         * !#zh 句号键
+                         * @property period
+                         * @type {Number}
+                         * @readonly
+                         */ 'period': number;
+            /**
+                         * !#en The forward slash key
+                         * !#zh 正斜杠键
+                         * @property forwardslash
+                         * @type {Number}
+                         * @readonly
+                         */ 'forwardslash': number;
+            /**
+                         * !#en The grave key
+                         * !#zh 按键 `
+                         * @property grave
+                         * @type {Number}
+                         * @readonly
+                         */ 'grave': number;
+            /**
+                         * !#en The '[' key
+                         * !#zh 按键 [
+                         * @property [
+                         * @type {Number}
+                         * @readonly
+                         */ '[': number;
+            /**
+                         * !#en The '[' key
+                         * !#zh 按键 [
+                         * @property openbracket
+                         * @type {Number}
+                         * @readonly
+                         */ 'openbracket': number;
+            /**
+                         * !#en The '\' key
+                         * !#zh 反斜杠键
+                         * @property backslash
+                         * @type {Number}
+                         * @readonly
+                         */ 'backslash': number;
+            /**
+                         * !#en The ']' key
+                         * !#zh 按键 ]
+                         * @property ]
+                         * @type {Number}
+                         * @readonly
+                         */ ']': number;
+            /**
+                         * !#en The ']' key
+                         * !#zh 按键 ]
+                         * @property closebracket
+                         * @type {Number}
+                         * @readonly
+                         */ 'closebracket': number;
+            /**
+                         * !#en The quote key
+                         * !#zh 单引号键
+                         * @property quote
+                         * @type {Number}
+                         * @readonly
+                         */ 'quote': number;
+            /**
+                         * !#en The dpad left key
+                         * !#zh 导航键 向左
+                         * @property dpadLeft
+                         * @type {Number}
+                         * @readonly
+                         */ 'dpadLeft': number;
+            /**
+                         * !#en The dpad right key
+                         * !#zh 导航键 向右
+                         * @property dpadRight
+                         * @type {Number}
+                         * @readonly
+                         */ 'dpadRight': number;
+            /**
+                         * !#en The dpad up key
+                         * !#zh 导航键 向上
+                         * @property dpadUp
+                         * @type {Number}
+                         * @readonly
+                         */ 'dpadUp': number;
+            /**
+                         * !#en The dpad down key
+                         * !#zh 导航键 向下
+                         * @property dpadDown
+                         * @type {Number}
+                         * @readonly
+                         */ 'dpadDown': number;
+            /**
+                         * !#en The dpad center key
+                         * !#zh 导航键 确定键
+                         * @property dpadCenter
+                         * @type {Number}
+                         * @readonly
+                         */ 'dpadCenter': number;
+        };
+        ImageFormat: any;
+        /**
+                 * PI / 180
+                 * @property RAD
+                 * @type {Number}
+                 */ RAD: number;
+        /**
+                 * One degree
+                 * @property DEG
+                 * @type {Number}
+                 */ DEG: number;
+        /**
+                 * @property REPEAT_FOREVER
+                 * @type {Number}
+                 */ REPEAT_FOREVER: number;
+        /**
+                 * @property FLT_EPSILON
+                 * @type {Number}
+                 */ FLT_EPSILON: number;
+        /**
+                 * Minimum z index value for node
+                 * @property MIN_ZINDEX
+                 * @type {Number}
+                 */ MIN_ZINDEX: number;
+        /**
+                 * Maximum z index value for node
+                 * @property MAX_ZINDEX
+                 * @type {Number}
+                 */ MAX_ZINDEX: number;
+        /**
+                 * Oriented vertically
+                 * @property ORIENTATION_PORTRAIT
+                 * @type {Number}
+                 */ ORIENTATION_PORTRAIT: number;
+        /**
+                 * Oriented horizontally
+                 * @property ORIENTATION_LANDSCAPE
+                 * @type {Number}
+                 */ ORIENTATION_LANDSCAPE: number;
+        /**
+                 * Oriented automatically
+                 * @property ORIENTATION_AUTO
+                 * @type {Number}
+                 */ ORIENTATION_AUTO: number;
+        DENSITYDPI_DEVICE: string;
+        DENSITYDPI_HIGH: string;
+        DENSITYDPI_MEDIUM: string;
+        DENSITYDPI_LOW: string;
+        /**
+                 * <p>
+                 *   If enabled, the texture coordinates will be calculated by using this formula: <br/>
+                 *      - texCoord.left = (rect.x*2+1) / (texture.wide*2);                  <br/>
+                 *      - texCoord.right = texCoord.left + (rect.width*2-2)/(texture.wide*2); <br/>
+                 *                                                                                 <br/>
+                 *  The same for bottom and top.                                                   <br/>
+                 *                                                                                 <br/>
+                 *  This formula prevents artifacts by using 99% of the texture.                   <br/>
+                 *  The "correct" way to prevent artifacts is by expand the texture's border with the same color by 1 pixel<br/>
+                 *                                                                                  <br/>
+                 *  Affected component:                                                                 <br/>
+                 *      - cc.TMXLayer                                                       <br/>
+                 *                                                                                  <br/>
+                 *  Enabled by default. To disabled set it to 0. <br/>
+                 *  To modify it, in Web engine please refer to CCMacro.js, in JSB please refer to CCConfig.h
+                 * </p>
+                 *
+                 * @property {Number} FIX_ARTIFACTS_BY_STRECHING_TEXEL_TMX
+                 */ FIX_ARTIFACTS_BY_STRECHING_TEXEL_TMX: boolean;
+        /**
+                 * Position of the FPS (Default: 0,0 (bottom-left corner))<br/>
+                 * To modify it, in Web engine please refer to CCMacro.js, in JSB please refer to CCConfig.h
+                 * @property {Vec2} DIRECTOR_STATS_POSITION
+                 */ DIRECTOR_STATS_POSITION: Vec2;
+        /**
+                 * <p>
+                 *    If enabled, actions that alter the position property (eg: CCMoveBy, CCJumpBy, CCBezierBy, etc..) will be stacked.                  <br/>
+                 *    If you run 2 or more 'position' actions at the same time on a node, then end position will be the sum of all the positions.        <br/>
+                 *    If disabled, only the last run action will take effect.
+                 * </p>
+                 * @property {Number} ENABLE_STACKABLE_ACTIONS
+                 */ ENABLE_STACKABLE_ACTIONS: boolean;
+        /**
+                 * !#en
+                 * The timeout to determine whether a touch is no longer active and should be removed.
+                 * The reason to add this timeout is due to an issue in X5 browser core,
+                 * when X5 is presented in wechat on Android, if a touch is glissed from the bottom up, and leave the page area,
+                 * no touch cancel event is triggered, and the touch will be considered active forever.
+                 * After multiple times of this action, our maximum touches number will be reached and all new touches will be ignored.
+                 * So this new mechanism can remove the touch that should be inactive if it's not updated during the last 5000 milliseconds.
+                 * Though it might remove a real touch if it's just not moving for the last 5 seconds which is not easy with the sensibility of mobile touch screen.
+                 * You can modify this value to have a better behavior if you find it's not enough.
+                 * !#zh
+                 * 用于甄别一个触点对象是否已经失效并且可以被移除的延时时长
+                 * 添加这个时长的原因是 X5 内核在微信浏览器中出现的一个 bug。
+                 * 在这个环境下，如果用户将一个触点从底向上移出页面区域，将不会触发任何 touch cancel 或 touch end 事件，而这个触点会被永远当作停留在页面上的有效触点。
+                 * 重复这样操作几次之后，屏幕上的触点数量将达到我们的事件系统所支持的最高触点数量，之后所有的触摸事件都将被忽略。
+                 * 所以这个新的机制可以在触点在一定时间内没有任何更新的情况下视为失效触点并从事件系统中移除。
+                 * 当然，这也可能移除一个真实的触点，如果用户的触点真的在一定时间段内完全没有移动（这在当前手机屏幕的灵敏度下会很难）。
+                 * 你可以修改这个值来获得你需要的效果，默认值是 5000 毫秒。
+                 * @property {Number} TOUCH_TIMEOUT
+                 */ TOUCH_TIMEOUT: number;
+        /**
+                 * !#en
+                 * The maximum vertex count for a single batched draw call.
+                 * !#zh
+                 * 最大可以被单次批处理渲染的顶点数量。
+                 * @property {Number} BATCH_VERTEX_COUNT
+                 */ BATCH_VERTEX_COUNT: number;
+        /**
+                 * !#en
+                 * Whether or not enabled tiled map auto culling. If you set the TiledMap skew or rotation,
+                 * then need to manually disable this, otherwise, the rendering will be wrong.
+                 * !#zh
+                 * 是否开启瓦片地图的自动裁减功能。瓦片地图如果设置了 skew, rotation 的话，需要手动关闭，否则渲染会出错。
+                 * @property {Boolean} ENABLE_TILEDMAP_CULLING
+                 * @default true
+                 */ ENABLE_TILEDMAP_CULLING: boolean;
+        /**
+                 * !#en
+                 * The max concurrent task number for the downloader
+                 * !#zh
+                 * 下载任务的最大并发数限制，在安卓平台部分机型或版本上可能需要限制在较低的水平
+                 * @property {Number} DOWNLOAD_MAX_CONCURRENT
+                 * @default 64
+                 */ DOWNLOAD_MAX_CONCURRENT: number;
+        /**
+                 * !#en
+                 * Boolean that indicates if the canvas contains an alpha channel, default sets to false for better performance.
+                 * Though if you want to make your canvas background transparent and show other dom elements at the background,
+                 * you can set it to true before `cc.game.run`.
+                 * Web only.
+                 * !#zh
+                 * 用于设置 Canvas 背景是否支持 alpha 通道，默认为 false，这样可以有更高的性能表现。
+                 * 如果你希望 Canvas 背景是透明的，并显示背后的其他 DOM 元素，你可以在 `cc.game.run` 之前将这个值设为 true。
+                 * 仅支持 Web
+                 * @property {Boolean} ENABLE_TRANSPARENT_CANVAS
+                 * @default false
+                 */ ENABLE_TRANSPARENT_CANVAS: boolean;
+        /**
+                 * !#en
+                 * Boolean that indicates if the WebGL context is created with `antialias` option turned on, default value is false.
+                 * Set it to true could make your game graphics slightly smoother, like texture hard edges when rotated.
+                 * Whether to use this really depend on your game design and targeted platform,
+                 * device with retina display usually have good detail on graphics with or without this option,
+                 * you probably don't want antialias if your game style is pixel art based.
+                 * Also, it could have great performance impact with some browser / device using software MSAA.
+                 * You can set it to true before `cc.game.run`.
+                 * Web only.
+                 * !#zh
+                 * 用于设置在创建 WebGL Context 时是否开启抗锯齿选项，默认值是 false。
+                 * 将这个选项设置为 true 会让你的游戏画面稍稍平滑一些，比如旋转硬边贴图时的锯齿。是否开启这个选项很大程度上取决于你的游戏和面向的平台。
+                 * 在大多数拥有 retina 级别屏幕的设备上用户往往无法区分这个选项带来的变化；如果你的游戏选择像素艺术风格，你也多半不会想开启这个选项。
+                 * 同时，在少部分使用软件级别抗锯齿算法的设备或浏览器上，这个选项会对性能产生比较大的影响。
+                 * 你可以在 `cc.game.run` 之前设置这个值，否则它不会生效。
+                 * 仅支持 Web
+                 * @property {Boolean} ENABLE_WEBGL_ANTIALIAS
+                 * @default false
+                 */ ENABLE_WEBGL_ANTIALIAS: boolean;
+        /**
+                 * !#en
+                 * Whether or not enable auto culling.
+                 * This feature have been removed in v2.0 new renderer due to overall performance consumption.
+                 * We have no plan currently to re-enable auto culling.
+                 * If your game have more dynamic objects, we suggest to disable auto culling.
+                 * If your game have more static objects, we suggest to enable auto culling.
+                 * !#zh
+                 * 是否开启自动裁减功能，开启裁减功能将会把在屏幕外的物体从渲染队列中去除掉。
+                 * 这个功能在 v2.0 的新渲染器中被移除了，因为它在大多数游戏中所带来的损耗要高于性能的提升，目前我们没有计划重新支持自动裁剪。
+                 * 如果游戏中的动态物体比较多的话，建议将此选项关闭。
+                 * 如果游戏中的静态物体比较多的话，建议将此选项打开。
+                 * @property {Boolean} ENABLE_CULLING
+                 * @deprecated since v2.0
+                 * @default false
+                 */ ENABLE_CULLING: boolean;
+        /**
+                 * !#en
+                 * Whether or not clear dom Image object cache after uploading to gl texture.
+                 * Concretely, we are setting image.src to empty string to release the cache.
+                 * Normally you don't need to enable this option, because on web the Image object doesn't consume too much memory.
+                 * But on Wechat Game platform, the current version cache decoded data in Image object, which has high memory usage.
+                 * So we enabled this option by default on Wechat, so that we can release Image cache immediately after uploaded to GPU.
+                 * !#zh
+                 * 是否在将贴图上传至 GPU 之后删除 DOM Image 缓存。
+                 * 具体来说，我们通过设置 image.src 为空字符串来释放这部分内存。
+                 * 正常情况下，你不需要开启这个选项，因为在 web 平台，Image 对象所占用的内存很小。
+                 * 但是在微信小游戏平台的当前版本，Image 对象会缓存解码后的图片数据，它所占用的内存空间很大。
+                 * 所以我们在微信平台默认开启了这个选项，这样我们就可以在上传 GL 贴图之后立即释放 Image 对象的内存，避免过高的内存占用。
+                 * @property {Boolean} CLEANUP_IMAGE_CACHE
+                 * @default false
+                 */ CLEANUP_IMAGE_CACHE: boolean;
+        /**
+                 * !#en
+                 * Whether or not show mesh wire frame.
+                 * !#zh
+                 * 是否显示网格的线框。
+                 * @property {Boolean} SHOW_MESH_WIREFRAME
+                 * @default false
+                 */ SHOW_MESH_WIREFRAME: boolean;
     };
     var eventManager: __internal.cocos_core_platform_event_manager_event_manager_EventManager;
     export class SystemEvent extends EventTarget {
@@ -4695,29 +5639,44 @@ declare module "Cocos3D" {
          * !#zh
          * 一般用于系统事件或者节点事件的事件枚举
          */ export enum EventType {
-        TOUCH_START,
-        TOUCH_MOVE,
-        TOUCH_END,
-        TOUCH_CANCEL,
-        MOUSE_DOWN,
-        MOUSE_MOVE,
-        MOUSE_UP,
-        MOUSE_WHEEL,
-        MOUSE_ENTER,
-        MOUSE_LEAVE,
-        KEY_DOWN,
-        KEY_UP,
-        DEVICEMOTION,
-        TRANSFORM_CHANGED,
-        POSITION_PART,
-        ROTATION_PART,
-        SCALE_PART,
-        SCENE_CHANGED_FOR_PERSISTS,
-        SIZE_CHANGED,
-        ANCHOR_CHANGED,
-        CHILD_ADDED,
-        CHILD_REMOVED
+        TOUCH_START = "touch-start",
+        TOUCH_MOVE = "touch-move2",
+        TOUCH_END = "touch-end",
+        TOUCH_CANCEL = "touch-cancel",
+        MOUSE_DOWN = "mouse-down",
+        MOUSE_MOVE = "mouse-move",
+        MOUSE_UP = "mouse-up",
+        MOUSE_WHEEL = "mouse-wheel",
+        MOUSE_ENTER = "mouse-enter",
+        MOUSE_LEAVE = "mouse-leave",
+        KEY_DOWN = "keydown",
+        KEY_UP = "keyup",
+        DEVICEMOTION = "devicemotion",
+        TRANSFORM_CHANGED = "transform-changed",
+        POSITION_PART = "position-part",
+        ROTATION_PART = "rotation-part",
+        SCALE_PART = "scale-part",
+        SCENE_CHANGED_FOR_PERSISTS = "scene-changed-for-persists",
+        SIZE_CHANGED = "size-changed",
+        ANCHOR_CHANGED = "anchor-changed",
+        CHILD_ADDED = "child-added",
+        CHILD_REMOVED = "child-removed"
     }
+    /**
+         * @en
+         * Define an enum type. <br/>
+         * If a enum item has a value of -1, it will be given an Integer number according to it's order in the list.<br/>
+         * Otherwise it will use the value specified by user who writes the enum definition.
+         *
+         * @zh
+         * 定义一个枚举类型。<br/>
+         * 用户可以把枚举值设为任意的整数，如果设为 -1，系统将会分配为上一个枚举值 + 1。
+         *
+         * @param obj - a JavaScript literal object containing enum names and values, or a TypeScript enum type
+         * @return the defined enum type
+         * @example {@link cocos2d/core/platform/CCEnum/Enum.js}
+         * @typescript Enum<T>(obj: T): T
+         */ export function Enum<T>(obj: T): T;
     /**
          * !#en The base class of all value types.
          * !#zh 所有值类型的基类。
@@ -4744,7 +5703,7 @@ declare module "Cocos3D" {
                  * @param to - the to value
                  * @param ratio - the interpolation coefficient
                  * @returns
-                 */ lerp(to: this, ratio: number): ValueType;
+                 */ lerp(to: this, ratio: number, out?: this): ValueType;
         /**
                  * !#en
                  * Copys all the properties from another given object to this value.
@@ -6990,6 +7949,8 @@ declare module "Cocos3D" {
          * @class Scene
          * @extends Node
          */ export class Scene extends Node {
+        readonly renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
+        readonly globals: __internal.cocos_scene_graph_scene_globals_SceneGlobals;
         /**
                  * !#en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
                  * !#zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
@@ -7001,13 +7962,11 @@ declare module "Cocos3D" {
         /**
                  * For internal usage.
                  */ _renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
+        dependAssets: null;
         protected _inited: boolean;
         protected _prefabSyncedInLiveReload: boolean;
-        protected dependAssets: null;
         constructor(name: string);
         destroy(): void;
-        readonly renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
-        readonly globals: __internal.cocos_scene_graph_scene_globals_SceneGlobals;
         _onHierarchyChanged(): void;
         protected _instantiate(): void;
         protected _load(): void;
@@ -7095,7 +8054,7 @@ declare module "Cocos3D" {
         /**
                  * For internal usage.
                  */ _uuid: string;
-        constructor();
+        constructor(...args: ConstructorParameters<typeof CCObject>);
     }
     /**
          * !#en
@@ -7117,7 +8076,18 @@ declare module "Cocos3D" {
          *
          * @class Asset
          * @extends RawAsset
-         */ export class Asset extends RawAsset {
+         */ export class Asset extends RawAsset implements __internal.cocos_core_event_event_target_factory_IEventTarget {
+        /**
+                 * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
+                 */ _callbackTable: any;
+        on(type: string, callback: Function, target?: Object | undefined): Function | undefined;
+        off(type: string, callback?: Function | undefined, target?: Object | undefined): void;
+        targetOff(keyOrTarget?: string | Object | undefined): void;
+        once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
+        dispatchEvent(event: Event): void;
+        hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
+        removeAll(keyOrTarget?: string | Object | undefined): void;
+        emit(key: string, ...args: any[]): void;
         /**
                  * !#en
                  * Returns the url of this asset's native object, if none it will returns an empty string.
@@ -7171,7 +8141,7 @@ declare module "Cocos3D" {
                  * Serializable url for native asset. For internal usage.
                  * @default ""
                  */ _native: string | undefined;
-        constructor();
+        constructor(...args: ConstructorParameters<typeof RawAsset>);
         /**
                  * Returns the string representation of the object.
                  *
@@ -7208,6 +8178,79 @@ declare module "Cocos3D" {
                  * 使用该资源在场景中创建一个新节点。<br/>
                  * 如果这类资源没有相应的节点类型，该方法应该是空的。
                  */ createNode?(callback: __internal.cocos_assets_asset_CreateNodeCallback): void;
+    }
+    /**
+         * !#en Class for prefab handling.
+         * !#zh 预制资源类。
+         * @class Prefab
+         * @extends Asset
+         */ export class Prefab extends Asset {
+        static OptimizationPolicy: {
+            /**
+                         * !#zh
+                         * 根据创建次数自动调整优化策略。初次创建实例时，行为等同 SINGLE_INSTANCE，多次创建后将自动采用 MULTI_INSTANCE。
+                         * !#en
+                         * The optimization policy is automatically chosen based on the number of instantiations.
+                         * When you first create an instance, the behavior is the same as SINGLE_INSTANCE. MULTI_INSTANCE will be automatically used after multiple creation.
+                         * @property {Number} AUTO
+                         */ AUTO: number;
+            /**
+                         * !#zh
+                         * 优化单次创建性能。<br>
+                         * 该选项会跳过针对这个 prefab 的代码生成优化操作。当该 prefab 加载后，一般只会创建一个实例时，请选择此项。
+                         * !#en
+                         * Optimize for single instance creation.<br>
+                         * This option skips code generation for this prefab.
+                         * When this prefab will usually create only one instances, please select this option.
+                         * @property {Number} SINGLE_INSTANCE
+                         */ SINGLE_INSTANCE: number;
+            /**
+                         * !#zh
+                         * 优化多次创建性能。<br>
+                         * 该选项会启用针对这个 prefab 的代码生成优化操作。当该 prefab 加载后，一般会创建多个实例时，请选择此项。如果该 prefab 在场景中的节点启用了自动关联，并且在场景中有多份实例，也建议选择此项。
+                         * !#en
+                         * Optimize for creating instances multiple times.<br>
+                         * This option enables code generation for this prefab.
+                         * When this prefab will usually create multiple instances, please select this option.
+                         * It is also recommended to select this option if the prefab instance in the scene has Auto Sync enabled and there are multiple instances in the scene.
+                         * @property {Number} MULTI_INSTANCE
+                         */ MULTI_INSTANCE: number;
+        };
+        static OptimizationPolicyThreshold: number;
+        /**
+                 * @property {Node} data - the main cc.Node in the prefab
+                 */ data: any;
+        /**
+                 * !#zh
+                 * 设置实例化这个 prefab 时所用的优化策略。根据使用情况设置为合适的值，能优化该 prefab 实例化所用的时间。
+                 * !#en
+                 * Indicates the optimization policy for instantiating this prefab.
+                 * Set to a suitable value based on usage, can optimize the time it takes to instantiate this prefab.
+                 *
+                 * @property {Prefab.OptimizationPolicy} optimizationPolicy
+                 * @default Prefab.OptimizationPolicy.AUTO
+                 * @since 1.10.0
+                 * @example
+                 * prefab.optimizationPolicy = cc.Prefab.OptimizationPolicy.MULTI_INSTANCE;
+                 */ optimizationPolicy: number;
+        /**
+                 * !#en Indicates the raw assets of this prefab can be load after prefab loaded.
+                 * !#zh 指示该 Prefab 依赖的资源可否在 Prefab 加载后再延迟加载。
+                 * @property {Boolean} asyncLoadAssets
+                 * @default false
+                 */ asyncLoadAssets: boolean;
+        private _createFunction;
+        private _instantiatedTimes;
+        constructor();
+        createNode(cb: Function): void;
+        /**
+                 * Dynamically translation prefab data into minimized code.<br/>
+                 * This method will be called automatically before the first time the prefab being instantiated,
+                 * but you can re-call to refresh the create function once you modified the original prefab data in script.
+                 * @method compileCreateFunction
+                 */ compileCreateFunction(): void;
+        private _doInstantiate;
+        private _instantiate;
     }
     /**
          * !#en Class for scene handling.
@@ -7287,9 +8330,79 @@ declare module "Cocos3D" {
                  * @property json - The loaded JSON object.
                  */ json: object | null;
     }
+    var AssetLibrary: {
+        /**
+                 * !#en Caches uuid to all loaded assets in scenes.
+                 *
+                 * !#zh 这里保存所有已经加载的场景资源，防止同一个资源在内存中加载出多份拷贝。
+                 *
+                 * 这里用不了WeakMap，在浏览器中所有加载过的资源都只能手工调用 unloadAsset 释放。
+                 *
+                 * 参考：
+                 * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
+                 * https://github.com/TooTallNate/node-weak
+                 *
+                 * @property {object} _uuidToAsset
+                 * @private
+                 */ _uuidToAsset: {};
+        /**
+                 * @callback loadCallback
+                 * @param {String} error - null or the error info
+                 * @param {Asset} data - the loaded asset or null
+                 */ /**
+                 * @method loadAsset
+                 * @param {String} uuid
+                 * @param {loadCallback} callback - the callback function once load finished
+                 * @param {Object} options
+                 * @param {Boolean} options.readMainCache - Default is true. If false, the asset and all its depends assets will reload and create new instances from library.
+                 * @param {Boolean} options.writeMainCache - Default is true. If true, the result will cache to AssetLibrary, and MUST be unload by user manually.
+                 * @param {Asset} options.existingAsset - load to existing asset, this argument is only available in editor
+                 * @private
+                 */ loadAsset(uuid: any, callback: any, options: any): void;
+        getLibUrlNoExt(uuid: any, inRawAssetsDir?: any): string;
+        _queryAssetInfoInEditor(uuid: any, callback: any): void;
+        _getAssetInfoInRuntime(uuid: any, result?: any): any;
+        _uuidInSettings(uuid: any): boolean;
+        /**
+                 * @method queryAssetInfo
+                 * @param {String} uuid
+                 * @param {Function} callback
+                 * @param {Error} callback.error
+                 * @param {String} callback.url - the url of raw asset or imported asset
+                 * @param {Boolean} callback.raw - indicates whether the asset is raw asset
+                 * @param {Function} callback.ctorInEditor - the actual type of asset, used in editor only
+                 */ queryAssetInfo(uuid: any, callback: any): void;
+        parseUuidInEditor(url: any): string | undefined;
+        /**
+                 * @method loadJson
+                 * @param {String} json
+                 * @param {loadCallback} callback
+                 * @return {LoadingHandle}
+                 * @private
+                 */ loadJson(json: any, callback: any): void;
+        /**
+                 * Get the exists asset by uuid.
+                 *
+                 * @method getAssetByUuid
+                 * @param {String} uuid
+                 * @return {Asset} - the existing asset, if not loaded, just returns null.
+                 * @private
+                 */ getAssetByUuid(uuid: any): any;
+        /**
+                 * init the asset library
+                 *
+                 * @method init
+                 * @param {Object} options
+                 * @param {String} options.libraryPath - 能接收的任意类型的路径，通常在编辑器里使用绝对的，在网页里使用相对的。
+                 * @param {Object} options.mountPaths - mount point of actual urls for raw assets (only used in editor)
+                 * @param {Object} [options.rawAssets] - uuid to raw asset's urls (only used in runtime)
+                 * @param {String} [options.rawAssetsBase] - base of raw asset's urls (only used in runtime)
+                 * @param {String} [options.packedAssets] - packed assets (only used in runtime)
+                 */ init(options: any): void;
+    };
     /**
          * Class ImageAsset.
-         */ export class ImageAsset extends __internal.cocos_assets_image_asset_ImageAsset_base {
+         */ export class ImageAsset extends Asset {
         _nativeAsset: __internal.cocos_assets_image_asset_ImageSource;
         readonly data: ArrayBufferView | HTMLCanvasElement | HTMLImageElement | null;
         readonly width: number;
@@ -7329,6 +8442,7 @@ declare module "Cocos3D" {
                 * Sets the mipmap images as a single mipmap image.
                 */ image: ImageAsset | null;
         _mipmaps: ImageAsset[];
+        private _unfinished;
         constructor();
         onLoaded(): void;
         /**
@@ -7373,6 +8487,26 @@ declare module "Cocos3D" {
                  */ releaseTexture(): void;
         _serialize(exporting?: any): any;
         _deserialize(serializedData: any, handle: any): void;
+        /**
+                 * !#en If a loading scene (or prefab) is marked as `asyncLoadAssets`, all the image asset of the Texture2D which
+                 * associated by user's custom Components in the scene, will not preload automatically.
+                 * These image asset will be load when render component is going to render the Texture2D.
+                 * You can call this method if you want to load the texture early.
+                 * !#zh 当加载中的场景或 Prefab 被标记为 `asyncLoadAssets` 时，用户在场景中由自定义组件关联到的所有 Texture2D 的贴图都不会被提前加载。
+                 * 只有当 渲染 组件要渲染这些 Texture2D 时，才会检查贴图是否加载。如果你希望加载过程提前，你可以手工调用这个方法。
+                 *
+                 * @method ensureLoadImage
+                 * @example
+                 * if (texture.loaded) {
+                 *     this._onTextureLoaded();
+                 * }
+                 * else {
+                 *     texture.once('load', this._onTextureLoaded, this);
+                 *     texture.ensureLoadImage();
+                 * }
+                 */ ensureLoadImage(): void;
+        protected _onImageLoaded(): void;
+        protected _assetReady(): void;
     }
     /**
          * @module cc
@@ -7457,7 +8591,6 @@ declare module "Cocos3D" {
         x: number;
         y: number;
     }
-    var SpriteFrame_base: {} & typeof Texture2D;
     /**
          * !#en
          * A cc.SpriteFrame has:<br/>
@@ -7482,7 +8615,7 @@ declare module "Cocos3D" {
          *  sprite.spriteFrame = spriteFrame;
          *  node.parent = self.node
          * });
-         */ export class SpriteFrame extends SpriteFrame_base {
+         */ export class SpriteFrame extends Texture2D {
         /**
                  * !#en Top border of the sprite
                  * !#zh sprite 的顶部边框
@@ -7570,8 +8703,7 @@ declare module "Cocos3D" {
                  * !#zh 获取使用的纹理实例
                  * @method getTexture
                  * @return {Texture2D}
-                 */ _textureLoadedCallback(): void;
-        /**
+                 */ /**
                  * !#en Returns the offset of the frame in the texture.
                  * !#zh 获取偏移量
                  */ getOffset(out?: Vec2): Vec2;
@@ -7586,24 +8718,6 @@ declare module "Cocos3D" {
                  * @method clone
                  * @return {SpriteFrame}
                  */ clone(): SpriteFrame;
-        /**
-                 * !#en If a loading scene (or prefab) is marked as `asyncLoadAssets`, all the textures of the SpriteFrame which
-                 * associated by user's custom Components in the scene, will not preload automatically.
-                 * These textures will be load when Sprite component is going to render the SpriteFrames.
-                 * You can call this method if you want to load the texture early.
-                 * !#zh 当加载中的场景或 Prefab 被标记为 `asyncLoadAssets` 时，用户在场景中由自定义组件关联到的所有 SpriteFrame 的贴图都不会被提前加载。
-                 * 只有当 Sprite 组件要渲染这些 SpriteFrame 时，才会检查贴图是否加载。如果你希望加载过程提前，你可以手工调用这个方法。
-                 *
-                 * @method ensureLoadTexture
-                 * @example
-                 * if (spriteFrame.textureLoaded()) {
-                 *     this._onSpriteFrameLoaded();
-                 * }
-                 * else {
-                 *     spriteFrame.once('load', this._onSpriteFrameLoaded, this);
-                 *     spriteFrame.ensureLoadTexture();
-                 * }
-                 */ ensureLoadTexture(): void;
         checkRect(texture: ImageAsset): void;
         _calculateSlicedUV(): void;
         setDynamicAtlasFrame(frame: SpriteFrame): void;
@@ -7611,7 +8725,407 @@ declare module "Cocos3D" {
         _calculateUV(): void;
         _serialize(exporting?: any): any;
         _deserialize(serializeData: any, handle: any): void;
-        onLoaded(): void;
+        protected _assetReady(): void;
+    }
+    namespace easing {
+        export function constant(): number;
+        export function linear(k: number): number;
+        export function quadIn(k: number): number;
+        export function quadOut(k: number): number;
+        export function quadInOut(k: number): number;
+        export function cubicIn(k: number): number;
+        export function cubicOut(k: number): number;
+        export function cubicInOut(k: number): number;
+        export function quartIn(k: number): number;
+        export function quartOut(k: number): number;
+        export function quartInOut(k: number): number;
+        export function quintIn(k: number): number;
+        export function quintOut(k: number): number;
+        export function quintInOut(k: number): number;
+        export function sineIn(k: number): number;
+        export function sineOut(k: number): number;
+        export function sineInOut(k: number): number;
+        export function expoIn(k: number): number;
+        export function expoOut(k: number): number;
+        export function expoInOut(k: number): number;
+        export function circIn(k: number): number;
+        export function circOut(k: number): number;
+        export function circInOut(k: number): number;
+        export function elasticIn(k: number): number;
+        export function elasticOut(k: number): number;
+        export function elasticInOut(k: number): number;
+        export function backIn(k: number): number;
+        export function backOut(k: number): number;
+        export function backInOut(k: number): number;
+        export function bounceIn(k: number): number;
+        export function bounceOut(k: number): number;
+        export function bounceInOut(k: number): number;
+        export function smooth(k: number): number;
+        export function fade(k: number): number;
+        var quadOutIn: (k: number) => number;
+        var cubicOutIn: (k: number) => number;
+        var quartOutIn: (k: number) => number;
+        var quintOutIn: (k: number) => number;
+        var sineOutIn: (k: number) => number;
+        var expoOutIn: (k: number) => number;
+        var circOutIn: (k: number) => number;
+        var backOutIn: (k: number) => number;
+        var bounceOutIn: (k: number) => number;
+    }
+    export function bezier(C1: number, C2: number, C3: number, C4: number, t: number): number;
+    export function bezierByTime(controlPoints: any, x: any): number;
+    export function isLerpable(object: any): object is ILerpable;
+    export enum WrapModeMask {
+        Loop = 2,
+        ShouldWrap = 4,
+        PingPong = 22,
+        Reverse = 36
+    }
+    /**
+         * !#en Specifies how time is treated when it is outside of the keyframe range of an Animation.
+         * !#zh 动画使用的循环模式。
+         */ export enum WrapMode {
+        Default = 0,
+        Normal = 1,
+        Reverse = 36,
+        Loop = 2,
+        LoopReverse = 38,
+        PingPong = 22,
+        PingPongReverse = 54
+    }
+    /**
+         * For internal
+         */ export class WrappedInfo {
+        ratio: number;
+        time: number;
+        direction: number;
+        stopped: boolean;
+        iterations: number;
+        frameIndex: number;
+        constructor(info?: WrappedInfo);
+        set(info: WrappedInfo): void;
+    }
+    export interface ILerpable {
+        lerp(to: this, t: number): this;
+    }
+    export function sampleMotionPaths(motionPaths: Array<(MotionPath | undefined)>, data: AnimCurve, duration: number, fps: number): void;
+    export class Curve {
+        points: IControlPoint[];
+        beziers: Bezier[];
+        ratios: number[];
+        progresses: number[];
+        length: number;
+        constructor(points?: IControlPoint[]);
+        computeBeziers(): Bezier[];
+    }
+    export class Bezier {
+        start: Vec2;
+        end: Vec2;
+        /**
+                 * cp0, cp1
+                 */ startCtrlPoint: Vec2;
+        /**
+                 * cp2, cp3
+                 */ endCtrlPoint: Vec2;
+        __arcLengthDivisions?: number;
+        private cacheArcLengths?;
+        /**
+                 * Get point at relative position in curve according to arc length
+                 * @param u [0 .. 1]
+                 */ getPointAt(u: number): Vec2;
+        /**
+                 * Get point at time t.
+                 * @param t [0 .. 1]
+                 */ getPoint(t: number): Vec2;
+        /**
+                 * Get total curve arc length.
+                 */ getLength(): number;
+        /**
+                 * Get list of cumulative segment lengths.
+                 */ getLengths(divisions?: number): number[];
+        getUtoTmapping(u: number, distance?: number): number;
+    }
+    interface IControlPoint {
+        in: Vec2;
+        pos: Vec2;
+        out: Vec2;
+    }
+    export type MotionPath = Vec2[];
+    /**
+         * Compute a new ratio by curve type
+         * @param ratio - The origin ratio
+         * @param type - If it's Array, then ratio will be computed with bezierByTime.
+         * If it's string, then ratio will be computed with cc.easing function
+         */ export function computeRatioByType(ratio: number, type: CurveType): number;
+    export type CurveValue = any;
+    export interface ICurveTarget {
+    }
+    export type LerpFunction<T = any> = (from: T, to: T, t: number, dt: number) => T;
+    /**
+         * If propertyBlendState.weight equals to zero, the propertyBlendState.value is dirty.
+         * You shall handle this situation correctly.
+         */ export type BlendFunction<T> = (value: T, weight: number, propertyBlendState: __internal.cocos_animation_animation_blend_state_PropertyBlendState) => T;
+    export type FrameFinder = (framevalues: number[], value: number) => number;
+    export type LinearType = null;
+    export type BezierType = [number, number, number, number];
+    export type EasingMethodName = keyof (typeof easing);
+    export type CurveType = LinearType | BezierType | EasingMethodName;
+    export enum AnimationInterpolation {
+        Linear = 0,
+        Step = 1,
+        CubicSpline = 2
+    }
+    type EasingMethod = EasingMethodName | number[];
+    export interface PropertyCurveData {
+        keys: number;
+        values: CurveValue[];
+        easingMethod?: EasingMethod;
+        easingMethods?: EasingMethod[];
+        motionPaths?: MotionPath | MotionPath[];
+        /**
+                 * When the interpolation is 'AnimationInterpolation.CubicSpline', the values must be array of ICubicSplineValue.
+                 */ interpolation?: AnimationInterpolation;
+    }
+    export class RatioSampler {
+        ratios: number[];
+        private _lastSampleRatio;
+        private _lastSampleResult;
+        private _findRatio;
+        constructor(ratios: number[]);
+        sample(ratio: number): number;
+    }
+    /**
+         * 动画曲线。
+         */ export class AnimCurve {
+        static Linear: null;
+        static Bezier(controlPoints: number[]): [number, number, number, number];
+        /**
+                 * The values of the keyframes. (y)
+                 */ values: CurveValue[];
+        /**
+                 * The keyframe ratio of the keyframe specified as a number between 0.0 and 1.0 inclusive. (x)
+                 * A null ratio indicates a zero or single frame curve.
+                 */ ratioSampler: RatioSampler | null;
+        types?: CurveType[];
+        type?: CurveType;
+        _blendFunction: BlendFunction<any> | undefined;
+        /**
+                 * Lerp function used. If undefined, no lerp is performed.
+                 */ private _lerp;
+        private _stepfiedValues?;
+        private _interpolation;
+        constructor(propertyCurveData: PropertyCurveData, propertyName: string, isNode: boolean, ratioSampler: RatioSampler | null);
+        /**
+                 * @param ratio The normalized time specified as a number between 0.0 and 1.0 inclusive.
+                 */ sample(ratio: number): any;
+        stepfy(stepCount: number): void;
+        private _sampleFromOriginal;
+    }
+    export class EventInfo {
+        events: any[];
+        /**
+                 * @param func event function
+                 * @param params event params
+                 */ add(func: string, params: any[]): void;
+    }
+    interface IAnimationEvent {
+        frame: number;
+        func: string;
+        params: string[];
+    }
+    interface ICurveData {
+        props?: {};
+        comps?: {};
+    }
+    export interface IPropertyCurve {
+        /**
+                 * 结点路径。
+                 */ path: string;
+        /**
+                 * 组件名称。
+                 */ component?: string;
+        /**
+                 * 属性名称。
+                 */ propertyName: string;
+        /**
+                 * 属性曲线。
+                 */ curve: AnimCurve;
+    }
+    export class AnimationClip extends Asset {
+        static WrapMode: typeof WrapMode;
+        /**
+                 * !#en Duration of this animation.
+                 * !#zh 动画的持续时间。
+                 */ readonly duration: number;
+        /**
+                 * !#en Crate clip with a set of sprite frames
+                 * !#zh 使用一组序列帧图片来创建动画剪辑
+                 * @example
+                 * const clip = cc.AnimationClip.createWithSpriteFrames(spriteFrames, 10);
+                 *
+                 */ static createWithSpriteFrames(spriteFrames: SpriteFrame[], sample: number): AnimationClip | null;
+        /**
+                 * !#en FrameRate of this animation.
+                 * !#zh 动画的帧速率。
+                 */ sample: number;
+        /**
+                 * !#en Speed of this animation.
+                 * !#zh 动画的播放速度。
+                 */ speed: number;
+        /**
+                 * !#en WrapMode of this animation.
+                 * !#zh 动画的循环模式。
+                 */ wrapMode: WrapMode;
+        /**
+                 * !#en Curve data.
+                 * !#zh 曲线数据。
+                 * @example {@link cocos2d/core/animation-clip/curve-data.js}
+                 */ curveDatas: {};
+        /**
+                 * !#en Event data.
+                 * !#zh 事件数据。
+                 * @example {@link cocos2d/core/animation-clip/event-data.js}
+                 * @typescript events: {frame: number, func: string, params: string[]}[]
+                 */ events: IAnimationEvent[];
+        private _duration;
+        private _keys;
+        private _ratioSamplers;
+        private _propertyCurves?;
+        private frameRate;
+        private _stepness;
+        readonly propertyCurves: ReadonlyArray<IPropertyCurve>;
+        stepness: number;
+        onLoad(): void;
+        private _createPropertyCurves;
+        private _createCurve;
+        private _applyStepness;
+    }
+    export class AnimationManager {
+        private _anims;
+        private _delayEvents;
+        private _blendState;
+        private _crossFades;
+        constructor();
+        readonly blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState;
+        addCrossFade(crossFade: __internal.cocos_animation_cross_fade_CrossFade): void;
+        removeCrossFade(crossFade: __internal.cocos_animation_cross_fade_CrossFade): void;
+        update(dt: number): void;
+        destruct(): void;
+        addAnimation(anim: AnimationState): void;
+        removeAnimation(anim: AnimationState): void;
+        pushDelayEvent(target: Node, func: string, args: any[]): void;
+    }
+    /**
+         * !#en
+         * The AnimationState gives full control over animation playback process.
+         * In most cases the Animation Component is sufficient and easier to use. Use the AnimationState if you need full control.
+         * !#zh
+         * AnimationState 完全控制动画播放过程。<br/>
+         * 大多数情况下 动画组件 是足够和易于使用的。如果您需要更多的动画控制接口，请使用 AnimationState。
+         *
+         */ export class AnimationState extends __internal.cocos_animation_playable_Playable {
+        /**
+                 * !#en The clip that is being played by this animation state.
+                 * !#zh 此动画状态正在播放的剪辑。
+                 */ readonly clip: AnimationClip;
+        /**
+                 * !#en The name of the playing animation.
+                 * !#zh 动画的名字
+                 */ readonly name: string;
+        readonly length: number;
+        /**
+                 * !#en
+                 * Wrapping mode of the playing animation.
+                 * Notice : dynamic change wrapMode will reset time and repeatCount property
+                 * !#zh
+                 * 动画循环方式。
+                 * 需要注意的是，动态修改 wrapMode 时，会重置 time 以及 repeatCount
+                 * @default: WrapMode.Normal
+                 */ wrapMode: WrapMode;
+        /**
+                 * !#en The animation's iteration count property.
+                 *
+                 * A real number greater than or equal to zero (including positive infinity) representing the number of times
+                 * to repeat the animation node.
+                 *
+                 * Values less than zero and NaN values are treated as the value 1.0 for the purpose of timing model
+                 * calculations.
+                 *
+                 * !#zh 迭代次数，指动画播放多少次后结束, normalize time。 如 2.5（2次半）
+                 *
+                 * @property repeatCount
+                 * @type {Number}
+                 * @default 1
+                 */ repeatCount: number;
+        /**
+                 * !#en The start delay which represents the number of seconds from an animation's start time to the start of
+                 * the active interval.
+                 * !#zh 延迟多少秒播放。
+                 * @default 0
+                 */ delay: number;
+        /**
+                 * !#en The curves list.
+                 * !#zh 曲线列表。
+                 */ /**
+                 * !#en The iteration duration of this animation in seconds. (length)
+                 * !#zh 单次动画的持续时间，秒。
+                 * @readOnly
+                 */ duration: number;
+        /**
+                 * !#en The animation's playback speed. 1 is normal playback speed.
+                 * !#zh 播放速率。
+                 * @default: 1.0
+                 */ speed: number;
+        /**
+                 * !#en The current time of this animation in seconds.
+                 * !#zh 动画当前的时间，秒。
+                 * @default 0
+                 */ time: number;
+        /**
+                 * The weight.
+                 */ weight: number;
+        frameRate: number;
+        _lastframeEventOn: boolean;
+        private _wrapMode;
+        private _repeatCount;
+        /**
+                 * Mark whether the current frame is played.
+                 * When set new time to animation state, we should ensure the frame at the specified time being played at next update.
+                 */ private _currentFramePlayed;
+        private _delay;
+        private _delayTime;
+        private _wrappedInfo;
+        private _lastWrappedInfo;
+        private _process;
+        private _target;
+        private _clip;
+        private _name;
+        private _lastIterations?;
+        private _curveInstances;
+        constructor(clip: AnimationClip, name?: string);
+        initialize(root: Node): void;
+        _emit(type: any, state: any): void;
+        emit(...restargs: any[]): void;
+        on(type: any, callback: any, target: any): void | null;
+        once(type: any, callback: any, target: any): void | null;
+        off(type: any, callback: any, target: any): void;
+        _setEventTarget(target: any): void;
+        setTime(time: number): void;
+        update(delta: number): void;
+        _needReverse(currentIterations: number): boolean;
+        getWrappedInfo(time: number, info?: WrappedInfo): WrappedInfo;
+        sample(): WrappedInfo;
+        process(): void;
+        simpleProcess(): void;
+        attachToBlendState(blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState): void;
+        detachFromBlendState(blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState): void;
+        cache(frames: number): void;
+        protected onPlay(): void;
+        protected onStop(): void;
+        protected onResume(): void;
+        protected onPause(): void;
+        private _sampleCurves;
+        private _sampleEvents;
     }
     /**
          * !#en
@@ -7688,7 +9202,6 @@ declare module "Cocos3D" {
                  * Register all related EventTargets,
                  * all event callbacks will be removed in _onPreDestroy
                  */ private _eventTargets;
-        private __scriptUuid;
         constructor();
         _getRenderScene(): __internal.cocos_renderer_scene_render_scene_RenderScene;
         /**
@@ -7934,75 +9447,68 @@ declare module "Cocos3D" {
                  */ protected onRestore?(): void;
     }
     /**
-         * !#en
-         * Component will register a event to target component's handler.
-         * And it will trigger the handler when a certain event occurs.
+         * @zh
+         * “EventHandler” 类用来设置场景中的事件回调，该类允许用户设置回调目标节点，目标组件名，组件方法名，并可通过 emit 方法调用目标函数。
          *
-         * !@zh
-         * “EventHandler” 类用来设置场景中的事件回调，
-         * 该类允许用户设置回调目标节点，目标组件名，组件方法名，
-         * 并可通过 emit 方法调用目标函数。
-         * @class Component.EventHandler
          * @example
-         * // Create new EventHandler
+         * ```ts
          * var eventHandler = new cc.Component.EventHandler();
          * eventHandler.target = newTarget;
          * eventHandler.component = "MainMenu";
          * eventHandler.handler = "OnClick";
          * eventHandler.customEventData = "my data";
+         * ```
          */ export class EventHandler {
         _componentName: any;
         /**
-                 * @method emitEvents
-                 * @param {Component.EventHandler[]} events
-                 * @param {any} ...params
-                 * @static
+                 * @zh
+                 * 组件事件派发。
+                 *
+                 * @param events - 需要派发的组件事件列表。
+                 * @param args - 派发参数数组。
                  */ static emitEvents(events: EventHandler[], ...args: any[]): void;
         /**
-                 * !#en Event target
-                 * !#zh 目标节点
-                 * @property target
-                 * @type {Node}
-                 * @default null
+                 * @zh
+                 * 目标节点
                  */ target: Node | null;
         /**
-                 * !#en Component name
-                 * !#zh 目标组件名
-                 * @property component
-                 * @type {String}
-                 * @default ''
+                 * @zh
+                 * 目标组件名
                  */ component: string;
         _componentId: string;
         /**
-                 * !#en Event handler
-                 * !#zh 响应事件函数名
-                 * @property handler
-                 * @type {String}
-                 * @default ''
+                 * @zh
+                 * 响应事件函数名
                  */ handler: string;
         /**
-                 * !#en Custom Event Data
-                 * !#zh 自定义事件数据
-                 * @property customEventData
-                 * @default ''
-                 * @type {String}
+                 * @zh
+                 * 自定义事件数据
                  */ customEventData: string;
         /**
-                 * !#en Emit event with params
-                 * !#zh 触发目标组件上的指定 handler 函数，该参数是回调函数的参数值（可不填）。
-                 * @method emit
-                 * @param {Array} params
+                 * @zh
+                 * 触发目标组件上的指定 handler 函数，该参数是回调函数的参数值（可不填）。
+                 *
+                 * @param params - 派发参数数组
                  * @example
-                 * // Call Function
+                 * ```ts
                  * var eventHandler = new cc.Component.EventHandler();
                  * eventHandler.target = newTarget;
                  * eventHandler.component = "MainMenu";
                  * eventHandler.handler = "OnClick"
                  * eventHandler.emit(["param1", "param2", ....]);
+                 * ```
                  */ emit(params: any[]): void;
         private _compName2Id;
         private _compId2Name;
         private _genCompIdIfNeeded;
+    }
+    export class MissingScript extends Component {
+        static safeFindClass(id: any, data: any): any;
+        static getMissingWrapper(id: any, data: any): typeof __internal.cocos_components_missing_script_MissingClass;
+        compiled: boolean;
+        _$erialized: null;
+        constructor();
+        onLoad(): void;
     }
     /**
          * !#en The animation component is used to play back animations.
@@ -8024,16 +9530,21 @@ declare module "Cocos3D" {
          *  - resume : 恢复播放时
          *  - lastframe : 假如动画循环次数大于 1，当动画播放到最后一帧时
          *  - finished : 动画播放完成时
-         */ export class AnimationComponent extends __internal.cocos_components_animation_component_AnimationComponent_base {
+         */ export class AnimationComponent extends Component implements __internal.cocos_core_event_event_target_factory_IEventTarget {
+        _callbackTable: __internal.cocos_core_event_callbacks_invoker_ICallbackTable;
         /**
                  * !#en Animation will play the default clip when start game.
                  * !#zh 在勾选自动播放或调用 play() 时默认播放的动画剪辑。
-                 */ defaultClip: __internal.cocos_animation_animation_clip_AnimationClip | null;
+                 */ defaultClip: AnimationClip | null;
         /**
                  * !#en Current played clip.
                  * !#zh 当前播放的动画剪辑。
-                 */ currentClip: __internal.cocos_animation_animation_clip_AnimationClip | null;
-        clips: (__internal.cocos_animation_animation_clip_AnimationClip | null)[];
+                 */ currentClip: AnimationClip | null;
+        /**
+                 * Get or (re)set all the clips can be used in this animation.
+                 * Once clips are (re)set, old animation states will be stoped.
+                 * You shall no longer operate on them.
+                 */ clips: (AnimationClip | null)[];
         static EventType: typeof __internal.cocos_components_animation_component_EventType;
         /**
                  * !#en Whether the animation should auto play the default clip when start game.
@@ -8054,10 +9565,6 @@ declare module "Cocos3D" {
         onDisable(): void;
         onDestroy(): void;
         /**
-                 * !#en Get all the clips used in this animation.
-                 * !#zh 获取动画组件上的所有动画剪辑。
-                 */ getClips(): (__internal.cocos_animation_animation_clip_AnimationClip | null)[];
-        /**
                  * !#en Plays an animation and stop other animations.
                  * !#zh 播放指定的动画，并且停止当前正在播放动画。如果没有指定动画，则播放默认动画。
                  * @param [name] - The name of animation to play. If no name is supplied then the default animation will be played.
@@ -8067,18 +9574,18 @@ declare module "Cocos3D" {
                  * @example
                  * var animCtrl = this.node.getComponent(cc.Animation);
                  * animCtrl.play("linear");
-                 */ play(name?: string, startTime?: number): __internal.cocos_animation_animation_state_AnimationState;
-        crossFade(name?: string, duration?: number): __internal.cocos_animation_animation_state_AnimationState;
+                 */ play(name?: string, startTime?: number): AnimationState;
+        crossFade(name?: string, duration?: number): AnimationState;
         /**
                  * !#en Returns the animation state named name. If no animation with the specified name, the function will return null.
                  * !#zh 获取当前或者指定的动画状态，如果未找到指定动画剪辑则返回 null。
-                 */ getAnimationState(name: string): __internal.cocos_animation_animation_state_AnimationState;
+                 */ getAnimationState(name: string): AnimationState;
         /**
                  * !#en Adds a clip to the animation with name newName. If a clip with that name already exists it will be replaced with the new clip.
                  * !#zh 添加动画剪辑，并且可以重新设置该动画剪辑的名称。
                  * @param clip the clip to add
                  * @return The AnimationState which gives full control over the animation clip.
-                 */ addClip(clip: __internal.cocos_animation_animation_clip_AnimationClip, newName?: string): __internal.cocos_animation_animation_state_AnimationState | undefined;
+                 */ addClip(clip: AnimationClip, newName?: string): AnimationState | undefined;
         /**
                  * !#en
                  * Remove clip from the animation list. This will remove the clip and any animation states based on it.
@@ -8089,7 +9596,7 @@ declare module "Cocos3D" {
                  * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。
                  * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。
                  * @param {Boolean} [force=false] - If force is true, then will always remove the clip and any animation states based on it.
-                 */ removeClip(clip: __internal.cocos_animation_animation_clip_AnimationClip, force?: boolean): void;
+                 */ removeClip(clip: AnimationClip, force?: boolean): void;
         /**
                  * !#en
                  * Register animation event callback.
@@ -8104,11 +9611,6 @@ declare module "Cocos3D" {
                  * @param callback - The callback that will be invoked when the event is dispatched.
                  *                              The callback is ignored if it is a duplicate (the callbacks are unique).
                  * @param [target] - The target (this object) to invoke the callback, can be null
-                 * @param [useCapture=false] - When set to true, the capture argument prevents callback
-                 *                              from being invoked when the event's eventPhase attribute value is BUBBLING_PHASE.
-                 *                              When false, callback will NOT be invoked when event's eventPhase attribute value is CAPTURING_PHASE.
-                 *                              Either way, callback will be invoked when event's eventPhase attribute value is AT_TARGET.
-                 *
                  * @return Just returns the incoming callback so you can save the anonymous function easier.
                  * @typescript
                  * on(type: string, callback: (event: Event.EventCustom) => void, target?: any, useCapture?: boolean): (event: Event.EventCustom) => void
@@ -8120,7 +9622,7 @@ declare module "Cocos3D" {
                  *
                  * // register event to all animation
                  * animation.on('play', this.onPlay, this);
-                 */ on(type: string, callback: (state: __internal.cocos_animation_animation_state_AnimationState) => void, target?: Object | null, useCapture?: boolean): __internal.cocos_core_event_event_target_factory_IEventTargetCallback | undefined;
+                 */ on(type: string, callback: (state: AnimationState) => void, target?: Object): Function | undefined;
         /**
                  * !#en
                  * Unregister animation event callback.
@@ -8130,15 +9632,18 @@ declare module "Cocos3D" {
                  * @param {String} type - A string representing the event type being removed.
                  * @param {Function} [callback] - The callback to remove.
                  * @param {Object} [target] - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
-                 * @param {Boolean} [useCapture=false] - Specifies whether the callback being removed was registered as a capturing callback or not.
-                 *                              If not specified, useCapture defaults to false. If a callback was registered twice,
-                 *                              one with capture and one without, each must be removed separately. Removal of a capturing callback
-                 *                              does not affect a non-capturing version of the same listener, and vice versa.
-                 *
                  * @example
                  * // unregister event to all animation
                  * animation.off('play', this.onPlay, this);
-                 */ off(type: string, callback: __internal.cocos_core_event_event_target_factory_IEventTargetCallback, target?: Object | null, useCapture?: boolean): void;
+                 */ off(type: string, callback: Function, target?: Object): void;
+        /**
+                 * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
+                 */ targetOff(keyOrTarget?: string | Object | undefined): void;
+        once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
+        dispatchEvent(event: Event): void;
+        hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
+        removeAll(keyOrTarget?: string | Object | undefined): void;
+        emit(key: string, ...args: any[]): void;
         private _init;
         private _startCrossFade;
         private _createStates;
@@ -8149,7 +9654,7 @@ declare module "Cocos3D" {
         /**
              * save a color buffer to a PPM file
              */ export function toPPM(buffer: Uint8Array, w: number, h: number): string;
-        export function createMesh(geometry: __internal.cocos_3d_primitive_define_IGeometry, out?: Mesh, options?: ICreateMeshOptions): Mesh;
+        export function createMesh(geometry: primitives.IGeometry, out?: Mesh, options?: ICreateMeshOptions): Mesh;
         export function calculateBoneSpaceBounds(mesh: Mesh, skeleton: Skeleton): (geometry.aabb | null)[];
         /**
              * Finds a node by hierarchy path, the path is case-sensitive.
@@ -8166,18 +9671,18 @@ declare module "Cocos3D" {
              * This function generates a box with specified extents and centered at origin,
              * but may be repositioned through `center` option).
              * @param options Options.
-             */ export function box(options?: __internal.cocos_3d_primitive_box_IBoxOptions): __internal.cocos_3d_primitive_define_IGeometry;
-        export function cone(radius?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cone_IConeOptions>): __internal.cocos_3d_primitive_define_IGeometry;
-        export function cylinder(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cylinder_ICylinderOptions>): __internal.cocos_3d_primitive_define_IGeometry;
+             */ export function box(options?: __internal.cocos_3d_primitive_box_IBoxOptions): IGeometry;
+        export function cone(radius?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cone_IConeOptions>): import("cocos/3d/primitive").IGeometry;
+        export function cylinder(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cylinder_ICylinderOptions>): IGeometry;
         /**
              * This function generates a plane on XOZ plane with positive Y direction.
              * @param options Options.
-             */ export function plane(options?: __internal.cocos_3d_primitive_plane_IPlaneOptions): __internal.cocos_3d_primitive_define_IGeometry;
+             */ export function plane(options?: __internal.cocos_3d_primitive_plane_IPlaneOptions): IGeometry;
         /**
              * Generate a quad with width and height both to 1, centered at origin.
              * @param options Options.
-             */ export function quad(options?: __internal.cocos_3d_primitive_define_IGeometryOptions): __internal.cocos_3d_primitive_define_IGeometry;
-        export function sphere(radius?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_sphere_ISphereOptions>): __internal.cocos_3d_primitive_define_IGeometry;
+             */ export function quad(options?: IGeometryOptions): IGeometry;
+        export function sphere(radius?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_sphere_ISphereOptions>): IGeometry;
         export function torus(radius?: number, tube?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_torus_ITorusOptions>): {
             positions: number[];
             normals: number[];
@@ -8199,18 +9704,18 @@ declare module "Cocos3D" {
         /**
              * Generate a circle with radius 1, centered at origin.
              * @param options Options.
-             */ export function circle(options?: RecursivePartial<__internal.cocos_3d_primitive_circle_ICircleOptions> | __internal.cocos_3d_primitive_circle_ICircleOptions): __internal.cocos_3d_primitive_define_IGeometry;
-        export function translate(geometry: __internal.cocos_3d_primitive_define_IGeometry, offset: {
+             */ export function circle(options?: RecursivePartial<__internal.cocos_3d_primitive_circle_ICircleOptions> | __internal.cocos_3d_primitive_circle_ICircleOptions): IGeometry;
+        export function translate(geometry: IGeometry, offset: {
             x?: number;
             y?: number;
             z?: number;
-        }): __internal.cocos_3d_primitive_define_IGeometry;
-        export function scale(geometry: __internal.cocos_3d_primitive_define_IGeometry, value: {
+        }): IGeometry;
+        export function scale(geometry: IGeometry, value: {
             x?: number;
             y?: number;
             z?: number;
-        }): __internal.cocos_3d_primitive_define_IGeometry;
-        export function wireframed(geometry: __internal.cocos_3d_primitive_define_IGeometry): __internal.cocos_3d_primitive_define_IGeometry;
+        }): IGeometry;
+        export function wireframed(geometry: IGeometry): IGeometry;
         /**
              * @deprecated
              */ export function wireframe(indices: number[]): number[];
@@ -8219,10 +9724,62 @@ declare module "Cocos3D" {
              */ export function invWinding(indices: number[]): number[];
         /**
              * @deprecated
-             */ export function toWavefrontOBJ(primitive: __internal.cocos_3d_primitive_define_IGeometry, scale?: number): string;
+             */ export function toWavefrontOBJ(primitive: IGeometry, scale?: number): string;
         /**
              * @deprecated
              */ export function normals(positions: number[], normals: number[], length?: number): any[];
+        export function applyDefaultGeometryOptions<GeometryOptions = IGeometryOptions>(options?: RecursivePartial<IGeometryOptions>): GeometryOptions;
+        export interface IGeometryOptions {
+            /**
+                     * Whether to include normal. Default to true.
+                     */ includeNormal: boolean;
+            /**
+                     * Whether to include uv. Default to true.
+                     */ includeUV: boolean;
+        }
+        export interface IGeometry {
+            /**
+                     * Vertex positions.
+                     */ positions: number[];
+            /**
+                     * Min position.
+                     */ minPos?: {
+                x: number;
+                y: number;
+                z: number;
+            };
+            /**
+                     * Max position.
+                     */ maxPos?: {
+                x: number;
+                y: number;
+                z: number;
+            };
+            /**
+                     * Bounding sphere radius.
+                     */ boundingRadius?: number;
+            /**
+                     * Gemetry indices, if one needs indexed-draw.
+                     */ indices?: number[];
+            /**
+                     * Vertex normals.
+                     */ normals?: number[];
+            /**
+                     * Texture coordinates.
+                     */ uvs?: number[];
+            /**
+                     * Vertex colors.
+                     */ colors?: number[];
+            /**
+                     * Topology of the geometry vertices. Default is TRIANGLE_LIST.
+                     */ primitiveMode?: GFXPrimitiveMode;
+            /**
+                     * whether rays casting from the back face of this geometry could collide with it
+                     */ doubleSided?: boolean;
+            /**
+                     * specify vertex attributes, use (positions|normals|uvs|colors) as keys
+                     */ attributes?: __internal.cocos_gfx_input_assembler_IGFXAttribute[];
+        }
     }
     namespace geometry {
         var enums: {
@@ -8827,25 +10384,22 @@ declare module "Cocos3D" {
             private findIndex;
         }
     }
-    export class AudioClip extends __internal.cocos_3d_assets_audio_clip_AudioClip_base {
+    export class AudioClip extends Asset {
         _nativeAsset: any;
-        readonly loadMode: number;
+        readonly loadMode: __internal.cocos_3d_assets_audio_clip_AudioType;
         readonly state: number;
         static PlayingState: {
             INITIALIZING: number;
             PLAYING: number;
             STOPPED: number;
         };
-        static AudioType: {
-            UNKNOWN_AUDIO: number;
-            WEB_AUDIO: number;
-            DOM_AUDIO: number;
-            WX_GAME_AUDIO: number;
-        };
+        static AudioType: typeof __internal.cocos_3d_assets_audio_clip_AudioType;
+        static preventDeferredLoadDependents: boolean;
         protected _duration: number;
-        protected _loadMode: number;
+        protected _loadMode: __internal.cocos_3d_assets_audio_clip_AudioType;
         protected _audio: any;
         private _player;
+        constructor();
         play(): void;
         pause(): void;
         stop(): void;
@@ -8878,11 +10432,14 @@ declare module "Cocos3D" {
         protected _passes: renderer.Pass[];
         protected _owner: RenderableComponent | null;
         protected _hash: number;
+        private _unfinished;
+        private _unfinishedProp;
         readonly effectAsset: EffectAsset | null;
         readonly effectName: string;
         readonly technique: number;
         readonly passes: renderer.Pass[];
         readonly hash: number;
+        constructor();
         initialize(info: __internal.cocos_3d_assets_material_IMaterialInfo): void;
         destroy(): void;
         /**
@@ -8895,9 +10452,12 @@ declare module "Cocos3D" {
         recompileShaders(defineOverrides: __internal.cocos_renderer_core_pass_IDefineMap | __internal.cocos_renderer_core_pass_IDefineMap[]): void;
         overridePipelineStates(overrides: __internal.cocos_renderer_core_pass_PassOverrides, passIdx?: number): void;
         onLoaded(): void;
+        ensureLoadTexture(): void;
         protected _prepareInfo(patch: object | object[], cur: object[]): void;
         protected _update(keepProps?: boolean): void;
         protected _uploadProperty(pass: renderer.Pass, name: string, val: any): boolean;
+        protected _assetReady(): void;
+        protected _onTextureLoaded(): void;
         protected _onPassesChange(): void;
     }
     export class Mesh extends Asset {
@@ -8921,9 +10481,11 @@ declare module "Cocos3D" {
         private _initialized;
         private _renderingMesh;
         constructor();
+        initialize(): void;
         /**
                  * Destory this mesh and immediately release its GPU resources.
                  */ destroy(): any;
+        destroyRenderingMesh(): void;
         /**
                  * Assigns new mesh struct to this.
                  * @param struct The new mesh's struct.
@@ -8940,13 +10502,11 @@ declare module "Cocos3D" {
                  */ getSubMesh(index: number): __internal.cocos_3d_assets_mesh_IRenderingSubmesh;
         merge(mesh: Mesh, validate?: boolean): boolean;
         validateMergingMesh(mesh: Mesh): boolean;
-        readAttribute(primitiveIndex: number, attributeName: __internal.cocos_gfx_define_GFXAttributeName): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
-        copyAttribute(primitiveIndex: number, attributeName: __internal.cocos_gfx_define_GFXAttributeName, buffer: ArrayBuffer, stride: number, offset: number): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
+        readAttribute(primitiveIndex: number, attributeName: GFXAttributeName): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
+        copyAttribute(primitiveIndex: number, attributeName: GFXAttributeName, buffer: ArrayBuffer, stride: number, offset: number): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
         readIndices(primitiveIndex: number): Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | null;
         copyIndices(primitiveIndex: number, typedArray: any): null | undefined;
-        private _init;
         private _createVertexBuffers;
-        private _tryDestroyRenderingMesh;
     }
     /**
          * CLASS Skeleton
@@ -8962,12 +10522,12 @@ declare module "Cocos3D" {
                  */ private _joints;
         /**
                  * The inverse bind matrices of joints.
-                 */ private _inverseBindMatrices;
+                 */ private _bindposes;
         /**
                  * Gets the bind pose matrices of joints.
                  */ /**
                 * Sets the bind pose matrices of joints.
-                */ bindposes: Mat4[];
+                */ bindposes: Node[];
         /**
                  * Gets the paths of joints.
                  */ /**
@@ -9104,8 +10664,27 @@ declare module "Cocos3D" {
          * @class CameraComponent
          * @extends Component
          */ export class CameraComponent extends Component {
-        static ProjectionType: any;
-        protected _projection: any;
+        static ProjectionType: {
+            /**
+                         * @en
+                         * The orthogonal camera
+                         * @zh
+                         * 正交相机
+                         * @property Ortho
+                         * @readonly
+                         * @type {Number}
+                         */ ORTHO: number;
+            /**
+                         * @en
+                         * The perspective camera
+                         * @zh
+                         * 透视相机
+                         * @property Perspective
+                         * @readonly
+                         * @type {Number}
+                         */ PERSPECTIVE: number;
+        };
+        protected _projection: number;
         protected _priority: number;
         protected _fov: number;
         protected _orthoHeight: number;
@@ -9114,7 +10693,7 @@ declare module "Cocos3D" {
         protected _color: any;
         protected _depth: number;
         protected _stencil: number;
-        protected _clearFlags: any;
+        protected _clearFlags: __internal.cocos_gfx_define_GFXClearFlag;
         protected _rect: Rect;
         protected _screenScale: number;
         protected _targetDisplay: number;
@@ -9123,7 +10702,7 @@ declare module "Cocos3D" {
         /**
                  * @en The projection type of the camera
                  * @zh 相机的投影类型
-                 */ projection: any;
+                 */ projection: number;
         /**
                  * @en The camera field of view
                  * @zh 相机的视角大小
@@ -9155,7 +10734,7 @@ declare module "Cocos3D" {
         /**
                  * @en The clearing flags of this camera
                  * @zh 相机的缓冲清除标志位
-                 */ clearFlags: any;
+                 */ clearFlags: __internal.cocos_gfx_define_GFXClearFlag;
         /**
                  * @en The screen viewport of the camera wrt. sceen size
                  * @zh 相机相对屏幕的 viewport
@@ -9181,7 +10760,10 @@ declare module "Cocos3D" {
     }
     export class LightComponent extends Component {
         static Type: typeof __internal.cocos_renderer_scene_light_LightType;
-        static PhotometricTerm: any;
+        static PhotometricTerm: {
+            LUMINOUS_POWER: number;
+            LUMINANCE: number;
+        };
         protected _color: Color;
         protected _useColorTemperature: boolean;
         protected _colorTemperature: number;
@@ -9231,18 +10813,45 @@ declare module "Cocos3D" {
                  * @en The shadow casting mode
                  * @zh 投射阴影方式
                  * @type {Number}
-                 */ shadowCastingMode: any;
+                 */ shadowCastingMode: number;
         /**
                  * @en Does this model receive shadows?
                  * @zh 是否接受阴影?
                  * @type {Boolean}
                  */ receiveShadows: boolean;
         readonly model: renderer.Model | null;
-        static ShadowCastingMode: any;
+        static ShadowCastingMode: {
+            /**
+                         * 关闭阴影投射
+                         * @property Off
+                         * @readonly
+                         * @type {Number}
+                         */ Off: number;
+            /**
+                         * 开启阴影投射，当阴影光产生的时候
+                         * @property On
+                         * @readonly
+                         * @type {Number}
+                         */ On: number;
+            /**
+                         * 可以从网格的任意一边投射出阴影
+                         * @property TwoSided
+                         * @readonly
+                         * @type {Number}
+                         */ TwoSided: number;
+            /**
+                         * 只显示阴影
+                         * @property ShadowsOnly
+                         * @readonly
+                         * @type {Number}
+                         */ ShadowsOnly: number;
+        };
         protected _model: renderer.Model | null;
         protected _mesh: Mesh | null;
+        protected _meshLoaded: boolean;
         private _shadowCastingMode;
         private _receiveShadows;
+        onLoad(): void;
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
@@ -9254,6 +10863,9 @@ declare module "Cocos3D" {
         protected _onRebuildPSO(idx: number, material: Material): void;
         protected _onMeshChanged(old: Mesh | null): void;
         protected _clearMaterials(): void;
+        protected _ensureLoadMesh(): void;
+        protected _assetReady(): void;
+        protected _onMeshLoaded(): void;
         private _updateCastShadow;
         private _updateReceiveShadow;
         private _getBuiltinMaterial;
@@ -9271,18 +10883,19 @@ declare module "Cocos3D" {
                  */ skinningRoot: Node | null;
         private _skeleton;
         private _skinningRoot;
-        private _skinningTarget;
+        private _joints;
+        private _jointParentIndices;
         private _boneSpaceBounds;
         constructor();
         onLoad(): void;
-        update(dt: any): void;
-        onDestroy(): void;
-        calculateSkinnedBounds(out?: geometry.aabb): boolean;
+        update(): void;
         _tryUpdateMatrices(): void;
+        calculateSkinnedBounds(out?: geometry.aabb): boolean;
         _updateModelParams(): void;
+        protected _createModel(): void;
+        protected _getModelConstructor(): typeof renderer.SkinningModel;
         protected _onMeshChanged(old: Mesh | null): void;
         protected _onSkeletonChanged(old: Skeleton | null): void;
-        protected _getModelConstructor(): typeof renderer.SkinningModel;
         protected _onMaterialModified(index: number, material: Material): void;
         private _bindSkeleton;
         private _resetSkinningTarget;
@@ -9297,8 +10910,7 @@ declare module "Cocos3D" {
                  * @note Shall not specify size with component 0.
                  */ size: Vec3;
     }
-    export class ParticleSystemComponent extends Component {
-        private _capacity;
+    export class ParticleSystemComponent extends RenderableComponent {
         /**
                  * 粒子系统能生成的最大粒子数量
                  */ capacity: number;
@@ -9326,17 +10938,15 @@ declare module "Cocos3D" {
         /**
                  * 粒子系统是否循环播放
                  */ loop: boolean;
-        private _prewarm;
         /**
                  * 选中之后，粒子系统会以已播放完一轮之后的状态开始播放（仅当循环播放启用时有效）
                  */ prewarm: boolean;
-        private _simulationSpace;
         /**
                  * 选择粒子系统所在的坐标系<br>
                  * 世界坐标（不随其他物体位置改变而变换）<br>
                  * 局部坐标（跟随父节点位置改变而移动）<br>
                  * 自定坐标（跟随自定义节点的位置改变而移动）
-                 */ simulationSpace: any;
+                 */ simulationSpace: number;
         /**
                  * 控制整个粒子系统的更新速度
                  */ simulationSpeed: number;
@@ -9355,6 +10965,7 @@ declare module "Cocos3D" {
         /**
                  * 设定在指定时间发射指定数量的粒子的 Brust 的数量
                  */ bursts: any[];
+        sharedMaterials: (Material | null)[];
         /**
                  * 颜色控制模块
                  */ colorOverLifetimeModule: __internal.cocos_3d_framework_particle_animator_color_overtime_default;
@@ -9382,7 +10993,7 @@ declare module "Cocos3D" {
         /**
                  * 粒子轨迹模块
                  */ trailModule: __internal.cocos_3d_framework_particle_renderer_trail_default;
-        private renderer;
+        renderer: __internal.cocos_3d_framework_particle_renderer_particle_system_renderer_default;
         private _isPlaying;
         private _isPaused;
         private _isStopped;
@@ -9395,11 +11006,13 @@ declare module "Cocos3D" {
         private _customData1;
         private _customData2;
         private _subEmitters;
+        private _prewarm;
+        private _capacity;
+        private _simulationSpace;
         constructor();
-        protected onLoad(): void;
-        protected onDestroy(): void;
-        protected onEnable(): void;
-        protected onDisable(): void;
+        onLoad(): void;
+        _onMaterialModified(index: number, material: Material): void;
+        _onRebuildPSO(index: number, material: Material): void;
         /**
                  * 播放粒子效果
                  */ play(): void;
@@ -9412,17 +11025,20 @@ declare module "Cocos3D" {
         /**
                  * 将所有粒子从粒子系统中清除
                  */ clear(): void;
+        getParticleCount(): number;
+        setCustomData1(x: any, y: any): void;
+        setCustomData2(x: any, y: any): void;
+        protected onDestroy(): void;
+        protected onEnable(): void;
+        protected onDisable(): void;
+        protected update(dt: any): void;
         private emit;
         private _prewarmSystem;
         private _emit;
-        protected update(dt: any): void;
         private addSubEmitter;
         private removeSubEmitter;
         private addBurst;
         private removeBurst;
-        getParticleCount(): number;
-        setCustomData1(x: any, y: any): void;
-        setCustomData2(x: any, y: any): void;
         readonly isPlaying: boolean;
         readonly isPaused: boolean;
         readonly isStopped: boolean;
@@ -9468,8 +11084,8 @@ declare module "Cocos3D" {
     }
     export class RenderableComponent extends Component {
         protected _materials: Array<Material | null>;
+        protected _unfinished: number;
         constructor();
-        onLoad(): void;
         sharedMaterials: (Material | null)[];
         /**
                  * @en The material of the model
@@ -9488,6 +11104,11 @@ declare module "Cocos3D" {
         protected _onMaterialModified(index: number, material: Material | null): void;
         protected _onRebuildPSO(index: number, material: Material | null): void;
         protected _clearMaterials(): void;
+        protected _ensureLoadMaterial(): void;
+        protected _onMaterialLoaded(): void;
+        protected _assetReady(): void;
+        protected onLoad(): void;
+        protected onEnable(): void;
     }
     export class PhysicsSystem {
         private _world;
@@ -9601,11 +11222,11 @@ declare module "Cocos3D" {
     var maskAssembler: IAssembler;
     var maskEndAssembler: IAssembler;
     export enum Stage {
-        DISABLED,
-        CLEAR,
-        ENTER_LEVEL,
-        ENABLED,
-        EXIT_LEVEL
+        DISABLED = 0,
+        CLEAR = 1,
+        ENTER_LEVEL = 2,
+        ENABLED = 3,
+        EXIT_LEVEL = 4
     }
     export class StencilManager {
         static sharedManager: StencilManager | null;
@@ -9632,41 +11253,42 @@ declare module "Cocos3D" {
         getAssembler(component: UIRenderComponent): IAssembler;
     }
     /**
-         * !#zh: 作为 UI 根节点，为所有子节点提供视窗四边的位置信息以供对齐，另外提供屏幕适配策略接口，方便从编辑器设置。
+         * @zh
+         * 作为 UI 根节点，为所有子节点提供视窗四边的位置信息以供对齐，另外提供屏幕适配策略接口，方便从编辑器设置。
          * 注：由于本节点的尺寸会跟随屏幕拉伸，所以 anchorPoint 只支持 (0.5, 0.5)，否则适配不同屏幕时坐标会有偏差。
-         *
-         * @class Canvas
-         * @extends Component
          */ export class CanvasComponent extends Component {
-        designResolution: Size;
         /**
-                 * !#en TODO
-                 * !#zh: 是否优先将设计分辨率高度撑满视图高度。
-                 * @property {Boolean} fitHeight
-                 * @default false
+                 * @zh
+                 * 设计分辨率
+                 *
+                 * @param value - 设计分辨率尺寸。
+                 */ designResolution: Size;
+        /**
+                 * @zh
+                 * 是否优先将设计分辨率高度撑满视图高度。
+                 *
+                 * @param value - 是否撑满高度。
                  */ fitHeight: boolean;
         /**
-                 * !#en TODO
-                 * !#zh: 是否优先将设计分辨率宽度撑满视图宽度。
-                 * @property {Boolean} fitWidth
-                 * @default false
+                 * @zh
+                 * 是否优先将设计分辨率宽度撑满视图宽度。
+                 *
+                 * @param value - 是否撑满宽度。
                  */ fitWidth: boolean;
-        priority: number;
+        /**
+                 * @zh
+                 * 渲染优先级。
+                 *
+                 * @param value - 渲染优先级。
+                 */ priority: number;
         readonly visibility: number;
         readonly camera: renderer.Camera | null;
         /**
-                 * !#en Current active canvas, the scene should only have one active canvas at the same time.
-                 * !#zh 当前激活的画布组件，场景同一时间只能有一个激活的画布。
-                 * @property {CanvasComponent} instance
-                 * @static
+                 * @zh
+                 * 当前激活的画布组件，场景同一时间只能有一个激活的画布。
                  */ static instance: CanvasComponent | null;
         static views: never[];
-        /**
-                 * !#en The desigin resolution for current scene.
-                 * !#zh 当前场景设计分辨率。
-                 * @property {Size} designResolution
-                 * @default new cc.Size(960, 640)
-                 */ protected _designResolution: any;
+        protected _designResolution: any;
         protected _fitWidth: boolean;
         protected _fitHeight: boolean;
         protected _priority: number;
@@ -9678,10 +11300,19 @@ declare module "Cocos3D" {
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        alignWithScreen(): void;
-        applySettings(): void;
+        /**
+                 * @zh
+                 * 屏幕对齐。
+                 */ alignWithScreen(): void;
+        /**
+                 * @zh
+                 * 应用适配策略。
+                 */ applySettings(): void;
     }
-    export class DebugCanvasComponent extends CanvasComponent {
+    /**
+         * @zh
+         * 性能显示面板类
+         */ export class DebugCanvasComponent extends CanvasComponent {
         constructor();
         __preload(): void;
         onEnable(): void;
@@ -9690,14 +11321,17 @@ declare module "Cocos3D" {
         alignWithScreen(): void;
         applySettings(): void;
     }
-    export class UIComponent extends Component {
+    /**
+         * @zh
+         * UI 及 UI 模型渲染基类
+         */ export class UIComponent extends Component {
         /**
-                 * !#en render order, render order according to width, and arrange once under the same level node.
-                 * !#zh 渲染先后顺序，按照广度渲染排列，同级节点下进行一次排列
+                 * @zh
+                 * 渲染先后顺序，按照广度渲染排列，同级节点下进行一次排列。
                  */ priority: number;
         /**
-                 * !#en find the rendered camera
-                 * !#zh 查找被渲染相机
+                 * @zh
+                 * 查找被渲染相机。
                  */ readonly visibility: number;
         protected _priority: number;
         protected _visibility: number;
@@ -9705,22 +11339,7 @@ declare module "Cocos3D" {
         postUpdateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
     }
     /**
-         * !#en
-         * Button has 4 Transition types<br/>
-         * When Button state changed:<br/>
-         *  If Transition type is Button.Transition.NONE, Button will do nothing<br/>
-         *  If Transition type is Button.Transition.COLOR, Button will change target's color<br/>
-         *  If Transition type is Button.Transition.SPRITE, Button will change target Sprite's sprite<br/>
-         *  If Transition type is Button.Transition.SCALE, Button will change target node's scale<br/>
-         *
-         * Button will trigger 5 events:<br/>
-         *  Button.EVENT_TOUCH_DOWN<br/>
-         *  Button.EVENT_TOUCH_UP<br/>
-         *  Button.EVENT_HOVER_IN<br/>
-         *  Button.EVENT_HOVER_MOVE<br/>
-         *  Button.EVENT_HOVER_OUT<br/>
-         *
-         * !#zh
+         * @zh
          * 按钮组件。可以被按下,或者点击。<br/>
          *
          * 按钮可以通过修改 Transition 来设置按钮状态过渡的方式：<br/>
@@ -9743,12 +11362,10 @@ declare module "Cocos3D" {
          *   -cc.Node.EventType.MOUSE_UP    // 鼠标松开事件<br/>
          *   -cc.Node.EventType.MOUSE_WHEEL // 鼠标滚轮事件<br/>
          *
-         * @class Button
-         * @extends Component
          * @example
-         *
+         * ```ts
          * // Add an event to the button.
-         * button.node.on(EventType.TOUCH_START, function (event) {
+         * button.node.on(cc.Node.EventType.TOUCH_START, function (event) {
          *     cc.log("This is a callback after the trigger event");
          * });
          * // You could also add a click event
@@ -9756,99 +11373,72 @@ declare module "Cocos3D" {
          * button.node.on('click', function (button) {
          *    //The event is a custom event, you could get the Button component via first argument
          * })
-         *
+         * ```
          */ export class ButtonComponent extends Component {
         /**
-                 * !#en
-                 * Whether the Button is disabled.
-                 * If true, the Button will trigger event and do transition.
-                 * !#zh
+                 * @zh
                  * 按钮事件是否被响应，如果为 false，则按钮将被禁用。
-                 * @property {Boolean} interactable
-                 * @default true
                  */ interactable: boolean;
         _resizeToTarget: boolean;
         /**
-                 * !#en When this flag is true, Button target sprite will turn gray when interactable is false.
-                 * !#zh 如果这个标记为 true，当 button 的 interactable 属性为 false 的时候，会使用内置 shader 让 button 的 target 节点的 sprite 组件变灰
-                 * @property {Boolean} enableAutoGrayEffect
+                 * @zh
+                 * 如果这个标记为 true，当 button 的 interactable 属性为 false 的时候，会使用内置 shader 让 button 的 target 节点的 sprite 组件变灰
                  */ /**
-                 * !#en Transition type
-                 * !#zh 按钮状态改变时过渡方式。
-                 * @property {Button.Transition} transition
-                 * @default Button.Transition.Node
+                 * @zh
+                 * 按钮状态改变时过渡方式。
                  */ transition: __internal.cocos_3d_ui_components_button_component_Transition;
         /**
-                 * !#en Normal state color.
-                 * !#zh 普通状态下按钮所显示的颜色。
-                 * @property {Color} normalColor
+                 * @zh
+                 * 普通状态下按钮所显示的颜色。
                  */ normalColor: Color;
         /**
-                 * !#en Pressed state color
-                 * !#zh 按下状态时按钮所显示的颜色。
-                 * @property {Color} pressedColor
+                 * @zh
+                 * 按下状态时按钮所显示的颜色。
                  */ pressedColor: Color;
         /**
-                 * !#en Hover state color
-                 * !#zh 悬停状态下按钮所显示的颜色。
-                 * @property {Color} hoverColor
+                 * @zh
+                 * 悬停状态下按钮所显示的颜色。
                  */ hoverColor: Color;
         /**
-                 * !#en Disabled state color
-                 * !#zh 禁用状态下按钮所显示的颜色。
-                 * @property {Color} disabledColor
+                 * @zh
+                 * 禁用状态下按钮所显示的颜色。
                  */ disabledColor: Color;
         /**
-                 * !#en Color and Scale transition duration
-                 * !#zh 颜色过渡和缩放过渡时所需时间
-                 * @property {Number} duration
+                 * @zh
+                 * 颜色过渡和缩放过渡时所需时间
                  */ duration: number;
         /**
-                 * !#en  When user press the button, the button will zoom to a scale.
-                 * The final scale of the button  equals (button original scale * zoomScale)
-                 * !#zh 当用户点击按钮后，按钮会缩放到一个值，这个值等于 Button 原始 scale * zoomScale
-                 * @property {Number} zoomScale
+                 * @zh
+                 * 当用户点击按钮后，按钮会缩放到一个值，这个值等于 Button 原始 scale * zoomScale
                  */ zoomScale: number;
         /**
-                 * !#en Normal state sprite
-                 * !#zh 普通状态下按钮所显示的 Sprite 。
-                 * @property {SpriteFrame} normalSprite
+                 * @zh
+                 * 普通状态下按钮所显示的 Sprite 。
                  */ normalSprite: SpriteFrame | null;
         /**
-                 * !#en Pressed state sprite
-                 * !#zh 按下状态时按钮所显示的 Sprite 。
-                 * @property {SpriteFrame} pressedSprite
+                 * @zh
+                 * 按下状态时按钮所显示的 Sprite。
                  */ pressedSprite: SpriteFrame | null;
         /**
-                 * !#en Hover state sprite
-                 * !#zh 悬停状态下按钮所显示的 Sprite 。
-                 * @property {SpriteFrame} hoverSprite
+                 * @zh
+                 * 悬停状态下按钮所显示的 Sprite。
                  */ hoverSprite: SpriteFrame | null;
         /**
-                 * !#en Disabled state sprite
-                 * !#zh 禁用状态下按钮所显示的 Sprite 。
-                 * @return {SpriteFrame}
+                 * @zh
+                 * 禁用状态下按钮所显示的 Sprite。
                  */ disabledSprite: SpriteFrame | null;
         /**
-                 * !#en
-                 * Transition target.
-                 * When Button state changed:
-                 *  If Transition type is Button.Transition.NONE, Button will do nothing
-                 *  If Transition type is Button.Transition.COLOR, Button will change target's color
-                 *  If Transition type is Button.Transition.SPRITE, Button will change target Sprite's sprite
-                 * !#zh
-                 * 需要过渡的目标。
-                 * 当前按钮状态改变规则：
-                 * -如果 Transition type 选择 Button.Transition.NONE，按钮不做任何过渡。
-                 * -如果 Transition type 选择 Button.Transition.COLOR，按钮会对目标颜色进行颜色之间的过渡。
-                 * -如果 Transition type 选择 Button.Transition.Sprite，按钮会对目标 Sprite 进行 Sprite 之间的过渡。
-                 * @property {Node} target
+                 * @zh
+                 * 需要过渡的目标。<br/>
+                 * 当前按钮状态改变规则：<br/>
+                 * -如果 Transition type 选择 Button.Transition.NONE，按钮不做任何过渡。<br/>
+                 * -如果 Transition type 选择 Button.Transition.COLOR，按钮会对目标颜色进行颜色之间的过渡。<br/>
+                 * -如果 Transition type 选择 Button.Transition.Sprite，按钮会对目标 Sprite 进行 Sprite 之间的过渡。<br/>
                  */ target: Node | null;
         static Transition: typeof __internal.cocos_3d_ui_components_button_component_Transition;
         /**
-                 * !#en If Button is clicked, it will trigger event's handler
-                 * !#zh 按钮的点击事件列表。
-                 * @property {ComponentEventHandler[]} clickEvents
+                 * @zh
+                 * 按钮的点击事件列表。
                  */ clickEvents: EventHandler[];
         private _interactable;
         private _transition;
@@ -10069,102 +11659,67 @@ declare module "Cocos3D" {
         update(): void;
     }
     /**
-         * !#en
-         * The Layout is a container component, use it to arrange child elements easily.<br>
-         * Note：<br>
-         * 1.Scaling and rotation of child nodes are not considered.<br>
-         * 2.After setting the Layout, the results need to be updated until the next frame,
-         * unless you manually call {{#crossLink "Layout/updateLayout:method"}}{{/crossLink}}。
-         * !#zh
+         * @zh
          * Layout 组件相当于一个容器，能自动对它的所有子节点进行统一排版。<br>
          * 注意：<br>
          * 1.不会考虑子节点的缩放和旋转。<br>
-         * 2.对 Layout 设置后结果需要到下一帧才会更新，除非你设置完以后手动调用 {{#crossLink "Layout/updateLayout:method"}}{{/crossLink}}。
-         * @class Layout
-         * @extends Component
+         * 2.对 Layout 设置后结果需要到下一帧才会更新，除非你设置完以后手动调用 [[updateLayout]]
          */ export class LayoutComponent extends Component {
         /**
-                 * !#en The layout type.
-                 * !#zh 布局类型
-                 * @property {Layout.Type} type
-                 * @default Layout.Type.NONE
+                 * @zh
+                 * 布局类型。
                  */ type: __internal.cocos_3d_ui_components_layout_component_Type;
         /**
-                 * !#en
-                 * The are three resize modes for Layout.
-                 * None, resize Container and resize children.
-                 * !#zh 缩放模式
-                 * @property {Layout.ResizeMode} resizeMode
-                 * @default ResizeMode.NONE
+                 * @zh
+                 * 缩放模式。
                  */ resizeMode: __internal.cocos_3d_ui_components_layout_component_ResizeMode;
         /**
-                 * !#en The cell size for grid layout.
-                 * !#zh 每个格子的大小，只有布局类型为 GRID 的时候才有效。
-                 * @property {Size} cellSize
-                 * @default cc.size(40, 40)
+                 * @zh
+                 * 每个格子的大小，只有布局类型为 GRID 的时候才有效。
                  */ cellSize: Size;
         /**
-                 * !#en
-                 * The start axis for grid layout. If you choose horizontal, then children will layout horizontally at first,
-                 * and then break line on demand. Choose vertical if you want to layout vertically at first .
-                 * !#zh 起始轴方向类型，可进行水平和垂直布局排列，只有布局类型为 GRID 的时候才有效。
-                 * @property {Layout.AxisDirection} startAxis
+                 * @zh
+                 * 起始轴方向类型，可进行水平和垂直布局排列，只有布局类型为 GRID 的时候才有效。
                  */ startAxis: __internal.cocos_3d_ui_components_layout_component_AxisDirection;
         /**
-                 * !#en The left padding of layout, it only effect the layout in one direction.
-                 * !#zh 容器内左边距，只会在一个布局方向上生效。
-                 * @property {Number} paddingLeft
+                 * @zh
+                 * 容器内左边距，只会在一个布局方向上生效。
                  */ paddingLeft: number;
         /**
-                 * !#en The right padding of layout, it only effect the layout in one direction.
-                 * !#zh 容器内右边距，只会在一个布局方向上生效。
-                 * @property {Number} paddingRight
+                 * @zh
+                 * 容器内右边距，只会在一个布局方向上生效。
                  */ paddingRight: number;
         /**
-                 * !#en The top padding of layout, it only effect the layout in one direction.
-                 * !#zh 容器内上边距，只会在一个布局方向上生效。
-                 * @property {Number} paddingTop
+                 * @zh
+                 * 容器内上边距，只会在一个布局方向上生效。
                  */ paddingTop: number;
         /**
-                 * !#en The bottom padding of layout, it only effect the layout in one direction.
-                 * !#zh 容器内下边距，只会在一个布局方向上生效。
-                 * @property {Number} paddingBottom
+                 * @zh
+                 * 容器内下边距，只会在一个布局方向上生效。
                  */ paddingBottom: number;
         /**
-                 * !#en The distance in x-axis between each element in layout.
-                 * !#zh 子节点之间的水平间距。
-                 * @property {Number} spacingX
+                 * @zh
+                 * 子节点之间的水平间距。
                  */ spacingX: number;
         /**
-                 * !#en The distance in y-axis between each element in layout.
-                 * !#zh 子节点之间的垂直间距。
-                 * @property {Number} spacingY
+                 * @zh
+                 * 子节点之间的垂直间距。
                  */ spacingY: number;
         /**
-                 * !#en
-                 * Only take effect in Vertical layout mode.
-                 * This option changes the start element's positioning.
-                 * !#zh 垂直排列子节点的方向。
-                 * @property {VerticalDirection} verticalDirection
+                 * @zh
+                 * 垂直排列子节点的方向。
                  */ verticalDirection: __internal.cocos_3d_ui_components_layout_component_VerticalDirection;
         /**
-                 * !#en
-                 * Only take effect in Horizontal layout mode.
-                 * This option changes the start element's positioning.
-                 * !#zh 水平排列子节点的方向。
-                 * @property {Layout.HorizontalDirection} horizontalDirection
+                 * @zh
+                 * 水平排列子节点的方向。
                  */ horizontalDirection: __internal.cocos_3d_ui_components_layout_component_HorizontalDirection;
         /**
-                 * !#en The padding of layout, it effects the layout in four direction.
-                 * !#zh 容器内边距，该属性会在四个布局方向上生效。
-                 * @property {Number} padding
+                 * @zh
+                 * 容器内边距，该属性会在四个布局方向上生效。
                  */ padding: number;
         /**
-                 * !#en Adjust the layout if the children scaled.
-                 * !#zh 子节点缩放比例是否影响布局。
-                 * @property affectedByScale
-                 * @type {Boolean}
-                 * @default false
+                 * @zh
+                 * 子节点缩放比例是否影响布局。
                  */ affectedByScale: boolean;
         static Type: typeof __internal.cocos_3d_ui_components_layout_component_Type;
         static VerticalDirection: typeof __internal.cocos_3d_ui_components_layout_component_VerticalDirection;
@@ -10188,17 +11743,17 @@ declare module "Cocos3D" {
         private _horizontalDirection;
         private _affectedByScale;
         /**
-                 * !#en Perform the layout update
-                 * !#zh 立即执行更新布局
-                 *
-                 * @method updateLayout
+                 * @zh
+                 * 立即执行更新布局
                  *
                  * @example
+                 * ```ts
                  * layout.type = cc.Layout.HORIZONTAL;
                  * layout.node.addChild(childNode);
                  * cc.log(childNode.x); // not yet changed
                  * layout.updateLayout();
                  * cc.log(childNode.x); // changed
+                 * ```
                  */ updateLayout(): void;
         protected onEnable(): void;
         protected onDisable(): void;
@@ -10224,36 +11779,28 @@ declare module "Cocos3D" {
         private _doScaleDirty;
     }
     /**
-         * !#en The Mask Component.
-         * !#zh 遮罩组件。
+         * @zh
+         * 遮罩组件。
          */ export class MaskComponent extends UIRenderComponent {
         /**
-                 * !#en The mask type.
-                 * !#zh 遮罩类型。
+                 * @zh
+                 * 遮罩类型。
                  */ type: __internal.cocos_3d_ui_components_mask_component_MaskType;
         /**
-                 * !#en The mask image
-                 * !#zh 遮罩所需要的贴图
+                 * @zh 遮罩所需要的贴图
                  */ /**
-                 * !#en
-                 * The alpha threshold.(Not supported in Canvas Mode) <br/>
-                 * The content is drawn only where the stencil have pixel with alpha greater than the alphaThreshold. <br/>
-                 * Should be a float between 0 and 1. <br/>
-                 * This default to 0 (so alpha test is disabled).
-                 * When it's set to 1, the stencil will discard all pixels, nothing will be shown,
-                 * In previous version, it act as if the alpha test is disabled, which is incorrect.
-                 * !#zh
+                 * @zh
                  * Alpha 阈值（不支持 Canvas 模式）<br/>
                  * 只有当模板的像素的 alpha 大于 alphaThreshold 时，才会绘制内容。<br/>
-                 * 该数值 0 ~ 1 之间的浮点数，默认值为 0（因此禁用 alpha 测试）
-                 * 当被设置为 1 时，会丢弃所有蒙版像素，所以不会显示任何内容，在之前的版本中，设置为 1 等同于 0，这种效果其实是不正确的
+                 * 该数值 0 ~ 1 之间的浮点数，默认值为 0（因此禁用 alpha 测试）<br/>
+                 * 当被设置为 1 时，会丢弃所有蒙版像素，所以不会显示任何内容，在之前的版本中，设置为 1 等同于 0，这种效果其实是不正确的。<br/>
                  */ /**
-                 * !#en Reverse mask(Not supported in Canvas Mode).
-                 * !#zh 反向遮罩（不支持 Canvas 模式）。
+                 * @zh
+                 * 反向遮罩（不支持 Canvas 模式）。
                  */ /**
                  * TODO: remove segments, not supported by graphics
-                 * !#en The segements for ellipse mask.
-                 * !#zh 椭圆遮罩的曲线细分数
+                 * @zh
+                 * 椭圆遮罩的曲线细分数。
                  */ segments: number;
         readonly graphics: GraphicsComponent | null;
         readonly clearGraphics: GraphicsComponent | null;
@@ -10267,13 +11814,21 @@ declare module "Cocos3D" {
         private _clearGraphics;
         constructor();
         onLoad(): void;
-        onRestore(): void;
+        /**
+                 * @zh
+                 * 图形内容重塑
+                 */ onRestore(): void;
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
         updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         postUpdateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
-        isHit(cameraPt: Vec2): boolean;
+        /**
+                 * @zh
+                 * 根据屏幕坐标计算点击事件
+                 *
+                 * @param cameraPt  屏幕点转换到相机坐标系下的点
+                 */ isHit(cameraPt: Vec2): boolean;
         _resizeNodeToTargetNode(): void;
         protected _nodeStateChange(): void;
         protected _canRender(): boolean;
@@ -10286,14 +11841,10 @@ declare module "Cocos3D" {
         private _activateMaterial;
     }
     /**
-         * !#en
-         * Visual indicator of progress in some operation.
-         * Displays a bar to the user representing how far the operation has progressed.
-         * !#zh
+         * @zh
          * 进度条组件，可用于显示加载资源时的进度。
-         * @class ProgressBar
-         * @extends Component
          * @example
+         * ```ts
          * // update progressBar
          * update(dt) {
          *     var progress = progressBar.progress;
@@ -10305,32 +11856,27 @@ declare module "Cocos3D" {
          *     }
          *     progressBar.progress = progress;
          * }
-         *
+         * ```
          */ export class ProgressBarComponent extends Component {
         /**
-                 * !#en The targeted Sprite which will be changed progressively.
-                 * !#zh 用来显示进度条比例的 Sprite 对象。
-                 * @property {Sprite} barSprite
+                 * @zh
+                 * 用来显示进度条比例的 Sprite 对象。
                  */ barSprite: SpriteComponent | null;
         /**
-                 * !#en The progress mode, there are two modes supported now: horizontal and vertical.
-                 * !#zh 进度条的模式
-                 * @property {ProgressBar.Mode} mode
+                 * @zh
+                 * 进度条的模式。
                  */ mode: __internal.cocos_3d_ui_components_progress_bar_component_Mode;
         /**
-                 * !#en The total width or height of the bar sprite.
-                 * !#zh 进度条实际的总长度
-                 * @property {Number} totalLength - range[[0, Number.MAX_VALUE]]
+                 * @zh
+                 * 进度条实际的总长度
                  */ totalLength: number;
         /**
-                 * !#en The current progress of the bar sprite. The valid value is between 0-1.
-                 * !#zh 当前进度值，该数值的区间是 0-1 之间。
-                 * @property {Number} progress
+                 * @zh
+                 * 当前进度值，该数值的区间是 0-1 之间。
                  */ progress: number;
         /**
-                 * !#en Whether reverse the progress direction of the bar sprite.
-                 * !#zh 进度条是否进行反方向变化。
-                 * @property {Boolean} reverse
+                 * @zh
+                 * 进度条是否进行反方向变化。
                  */ reverse: boolean;
         static Mode: typeof __internal.cocos_3d_ui_components_progress_bar_component_Mode;
         private _barSprite;
@@ -10342,54 +11888,40 @@ declare module "Cocos3D" {
         private _updateBarStatus;
     }
     /**
-         * !#en The RichText Component.
-         * !#zh 富文本组件
-         * @class RichText
-         * @extends Component
+         * @zh
+         * 富文本组件
          */ export class RichTextComponent extends UIComponent {
         /**
-                 * !#en Content string of RichText.
-                 * !#zh 富文本显示的文本内容。
-                 * @property {String} string
+                 * @zh
+                 * 富文本显示的文本内容。
                  */ string: string;
         /**
-                 * !#en Horizontal Alignment of each line in RichText.
-                 * !#zh 文本内容的水平对齐方式。
-                 * @property {macro.TextAlignment} horizontalAlign
+                 * @zh
+                 * 文本内容的水平对齐方式。
                  */ horizontalAlign: HorizontalTextAlignment;
         /**
-                 * !#en Font size of RichText.
-                 * !#zh 富文本字体大小。
-                 * @property {Number} fontSize
+                 * @zh
+                 * 富文本字体大小。
                  */ fontSize: number;
         /**
-                 * !#en Custom TTF font of RichText
-                 * !#zh  富文本定制字体
-                 * @property {cc.TTFFont} font
+                 * @zh
+                 * 富文本定制字体
                  */ font: TTFFont | null;
         /**
-                 * !#en The maximize width of the RichText
-                 * !#zh 富文本的最大宽度
-                 * @property {Number} maxWidth
+                 * @zh
+                 * 富文本的最大宽度
                  */ maxWidth: number;
         /**
-                 * !#en Line Height of RichText.
-                 * !#zh 富文本行高。
-                 * @property {Number} lineHeight
+                 * @zh
+                 * 富文本行高。
                  */ lineHeight: number;
         /**
-                 * !#en The image atlas for the img tag. For each src value in the img tag, there should be a valid spriteFrame in the image atlas.
-                 * !#zh 对于 img 标签里面的 src 属性名称，都需要在 imageAtlas 里面找到一个有效的 spriteFrame，否则 img tag 会判定为无效。
-                 * @property {SpriteAtlas} imageAtlas
+                 * @zh
+                 * 对于 img 标签里面的 src 属性名称，都需要在 imageAtlas 里面找到一个有效的 spriteFrame，否则 img tag 会判定为无效。
                  */ imageAtlas: SpriteAtlas | null;
         /**
-                 * !#en
-                 * Once checked, the RichText will block all input events (mouse and touch) within
-                 * the bounding box of the node, preventing the input from penetrating into the underlying node.
-                 * !#zh
+                 * @zh
                  * 选中此选项后，RichText 将阻止节点边界框中的所有输入事件（鼠标和触摸），从而防止输入事件穿透到底层节点。
-                 * @property {Boolean} handleTouchEvent
-                 * @default true
                  */ handleTouchEvent: boolean;
         static HorizontalAlign: typeof HorizontalTextAlignment;
         static VerticalAlign: typeof VerticalTextAlignment;
@@ -10440,35 +11972,25 @@ declare module "Cocos3D" {
         private _applyTextAttribute;
     }
     /**
-         * !#en
-         * The Scrollbar control allows the user to scroll an image or other view that is too large to see completely
-         * !#zh 滚动条组件
-         * @class Scrollbar
-         * @extends Component
+         * @zh
+         * 滚动条组件。
          */ export class ScrollBarComponent extends Component {
         /**
-                 * !#en The "handle" part of the scrollbar.
-                 * !#zh 作为当前滚动区域位置显示的滑块 Sprite。
-                 * @property {Sprite} handle
+                 * @zh
+                 * 作为当前滚动区域位置显示的滑块 Sprite。
                  */ handle: SpriteComponent | null;
         /**
-                 * !#en The direction of scrollbar.
-                 * !#zh ScrollBar 的滚动方向。
-                 * @property {Scrollbar.Direction} direction
+                 * @zh
+                 * ScrollBar 的滚动方向。
                  */ direction: __internal.cocos_3d_ui_components_scroll_bar_component_Direction;
         /**
-                 * !#en Whether enable auto hide or not.
-                 * !#zh 是否在没有滚动动作时自动隐藏 ScrollBar。
-                 * @property {Boolean} enableAutoHide
+                 * @zh
+                 * 是否在没有滚动动作时自动隐藏 ScrollBar。
                  */ enableAutoHide: boolean;
         /**
-                 * !#en
-                 * The time to hide scrollbar when scroll finished.
-                 * Note: This value is only useful when enableAutoHide is true.
-                 * !#zh
-                 * 没有滚动动作后经过多久会自动隐藏。
+                 * @zh
+                 * 没有滚动动作后经过多久会自动隐藏。<br/>
                  * 注意：只要当 “enableAutoHide” 为 true 时，才有效。
-                 * @property {Number} autoHideTime
                  */ autoHideTime: number;
         static Direction: typeof __internal.cocos_3d_ui_components_scroll_bar_component_Direction;
         private _scrollView;
@@ -10479,10 +12001,26 @@ declare module "Cocos3D" {
         private _touching;
         private _opacity;
         private _autoHideRemainingTime;
-        hide(): void;
-        show(): void;
-        onScroll(outOfBoundary: Vec3): void;
-        setScrollView(scrollView: ScrollViewComponent): void;
+        /**
+                 * @zh
+                 * 滚动条隐藏。
+                 */ hide(): void;
+        /**
+                 * @zh
+                 * 滚动条显示。
+                 */ show(): void;
+        /**
+                 * @zh
+                 * 重置滚动条位置
+                 *
+                 * @param outOfBoundary - 滚动位移
+                 */ onScroll(outOfBoundary: Vec3): void;
+        /**
+                 * @zh
+                 * 滚动视窗设置
+                 *
+                 * @param scrollView - 滚动视窗
+                 */ setScrollView(scrollView: ScrollViewComponent): void;
         onTouchBegan(): void;
         onTouchEnded(): void;
         protected onEnable(): void;
@@ -10499,75 +12037,55 @@ declare module "Cocos3D" {
         private _processAutoHide;
     }
     /**
-         * !#en
-         * Layout container for a view hierarchy that can be scrolled by the user,
-         * allowing it to be larger than the physical display.
-         *
-         * !#zh
+         * @zh
          * 滚动视图组件
-         * @class ScrollView
-         * @extends Component
          */ export class ScrollViewComponent extends ViewGroupComponent {
         /**
-                 * !#en This is a reference to the UI element to be scrolled.
-                 * !#zh 可滚动展示内容的节点。
-                 * @property {Node} content
+                 * @zh
+                 * 可滚动展示内容的节点。
                  */ content: Node | null;
         /**
-                 * !#en The horizontal scrollbar reference.
-                 * !#zh 水平滚动的 ScrollBar。
-                 * @property {Scrollbar} horizontalScrollBar
+                 * @zh
+                 * 水平滚动的 ScrollBar。
                  */ horizontalScrollBar: ScrollBarComponent | null;
         /**
-                 * !#en The vertical scrollbar reference.
-                 * !#zh 垂直滚动的 ScrollBar。
-                 * @property {Scrollbar} verticalScrollBar
+                 * @zh
+                 * 垂直滚动的 ScrollBar。
                  */ verticalScrollBar: ScrollBarComponent | null;
         readonly view: Node | null;
         static EventType: typeof __internal.cocos_3d_ui_components_scroll_view_component_EventType;
         /**
-                 * !#en Enable horizontal scroll.
-                 * !#zh 是否开启水平滚动。
-                 * @property {Boolean} horizontal
+                 * @zh
+                 * 是否开启水平滚动。
                  */ horizontal: boolean;
         /**
-                 * !#en Enable vertical scroll.
-                 * !#zh 是否开启垂直滚动。
-                 * @property {Boolean} vertical
+                 * @zh
+                 * 是否开启垂直滚动。
                  */ vertical: boolean;
         /**
-                 * !#en When inertia is set, the content will continue to move when touch ended.
-                 * !#zh 是否开启滚动惯性。
-                 * @property {Boolean} inertia
+                 * @zh
+                 * 是否开启滚动惯性。
                  */ inertia: boolean;
         /**
-                 * !#en
-                 * It determines how quickly the content stop moving. A value of 1 will stop the movement immediately.
-                 * A value of 0 will never stop the movement until it reaches to the boundary of scrollview.
-                 * !#zh
+                 * @zh
                  * 开启惯性后，在用户停止触摸后滚动多快停止，0表示永不停止，1表示立刻停止。
-                 * @property {Number} brake
                  */ brake: number;
         /**
-                 * !#en When elastic is set, the content will be bounce back when move out of boundary.
-                 * !#zh 是否允许滚动内容超过边界，并在停止触摸后回弹。
+                 * @zh
+                 * 是否允许滚动内容超过边界，并在停止触摸后回弹。
                  */ elastic: boolean;
         /**
-                 * !#en The elapse time of bouncing back. A value of 0 will bounce back immediately.
-                 * !#zh 回弹持续的时间，0 表示将立即反弹。
-                 * @property {Number} bounceDuration
+                 * @zh
+                 * 回弹持续的时间，0 表示将立即反弹。
                  */ bounceDuration: number;
         /**
-                 * !#en Scrollview events callback
-                 * !#zh 滚动视图的事件回调函数
-                 * @property {Component.EventHandler[]} scrollEvents
+                 * @zh
+                 * 滚动视图的事件回调函数.
                  */ scrollEvents: EventHandler[];
         /**
-                 * !#en If cancelInnerEvents is set to true, the scroll behavior will cancel touch events on inner content nodes
-                 * It's set to true by default.
-                 * !#zh 如果这个属性被设置为 true，那么滚动行为会取消子节点上注册的触摸事件，默认被设置为 true。
+                 * @zh
+                 * 如果这个属性被设置为 true，那么滚动行为会取消子节点上注册的触摸事件，默认被设置为 true。<br/>
                  * 注意，子节点上的 touchstart 事件仍然会触发，触点移动距离非常短的情况下 touchmove 和 touchend 也不会受影响。
-                 * @property {Boolean} cancelInnerEvents
                  */ cancelInnerEvents: boolean;
         private _content;
         private _horizontalScrollBar;
@@ -10600,221 +12118,240 @@ declare module "Cocos3D" {
         private _contentPos;
         private _deltaPos;
         /**
-                 * !#en Scroll the content to the bottom boundary of ScrollView.
-                 * !#zh 视图内容将在规定时间内滚动到视图底部。
-                 * @method scrollToBottom
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the bottom boundary immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容将在规定时间内滚动到视图底部。
+                 *
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到底部边界。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true.
                  * @example
+                 * ```ts
                  * // Scroll to the bottom of the view.
                  * scrollView.scrollToBottom(0.1);
+                 * ```
                  */ scrollToBottom(timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en Scroll the content to the top boundary of ScrollView.
-                 * !#zh 视图内容将在规定时间内滚动到视图顶部。
-                 * @method scrollToTop
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the top boundary immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容将在规定时间内滚动到视图顶部。
+                 *
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到顶部边界。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true.
                  * @example
+                 * ```ts
                  * // Scroll to the top of the view.
                  * scrollView.scrollToTop(0.1);
+                 * ```
                  */ scrollToTop(timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en Scroll the content to the left boundary of ScrollView.
-                 * !#zh 视图内容将在规定时间内滚动到视图左边。
-                 * @method scrollToLeft
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the left boundary immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容将在规定时间内滚动到视图左边。
+                 *
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左边边界。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Scroll to the left of the view.
                  * scrollView.scrollToLeft(0.1);
+                 * ```
                  */ scrollToLeft(timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en Scroll the content to the right boundary of ScrollView.
-                 * !#zh 视图内容将在规定时间内滚动到视图右边。
-                 * @method scrollToRight
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the right boundary immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容将在规定时间内滚动到视图右边。
+                 *
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右边边界。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Scroll to the right of the view.
                  * scrollView.scrollToRight(0.1);
-                 */ scrollToRight(timeInSecond: any, attenuated: any): void;
+                 * ```
+                 */ scrollToRight(timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en Scroll the content to the top left boundary of ScrollView.
-                 * !#zh 视图内容将在规定时间内滚动到视图左上角。
-                 * @method scrollToTopLeft
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the top left boundary immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容将在规定时间内滚动到视图左上角。
+                 *
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左上边边界。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Scroll to the upper left corner of the view.
                  * scrollView.scrollToTopLeft(0.1);
+                 * ```
                  */ scrollToTopLeft(timeInSecond: any, attenuated: any): void;
         /**
-                 * !#en Scroll the content to the top right boundary of ScrollView.
-                 * !#zh 视图内容将在规定时间内滚动到视图右上角。
-                 * @method scrollToTopRight
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the top right boundary immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容将在规定时间内滚动到视图右上角。
+                 *
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右上边界。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Scroll to the top right corner of the view.
                  * scrollView.scrollToTopRight(0.1);
-                 */ scrollToTopRight(timeInSecond: any, attenuated: any): void;
+                 * ```
+                 */ scrollToTopRight(timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en Scroll the content to the bottom left boundary of ScrollView.
-                 * !#zh 视图内容将在规定时间内滚动到视图左下角。
-                 * @method scrollToBottomLeft
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the bottom left boundary immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容将在规定时间内滚动到视图左下角。
+                 *
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左下边界。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Scroll to the lower left corner of the view.
                  * scrollView.scrollToBottomLeft(0.1);
-                 */ scrollToBottomLeft(timeInSecond: any, attenuated: any): void;
+                 * ```
+                 */ scrollToBottomLeft(timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en Scroll the content to the bottom right boundary of ScrollView.
-                 * !#zh 视图内容将在规定时间内滚动到视图右下角。
-                 * @method scrollToBottomRight
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the bottom right boundary immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容将在规定时间内滚动到视图右下角。
+                 *
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右边下边界。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Scroll to the lower right corner of the view.
                  * scrollView.scrollToBottomRight(0.1);
-                 */ scrollToBottomRight(timeInSecond: any, attenuated: any): void;
+                 * ```
+                 */ scrollToBottomRight(timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en Scroll with an offset related to the ScrollView's top left origin, if timeInSecond is omitted, then it will jump to the
-                 *       specific offset immediately.
-                 * !#zh 视图内容在规定时间内将滚动到 ScrollView 相对左上角原点的偏移位置, 如果 timeInSecond参数不传，则立即滚动到指定偏移位置。
-                 * @method scrollToOffset
-                 * @param {Vec2} offset - A Vec2, the value of which each axis between 0 and maxScrollOffset
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the specific offset of ScrollView immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容在规定时间内将滚动到 ScrollView 相对左上角原点的偏移位置, 如果 timeInSecond 参数不传，则立即滚动到指定偏移位置。
+                 *
+                 * @param offset - 指定移动偏移量。
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定偏移量处。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Scroll to middle position in 0.1 second in x-axis
                  * let maxScrollOffset = this.getMaxScrollOffset();
                  * scrollView.scrollToOffset(new Vec3(maxScrollOffset.x / 2, 0, 0), 0.1);
-                 */ scrollToOffset(offset: any, timeInSecond: any, attenuated: any): void;
+                 * ```
+                 */ scrollToOffset(offset: Vec3, timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en  Get the positive offset value corresponds to the content's top left boundary.
-                 * !#zh  获取滚动视图相对于左上角原点的当前滚动偏移
-                 * @method getScrollOffset
-                 * @return {Vec2}  - A Vec2 value indicate the current scroll offset.
+                 * @zh
+                 * 获取滚动视图相对于左上角原点的当前滚动偏移。
+                 *
+                 * @return - 当前滚动偏移量。
                  */ getScrollOffset(): Vec3;
         /**
-                 * !#en Get the maximize available  scroll offset
-                 * !#zh 获取滚动视图最大可以滚动的偏移量
-                 * @method getMaxScrollOffset
-                 * @return {Vec2} - A Vec2 value indicate the maximize scroll offset in x and y axis.
+                 * @zh
+                 * 获取滚动视图最大可以滚动的偏移量
+                 *
+                 * @return - 最大可滚动偏移量.
                  */ getMaxScrollOffset(): Vec3;
         /**
-                 * !#en Scroll the content to the horizontal percent position of ScrollView.
-                 * !#zh 视图内容在规定时间内将滚动到 ScrollView 水平方向的百分比位置上。
-                 * @method scrollToPercentHorizontal
-                 * @param {Number} percent - A value between 0 and 1.
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the horizontal percent position of ScrollView immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容在规定时间内将滚动到 ScrollView 水平方向的百分比位置上。
+                 *
+                 * @param percent - 0 - 之间的百分比。
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定水平百分比位置。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Scroll to middle position.
                  * scrollView.scrollToBottomRight(0.5, 0.1);
-                 */ scrollToPercentHorizontal(percent: any, timeInSecond: any, attenuated: any): void;
+                 * ```
+                 */ scrollToPercentHorizontal(percent: number, timeInSecond: number, attenuated: boolean): void;
         /**
-                 * !#en Scroll the content to the percent position of ScrollView in any direction.
-                 * !#zh 视图内容在规定时间内进行垂直方向和水平方向的滚动，并且滚动到指定百分比位置上。
-                 * @method scrollTo
-                 * @param {Vec2} anchor - A point which will be clamp between new Vec2(0,0) and new Vec2(1,1).
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the percent position of ScrollView immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
+                 * @zh
+                 * 视图内容在规定时间内进行垂直方向和水平方向的滚动，并且滚动到指定百分比位置上。
+                 *
+                 * @param anchor - 在 new Vec2(0,0) and new Vec2(1,1) 上取差值的一个点.
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定水平或垂直百分比位置。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
+                 * ```ts
                  * // Vertical scroll to the bottom of the view.
                  * scrollView.scrollTo(new Vec2(0, 1), 0.1);
                  *
                  * // Horizontal scroll to view right.
                  * scrollView.scrollTo(new Vec2(1, 0), 0.1);
+                 * ```
                  */ scrollTo(anchor: Vec2, timeInSecond: number, attenuated?: boolean): void;
         /**
-                 * !#en Scroll the content to the vertical percent position of ScrollView.
-                 * !#zh 视图内容在规定时间内滚动到 ScrollView 垂直方向的百分比位置上。
-                 * @method scrollToPercentVertical
-                 * @param {Number} percent - A value between 0 and 1.
-                 * @param {Number} [timeInSecond=0] - Scroll time in second, if you don't pass timeInSecond,
-                 * the content will jump to the vertical percent position of ScrollView immediately.
-                 * @param {Boolean} [attenuated=true] - Whether the scroll acceleration attenuated, default is true.
-                 * // Scroll to middle position.
+                 * @zh
+                 * 视图内容在规定时间内滚动到 ScrollView 垂直方向的百分比位置上。
+                 *
+                 * @param percent - 0 - 1 之间的百分比.
+                 * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定垂直百分比位置。
+                 * @param attenuated - 滚动加速是否衰减，默认为 true。
+                 * @example
+                 * ```ts
                  * scrollView.scrollToPercentVertical(0.5, 0.1);
+                 * ```
                  */ scrollToPercentVertical(percent: number, timeInSecond: number, attenuated?: boolean): void;
         /**
-                 * !#en  Stop auto scroll immediately
-                 * !#zh  停止自动滚动, 调用此 API 可以让 Scrollview 立即停止滚动
-                 * @method stopAutoScroll
+                 * @zh
+                 * 停止自动滚动, 调用此 API 可以让 Scrollview 立即停止滚动。
                  */ stopAutoScroll(): void;
         /**
-                 * !#en Modify the content position.
-                 * !#zh 设置当前视图内容的坐标点。
-                 * @method setContentPosition
-                 * @param {Vec2} position - The position in content's parent space.
+                 * @zh
+                 * 设置当前视图内容的坐标点。
+                 *
+                 * @param position - 当前视图坐标点.
                  */ setContentPosition(position: Vec3): void;
         /**
-                 * !#en Query the content's position in its parent space.
-                 * !#zh 获取当前视图内容的坐标点。
-                 * @method getContentPosition
-                 * @returns {Position} - The content's position in its parent space.
+                 * @zh
+                 * 获取当前视图内容的坐标点。
+                 *
+                 * @returns - 当前视图内容的坐标点.
                  */ getContentPosition(): Vec3;
         /**
-                 * !#en Query whether the user is currently dragging the ScrollView to scroll it
-                 * !#zh 用户是否在拖拽当前滚动视图
-                 * @method isScrolling
-                 * @returns {Boolean} - Whether the user is currently dragging the ScrollView to scroll it
+                 * @zh
+                 * 用户是否在拖拽当前滚动视图。
+                 *
+                 * @returns - 是否在拖拽当前滚动视图。
                  */ isScrolling(): boolean;
         /**
-                 * !#en Query whether the ScrollView is currently scrolling because of a bounceback or inertia slowdown.
-                 * !#zh 当前滚动视图是否在惯性滚动
-                 * @method isAutoScrolling
-                 * @returns {Boolean} - Whether the ScrollView is currently scrolling because of a bounceback or inertia slowdown.
+                 * @zh
+                 * 当前滚动视图是否在惯性滚动。
+                 *
+                 * @returns - 滚动视图是否在惯性滚动。
                  */ isAutoScrolling(): boolean;
-        _registerEvent(): void;
-        _unregisterEvent(): void;
-        _onMouseWheel(event: any, captureListeners: any): void;
-        _calculateBoundary(): void;
-        _hasNestedViewGroup(event?: EventTouch, captureListeners?: any): boolean | undefined;
         getScrollEndedEventTiming(): number;
-        _startInertiaScroll(touchMoveVelocity: Vec3): void;
-        _calculateAttenuatedFactor(distance: number): number;
-        _startAttenuatingAutoScroll(deltaMove: Vec3, initialVelocity: Vec3): void;
-        _calculateAutoScrollTimeByInitalSpeed(initalSpeed: any): number;
-        _startAutoScroll(deltaMove: Vec3, timeInSecond: number, attenuated?: boolean): void;
-        _calculateTouchMoveVelocity(): Vec3;
-        _flattenVectorByDirection(vector: Vec3): Vec3;
-        _moveContent(deltaMove: Vec3, canStartBounceBack?: boolean): void;
-        _getContentLeftBoundary(): number;
-        _getContentRightBoundary(): number;
-        _getContentTopBoundary(): number;
-        _getContentBottomBoundary(): number;
-        _getHowMuchOutOfBoundary(addition?: Vec3): Vec3;
-        _updateScrollBar(outOfBoundary: Vec3): void;
-        _onScrollBarTouchBegan(): void;
-        _onScrollBarTouchEnded(): void;
-        _dispatchEvent(event: any): void;
-        _adjustContentOutOfBoundary(): void;
         start(): void;
-        _hideScrollbar(): void;
-        _showScrollbar(): void;
-        onDisable(): void;
         onEnable(): void;
-        update(dt: any): void;
-        private _stopPropagationIfTargetIsMe;
+        update(dt: number): void;
+        onDisable(): void;
+        private _registerEvent;
+        private _unregisterEvent;
+        /**
+                 * @zh
+                 * 鼠标滚轮事件。
+                 *
+                 * @param event - 鼠标事件信息。
+                 * @param captureListeners
+                 */ private _onMouseWheel;
         private _onTouchBegan;
         private _onTouchMoved;
         private _onTouchEnded;
         private _onTouchCancelled;
+        /**
+                 * @zh
+                 * 重新计算内容活动边界（view）
+                 */ private _calculateBoundary;
+        private _hasNestedViewGroup;
+        private _startInertiaScroll;
+        private _calculateAttenuatedFactor;
+        private _startAttenuatingAutoScroll;
+        private _calculateAutoScrollTimeByInitalSpeed;
+        private _startAutoScroll;
+        private _calculateTouchMoveVelocity;
+        private _flattenVectorByDirection;
+        private _moveContent;
+        private _getContentLeftBoundary;
+        private _getContentRightBoundary;
+        private _getContentTopBoundary;
+        private _getContentBottomBoundary;
+        private _getHowMuchOutOfBoundary;
+        private _updateScrollBar;
+        private _onScrollBarTouchBegan;
+        private _onScrollBarTouchEnded;
+        private _dispatchEvent;
+        private _adjustContentOutOfBoundary;
+        private _hideScrollbar;
+        private _showScrollbar;
+        private _stopPropagationIfTargetIsMe;
         private _processDeltaMove;
         private _handleMoveLogic;
         private _scrollChildren;
@@ -10829,34 +12366,33 @@ declare module "Cocos3D" {
         private _processAutoScrolling;
         private _checkMouseWheel;
         private _calculateMovePercentDelta;
-        private _moveContentToTopLeft;
+        /**
+                 * @zh
+                 *
+                 *
+                 * @param scrollViewSize - 可视区域尺寸。
+                 */ private _moveContentToTopLeft;
     }
     /**
-         * !#en The Slider Control
-         * !#zh 滑动器组件
-         * @class Slider
-         * @extends Component
+         * @zh
+         * 滑动器组件。
          */ export class SliderComponent extends Component {
         /**
-                 * !#en The "handle" part of the slider
-                 * !#zh 滑动器滑块按钮部件
-                 * @property {Button} handle
+                 * @zh
+                 * 滑动器滑块按钮部件。
                  */ handle: SpriteComponent | null;
         /**
-                 * !#en The slider direction
-                 * !#zh 滑动器方向
-                 * @property {Slider.Direction} direction
+                 * @zh
+                 * 滑动器方向。
                  */ direction: number;
         /**
-                 * !#en The current progress of the slider. The valid value is between 0-1
-                 * !#zh 当前进度值，该数值的区间是 0-1 之间
-                 * @property {Number} progress
+                 * @zh
+                 * 当前进度值，该数值的区间是 0-1 之间。
                  */ progress: number;
         static Direction: typeof __internal.cocos_3d_ui_components_slider_component_Direction;
         /**
-                 * !#en The slider events callback
-                 * !#zh 滑动器组件事件回调函数
-                 * @property {ComponentEventHandler[]} slideEvents
+                 * @zh
+                 * 滑动器组件事件回调函数。
                  */ slideEvents: EventHandler[];
         private _handle;
         private _direction;
@@ -10881,80 +12417,75 @@ declare module "Cocos3D" {
     }
     export class SpriteComponent extends UIRenderComponent {
         /**
-                 * !#en The atlas of the sprite.
-                 * !#zh 精灵的图集
-                 * @return {SpriteAtlas}
+                 * @zh
+                 * 精灵的图集
                  */ spriteAtlas: SpriteAtlas | null;
         /**
-                 * !#en The sprite frame of the sprite.
-                 * !#zh 精灵的精灵帧
-                 * @return {SpriteFrame}
+                 * @zh
+                 * 精灵的精灵帧
                  */ spriteFrame: SpriteFrame | null;
         /**
-                 * !#en The sprite render type.
-                 * !#zh 精灵渲染类型
-                 * @property type
-                 * @type {SpriteType}
+                 * @zh
+                 * 精灵渲染类型
+                 *
                  * @example
-                 * sprite.type = cc.Sprite.Type.SIMPLE;
+                 * ```ts
+                 * sprite.type = cc.SpriteComponent.Type.SIMPLE;
+                 * ```
                  */ type: __internal.cocos_3d_ui_components_sprite_component_SpriteType;
         /**
-                 * !#en
-                 * The fill type, This will only have any effect if the "type" is set to “cc.Sprite.Type.FILLED”.
-                 * !#zh
-                 * 精灵填充类型，仅渲染类型设置为 cc.Sprite.Type.FILLED 时有效。
-                 * @property fillType
-                 * @type {FillType}
+                 * @zh
+                 * 精灵填充类型，仅渲染类型设置为 cc.SpriteComponent.Type.FILLED 时有效。
+                 *
                  * @example
+                 * ```ts
                  * sprite.fillType = SpriteComponent.FillType.HORIZONTAL;
+                 * ```
                  */ fillType: __internal.cocos_3d_ui_components_sprite_component_FillType;
         /**
-                 * !#en
-                 * The fill Center, This will only have any effect if the "type" is set to “cc.Sprite.Type.FILLED”.
-                 * !#zh
-                 * 填充中心点，仅渲染类型设置为 cc.Sprite.Type.FILLED 时有效。
-                 * @property fillCenter
-                 * @type {Vec2}
+                 * @zh
+                 * 填充中心点，仅渲染类型设置为 cc.SpriteComponent.Type.FILLED 时有效。
+                 *
                  * @example
-                 * sprite.fillCenter = new cc.v2(0, 0);
+                 * ```ts
+                 * sprite.fillCenter = cc.v2(0, 0);
+                 * ```
                  */ fillCenter: Vec2;
         /**
-                 * !#en
-                 * The fill Start, This will only have any effect if the "type" is set to “cc.Sprite.Type.FILLED”.
-                 * !#zh
+                 * @zh
                  * 填充起始点，仅渲染类型设置为 cc.Sprite.Type.FILLED 时有效。
-                 * @property fillStart
-                 * @type {Number}
+                 *
                  * @example
+                 * ```ts
                  * // -1 To 1 between the numbers
                  * sprite.fillStart = 0.5;
+                 * ```
                  */ fillStart: number;
         /**
-                 * !#en
-                 * The fill Range, This will only have any effect if the "type" is set to “cc.Sprite.Type.FILLED”.
-                 * !#zh
+                 * @zh
                  * 填充范围，仅渲染类型设置为 cc.Sprite.Type.FILLED 时有效。
-                 * @property fillRange
-                 * @type {Number}
+                 *
                  * @example
+                 * ```ts
                  * // -1 To 1 between the numbers
                  * sprite.fillRange = 1;
+                 * ```
                  */ fillRange: number;
         /**
-                 * !#en specify the frame is trimmed or not.
-                 * !#zh 是否使用裁剪模式
-                 * @property trim
-                 * @type {Boolean}
+                 * @zh  是否使用裁剪模式
+                 *
                  * @example
+                 * ```ts
                  * sprite.trim = true;
+                 * ```
                  */ trim: boolean;
         /**
-                 * !#en specify the size tracing mode.
-                 * !#zh 精灵尺寸调整模式
-                 * @property sizeMode
-                 * @type {Sprite.SizeMode}
+                 * @zh  精灵尺寸调整模式
+                 *
                  * @example
+                 * ```ts
                  * sprite.sizeMode = cc.Sprite.SizeMode.CUSTOM;
+                 * ```
                  */ sizeMode: __internal.cocos_3d_ui_components_sprite_component_SizeMode;
         static FillType: typeof __internal.cocos_3d_ui_components_sprite_component_FillType;
         static Type: typeof __internal.cocos_3d_ui_components_sprite_component_SpriteType;
@@ -10972,98 +12503,100 @@ declare module "Cocos3D" {
         onEnable(): void;
         updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         onDestroy(): void;
-        _applySpriteSize(): void;
-        _resized(): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
+        private _applySpriteSize;
+        private _resized;
         private _activateMaterial;
         private _applyAtlas;
         private _applySpriteFrame;
     }
     /**
-         * !#en The toggle component is a CheckBox, when it used together with a ToggleGroup, it
-         * could be treated as a RadioButton.
-         * !#zh Toggle 是一个 CheckBox，当它和 ToggleGroup 一起使用的时候，可以变成 RadioButton。
-         * @class Toggle
-         * @extends Button
+         * @zh
+         * Toggle 是一个 CheckBox，当它和 ToggleGroup 一起使用的时候，可以变成 RadioButton。
          */ export class ToggleComponent extends ButtonComponent {
         /**
-                 * !#en When this value is true, the check mark component will be enabled, otherwise
-                 * the check mark component will be disabled.
-                 * !#zh 如果这个设置为 true，则 check mark 组件会处于 enabled 状态，否则处于 disabled 状态。
-                 * @property {Boolean} isChecked
+                 * @zh
+                 * 如果这个设置为 true，则 check mark 组件会处于 enabled 状态，否则处于 disabled 状态。
                  */ isChecked: boolean;
         /**
-                 * !#en The toggle group which the toggle belongs to, when it is null, the toggle is a CheckBox.
-                 * Otherwise, the toggle is a RadioButton.
-                 * !#zh Toggle 所属的 ToggleGroup，这个属性是可选的。如果这个属性为 null，则 Toggle 是一个 CheckBox，
-                 * 否则，Toggle 是一个 RadioButton。
-                 * @property {ToggleGroup} toggleGroup
+                 * @zh
+                 * Toggle 所属的 ToggleGroup，这个属性是可选的。如果这个属性为 null，则 Toggle 是一个 CheckBox，否则，Toggle 是一个 RadioButton。
                  */ toggleGroup: ToggleContainerComponent | null;
         /**
-                 * !#en The image used for the checkmark.
-                 * !#zh Toggle 处于选中状态时显示的图片
-                 * @property {Sprite} checkMark
+                 * @zh
+                 * Toggle 处于选中状态时显示的图片
                  */ checkMark: SpriteComponent | null;
         _resizeToTarget: boolean;
         readonly _toggleContainer: null;
         /**
-                 * !#en If Toggle is clicked, it will trigger event's handler
-                 * !#zh Toggle 按钮的点击事件列表。
-                 * @property {ComponentEventHandler[]} checkEvents
+                 * @zh
+                 * Toggle 按钮的点击事件列表。
                  */ checkEvents: EventHandler[];
         private _isChecked;
         private _toggleGroup;
         private _checkMark;
         onEnable(): void;
         onDisable(): void;
-        _updateCheckMark(): void;
-        _registerToggleEvent(): void;
-        _unregisterToggleEvent(): void;
-        toggle(): void;
         /**
-                 * !#en Make the toggle button checked.
-                 * !#zh 使 toggle 按钮处于选中状态
-                 * @method check
+                 * @zh
+                 * toggle 按钮切换。
+                 */ toggle(): void;
+        /**
+                 * @zh
+                 * 使 toggle 按钮处于选中状态。
                  */ check(): void;
         /**
-                 * !#en Make the toggle button unchecked.
-                 * !#zh 使 toggle 按钮处于未选中状态
-                 * @method uncheck
+                 * @zh
+                 * 取消 toggle 按钮选中状态。
                  */ uncheck(): void;
+        private _updateCheckMark;
+        private _registerToggleEvent;
+        private _unregisterToggleEvent;
         private _emitToggleEvents;
     }
     /**
-         * !#en ToggleGroup is not a visiable UI component but a way to modify the behavior of a set of Toggles.
-         * Toggles that belong to the same group could only have one of them to be switched on at a time.
-         * !#zh ToggleGroup 不是一个可见的 UI 组件，它可以用来修改一组 Toggle  组件的行为。当一组 Toggle 属于同一个 ToggleGroup 的时候，
+         * @zh
+         * ToggleGroup 不是一个可见的 UI 组件，它可以用来修改一组 Toggle  组件的行为。当一组 Toggle 属于同一个 ToggleGroup 的时候，<br/>
          * 任何时候只能有一个 Toggle 处于选中状态。
-         * @class ToggleGroup
-         * @extends Component
          */ export class ToggleContainerComponent extends Component {
         checkEvents: EventHandler[];
         private _allowSwitchOff;
         private _toggleItems;
         /**
-                 * !#en If this setting is true, a toggle could be switched off and on when pressed.
-                 * If it is false, it will make sure there is always only one toggle could be switched on
-                 * and the already switched on toggle can't be switched off.
-                 * !#zh 如果这个设置为 true， 那么 toggle 按钮在被点击的时候可以反复地被选中和未选中。
-                 * @property {Boolean} allowSwitchOff
+                 * @zh
+                 * 如果这个设置为 true，那么 toggle 按钮在被点击的时候可以反复地被选中和未选中。
                  */ allowSwitchOff: boolean;
         /**
-                 * !#en Read only property, return the toggle items array reference managed by toggleGroup.
-                 * !#zh 只读属性，返回 toggleGroup 管理的 toggle 数组引用
-                 * @property {Array} toggleItems
+                 * @zh
+                 * 只读属性，返回 toggleGroup 管理的 toggle 数组引用。
                  */ readonly toggleItems: ToggleComponent[];
         start(): void;
-        updateToggles(toggle: ToggleComponent): void;
-        addToggle(toggle: ToggleComponent): void;
-        removeToggle(toggle: ToggleComponent): void;
+        /**
+                 * @zh
+                 * 刷新管理的 toggle 状态。
+                 *
+                 * @param toggle - 需要被更新的 toggle。
+                 */ updateToggles(toggle: ToggleComponent): void;
+        /**
+                 * @zh
+                 * 添加需要被控制的 toggle。
+                 *
+                 * @param toggle - 被控制的 toggle。
+                 */ addToggle(toggle: ToggleComponent): void;
+        /**
+                 * @zh
+                 * 移除 toggle。
+                 *
+                 * @param toggle - 被移除控制的 toggle。
+                 */ removeToggle(toggle: ToggleComponent): void;
         private _allowOnlyOneToggleChecked;
         private _makeAtLeastOneToggleChecked;
     }
-    export class UIModelComponent extends UIComponent {
+    /**
+         * @zh
+         * UI 模型基础类
+         */ export class UIModelComponent extends UIComponent {
         readonly modelComponent: RenderableComponent | null;
         private _modelComponent;
         onLoad(): void;
@@ -11073,38 +12606,40 @@ declare module "Cocos3D" {
         private _fitUIRenderQueue;
     }
     /**
-         * !#en
-         * Base class for components which supports rendering features.
-         * !#zh
-         * 所有支持渲染的组件的基类
-         *
-         * @class UIRenderComponent
-         * @extends Component
+         * @zh
+         * 所有支持渲染的 UI 组件的基类
          */ export class UIRenderComponent extends UIComponent {
         /**
-                 * !#en specify the source Blend Factor, this will generate a custom material object
-                 * please pay attention to the memory cost.
-                 * !#zh 指定原图的混合模式，这会克隆一个新的材质对象，注意这带来的
-                 * @property srcBlendFactor
+                 * @zh
+                 * 指定原图的混合模式，这会克隆一个新的材质对象，注意这带来的。
+                 *
+                 * @param value 原图混合模式。
+                 * @example
+                 * ```ts
                  * sprite.srcBlendFactor = macro.BlendFactor.ONE;
+                 * ```
                  */ srcBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         /**
-                 * !#en specify the destination Blend Factor.
-                 * !#zh 指定目标的混合模式
-                 * @property dstBlendFactor
-                 * @type {macro.BlendFactor}
+                 * @zh
+                 * 指定目标的混合模式。
+                 *
+                 * @param value 目标混合模式。
                  * @example
+                 * ```ts
                  * sprite.dstBlendFactor = GFXBlendFactor.ONE;
+                 * ```
                  */ dstBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         /**
-                 * !#en render color
-                 * !#zh 渲染颜色
-                 * @property color
+                 * @zh
+                 * 渲染颜色。
+                 *
+                 * @param value 渲染颜色。
                  */ color: Color;
         /**
-                 * !#en render material
-                 * !#zh 渲染共用材质
-                 * @property material
+                 * @zh
+                 * 渲染使用材质，实际使用材质是实例后材质。
+                 *
+                 * @param value 源材质。
                  */ sharedMaterial: Material | null;
         readonly material: Material | null;
         readonly renderData: __internal.cocos_renderer_ui_renderData_RenderData | null;
@@ -11137,10 +12672,28 @@ declare module "Cocos3D" {
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        markForUpdateRenderData(enable?: boolean): void;
-        requestRenderData(): __internal.cocos_renderer_ui_renderData_RenderData;
-        destroyRenderData(): void;
-        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
+        /**
+                 * @zh
+                 * 标记当前组件的渲染数据为已修改状态，这样渲染数据才会重新计算。
+                 *
+                 * @param enable 是否标记为已修改。
+                 */ markForUpdateRenderData(enable?: boolean): void;
+        /**
+                 * @zh
+                 * 请求渲染数据。
+                 *
+                 * @return 渲染数据 RenderData。
+                 */ requestRenderData(): __internal.cocos_renderer_ui_renderData_RenderData;
+        /**
+                 * @zh
+                 * 渲染数据销毁。
+                 */ destroyRenderData(): void;
+        /**
+                 * @zh
+                 * 每个渲染组件都由此接口决定是否渲染以及渲染状态的更新。
+                 *
+                 * @param render 数据处理中转站。
+                 */ updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         protected _checkAndUpdateRenderData(): void;
         protected _canRender(): boolean;
         protected _updateColor(): void;
@@ -11151,10 +12704,16 @@ declare module "Cocos3D" {
         protected _flushAssembler?(): void;
     }
     export class UITransformComponent extends Component {
-        contentSize: Size;
+        /**
+                 * @zh
+                 * 内容尺寸
+                 */ contentSize: Size;
         width: number;
         height: number;
-        anchorPoint: Vec2;
+        /**
+                 * @zh
+                 * 锚点位置
+                 */ anchorPoint: Vec2;
         anchorX: number;
         anchorY: number;
         static EventType: typeof EventType;
@@ -11163,89 +12722,82 @@ declare module "Cocos3D" {
         __preload(): void;
         onDestroy(): void;
         /**
-                 * !#en
-                 * Sets the untransformed size of the node.<br/>
-                 * The contentSize remains the same no matter the node is scaled or rotated.<br/>
-                 * All nodes has a size. Layer and Scene has the same size of the screen.
-                 * !#zh 设置节点原始大小，不受该节点是否被缩放或者旋转的影响。
-                 * @method setContentSize
-                 * @param {Size|Number} size - The untransformed size of the node or The untransformed size's width of the node.
-                 * @param {Number} [height] - The untransformed size's height of the node.
+                 * @zh
+                 * 设置节点原始大小，不受该节点是否被缩放或者旋转的影响。
+                 *
+                 * @typeparam size - 节点内容变换的尺寸或者宽度.
+                 * @param height - 节点内容未变换的高度.
                  * @example
                  * node.setContentSize(cc.size(100, 100));
                  * node.setContentSize(100, 100);
                  */ setContentSize(size: Size | number, height?: number): void;
         /**
-                 * !#en
-                 * Sets the anchor point in percent. <br/>
-                 * anchor point is the point around which all transformations and positioning manipulations take place. <br/>
-                 * It's like a pin in the node where it is "attached" to its parent. <br/>
-                 * The anchorPoint is normalized, like a percentage. (0,0) means the bottom-left corner and (1,1) means the top-right corner.<br/>
-                 * But you can use values higher than (1,1) and lower than (0,0) too.<br/>
-                 * The default anchor point is (0.5,0.5), so it starts at the center of the node.
-                 * !#zh
-                 * 设置锚点的百分比。<br/>
-                 * 锚点应用于所有变换和坐标点的操作，它就像在节点上连接其父节点的大头针。<br/>
-                 * 锚点是标准化的，就像百分比一样。(0，0) 表示左下角，(1，1) 表示右上角。<br/>
-                 * 但是你可以使用比（1，1）更高的值或者比（0，0）更低的值。<br/>
-                 * 默认的锚点是（0.5，0.5），因此它开始于节点的中心位置。<br/>
+                 * @zh
+                 * 设置锚点的百分比。
+                 * 锚点应用于所有变换和坐标点的操作，它就像在节点上连接其父节点的大头针。
+                 * 锚点是标准化的，就像百分比一样。(0，0) 表示左下角，(1，1) 表示右上角。
+                 * 但是你可以使用比（1，1）更高的值或者比（0，0）更低的值。
+                 * 默认的锚点是（0.5，0.5），因此它开始于节点的中心位置。
                  * 注意：Creator 中的锚点仅用于定位所在的节点，子节点的定位不受影响。
-                 * @method setAnchorPoint
-                 * @param {Vec2|Number} point - The anchor point of node or The x axis anchor of node.
-                 * @param {Number} [y] - The y axis anchor of node.
+                 *
+                 * @typeparam point - 节点锚点或节点 x 轴锚.
+                 * @param y - 节点 y 轴锚
                  * @example
                  * node.setAnchorPoint(cc.v2(1, 1));
                  * node.setAnchorPoint(1, 1);
                  */ setAnchorPoint(point: Vec2 | number, y?: number): void;
-        isHit(point: Vec2, listener?: __internal.cocos_core_platform_event_manager_event_listener_EventListener): any;
         /**
-                 * !#en
-                 * Converts a UI Point to UI Node (Local) Space coordinates in which the anchor point is the origin position.
-                 * Conversion of non-UI nodes to UI Node (Local) Space coordinate system, please go cc.pipelineUtils.ConvertWorldToUISpaceAR.
-                 * !#zh
-                 * 将一个 UI 节点转换到另一个 UI 节点 (局部) 空间坐标系，这个坐标系以锚点为原点。
+                 * @zh
+                 * 当前节点的点击计算
+                 *
+                 * @typeparam point - 屏幕点
+                 * @typeparam listener - 事件监听器
+                 */ isHit(point: Vec2, listener?: __internal.cocos_core_platform_event_manager_event_listener_EventListener): any;
+        /**
+                 * @zh
+                 * 将一个 UI 节点世界坐标系下点转换到另一个 UI 节点 (局部) 空间坐标系，这个坐标系以锚点为原点。
                  * 非 UI 节点转换到 UI 节点(局部) 空间坐标系，请走 cc.pipelineUtils.ConvertWorldToUISpaceAR
-                 * @method convertToNodeSpaceAR
-                 * @param {Vec3} worldPoint
-                 * @param {Vec3} out
-                 * @return {Vec3}
+                 *
+                 * @typeparam worldPoint - 世界坐标点
+                 * @typeparam out - 转换后坐标
+                 * @return
                  * @example
                  * var newVec2 = node.convertToNodeSpaceAR(cc.v2(100, 100));
                  */ convertToNodeSpaceAR(worldPoint: Vec3, out?: Vec3): Vec3;
         /**
-                 * !#en
-                 * Converts a Point in node coordinates to world space coordinates.
-                 * !#zh
+                 * @zh
                  * 将当前节点坐标系下的一个点转换到世界坐标系。
-                 * @method convertToWorldSpaceAR
-                 * @param {Vec2} nodePoint
-                 * @return {Vec2}
+                 *
+                 * @param nodePoint - 节点坐标
+                 * @param out - 转换后坐标
+                 * @return
                  * @example
                  * var newVec2 = node.convertToWorldSpaceAR(cc.v2(100, 100));
                  */ convertToWorldSpaceAR(nodePoint: Vec3, out?: Vec3): Vec3;
         /**
-                 * !#en
-                 * Returns a "local" axis aligned bounding box of the node. <br/>
-                 * The returned box is relative only to its parent.
-                 * !#zh 返回父节坐标系下的轴向对齐的包围盒。
-                 * @method getBoundingBox
-                 * @return {Rect} The calculated bounding box of the node
+                 * @zh
+                 * 返回父节坐标系下的轴向对齐的包围盒。
+                 *
+                 * @return - 节点大小的包围盒
                  * @example
                  * var boundingBox = node.getBoundingBox();
                  */ getBoundingBox(): Rect;
         /**
-                 * !#en
-                 * Returns a "world" axis aligned bounding box of the node.<br/>
-                 * The bounding box contains self and active children's world bounding box.
-                 * !#zh
-                 * 返回节点在世界坐标系下的对齐轴向的包围盒（AABB）。<br/>
+                 * @zh
+                 * 返回节点在世界坐标系下的对齐轴向的包围盒（AABB）。
                  * 该边框包含自身和已激活的子节点的世界边框。
-                 * @method getBoundingBoxToWorld
-                 * @return {Rect}
+                 *
+                 * @return
                  * @example
                  * var newRect = node.getBoundingBoxToWorld();
                  */ getBoundingBoxToWorld(): Rect;
-        getBoundingBoxTo(parentMat: Mat4): Rect;
+        /**
+                 * @zh
+                 * 返回包含当前包围盒及其子节点包围盒的最小包围盒
+                 *
+                 * @param parentMat
+                 * @return
+                 */ getBoundingBoxTo(parentMat: Mat4): Rect;
         private _getVisibility;
     }
     export class ViewGroupComponent extends Component {
@@ -11316,213 +12868,104 @@ declare module "Cocos3D" {
         private _onWebViewLoadError;
     }
     /**
-         * !#en
-         * Stores and manipulate the anchoring based on its parent.
-         * Widget are used for GUI but can also be used for other things.
-         * Widget will adjust current node's position and size automatically, but the results after adjustment can not be obtained until the next frame
-         * unless you call {{#crossLink "Widget/updateAlignment:method"}}{{/crossLink}} manually.
-         * !#zh
-         * Widget 组件，用于设置和适配其相对于父节点的边距，Widget 通常被用于 UI 界面，也可以用于其他地方。
-         * Widget 会自动调整当前节点的坐标和宽高，不过目前调整后的结果要到下一帧才能在脚本里获取到，除非你先手动调用 {{#crossLink "Widget/updateAlignment:method"}}{{/crossLink}}。
-         *
-         * @class Widget
-         * @extends Component
+         * @zh
+         * Widget 组件，用于设置和适配其相对于父节点的边距，Widget 通常被用于 UI 界面，也可以用于其他地方。<br/>
+         * Widget 会自动调整当前节点的坐标和宽高，不过目前调整后的结果要到下一帧才能在脚本里获取到，除非你先手动调用 [[updateAlignment]]
          */ export class WidgetComponent extends Component {
         /**
-                 * !#en Specifies an alignment target that can only be one of the parent nodes of the current node.
-                 * The default value is null, and when null, indicates the current parent.
-                 * !#zh 指定一个对齐目标，只能是当前节点的其中一个父节点，默认为空，为空时表示当前父节点。
-                 * @property {Node} target
+                 * @zh
+                 * 指定一个对齐目标，只能是当前节点的其中一个父节点，默认为空，为空时表示当前父节点。
                  */ target: Node | null;
         /**
-                 * !#en Whether to align the top.
-                 * !#zh 是否对齐上边。
-                 * @property isAlignTop
-                 * @type {Boolean}
-                 * @default false
+                 * @zh
+                 * 是否对齐上边。
                  */ isAlignTop: boolean;
         /**
-                 * !#en Whether to align the bottom.
-                 * !#zh 是否对齐下边。
-                 * @property isAlignBottom
-                 * @type {Boolean}
-                 * @default false
+                 * @zh
+                 * 是否对齐下边。
                  */ isAlignBottom: boolean;
         /**
-                 * !#en Whether to align the left.
-                 * !#zh 是否对齐左边
-                 * @property isAlignLeft
-                 * @type {Boolean}
-                 * @default false
+                 * @zh
+                 * 是否对齐左边。
                  */ isAlignLeft: boolean;
         /**
-                 * !#en Whether to align the right.
-                 * !#zh 是否对齐右边。
-                 * @property isAlignRight
-                 * @type {Boolean}
-                 * @default false
+                 * @zh
+                 * 是否对齐右边。
                  */ isAlignRight: boolean;
         /**
-                 * !#en
-                 * Vertically aligns the midpoint, This will open the other vertical alignment options cancel.
-                 * !#zh
+                 * @zh
                  * 是否垂直方向对齐中点，开启此项会将垂直方向其他对齐选项取消。
-                 * @property isAlignVerticalCenter
-                 * @type {Boolean}
-                 * @default false
                  */ isAlignVerticalCenter: boolean;
         /**
-                 * !#en
-                 * Horizontal aligns the midpoint. This will open the other horizontal alignment options canceled.
-                 * !#zh
+                 * @zh
                  * 是否水平方向对齐中点，开启此选项会将水平方向其他对齐选项取消。
-                 * @property isAlignHorizontalCenter
-                 * @type {Boolean}
-                 * @default false
                  */ isAlignHorizontalCenter: boolean;
         /**
-                 * !#en
-                 * Whether the stretched horizontally, when enable the left and right alignment will be stretched horizontally,
-                 * the width setting is invalid (read only).
-                 * !#zh
-                 * 当前是否水平拉伸。当同时启用左右对齐时，节点将会被水平拉伸，此时节点的宽度只读。
-                 * @property isStretchWidth
-                 * @type {Boolean}
-                 * @default false
-                 * @readOnly
+                 * @zh
+                 * 当前是否水平拉伸。当同时启用左右对齐时，节点将会被水平拉伸。此时节点的宽度（只读）。
                  */ readonly isStretchWidth: boolean;
         /**
-                 * !#en
-                 * Whether the stretched vertically, when enable the left and right alignment will be stretched vertically,
-                 * then height setting is invalid (read only)
-                 * !#zh
-                 * 当前是否垂直拉伸。当同时启用上下对齐时，节点将会被垂直拉伸，此时节点的高度只读。
-                 * @property isStretchHeight
-                 * @type {Boolean}
-                 * @default false
-                 * @readOnly
+                 * @zh
+                 * 当前是否垂直拉伸。当同时启用上下对齐时，节点将会被垂直拉伸，此时节点的高度（只读）。
                  */ readonly isStretchHeight: boolean;
         /**
-                 * !#en
-                 * The margins between the top of this node and the top of parent node,
-                 * the value can be negative, Only available in 'isAlignTop' open.
-                 * !#zh
+                 * @zh
                  * 本节点顶边和父节点顶边的距离，可填写负值，只有在 isAlignTop 开启时才有作用。
-                 * @property top
-                 * @type {Number}
-                 * @default 0
                  */ top: number;
         /**
-                 * !#en
-                 * The margins between the bottom of this node and the bottom of parent node,
-                 * the value can be negative, Only available in 'isAlignBottom' open.
-                 * !#zh
+                 * @zh
                  * 本节点底边和父节点底边的距离，可填写负值，只有在 isAlignBottom 开启时才有作用。
-                 * @property bottom
-                 * @type {Number}
-                 * @default 0
                  */ bottom: number;
         /**
-                 * !#en
-                 * The margins between the left of this node and the left of parent node,
-                 * the value can be negative, Only available in 'isAlignLeft' open.
-                 * !#zh
+                 * @zh
                  * 本节点左边和父节点左边的距离，可填写负值，只有在 isAlignLeft 开启时才有作用。
-                 * @property left
-                 * @type {Number}
-                 * @default 0
                  */ left: number;
         /**
-                 * !#en
-                 * The margins between the right of this node and the right of parent node,
-                 * the value can be negative, Only available in 'isAlignRight' open.
-                 * !#zh
+                 * @zh
                  * 本节点右边和父节点右边的距离，可填写负值，只有在 isAlignRight 开启时才有作用。
-                 * @property right
-                 * @type {Number}
-                 * @default 0
                  */ right: number;
         /**
-                 * !#en
-                 * Horizontal aligns the midpoint offset value,
-                 * the value can be negative, Only available in 'isAlignHorizontalCenter' open.
-                 * !#zh 水平居中的偏移值，可填写负值，只有在 isAlignHorizontalCenter 开启时才有作用。
-                 * @property horizontalCenter
-                 * @type {Number}
-                 * @default 0
+                 * @zh
+                 * 水平居中的偏移值，可填写负值，只有在 isAlignHorizontalCenter 开启时才有作用。
                  */ horizontalCenter: number;
         /**
-                 * !#en
-                 * Vertical aligns the midpoint offset value,
-                 * the value can be negative, Only available in 'isAlignVerticalCenter' open.
-                 * !#zh 垂直居中的偏移值，可填写负值，只有在 isAlignVerticalCenter 开启时才有作用。
-                 * @property verticalCenter
-                 * @type {Number}
-                 * @default 0
+                 * @zh
+                 * 垂直居中的偏移值，可填写负值，只有在 isAlignVerticalCenter 开启时才有作用。
                  */ verticalCenter: number;
         /**
-                 * !#en
-                 * If true, top is pixel margin, otherwise is percentage (0 - 1) margin relative to the parent's height.
-                 * !#zh
+                 * @zh
                  * 如果为 true，"top" 将会以像素作为边距，否则将会以相对父物体高度的百分比（0 到 1）作为边距。
-                 * @property isAbsoluteTop
-                 * @type {Boolean}
-                 * @default true
                  */ isAbsoluteTop: boolean;
         /**
-                 * !#en
-                 * If true, bottom is pixel margin, otherwise is percentage (0 - 1) margin relative to the parent's height.
-                 * !#zh
+                 * @zh
                  * 如果为 true，"bottom" 将会以像素作为边距，否则将会以相对父物体高度的百分比（0 到 1）作为边距。
-                 * @property isAbsoluteBottom
-                 * @type {Boolean}
-                 * @default true
                  */ isAbsoluteBottom: boolean;
         /**
-                 * !#en
-                 * If true, left is pixel margin, otherwise is percentage (0 - 1) margin relative to the parent's width.
-                 * !#zh
+                 * @zh
                  * 如果为 true，"left" 将会以像素作为边距，否则将会以相对父物体宽度的百分比（0 到 1）作为边距。
-                 * @property isAbsoluteLeft
-                 * @type {Boolean}
-                 * @default true
                  */ isAbsoluteLeft: boolean;
         /**
-                 * !#en
-                 * If true, right is pixel margin, otherwise is percentage (0 - 1) margin relative to the parent's width.
-                 * !#zh
+                 * @zh
                  * 如果为 true，"right" 将会以像素作为边距，否则将会以相对父物体宽度的百分比（0 到 1）作为边距。
-                 * @property isAbsoluteRight
-                 * @type {Boolean}
-                 * @default true
                  */ isAbsoluteRight: boolean;
         /**
-                 * !#en Specifies the alignment mode of the Widget, which determines when the widget should refresh.
-                 * !#zh 指定 Widget 的对齐模式，用于决定 Widget 应该何时刷新。
-                 * @property {Widget.AlignMode} alignMode
+                 * @zh
+                 * 指定 Widget 的对齐模式，用于决定 Widget 应该何时刷新。
+                 *
                  * @example
                  * widget.alignMode = cc.Widget.AlignMode.ON_WINDOW_RESIZE;
                  */ alignMode: __internal.cocos_3d_ui_components_widget_component_AlignMode;
         /**
-                 * !#en If true, horizontalCenter is pixel margin, otherwise is percentage (0 - 1) margin.
-                 * !#zh 如果为 true，"horizontalCenter" 将会以像素作为偏移值，反之为百分比（0 到 1）。
-                 * @property isAbsoluteHorizontalCenter
-                 * @type {Boolean}
-                 * @default true
+                 * @zh
+                 * 如果为 true，"horizontalCenter" 将会以像素作为偏移值，反之为百分比（0 到 1）。
                  */ isAbsoluteHorizontalCenter: boolean;
         /**
-                 * !#en If true, verticalCenter is pixel margin, otherwise is percentage (0 - 1) margin.
-                 * !#zh 如果为 true，"verticalCenter" 将会以像素作为偏移值，反之为百分比（0 到 1）。
-                 * @property isAbsoluteVerticalCenter
-                 * @type {Boolean}
-                 * @default true
+                 * @zh
+                 * 如果为 true，"verticalCenter" 将会以像素作为偏移值，反之为百分比（0 到 1）。
                  */ isAbsoluteVerticalCenter: boolean;
         /**
-                 * !#zh: 对齐开关，由 AlignFlags 组成
-                 * @property _alignFlags
-                 * @type {Number}
-                 * @default 0
-                 * @private
+                 * @zh
+                 * 对齐开关，由 AlignFlags 组成
                  */ alignFlags: number;
         static AlignMode: typeof __internal.cocos_3d_ui_components_widget_component_AlignMode;
         private _alignFlags;
@@ -11543,44 +12986,55 @@ declare module "Cocos3D" {
         private _originalHeight;
         private _alignMode;
         /**
-                 * !#en
-                 * Immediately perform the widget alignment. You need to manually call this method only if
-                 * you need to get the latest results after the alignment before the end of current frame.
-                 * !#zh
+                 * @zh
                  * 立刻执行 widget 对齐操作。这个接口一般不需要手工调用。
                  * 只有当你需要在当前帧结束前获得 widget 对齐后的最新结果时才需要手动调用这个方法。
                  *
-                 * @method updateAlignment
-                 *
                  * @example
+                 * ```ts
                  * widget.top = 10;       // change top margin
                  * cc.log(widget.node.y); // not yet changed
                  * widget.updateAlignment();
                  * cc.log(widget.node.y); // changed
+                 * ```
                  */ updateAlignment(): void;
         protected onLoad(): void;
         protected onEnable(): void;
         protected onDisable(): void;
         private _setAlign;
     }
-    export class LabelOutlineComponent extends Component {
+    /**
+         * @zh
+         * 描边效果组件,用于字体描边,只能用于系统字体
+         *
+         * @example
+         * ```ts
+         *  // Create a new node and add label components.
+         *  var node = new cc.Node("New Label");
+         *  var label = node.addComponent(cc.Label);
+         *  var outline = node.addComponent(cc.LabelOutline);
+         *  node.parent = this.node;
+         * ```
+         */ export class LabelOutlineComponent extends Component {
         private _color;
         private _width;
         /**
-                 * !#en Change the outline color
-                 * !#zh 改变描边的颜色
-                 * @property color
-                 * @type {Color}
+                 * @zh
+                 * 改变描边的颜色。
+                 *
                  * @example
-                 * outline.color = new cc.Color(0.5, 0.3, 0.7, 1.0);;
+                 * ```ts
+                 * outline.color = new cc.Color(0.5, 0.3, 0.7, 1.0);
+                 * ```
                  */ color: Color;
         /**
-                 * !#en Change the outline width
-                 * !#zh 改变描边的宽度
-                 * @property width
-                 * @type {Number}
+                 * @zh
+                 * 改变描边的宽度。
+                 *
                  * @example
+                 * ```ts
                  * outline.width = 3;
+                 * ```
                  */ width: number;
         private _updateRenderData;
     }
@@ -11589,52 +13043,28 @@ declare module "Cocos3D" {
          * @extends Component
          */ export class GraphicsComponent extends UIRenderComponent {
         /**
-                 * !#en
-                 * Current line width.
-                 * !#zh
-                 * 当前线条宽度
-                 * @property {Number} lineWidth
-                 * @default 1
+                 * @zh
+                 * 当前线条宽度。
                  */ lineWidth: number;
         /**
-                 * !#en
-                 * lineJoin determines how two connecting segments (of lines, arcs or curves) with non-zero lengths in a shape are joined together.
-                 * !#zh
+                 * @zh
                  * lineJoin 用来设置2个长度不为0的相连部分（线段，圆弧，曲线）如何连接在一起的属性。
-                 * @property {Graphics.LineJoin} lineJoin
-                 * @default LineJoin.MITER
                  */ lineJoin: __internal.cocos_3d_ui_assembler_graphics_types_LineJoin;
         /**
-                 * !#en
-                 * lineCap determines how the end points of every line are drawn.
-                 * !#zh
+                 * @zh
                  * lineCap 指定如何绘制每一条线段末端。
-                 * @property {Graphics.LineCap} lineCap
-                 * @default LineCap.BUTT
                  */ lineCap: __internal.cocos_3d_ui_assembler_graphics_types_LineCap;
         /**
-                 * !#en
-                 * stroke color
-                 * !#zh
-                 * 线段颜色
-                 * @property {Color} strokeColor
-                 * @default Color.BLACK
+                 * @zh
+                 * 线段颜色。
                  */ strokeColor: Color;
         /**
-                 * !#en
-                 * fill color
-                 * !#zh
-                 * 填充颜色
-                 * @property {Color} fillColor
-                 * @default Color.WHITE
+                 * @zh
+                 * 填充颜色。
                  */ fillColor: Color;
         /**
-                 * !#en
-                 * Sets the miter limit ratio
-                 * !#zh
-                 * 设置斜接面限制比例
-                 * @property {Number} miterLimit
-                 * @default 10
+                 * @zh
+                 * 设置斜接面限制比例。
                  */ miterLimit: number;
         readonly color: Color;
         static LineJoin: typeof __internal.cocos_3d_ui_assembler_graphics_types_LineJoin;
@@ -11653,120 +13083,116 @@ declare module "Cocos3D" {
         onDestroy(): void;
         _activateMaterial(): void;
         /**
-                 * !#en Move path start point to (x,y).
-                 * !#zh 移动路径起点到坐标(x, y)
-                 * @method moveTo
-                 * @param {Number} [x] The x axis of the coordinate for the end point.
-                 * @param {Number} [y] The y axis of the coordinate for the end point.
+                 * @zh
+                 * 移动路径起点到坐标(x, y)
+                 *
+                 * @param x - 移动坐标 x 轴。
+                 * @param y - 移动坐标 y 轴。
                  */ moveTo(x: number, y: number): void;
         /**
-                 * !#en Adds a straight line to the path
-                 * !#zh 绘制直线路径
-                 * @method lineTo
-                 * @param {Number} [x] The x axis of the coordinate for the end point.
-                 * @param {Number} [y] The y axis of the coordinate for the end point.
+                 * @zh
+                 * 绘制直线路径
+                 *
+                 * @param x - 绘制路径坐标 x 轴。
+                 * @param y - 绘制路径坐标 y 轴。
                  */ lineTo(x: number, y: number): void;
         /**
-                 * !#en Adds a cubic Bézier curve to the path
-                 * !#zh 绘制三次贝赛尔曲线路径
-                 * @method bezierCurveTo
-                 * @param {Number} [c1x] The x axis of the coordinate for the first control point.
-                 * @param {Number} [c1y] The y axis of the coordinate for first control point.
-                 * @param {Number} [c2x] The x axis of the coordinate for the second control point.
-                 * @param {Number} [c2y] The y axis of the coordinate for the second control point.
-                 * @param {Number} [x] The x axis of the coordinate for the end point.
-                 * @param {Number} [y] The y axis of the coordinate for the end point.
+                 * @zh
+                 * 绘制三次贝赛尔曲线路径
+                 *
+                 * @param c1x - 第一个控制点的坐标 x 轴。
+                 * @param c1y - 第一个控制点的坐标 y 轴。
+                 * @param c2x - 第二个控制点的坐标 x 轴。
+                 * @param c2y - 第二个控制点的坐标 y 轴。
+                 * @param x - 最后一个控制点的坐标 x 轴。
+                 * @param y - 最后一个控制点的坐标 y 轴。
                  */ bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void;
         /**
-                 * !#en Adds a quadratic Bézier curve to the path
-                 * !#zh 绘制二次贝赛尔曲线路径
-                 * @method quadraticCurveTo
-                 * @param {Number} [cx] The x axis of the coordinate for the control point.
-                 * @param {Number} [cy] The y axis of the coordinate for the control point.
-                 * @param {Number} [x] The x axis of the coordinate for the end point.
-                 * @param {Number} [y] The y axis of the coordinate for the end point.
+                 * @zh
+                 * 绘制二次贝赛尔曲线路径
+                 *
+                 * @param cx - 起始控制点的坐标 x 轴。
+                 * @param cy - 起始控制点的坐标 y 轴。
+                 * @param x - 终点控制点的坐标 x 轴。
+                 * @param y - 终点控制点的坐标 x 轴。
                  */ quadraticCurveTo(cx: number, cy: number, x: number, y: number): void;
         /**
-                 * !#en Adds an arc to the path which is centered at (cx, cy) position with radius r starting at startAngle
-                 * and ending at endAngle going in the given direction by counterclockwise (defaulting to false).
-                 * !#zh 绘制圆弧路径。圆弧路径的圆心在 (cx, cy) 位置，半径为 r ，根据 counterclockwise （默认为false）指定的方向从 startAngle 开始绘制，到 endAngle 结束。
-                 * @method arc
-                 * @param {Number} [cx] The x axis of the coordinate for the center point.
-                 * @param {Number} [cy] The y axis of the coordinate for the center point.
-                 * @param {Number} [r] The arc's radius.
-                 * @param {Number} [startAngle] The angle at which the arc starts, measured clockwise from the positive x axis and expressed in radians.
-                 * @param {Number} [endAngle] The angle at which the arc ends, measured clockwise from the positive x axis and expressed in radians.
-                 * @param {Boolean} [counterclockwise] An optional Boolean which, if true, causes the arc to be drawn counter-clockwise between the two angles.
-                 * By default it is drawn clockwise.
+                 * @zh
+                 * 绘制圆弧路径。圆弧路径的圆心在 (cx, cy) 位置，半径为 r ，根据 counterclockwise （默认为false）指定的方向从 startAngle 开始绘制，到 endAngle 结束。
+                 *
+                 * @param cx - 中心控制点的坐标 x 轴。
+                 * @param cy - 中心控制点的坐标 y 轴。
+                 * @param r - 圆弧弧度。
+                 * @param startAngle - 开始弧度，从正 x 轴顺时针方向测量。
+                 * @param endAngle - 结束弧度，从正 x 轴顺时针方向测量。
+                 * @param counterclockwise 如果为真，在两个角度之间逆时针绘制。默认顺时针。
                  */ arc(cx: number, cy: number, r: number, startAngle: number, endAngle: number, counterclockwise: boolean): void;
         /**
-                 * !#en Adds an ellipse to the path.
-                 * !#zh 绘制椭圆路径。
-                 * @method ellipse
-                 * @param {Number} [cx] The x axis of the coordinate for the center point.
-                 * @param {Number} [cy] The y axis of the coordinate for the center point.
-                 * @param {Number} [rx] The ellipse's x-axis radius.
-                 * @param {Number} [ry] The ellipse's y-axis radius.
+                 * @zh
+                 * 绘制椭圆路径。
+                 *
+                 * @param cx - 中心点的坐标 x 轴。
+                 * @param cy - 中心点的坐标 y 轴。
+                 * @param rx - 椭圆 x 轴半径。
+                 * @param ry - 椭圆 y 轴半径。
                  */ ellipse(cx: number, cy: number, rx: number, ry: number): void;
         /**
-                 * !#en Adds an circle to the path.
-                 * !#zh 绘制圆形路径。
-                 * @method circle
-                 * @param {Number} [cx] The x axis of the coordinate for the center point.
-                 * @param {Number} [cy] The y axis of the coordinate for the center point.
-                 * @param {Number} [r] The circle's radius.
+                 * @zh
+                 * 绘制圆形路径。
+                 *
+                 * @param cx - 中心点的坐标 x 轴。
+                 * @param cy - 中心点的坐标 y 轴。
+                 * @param r - 圆半径
                  */ circle(cx: number, cy: number, r: number): void;
         /**
-                 * !#en Adds an rectangle to the path.
-                 * !#zh 绘制矩形路径。
-                 * @method rect
-                 * @param {Number} [x] The x axis of the coordinate for the rectangle starting point.
-                 * @param {Number} [y] The y axis of the coordinate for the rectangle starting point.
-                 * @param {Number} [w] The rectangle's width.
-                 * @param {Number} [h] The rectangle's height.
+                 * @zh
+                 * 绘制矩形路径。
+                 *
+                 * @param x - 矩形起始坐标 x 轴。
+                 * @param y - 矩形起始坐标 y 轴。
+                 * @param w - 矩形宽度。
+                 * @param h - 矩形高度。
                  */ rect(x: number, y: number, w: number, h: number): void;
         /**
-                 * !#en Adds an round corner rectangle to the path.
-                 * !#zh 绘制圆角矩形路径。
-                 * @method roundRect
-                 * @param {Number} [x] The x axis of the coordinate for the rectangle starting point.
-                 * @param {Number} [y] The y axis of the coordinate for the rectangle starting point.
-                 * @param {Number} [w] The rectangles width.
-                 * @param {Number} [h] The rectangle's height.
-                 * @param {Number} [r] The radius of the rectangle.
+                 * @zh
+                 * 绘制圆角矩形路径。
+                 *
+                 * @param x - 矩形起始坐标 x 轴。
+                 * @param y - 矩形起始坐标 y 轴。
+                 * @param w - 矩形宽度。
+                 * @param h - 矩形高度。
+                 * @param r - 矩形圆角半径。
                  */ roundRect(x: number, y: number, w: number, h: number, r: number): void;
         /**
-                 * !#en Draws a filled rectangle.
-                 * !#zh 绘制填充矩形。
-                 * @method fillRect
-                 * @param {Number} [x] The x axis of the coordinate for the rectangle starting point.
-                 * @param {Number} [y] The y axis of the coordinate for the rectangle starting point.
-                 * @param {Number} [w] The rectangle's width.
-                 * @param {Number} [h] The rectangle's height.
+                 * @zh
+                 * 绘制填充矩形。
+                 *
+                 * @param x - 矩形起始坐标 x 轴。
+                 * @param y - 矩形起始坐标 y 轴。
+                 * @param w - 矩形宽度。
+                 * @param h - 矩形高度。
                  */ fillRect(x: any, y: any, w: any, h: any): void;
         /**
-                 * !#en Erasing any previously drawn content.
-                 * !#zh 擦除之前绘制的所有内容的方法。
-                 * @method clear
-                 * @param {Boolean} [clean] Whether to clean the graphics inner cache.
+                 * @zh
+                 * 擦除之前绘制的所有内容的方法。
                  */ clear(): void;
         /**
-                 * !#en Causes the point of the pen to move back to the start of the current path. It tries to add a straight line from the current point to the start.
-                 * !#zh 将笔点返回到当前路径起始点的。它尝试从当前点到起始点绘制一条直线。
-                 * @method close
+                 * @zh
+                 * 将笔点返回到当前路径起始点的。它尝试从当前点到起始点绘制一条直线。
                  */ close(): void;
         /**
-                 * !#en Strokes the current or given path with the current stroke style.
-                 * !#zh 根据当前的画线样式，绘制当前或已经存在的路径。
-                 * @method stroke
+                 * @zh
+                 * 根据当前的画线样式，绘制当前或已经存在的路径。
                  */ stroke(): void;
         /**
-                 * !#en Fills the current or given path with the current fill style.
-                 * !#zh 根据当前的画线样式，填充当前或已经存在的路径。
-                 * @method fill
+                 * @zh
+                 * 根据当前的画线样式，填充当前或已经存在的路径。
                  */ fill(): void;
         updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
-        helpInstanceMaterial(): void;
+        /**
+                 * @zh
+                 * 辅助材质实例化。可用于只取数据而无实体情况下渲染使用。特殊情况可参考：[[_instanceMaterial]]
+                 */ helpInstanceMaterial(): void;
         protected _flushAssembler(): void;
     }
     var widgetManager: {
@@ -11789,164 +13215,114 @@ declare module "Cocos3D" {
         AlignFlags: typeof __internal.cocos_3d_ui_components_widget_component_AlignFlags;
     };
     /**
-         * !#en Enum for vertical text alignment.
-         * !#zh 文本横向对齐类型
-         * @enum Label.HorizontalTextAlignment
+         * @zh
+         * 文本横向对齐类型
          */ export enum HorizontalTextAlignment {
-        LEFT,
-        CENTER,
-        RIGHT
+        LEFT = 0,
+        CENTER = 1,
+        RIGHT = 2
     }
     /**
-         * !#en Enum for vertical text alignment.
-         * !#zh 文本垂直对齐类型
-         * @enum Label.VerticalTextAlignment
+         * @zh
+         * 文本垂直对齐类型
          */ export enum VerticalTextAlignment {
-        TOP,
-        CENTER,
-        BOTTOM
+        TOP = 0,
+        CENTER = 1,
+        BOTTOM = 2
     }
     /**
-         * !#en Enum for Overflow.
-         * !#zh Overflow 类型
-         * @enum Label.Overflow
-         */ /**
-         * !#en NONE.
-         * !#zh 不做任何限制。
-         * @property {Number} NONE
-         */ /**
-         * !#en In CLAMP mode, when label content goes out of the bounding box, it will be clipped.
-         * !#zh CLAMP 模式中，当文本内容超出边界框时，多余的会被截断。
-         * @property {Number} CLAMP
-         */ /**
-         * !#en In SHRINK mode, the font size will change dynamically to adapt the content size.
-         * !#zh SHRINK 模式，字体大小会动态变化，以适应内容大小。
-         * @property {Number} SHRINK
-         */ /**
-         * !#en In RESIZE_HEIGHT mode, you can only change the width of label and the height is changed automatically.
-         * !#zh 在 RESIZE_HEIGHT 模式下，只能更改文本的宽度，高度是自动改变的。
-         * @property {Number} RESIZE_HEIGHT
+         * @zh
+         * 文本超载类型
          */ export enum Overflow {
-        NONE,
-        CLAMP,
-        SHRINK,
-        RESIZE_HEIGHT
+        NONE = 0,
+        CLAMP = 1,
+        SHRINK = 2,
+        RESIZE_HEIGHT = 3
     }
     /**
-         * !#en Do not do any caching.
-         * !#zh 不做任何缓存。
-         * @property {Number} NONE
-         */ /**
-         * !#en In BITMAP mode, cache the label as a static image and add it to the dynamic atlas for batch rendering,
-         * and can batching with Sprites using broken images.
-         * !#zh BITMAP 模式，将 label 缓存成静态图像并加入到动态图集，以便进行批次合并，可与使用碎图的 Sprite 进行合批（注：动态图集在 Chrome 以及微信小游戏暂时关闭，该功能无效）。
-         * @property {Number} BITMAP
-         */ /**
-         * !#en In CHAR mode, split text into characters and cache characters into a dynamic atlas which the size of 2048*2048.
-         * !#zh CHAR 模式，将文本拆分为字符，并将字符缓存到一张单独的大小为 2048*2048 的图集中进行重复使用，不再使用动态图集（注：当图集满时将不再进行缓存，暂时不支持 SHRINK 自适应文本尺寸（后续完善））。
-         * @property {Number} CHAR
+         * @zh
+         * 文本图集缓存类型
          */ enum CacheMode {
-        NONE,
-        BITMAP,
-        CHAR
+        NONE = 0,
+        BITMAP = 1,
+        CHAR = 2
     }
     /**
-         * !#en Enum for font type.
-         * !#zh Type 类型
-         * @enum Label.Type
+         * @zh
+         * Type 类型
          */ /**
-         * !#en The TTF font type.
-         * !#zh TTF字体
-         * @property {Number} TTF
+         * @zh
+         * TTF字体
          */ /**
-         * !#en The bitmap font type.
-         * !#zh 位图字体
-         * @property {Number} BMFont
+         * @zh
+         * 位图字体
          */ /**
-         * !#en The system font type.
-         * !#zh 系统字体
-         * @property {Number} SystemFont
+         * @zh
+         * 系统字体
          */ /**
-         * !#en The Label Component.
-         * !#zh 文字标签组件
-         * @class Label
-         * @extends UIRenderComponent
+         * @zh
+         * 文字标签组件
          */ export class LabelComponent extends UIRenderComponent {
         /**
-                 * !#en Content string of label.
-                 * !#zh 标签显示的文本内容。
-                 * @property {String} string
+                 * @zh
+                 * 标签显示的文本内容。
                  */ string: string;
         /**
-                 * !#en Horizontal Alignment of label.
-                 * !#zh 文本内容的水平对齐方式。
-                 * @property {Label.HorizontalAlign} horizontalAlign
+                 * @zh
+                 * 文本内容的水平对齐方式。
                  */ horizontalAlign: HorizontalTextAlignment;
         /**
-                 * !#en Vertical Alignment of label.
-                 * !#zh 文本内容的垂直对齐方式。
-                 * @property {Label.VerticalAlign} VerticalTextAlignment
+                 * @zh
+                 * 文本内容的垂直对齐方式。
                  */ verticalAlign: VerticalTextAlignment;
         /**
-                 * !#en The actual rendering font size in shrink mode
-                 * !#zh SHRINK 模式下面文本实际渲染的字体大小
-                 * @property {Number} actualFontSize
+                 * @zh
+                 * SHRINK 模式下面文本实际渲染的字体大小
                  */ actualFontSize: number;
         /**
-                 * !#en Font size of label.
-                 * !#zh 文本字体大小。
-                 * @property {Number} fontSize
+                 * @zh
+                 * 文本字体大小。
                  */ fontSize: number;
         /**
-                 * !#en Font family of label, only take effect when useSystemFont property is true.
-                 * !#zh 文本字体名称, 只在 useSystemFont 属性为 true 的时候生效。
-                 * @property {String} fontFamily
+                 * @zh
+                 * 文本字体名称, 只在 useSystemFont 属性为 true 的时候生效。
                  */ fontFamily: string;
         /**
-                 * !#en Line Height of label.
-                 * !#zh 文本行高。
-                 * @property {Number} lineHeight
+                 * @zh
+                 * 文本行高。
                  */ lineHeight: number;
         /**
-                 * !#en Overflow of label.
-                 * !#zh 文字显示超出范围时的处理方式。
-                 * @property {Overflow} overflow
+                 * @zh
+                 * 文字显示超出范围时的处理方式。
                  */ overflow: Overflow;
         /**
-                 * !#en Whether auto wrap label when string width is large than label width.
-                 * !#zh 是否自动换行。
-                 * @property {Boolean} enableWrapText
+                 * @zh
+                 * 是否自动换行。
                  */ enableWrapText: boolean;
         /**
-                 * !#en The font of label.
-                 * !#zh 文本字体。
-                 * @property {Font} font
+                 * @zh
+                 * 文本字体。
                  */ font: Font | null;
         /**
-                 * !#en Whether use system font name or not.
-                 * !#zh 是否使用系统字体。
-                 * @property {Boolean} isSystemFontUsed
+                 * @zh
+                 * 是否使用系统字体。
                  */ useSystemFont: boolean;
         /**
-                 * !#en The cache mode of label. This mode only supports system fonts.
-                 * !#zh 文本缓存模式, 该模式只支持系统字体。
-                 * @property {Label.CacheMode} cacheMode
+                 * @zh
+                 * 文本缓存模式, 该模式只支持系统字体。
                  */ cacheMode: CacheMode;
         readonly spriteFrame: SpriteFrame | __internal.cocos_3d_ui_assembler_label_letter_font_LetterRenderTexture | null;
         /**
-                 * !#en Whether the font is bold or not.
-                 * !#zh 字体是否加粗。
-                 * @property {Boolean} isBold
+                 * @zh
+                 * 字体是否加粗。
                  */ isBold: boolean;
         /**
-                 * !#en Whether the font is tilted or not.
-                 * !#zh 字体是否倾斜。
-                 * @property {Boolean} isItalic
+                 * @zh
+                 * 字体是否倾斜。
                  */ isItalic: boolean;
         /**
-                 * !#en Whether the font is underlined.
-                 * !#zh 字体是否加下划线。
-                 * @property {Boolean} isUnderline
+                 * @zh
+                 * 字体是否加下划线。
                  */ isUnderline: boolean;
         readonly assemblerData: __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData | null;
         fontAtlas: __internal.cocos_3d_ui_assembler_label_bmfontUtils_FontAtlas | null;
@@ -11990,9 +13366,142 @@ declare module "Cocos3D" {
         protected _updateColor(): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
-        private _checkStringEmpty;
+        /**
+                 * @zh
+                 * 检查是否空字符串，空字符串不渲染
+                 */ private _checkStringEmpty;
         private _flushMaterial;
         private _applyFontTexture;
+    }
+    export enum GFXAttributeName {
+        ATTR_POSITION = "a_position",
+        ATTR_NORMAL = "a_normal",
+        ATTR_TANGENT = "a_tangent",
+        ATTR_BITANGENT = "a_bitangent",
+        ATTR_WEIGHTS = "a_weights",
+        ATTR_JOINTS = "a_joints",
+        ATTR_COLOR = "a_color",
+        ATTR_COLOR1 = "a_color1",
+        ATTR_COLOR2 = "a_color2",
+        ATTR_TEX_COORD = "a_texCoord",
+        ATTR_TEX_COORD1 = "a_texCoord1",
+        ATTR_TEX_COORD2 = "a_texCoord2",
+        ATTR_TEX_COORD3 = "a_texCoord3",
+        ATTR_TEX_COORD4 = "a_texCoord4",
+        ATTR_TEX_COORD5 = "a_texCoord5",
+        ATTR_TEX_COORD6 = "a_texCoord6",
+        ATTR_TEX_COORD7 = "a_texCoord7",
+        ATTR_TEX_COORD8 = "a_texCoord8"
+    }
+    export enum GFXFormat {
+        UNKNOWN = 0,
+        A8 = 1,
+        L8 = 2,
+        LA8 = 3,
+        R8 = 4,
+        R8SN = 5,
+        R8UI = 6,
+        R8I = 7,
+        R16F = 8,
+        R16UI = 9,
+        R16I = 10,
+        R32F = 11,
+        R32UI = 12,
+        R32I = 13,
+        RG8 = 14,
+        RG8SN = 15,
+        RG8UI = 16,
+        RG8I = 17,
+        RG16F = 18,
+        RG16UI = 19,
+        RG16I = 20,
+        RG32F = 21,
+        RG32UI = 22,
+        RG32I = 23,
+        RGB8 = 24,
+        SRGB8 = 25,
+        RGB8SN = 26,
+        RGB8UI = 27,
+        RGB8I = 28,
+        RGB16F = 29,
+        RGB16UI = 30,
+        RGB16I = 31,
+        RGB32F = 32,
+        RGB32UI = 33,
+        RGB32I = 34,
+        RGBA8 = 35,
+        SRGB8_A8 = 36,
+        RGBA8SN = 37,
+        RGBA8UI = 38,
+        RGBA8I = 39,
+        RGBA16F = 40,
+        RGBA16UI = 41,
+        RGBA16I = 42,
+        RGBA32F = 43,
+        RGBA32UI = 44,
+        RGBA32I = 45,
+        R5G6B5 = 46,
+        R11G11B10F = 47,
+        RGB5A1 = 48,
+        RGBA4 = 49,
+        RGB10A2 = 50,
+        RGB10A2UI = 51,
+        RGB9E5 = 52,
+        D16 = 53,
+        D16S8 = 54,
+        D24 = 55,
+        D24S8 = 56,
+        D32F = 57,
+        D32F_S8 = 58,
+        BC1 = 59,
+        BC1_ALPHA = 60,
+        BC1_SRGB = 61,
+        BC1_SRGB_ALPHA = 62,
+        BC2 = 63,
+        BC2_SRGB = 64,
+        BC3 = 65,
+        BC3_SRGB = 66,
+        BC4 = 67,
+        BC4_SNORM = 68,
+        BC5 = 69,
+        BC5_SNORM = 70,
+        BC6H_UF16 = 71,
+        BC6H_SF16 = 72,
+        BC7 = 73,
+        BC7_SRGB = 74,
+        ETC_RGB8 = 75,
+        ETC2_RGB8 = 76,
+        ETC2_SRGB8 = 77,
+        ETC2_RGB8_A1 = 78,
+        ETC2_SRGB8_A1 = 79,
+        ETC2_RGBA8 = 80,
+        ETC2_SRGB8_A8 = 81,
+        EAC_R11 = 82,
+        EAC_R11SN = 83,
+        EAC_RG11 = 84,
+        EAC_RG11SN = 85,
+        PVRTC_RGB2 = 86,
+        PVRTC_RGBA2 = 87,
+        PVRTC_RGB4 = 88,
+        PVRTC_RGBA4 = 89,
+        PVRTC2_2BPP = 90,
+        PVRTC2_4BPP = 91
+    }
+    export enum GFXPrimitiveMode {
+        POINT_LIST = 0,
+        LINE_LIST = 1,
+        LINE_STRIP = 2,
+        LINE_LOOP = 3,
+        LINE_LIST_ADJACENCY = 4,
+        LINE_STRIP_ADJACENCY = 5,
+        ISO_LINE_LIST = 6,
+        TRIANGLE_LIST = 7,
+        TRIANGLE_STRIP = 8,
+        TRIANGLE_FAN = 9,
+        TRIANGLE_LIST_ADJACENCY = 10,
+        TRIANGLE_STRIP_ADJACENCY = 11,
+        TRIANGLE_PATCH_ADJACENCY = 12,
+        QUAD_PATCH_LIST = 13
     }
     /****************************************************************************
          Copyright (c) 2016 Chukong Technologies Inc.
@@ -12101,63 +13610,63 @@ declare module "Cocos3D" {
     }
     namespace __internal {
         export enum cocos_gfx_define_GFXBufferUsageBit {
-            NONE,
-            TRANSFER_SRC,
-            TRANSFER_DST,
-            INDEX,
-            VERTEX,
-            UNIFORM,
-            STORAGE,
-            INDIRECT
+            NONE = 0,
+            TRANSFER_SRC = 1,
+            TRANSFER_DST = 2,
+            INDEX = 4,
+            VERTEX = 8,
+            UNIFORM = 16,
+            STORAGE = 32,
+            INDIRECT = 64
         }
         export type cocos_gfx_define_GFXBufferUsage = cocos_gfx_define_GFXBufferUsageBit;
         export enum cocos_gfx_define_GFXMemoryUsageBit {
-            NONE,
-            DEVICE,
-            HOST
+            NONE = 0,
+            DEVICE = 1,
+            HOST = 2
         }
         export type cocos_gfx_define_GFXMemoryUsage = cocos_gfx_define_GFXMemoryUsageBit;
         export enum cocos_gfx_device_GFXAPI {
-            UNKNOWN,
-            WEBGL,
-            WEBGL2
+            UNKNOWN = 0,
+            WEBGL = 1,
+            WEBGL2 = 2
         }
         export enum cocos_gfx_define_GFXQueueType {
-            GRAPHICS,
-            COMPUTE,
-            TRANSFER
+            GRAPHICS = 0,
+            COMPUTE = 1,
+            TRANSFER = 2
         }
         export interface cocos_gfx_queue_IGFXQueueInfo {
             type: cocos_gfx_define_GFXQueueType;
         }
         export enum cocos_gfx_define_GFXCommandBufferType {
-            PRIMARY,
-            SECONDARY
+            PRIMARY = 0,
+            SECONDARY = 1
         }
         export interface cocos_gfx_command_allocator_IGFXCommandAllocatorInfo {
         }
         export enum cocos_gfx_define_GFXObjectType {
-            UNKNOWN,
-            BUFFER,
-            TEXTURE,
-            TEXTURE_VIEW,
-            RENDER_PASS,
-            FRAMEBUFFER,
-            SAMPLER,
-            SHADER,
-            PIPELINE_LAYOUT,
-            PIPELINE_STATE,
-            BINDING_LAYOUT,
-            INPUT_ASSEMBLER,
-            COMMAND_ALLOCATOR,
-            COMMAND_BUFFER,
-            QUEUE,
-            WINDOW
+            UNKNOWN = 0,
+            BUFFER = 1,
+            TEXTURE = 2,
+            TEXTURE_VIEW = 3,
+            RENDER_PASS = 4,
+            FRAMEBUFFER = 5,
+            SAMPLER = 6,
+            SHADER = 7,
+            PIPELINE_LAYOUT = 8,
+            PIPELINE_STATE = 9,
+            BINDING_LAYOUT = 10,
+            INPUT_ASSEMBLER = 11,
+            COMMAND_ALLOCATOR = 12,
+            COMMAND_BUFFER = 13,
+            QUEUE = 14,
+            WINDOW = 15
         }
         export enum cocos_gfx_define_GFXStatus {
-            UNREADY,
-            FAILED,
-            SUCCESS
+            UNREADY = 0,
+            FAILED = 1,
+            SUCCESS = 2
         }
         export class cocos_gfx_define_GFXObject {
             readonly gfxType: cocos_gfx_define_GFXObjectType;
@@ -12176,123 +13685,29 @@ declare module "Cocos3D" {
             allocator: cocos_gfx_command_allocator_GFXCommandAllocator;
             type: cocos_gfx_define_GFXCommandBufferType;
         }
-        export enum cocos_gfx_define_GFXFormat {
-            UNKNOWN,
-            A8,
-            L8,
-            LA8,
-            R8,
-            R8SN,
-            R8UI,
-            R8I,
-            R16F,
-            R16UI,
-            R16I,
-            R32F,
-            R32UI,
-            R32I,
-            RG8,
-            RG8SN,
-            RG8UI,
-            RG8I,
-            RG16F,
-            RG16UI,
-            RG16I,
-            RG32F,
-            RG32UI,
-            RG32I,
-            RGB8,
-            SRGB8,
-            RGB8SN,
-            RGB8UI,
-            RGB8I,
-            RGB16F,
-            RGB16UI,
-            RGB16I,
-            RGB32F,
-            RGB32UI,
-            RGB32I,
-            RGBA8,
-            SRGB8_A8,
-            RGBA8SN,
-            RGBA8UI,
-            RGBA8I,
-            RGBA16F,
-            RGBA16UI,
-            RGBA16I,
-            RGBA32F,
-            RGBA32UI,
-            RGBA32I,
-            R5G6B5,
-            R11G11B10F,
-            RGB5A1,
-            RGBA4,
-            RGB10A2,
-            RGB10A2UI,
-            RGB9E5,
-            D16,
-            D16S8,
-            D24,
-            D24S8,
-            D32F,
-            D32F_S8,
-            BC1,
-            BC1_ALPHA,
-            BC1_SRGB,
-            BC1_SRGB_ALPHA,
-            BC2,
-            BC2_SRGB,
-            BC3,
-            BC3_SRGB,
-            BC4,
-            BC4_SNORM,
-            BC5,
-            BC5_SNORM,
-            BC6H_UF16,
-            BC6H_SF16,
-            BC7,
-            BC7_SRGB,
-            ETC_RGB8,
-            ETC2_RGB8,
-            ETC2_SRGB8,
-            ETC2_RGB8_A1,
-            ETC2_SRGB8_A1,
-            ETC2_RGBA8,
-            ETC2_SRGB8_A8,
-            EAC_R11,
-            EAC_R11SN,
-            EAC_RG11,
-            EAC_RG11SN,
-            PVRTC_RGB2,
-            PVRTC_RGBA2,
-            PVRTC_RGB4,
-            PVRTC_RGBA4,
-            PVRTC2_2BPP,
-            PVRTC2_4BPP
-        }
         export enum cocos_gfx_define_GFXLoadOp {
-            LOAD,
-            CLEAR,
-            DISCARD
+            LOAD = 0,
+            CLEAR = 1,
+            DISCARD = 2
         }
         export enum cocos_gfx_define_GFXStoreOp {
-            STORE,
-            DISCARD
+            STORE = 0,
+            DISCARD = 1
         }
         export enum cocos_gfx_define_GFXTextureLayout {
-            UNDEFINED,
-            GENERAL,
-            COLOR_ATTACHMENT_OPTIMAL,
-            DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            DEPTH_STENCIL_READONLY_OPTIMAL,
-            SHADER_READONLY_OPTIMAL,
-            TRANSFER_SRC_OPTIMAL,
-            TRANSFER_DST_OPTIMAL,
-            PREINITIALIZED,
-            PRESENT_SRC
+            UNDEFINED = 0,
+            GENERAL = 1,
+            COLOR_ATTACHMENT_OPTIMAL = 2,
+            DEPTH_STENCIL_ATTACHMENT_OPTIMAL = 3,
+            DEPTH_STENCIL_READONLY_OPTIMAL = 4,
+            SHADER_READONLY_OPTIMAL = 5,
+            TRANSFER_SRC_OPTIMAL = 6,
+            TRANSFER_DST_OPTIMAL = 7,
+            PREINITIALIZED = 8,
+            PRESENT_SRC = 9
         }
         export class cocos_gfx_render_pass_GFXColorAttachment {
-            format: cocos_gfx_define_GFXFormat;
+            format: GFXFormat;
             loadOp: cocos_gfx_define_GFXLoadOp;
             storeOp: cocos_gfx_define_GFXStoreOp;
             sampleCount: number;
@@ -12300,7 +13715,7 @@ declare module "Cocos3D" {
             endLayout: cocos_gfx_define_GFXTextureLayout;
         }
         export class cocos_gfx_render_pass_GFXDepthStencilAttachment {
-            format: cocos_gfx_define_GFXFormat;
+            format: GFXFormat;
             depthLoadOp: cocos_gfx_define_GFXLoadOp;
             depthStoreOp: cocos_gfx_define_GFXStoreOp;
             stencilLoadOp: cocos_gfx_define_GFXLoadOp;
@@ -12322,42 +13737,42 @@ declare module "Cocos3D" {
             abstract destroy(): void;
         }
         export enum cocos_gfx_define_GFXTextureType {
-            TEX1D,
-            TEX2D,
-            TEX3D
+            TEX1D = 0,
+            TEX2D = 1,
+            TEX3D = 2
         }
         export enum cocos_gfx_define_GFXTextureUsageBit {
-            NONE,
-            TRANSFER_SRC,
-            TRANSFER_DST,
-            SAMPLED,
-            STORAGE,
-            COLOR_ATTACHMENT,
-            DEPTH_STENCIL_ATTACHMENT,
-            TRANSIENT_ATTACHMENT,
-            INPUT_ATTACHMENT
+            NONE = 0,
+            TRANSFER_SRC = 1,
+            TRANSFER_DST = 2,
+            SAMPLED = 4,
+            STORAGE = 8,
+            COLOR_ATTACHMENT = 16,
+            DEPTH_STENCIL_ATTACHMENT = 32,
+            TRANSIENT_ATTACHMENT = 64,
+            INPUT_ATTACHMENT = 128
         }
         export type cocos_gfx_define_GFXTextureUsage = cocos_gfx_define_GFXTextureUsageBit;
         export enum cocos_gfx_define_GFXSampleCount {
-            X1,
-            X2,
-            X4,
-            X8,
-            X16,
-            X32,
-            X64
+            X1 = 0,
+            X2 = 1,
+            X4 = 2,
+            X8 = 3,
+            X16 = 4,
+            X32 = 5,
+            X64 = 6
         }
         export enum cocos_gfx_define_GFXTextureFlagBit {
-            NONE,
-            GEN_MIPMAP,
-            CUBEMAP,
-            BAKUP_BUFFER
+            NONE = 0,
+            GEN_MIPMAP = 1,
+            CUBEMAP = 2,
+            BAKUP_BUFFER = 4
         }
         export type cocos_gfx_define_GFXTextureFlags = cocos_gfx_define_GFXTextureFlagBit;
         export interface cocos_gfx_texture_IGFXTextureInfo {
             type: cocos_gfx_define_GFXTextureType;
             usage: cocos_gfx_define_GFXTextureUsage;
-            format: cocos_gfx_define_GFXFormat;
+            format: GFXFormat;
             width: number;
             height: number;
             depth?: number;
@@ -12369,7 +13784,7 @@ declare module "Cocos3D" {
         export abstract class cocos_gfx_texture_GFXTexture extends cocos_gfx_define_GFXObject {
             readonly type: cocos_gfx_define_GFXTextureType;
             readonly usage: cocos_gfx_define_GFXTextureUsage;
-            readonly format: cocos_gfx_define_GFXFormat;
+            readonly format: GFXFormat;
             readonly width: number;
             readonly height: number;
             readonly depth: number;
@@ -12382,7 +13797,7 @@ declare module "Cocos3D" {
             protected _device: cocos_gfx_device_GFXDevice;
             protected _type: cocos_gfx_define_GFXTextureType;
             protected _usage: cocos_gfx_define_GFXTextureUsage;
-            protected _format: cocos_gfx_define_GFXFormat;
+            protected _format: GFXFormat;
             protected _width: number;
             protected _height: number;
             protected _depth: number;
@@ -12399,17 +13814,17 @@ declare module "Cocos3D" {
             abstract resize(width: number, height: number): any;
         }
         export enum cocos_gfx_define_GFXTextureViewType {
-            TV1D,
-            TV2D,
-            TV3D,
-            CUBE,
-            TV1D_ARRAY,
-            TV2D_ARRAY
+            TV1D = 0,
+            TV2D = 1,
+            TV3D = 2,
+            CUBE = 3,
+            TV1D_ARRAY = 4,
+            TV2D_ARRAY = 5
         }
         export interface cocos_gfx_texture_view_IGFXTextureViewInfo {
             texture: cocos_gfx_texture_GFXTexture;
             type: cocos_gfx_define_GFXTextureViewType;
-            format: cocos_gfx_define_GFXFormat;
+            format: GFXFormat;
             baseLevel?: number;
             levelCount?: number;
             baseLayer?: number;
@@ -12418,7 +13833,7 @@ declare module "Cocos3D" {
         export abstract class cocos_gfx_texture_view_GFXTextureView extends cocos_gfx_define_GFXObject {
             readonly texture: cocos_gfx_texture_GFXTexture;
             readonly type: cocos_gfx_define_GFXTextureViewType;
-            readonly format: cocos_gfx_define_GFXFormat;
+            readonly format: GFXFormat;
             readonly baseLevel: number;
             readonly levelCount: number;
             readonly baseLayer: number;
@@ -12426,7 +13841,7 @@ declare module "Cocos3D" {
             protected _device: cocos_gfx_device_GFXDevice;
             protected _texture: cocos_gfx_texture_GFXTexture | null;
             protected _type: cocos_gfx_define_GFXTextureViewType;
-            protected _format: cocos_gfx_define_GFXFormat;
+            protected _format: GFXFormat;
             protected _baseLevel: number;
             protected _levelCount: number;
             protected _baseLayer: number;
@@ -12462,12 +13877,12 @@ declare module "Cocos3D" {
             height: number;
         }
         export enum cocos_gfx_define_GFXClearFlag {
-            NONE,
-            COLOR,
-            DEPTH,
-            STENCIL,
-            DEPTH_STENCIL,
-            ALL
+            NONE = 0,
+            COLOR = 1,
+            DEPTH = 2,
+            STENCIL = 4,
+            DEPTH_STENCIL = 6,
+            ALL = 7
         }
         export interface cocos_gfx_define_IGFXColor {
             r: number;
@@ -12476,13 +13891,13 @@ declare module "Cocos3D" {
             a: number;
         }
         export enum cocos_gfx_define_GFXShaderType {
-            VERTEX,
-            HULL,
-            DOMAIN,
-            GEOMETRY,
-            FRAGMENT,
-            COMPUTE,
-            COUNT
+            VERTEX = 0,
+            HULL = 1,
+            DOMAIN = 2,
+            GEOMETRY = 3,
+            FRAGMENT = 4,
+            COMPUTE = 5,
+            COUNT = 6
         }
         export interface cocos_gfx_shader_IGFXShaderMacro {
             macro: string;
@@ -12494,39 +13909,39 @@ declare module "Cocos3D" {
             macros?: cocos_gfx_shader_IGFXShaderMacro[];
         }
         export enum cocos_gfx_define_GFXType {
-            UNKNOWN,
-            BOOL,
-            BOOL2,
-            BOOL3,
-            BOOL4,
-            INT,
-            INT2,
-            INT3,
-            INT4,
-            UINT,
-            UINT2,
-            UINT3,
-            UINT4,
-            FLOAT,
-            FLOAT2,
-            FLOAT3,
-            FLOAT4,
-            MAT2,
-            MAT2X3,
-            MAT2X4,
-            MAT3X2,
-            MAT3,
-            MAT3X4,
-            MAT4X2,
-            MAT4X3,
-            MAT4,
-            SAMPLER1D,
-            SAMPLER1D_ARRAY,
-            SAMPLER2D,
-            SAMPLER2D_ARRAY,
-            SAMPLER3D,
-            SAMPLER_CUBE,
-            COUNT
+            UNKNOWN = 0,
+            BOOL = 1,
+            BOOL2 = 2,
+            BOOL3 = 3,
+            BOOL4 = 4,
+            INT = 5,
+            INT2 = 6,
+            INT3 = 7,
+            INT4 = 8,
+            UINT = 9,
+            UINT2 = 10,
+            UINT3 = 11,
+            UINT4 = 12,
+            FLOAT = 13,
+            FLOAT2 = 14,
+            FLOAT3 = 15,
+            FLOAT4 = 16,
+            MAT2 = 17,
+            MAT2X3 = 18,
+            MAT2X4 = 19,
+            MAT3X2 = 20,
+            MAT3 = 21,
+            MAT3X4 = 22,
+            MAT4X2 = 23,
+            MAT4X3 = 24,
+            MAT4 = 25,
+            SAMPLER1D = 26,
+            SAMPLER1D_ARRAY = 27,
+            SAMPLER2D = 28,
+            SAMPLER2D_ARRAY = 29,
+            SAMPLER3D = 30,
+            SAMPLER_CUBE = 31,
+            COUNT = 32
         }
         export class cocos_gfx_shader_GFXUniform {
             name: string;
@@ -12563,35 +13978,19 @@ declare module "Cocos3D" {
             abstract destroy(): any;
             readonly name: string;
         }
-        export enum cocos_gfx_define_GFXPrimitiveMode {
-            POINT_LIST,
-            LINE_LIST,
-            LINE_STRIP,
-            LINE_LOOP,
-            LINE_LIST_ADJACENCY,
-            LINE_STRIP_ADJACENCY,
-            ISO_LINE_LIST,
-            TRIANGLE_LIST,
-            TRIANGLE_STRIP,
-            TRIANGLE_FAN,
-            TRIANGLE_LIST_ADJACENCY,
-            TRIANGLE_STRIP_ADJACENCY,
-            TRIANGLE_PATCH_ADJACENCY,
-            QUAD_PATCH_LIST
-        }
         export enum cocos_gfx_define_GFXPolygonMode {
-            FILL,
-            POINT,
-            LINE
+            FILL = 0,
+            POINT = 1,
+            LINE = 2
         }
         export enum cocos_gfx_define_GFXShadeModel {
-            GOURAND,
-            FLAT
+            GOURAND = 0,
+            FLAT = 1
         }
         export enum cocos_gfx_define_GFXCullMode {
-            NONE,
-            FRONT,
-            BACK
+            NONE = 0,
+            FRONT = 1,
+            BACK = 2
         }
         export class cocos_gfx_pipeline_state_GFXRasterizerState {
             isDiscard: boolean;
@@ -12608,24 +14007,24 @@ declare module "Cocos3D" {
             compare(state: cocos_gfx_pipeline_state_GFXRasterizerState): boolean;
         }
         export enum cocos_gfx_define_GFXComparisonFunc {
-            NEVER,
-            LESS,
-            EQUAL,
-            LESS_EQUAL,
-            GREATER,
-            NOT_EQUAL,
-            GREATER_EQUAL,
-            ALWAYS
+            NEVER = 0,
+            LESS = 1,
+            EQUAL = 2,
+            LESS_EQUAL = 3,
+            GREATER = 4,
+            NOT_EQUAL = 5,
+            GREATER_EQUAL = 6,
+            ALWAYS = 7
         }
         export enum cocos_gfx_define_GFXStencilOp {
-            ZERO,
-            KEEP,
-            REPLACE,
-            INCR,
-            DECR,
-            INVERT,
-            INCR_WRAP,
-            DECR_WRAP
+            ZERO = 0,
+            KEEP = 1,
+            REPLACE = 2,
+            INCR = 3,
+            DECR = 4,
+            INVERT = 5,
+            INCR_WRAP = 6,
+            DECR_WRAP = 7
         }
         export class cocos_gfx_pipeline_state_GFXDepthStencilState {
             depthTest: boolean;
@@ -12650,36 +14049,36 @@ declare module "Cocos3D" {
             compare(state: cocos_gfx_pipeline_state_GFXDepthStencilState): boolean;
         }
         export enum cocos_gfx_define_GFXBlendFactor {
-            ZERO,
-            ONE,
-            SRC_ALPHA,
-            DST_ALPHA,
-            ONE_MINUS_SRC_ALPHA,
-            ONE_MINUS_DST_ALPHA,
-            SRC_COLOR,
-            DST_COLOR,
-            ONE_MINUS_SRC_COLOR,
-            ONE_MINUS_DST_COLOR,
-            SRC_ALPHA_SATURATE,
-            CONSTANT_COLOR,
-            ONE_MINUS_CONSTANT_COLOR,
-            CONSTANT_ALPHA,
-            ONE_MINUS_CONSTANT_ALPHA
+            ZERO = 0,
+            ONE = 1,
+            SRC_ALPHA = 2,
+            DST_ALPHA = 3,
+            ONE_MINUS_SRC_ALPHA = 4,
+            ONE_MINUS_DST_ALPHA = 5,
+            SRC_COLOR = 6,
+            DST_COLOR = 7,
+            ONE_MINUS_SRC_COLOR = 8,
+            ONE_MINUS_DST_COLOR = 9,
+            SRC_ALPHA_SATURATE = 10,
+            CONSTANT_COLOR = 11,
+            ONE_MINUS_CONSTANT_COLOR = 12,
+            CONSTANT_ALPHA = 13,
+            ONE_MINUS_CONSTANT_ALPHA = 14
         }
         export enum cocos_gfx_define_GFXBlendOp {
-            ADD,
-            SUB,
-            REV_SUB,
-            MIN,
-            MAX
+            ADD = 0,
+            SUB = 1,
+            REV_SUB = 2,
+            MIN = 3,
+            MAX = 4
         }
         export enum cocos_gfx_define_GFXColorMask {
-            NONE,
-            R,
-            G,
-            B,
-            A,
-            ALL
+            NONE = 0,
+            R = 1,
+            G = 2,
+            B = 4,
+            A = 8,
+            ALL = 15
         }
         export class cocos_gfx_pipeline_state_GFXBlendTarget {
             blend: boolean;
@@ -12699,32 +14098,32 @@ declare module "Cocos3D" {
             targets: cocos_gfx_pipeline_state_GFXBlendTarget[];
         }
         export enum cocos_gfx_define_GFXDynamicState {
-            VIEWPORT,
-            SCISSOR,
-            LINE_WIDTH,
-            DEPTH_BIAS,
-            BLEND_CONSTANTS,
-            DEPTH_BOUNDS,
-            STENCIL_WRITE_MASK,
-            STENCIL_COMPARE_MASK
+            VIEWPORT = 0,
+            SCISSOR = 1,
+            LINE_WIDTH = 2,
+            DEPTH_BIAS = 3,
+            BLEND_CONSTANTS = 4,
+            DEPTH_BOUNDS = 5,
+            STENCIL_WRITE_MASK = 6,
+            STENCIL_COMPARE_MASK = 7
         }
         export enum cocos_gfx_define_GFXBindingType {
-            UNKNOWN,
-            UNIFORM_BUFFER,
-            SAMPLER,
-            STORAGE_BUFFER
+            UNKNOWN = 0,
+            UNIFORM_BUFFER = 1,
+            SAMPLER = 2,
+            STORAGE_BUFFER = 3
         }
         export enum cocos_gfx_define_GFXFilter {
-            NONE,
-            POINT,
-            LINEAR,
-            ANISOTROPIC
+            NONE = 0,
+            POINT = 1,
+            LINEAR = 2,
+            ANISOTROPIC = 3
         }
         export enum cocos_gfx_define_GFXAddress {
-            WRAP,
-            MIRROR,
-            CLAMP,
-            BORDER
+            WRAP = 0,
+            MIRROR = 1,
+            CLAMP = 2,
+            BORDER = 3
         }
         export class cocos_gfx_sampler_GFXSamplerState {
             name: string;
@@ -12814,7 +14213,7 @@ declare module "Cocos3D" {
         }
         export interface cocos_gfx_input_assembler_IGFXAttribute {
             name: string;
-            format: cocos_gfx_define_GFXFormat;
+            format: GFXFormat;
             isNormalized?: boolean;
             stream?: number;
             isInstanced?: boolean;
@@ -12823,7 +14222,7 @@ declare module "Cocos3D" {
             attributes: cocos_gfx_input_assembler_IGFXAttribute[];
         }
         export interface cocos_gfx_pipeline_state_IGFXPipelineStateInfo {
-            primitive: cocos_gfx_define_GFXPrimitiveMode;
+            primitive: GFXPrimitiveMode;
             shader: cocos_gfx_shader_GFXShader;
             is: cocos_gfx_pipeline_state_GFXInputState;
             rs: cocos_gfx_pipeline_state_GFXRasterizerState;
@@ -12835,7 +14234,7 @@ declare module "Cocos3D" {
         }
         export abstract class cocos_gfx_pipeline_state_GFXPipelineState extends cocos_gfx_define_GFXObject {
             readonly shader: cocos_gfx_shader_GFXShader;
-            readonly primitive: cocos_gfx_define_GFXPrimitiveMode;
+            readonly primitive: GFXPrimitiveMode;
             readonly rasterizerState: cocos_gfx_pipeline_state_GFXRasterizerState;
             readonly depthStencilState: cocos_gfx_pipeline_state_GFXDepthStencilState;
             readonly blendState: cocos_gfx_pipeline_state_GFXBlendState;
@@ -12844,7 +14243,7 @@ declare module "Cocos3D" {
             readonly renderPass: cocos_gfx_render_pass_GFXRenderPass;
             protected _device: cocos_gfx_device_GFXDevice;
             protected _shader: cocos_gfx_shader_GFXShader | null;
-            protected _primitive: cocos_gfx_define_GFXPrimitiveMode;
+            protected _primitive: GFXPrimitiveMode;
             protected _is: cocos_gfx_pipeline_state_GFXInputState | null;
             protected _rs: cocos_gfx_pipeline_state_GFXRasterizerState | null;
             protected _dss: cocos_gfx_pipeline_state_GFXDepthStencilState | null;
@@ -12942,9 +14341,9 @@ declare module "Cocos3D" {
             maxDepth: number;
         }
         export enum cocos_gfx_define_GFXStencilFace {
-            FRONT,
-            BACK,
-            ALL
+            FRONT = 0,
+            BACK = 1,
+            ALL = 2
         }
         export interface cocos_gfx_define_IGFXOffset {
             x: number;
@@ -13017,15 +14416,15 @@ declare module "Cocos3D" {
             top?: number;
             width: number;
             height: number;
-            colorFmt: cocos_gfx_define_GFXFormat;
-            depthStencilFmt: cocos_gfx_define_GFXFormat;
+            colorFmt: GFXFormat;
+            depthStencilFmt: GFXFormat;
             isOffscreen?: boolean;
         }
         export abstract class cocos_gfx_window_GFXWindow extends cocos_gfx_define_GFXObject {
             readonly width: number;
             readonly height: number;
-            readonly colorFormat: cocos_gfx_define_GFXFormat;
-            readonly detphStencilFormat: cocos_gfx_define_GFXFormat;
+            readonly colorFormat: GFXFormat;
+            readonly detphStencilFormat: GFXFormat;
             readonly renderPass: cocos_gfx_render_pass_GFXRenderPass;
             readonly colorTexView: cocos_gfx_texture_view_GFXTextureView | null;
             readonly depthStencilTexView: cocos_gfx_texture_view_GFXTextureView | null;
@@ -13038,8 +14437,8 @@ declare module "Cocos3D" {
             protected _height: number;
             protected _nativeWidth: number;
             protected _nativeHeight: number;
-            protected _colorFmt: cocos_gfx_define_GFXFormat;
-            protected _depthStencilFmt: cocos_gfx_define_GFXFormat;
+            protected _colorFmt: GFXFormat;
+            protected _depthStencilFmt: GFXFormat;
             protected _isOffscreen: boolean;
             protected _renderPass: cocos_gfx_render_pass_GFXRenderPass | null;
             protected _colorTex: cocos_gfx_texture_GFXTexture | null;
@@ -13068,20 +14467,20 @@ declare module "Cocos3D" {
             stride?: number;
         }
         export enum cocos_gfx_device_GFXFeature {
-            COLOR_FLOAT,
-            COLOR_HALF_FLOAT,
-            TEXTURE_FLOAT,
-            TEXTURE_HALF_FLOAT,
-            TEXTURE_FLOAT_LINEAR,
-            TEXTURE_HALF_FLOAT_LINEAR,
-            FORMAT_R11G11B10F,
-            FORMAT_D24S8,
-            FORMAT_ETC1,
-            FORMAT_ETC2,
-            FORMAT_DXT,
-            FORMAT_PVRTC,
-            MSAA,
-            COUNT
+            COLOR_FLOAT = 0,
+            COLOR_HALF_FLOAT = 1,
+            TEXTURE_FLOAT = 2,
+            TEXTURE_HALF_FLOAT = 3,
+            TEXTURE_FLOAT_LINEAR = 4,
+            TEXTURE_HALF_FLOAT_LINEAR = 5,
+            FORMAT_R11G11B10F = 6,
+            FORMAT_D24S8 = 7,
+            FORMAT_ETC1 = 8,
+            FORMAT_ETC2 = 9,
+            FORMAT_DXT = 10,
+            FORMAT_PVRTC = 11,
+            MSAA = 12,
+            COUNT = 13
         }
         export abstract class cocos_gfx_device_GFXDevice {
             readonly canvas: HTMLCanvasElement;
@@ -13107,8 +14506,8 @@ declare module "Cocos3D" {
             readonly maxCombinedUniformBlocks: number;
             readonly depthBits: number;
             readonly stencilBits: number;
-            readonly colorFormat: cocos_gfx_define_GFXFormat;
-            readonly depthStencilFormat: cocos_gfx_define_GFXFormat;
+            readonly colorFormat: GFXFormat;
+            readonly depthStencilFormat: GFXFormat;
             readonly macros: Map<string, string>;
             readonly numDrawCalls: number;
             readonly numTris: number;
@@ -13138,8 +14537,8 @@ declare module "Cocos3D" {
             protected _maxCombinedUniformBlocks: number;
             protected _depthBits: number;
             protected _stencilBits: number;
-            protected _colorFmt: cocos_gfx_define_GFXFormat;
-            protected _depthStencilFmt: cocos_gfx_define_GFXFormat;
+            protected _colorFmt: GFXFormat;
+            protected _depthStencilFmt: GFXFormat;
             protected _shaderIdGen: number;
             protected _macros: Map<string, string>;
             protected _numDrawCalls: number;
@@ -13195,12 +14594,12 @@ declare module "Cocos3D" {
             pipelineState: cocos_gfx_pipeline_state_GFXPipelineState;
         }
         export enum cocos_pipeline_define_RenderPriority {
-            MIN,
-            MAX,
-            DEFAULT
+            MIN = 0,
+            MAX = 255,
+            DEFAULT = 128
         }
         export enum cocos_pipeline_define_RenderPassStage {
-            DEFAULT
+            DEFAULT = 100
         }
         interface cocos_renderer_core_pass_IPassDynamics {
         }
@@ -13264,7 +14663,7 @@ declare module "Cocos3D" {
         }
         export interface cocos_3d_assets_effect_asset_IPassStates {
             priority?: number;
-            primitive?: cocos_gfx_define_GFXPrimitiveMode;
+            primitive?: GFXPrimitiveMode;
             stage?: cocos_pipeline_define_RenderPassStage;
             rasterizerState?: cocos_gfx_pipeline_state_GFXRasterizerState;
             depthStencilState?: cocos_gfx_pipeline_state_GFXDepthStencilState;
@@ -13348,42 +14747,41 @@ declare module "Cocos3D" {
              * other formats are supported by compressed file types or raw data.
              * @enum {number}
              */ export enum cocos_assets_asset_enum_PixelFormat {
-            RGB565,
-            RGB5A1,
-            RGBA4444,
-            RGB888,
-            RGBA8888,
-            RGBA32F,
-            A8,
-            I8,
-            AI8,
-            RGB_PVRTC_2BPPV1,
-            RGBA_PVRTC_2BPPV1,
-            RGB_PVRTC_4BPPV1,
-            RGBA_PVRTC_4BPPV1,
-            RGB_ETC1,
-            RGB_ETC2,
-            RGBA_ETC2
+            RGB565 = 46,
+            RGB5A1 = 48,
+            RGBA4444 = 49,
+            RGB888 = 24,
+            RGBA8888 = 35,
+            RGBA32F = 43,
+            A8 = 1,
+            I8 = 2,
+            AI8 = 3,
+            RGB_PVRTC_2BPPV1 = 86,
+            RGBA_PVRTC_2BPPV1 = 87,
+            RGB_PVRTC_4BPPV1 = 88,
+            RGBA_PVRTC_4BPPV1 = 89,
+            RGB_ETC1 = 75,
+            RGB_ETC2 = 76,
+            RGBA_ETC2 = 80
         }
         /**
              * The texture wrap mode.
              * @enum {number}
              */ export enum cocos_assets_asset_enum_WrapMode {
-            REPEAT,
-            CLAMP_TO_EDGE,
-            MIRRORED_REPEAT,
-            CLAMP_TO_BORDER
+            REPEAT = 0,
+            CLAMP_TO_EDGE = 2,
+            MIRRORED_REPEAT = 1,
+            CLAMP_TO_BORDER = 3
         }
         /**
              * The texture filter mode
              * @enum {number}
              */ export enum cocos_assets_asset_enum_Filter {
-            NONE,
-            LINEAR,
-            NEAREST
+            NONE = 0,
+            LINEAR = 2,
+            NEAREST = 1
         }
-        var cocos_assets_texture_base_TextureBase_base: {} & typeof Asset;
-        export class cocos_assets_texture_base_TextureBase extends cocos_assets_texture_base_TextureBase_base {
+        export class cocos_assets_texture_base_TextureBase extends Asset {
             /**
                      * !#en
                      * Texture width, in pixels.
@@ -13507,6 +14905,7 @@ declare module "Cocos3D" {
                      * the actually range of mipmaps this texture contains, only overlaped mipmaps are updated.
                      * Use this method if your mipmap data are modified.
                      */ updateMipmaps(firstLevel?: number, count?: number): void;
+            ensureLoadImage(): void;
             protected _getGlobalDevice(): cocos_gfx_device_GFXDevice | null;
             protected _assignImage(image: ImageAsset, level: number, arrayIndex?: number): void;
             protected _uploadData(source: HTMLCanvasElement | HTMLImageElement | ArrayBuffer, level: number, arrayIndex?: number): void;
@@ -13533,6 +14932,7 @@ declare module "Cocos3D" {
                      * @param out - the resulting texture cube asset
                      */ static fromTexture2DArray(textures: Texture2D[], out?: cocos_3d_assets_texture_cube_TextureCube): cocos_3d_assets_texture_cube_TextureCube;
             _mipmaps: cocos_3d_assets_texture_cube_ITextureCubeMipmap[];
+            private _unfinished;
             constructor();
             onLoaded(): void;
             /**
@@ -13570,8 +14970,11 @@ declare module "Cocos3D" {
                 }[];
             };
             _deserialize(serializedData: cocos_3d_assets_texture_cube_ITextureCubeSerializeData, handle: any): void;
+            ensureLoadImage(): void;
             protected _getTextureCreateInfo(): cocos_gfx_texture_IGFXTextureInfo;
             protected _getTextureViewCreateInfo(): cocos_gfx_texture_view_IGFXTextureViewInfo;
+            protected _onImageLoaded(): void;
+            protected _assetReady(): void;
         }
         export class cocos_renderer_scene_skybox_Skybox extends renderer.Model {
             cubemap: cocos_3d_assets_texture_cube_TextureCube | null;
@@ -13725,7 +15128,10 @@ declare module "Cocos3D" {
             revertPipelineState(pso: cocos_gfx_pipeline_state_GFXPipelineState): void;
             destroy(): void;
         }
-        export class cocos_renderer_ui_ui_UI {
+        /**
+             * @zh
+             * UI 渲染流程
+             */ export class cocos_renderer_ui_ui_UI {
             private _root;
             readonly renderScene: cocos_renderer_scene_render_scene_RenderScene;
             readonly currBufferBatch: MeshBuffer | null;
@@ -13756,14 +15162,45 @@ declare module "Cocos3D" {
             getRenderSceneGetter(): () => any;
             _getUIMaterial(mat: Material): cocos_renderer_ui_ui_material_UIMaterial;
             _removeUIMaterial(hash: number): void;
-            addScreen(comp: CanvasComponent): void;
-            getScreen(visibility: number): CanvasComponent | null;
-            removeScreen(comp: CanvasComponent): void;
+            /**
+                     * @zh
+                     * 添加屏幕组件管理。
+                     *
+                     * @param comp - 屏幕组件。
+                     */ addScreen(comp: CanvasComponent): void;
+            /**
+                     * @zh
+                     * 通过屏幕编号获得屏幕组件。
+                     *
+                     * @param visibility - 屏幕编号。
+                     */ getScreen(visibility: number): CanvasComponent | null;
+            /**
+                     * @zh
+                     * 移除屏幕组件管理。
+                     *
+                     * @param comp - 被移除的屏幕。
+                     */ removeScreen(comp: CanvasComponent): void;
             update(dt: number): void;
             render(): void;
-            commitComp(comp: UIComponent, frame?: cocos_gfx_texture_view_GFXTextureView | null, assembler?: IAssembler): void;
-            autoMergeBatches(): void;
-            forceMergeBatches(material: Material, sprite: SpriteFrame | null): void;
+            /**
+                     * @zh
+                     * UI 渲染组件数据提交流程。
+                     *
+                     * @param comp - 当前执行组件。
+                     * @param frame - 当前执行组件贴图。
+                     * @param assembler - 当前组件渲染数据组装器。
+                     */ commitComp(comp: UIComponent, frame?: cocos_gfx_texture_view_GFXTextureView | null, assembler?: IAssembler): void;
+            /**
+                     * @zh
+                     * UI 渲染数据合批
+                     */ autoMergeBatches(): void;
+            /**
+                     * @zh
+                     * 跳过默认合批操作，执行强制合批。
+                     *
+                     * @param material - 当前批次的材质。
+                     * @param sprite - 当前批次的精灵帧。
+                     */ forceMergeBatches(material: Material, sprite: cocos_gfx_texture_view_GFXTextureView | null): void;
             private _deleteUIMaterial;
             private _destroyUIMaterials;
             private _walk;
@@ -13878,6 +15315,7 @@ declare module "Cocos3D" {
             readonly ui: cocos_renderer_ui_ui_UI;
             readonly scenes: cocos_renderer_scene_render_scene_RenderScene[];
             readonly views: cocos_pipeline_render_view_RenderView[];
+            readonly cumulativeTime: number;
             readonly frameTime: number;
             readonly frameCount: number;
             readonly fps: number;
@@ -13891,6 +15329,7 @@ declare module "Cocos3D" {
             private _ui;
             private _scenes;
             private _views;
+            private _time;
             private _frameTime;
             private _fpsTime;
             private _frameCount;
@@ -13900,6 +15339,7 @@ declare module "Cocos3D" {
             destroy(): void;
             resize(width: number, height: number): void;
             activeWindow(window: cocos_gfx_window_GFXWindow): void;
+            resetCumulativeTime(): void;
             frameMove(deltaTime: number): void;
             createWindow(info: cocos_gfx_window_IGFXWindowInfo): cocos_gfx_window_GFXWindow | null;
             destroyWindow(window: cocos_gfx_window_GFXWindow): void;
@@ -13999,8 +15439,8 @@ declare module "Cocos3D" {
             protected _msaaDepthStencilTex: cocos_gfx_texture_GFXTexture | null;
             protected _msaaDepthStencilTexView: cocos_gfx_texture_view_GFXTextureView | null;
             protected _msaaShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer | null;
-            protected _colorFmt: cocos_gfx_define_GFXFormat;
-            protected _depthStencilFmt: cocos_gfx_define_GFXFormat;
+            protected _colorFmt: GFXFormat;
+            protected _depthStencilFmt: GFXFormat;
             protected _shadingTextures: cocos_gfx_texture_GFXTexture[];
             protected _shadingTexViews: cocos_gfx_texture_view_GFXTextureView[];
             protected _depthStencilTex: cocos_gfx_texture_GFXTexture | null;
@@ -14094,56 +15534,56 @@ declare module "Cocos3D" {
             getSampler(device: cocos_gfx_device_GFXDevice, info: number[]): cocos_gfx_sampler_GFXSampler;
         }
         export enum cocos_renderer_scene_light_LightType {
-            DIRECTIONAL,
-            SPHERE,
-            SPOT,
-            UNKNOWN
+            DIRECTIONAL = 0,
+            SPHERE = 1,
+            SPOT = 2,
+            UNKNOWN = 3
         }
         export enum cocos_renderer_scene_camera_CameraAperture {
-            F1_8,
-            F2_0,
-            F2_2,
-            F2_5,
-            F2_8,
-            F3_2,
-            F3_5,
-            F4_0,
-            F4_5,
-            F5_0,
-            F5_6,
-            F6_3,
-            F7_1,
-            F8_0,
-            F9_0,
-            F10_0,
-            F11_0,
-            F13_0,
-            F14_0,
-            F16_0,
-            F18_0,
-            F20_0,
-            F22_0
+            F1_8 = 0,
+            F2_0 = 1,
+            F2_2 = 2,
+            F2_5 = 3,
+            F2_8 = 4,
+            F3_2 = 5,
+            F3_5 = 6,
+            F4_0 = 7,
+            F4_5 = 8,
+            F5_0 = 9,
+            F5_6 = 10,
+            F6_3 = 11,
+            F7_1 = 12,
+            F8_0 = 13,
+            F9_0 = 14,
+            F10_0 = 15,
+            F11_0 = 16,
+            F13_0 = 17,
+            F14_0 = 18,
+            F16_0 = 19,
+            F18_0 = 20,
+            F20_0 = 21,
+            F22_0 = 22
         }
         export enum cocos_renderer_scene_camera_CameraShutter {
-            D1,
-            D2,
-            D4,
-            D8,
-            D15,
-            D30,
-            D60,
-            D125,
-            D250,
-            D500,
-            D1000,
-            D2000,
-            D4000
+            D1 = 0,
+            D2 = 1,
+            D4 = 2,
+            D8 = 3,
+            D15 = 4,
+            D30 = 5,
+            D60 = 6,
+            D125 = 7,
+            D250 = 8,
+            D500 = 9,
+            D1000 = 10,
+            D2000 = 11,
+            D4000 = 12
         }
         export enum cocos_renderer_scene_camera_CameraISO {
-            ISO100,
-            ISO200,
-            ISO400,
-            ISO800
+            ISO100 = 0,
+            ISO200 = 1,
+            ISO400 = 2,
+            ISO800 = 3
         }
         export class cocos_pipeline_define_UBOLocal {
             static MAT_WORLD_OFFSET: number;
@@ -14164,7 +15604,7 @@ declare module "Cocos3D" {
             indexBuffer: cocos_gfx_buffer_GFXBuffer | null;
             indirectBuffer?: cocos_gfx_buffer_GFXBuffer;
             attributes: cocos_gfx_input_assembler_IGFXAttribute[];
-            primitiveMode: cocos_gfx_define_GFXPrimitiveMode;
+            primitiveMode: GFXPrimitiveMode;
             geometricInfo?: cocos_3d_assets_mesh_IGeometricInfo;
         }
         export class cocos_renderer_scene_submodel_SubModel {
@@ -14453,67 +15893,59 @@ declare module "Cocos3D" {
             /**
                      * ???
                      */ unit?: string;
+            /**
+                     * 转换为弧度
+                     */ radian?: boolean;
         }
-        export class cocos_core_event_callbacks_invoker_CallbackList {
-            callbacks: Array<Function | null>;
-            targets: Array<Object | null>;
-            isInvoking: boolean;
-            containCanceled: boolean;
-            removeBy(array: any[], value: any): void;
-            cancel(index: number): void;
-            cancelAll(): void;
-            purgeCanceled(): void;
+        export interface cocos_core_event_callbacks_invoker_ICallbackTable {
         }
         /**
-             * The CallbacksHandler is an abstract class that can register and unregister callbacks by key.
-             * Subclasses should implement their own methods about how to invoke the callbacks.
-             * @class _CallbacksHandler
-             *
-             * @private
-             */ export class cocos_core_event_callbacks_invoker_CallbacksHandler {
-            protected _callbackTable: Map<string, cocos_core_event_callbacks_invoker_CallbackList>;
+             * @zh
+             * CallbacksInvoker 用来根据 Key 管理事件监听器列表并调用回调方法。
+             * @class CallbacksInvoker
+             */ export class cocos_core_event_callbacks_invoker_CallbacksInvoker {
+            _callbackTable: cocos_core_event_callbacks_invoker_ICallbackTable;
             /**
-                     * @method add
-                     * @param {String} key
-                     * @param {Function} callback
-                     * @param {Object} [target] - can be null
-                     */ add(key: string, callback: Function, target?: Object): void;
+                     * @zh
+                     * 事件添加管理
+                     * @param key - 一个监听事件类型的字符串。
+                     * @param callback - 事件分派时将被调用的回调函数。
+                     * @param arget - 调用回调的目标。可以为空。
+                     * @param once - 是否只调用一次。
+                     */ on(key: string, callback: Function, target?: Object, once?: boolean): void;
             /**
-                     * Check if the specified key has any registered callback. If a callback is also specified,
-                     * it will only return true if the callback is registered.
-                     * @method hasEventListener
-                     * @param {String} key
-                     * @param {Function} [callback]
-                     * @param {Object} [target]
-                     * @return {Boolean}
-                     */ hasEventListener(key: string, callback?: Function, target?: Object): boolean;
+                     * @zh
+                     * 检查指定事件是否已注册回调。
+                     *
+                     * @param key - 一个监听事件类型的字符串。
+                     * @param callback - 事件分派时将被调用的回调函数。
+                     * @param target - 调用回调的目标。
+                     * @return - 指定事件是否已注册回调。
+                     */ hasEventListener(key: string, callback?: Function, target?: Object | null): boolean;
             /**
-                     * Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
-                     * @method removeAll
-                     * @param {String|Object} keyOrTarget - The event key to be removed or the target to be removed
+                     * @zh
+                     * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+                     *
+                     * @param keyOrTarget - 要删除的事件键或要删除的目标。
                      */ removeAll(keyOrTarget?: string | Object): void;
             /**
-                     * @method remove
-                     * @param {String} key
-                     * @param {Function} callback
-                     * @param {Object} [target]
-                     */ remove(key: string, callback?: Function, target?: Object): void;
-        }
-        /**
-             * !#en The callbacks invoker to handle and invoke callbacks by key.
-             * !#zh CallbacksInvoker 用来根据 Key 管理并调用回调方法。
-             * @class CallbacksInvoker
-             *
-             * @extends _CallbacksHandler
-             */ export class cocos_core_event_callbacks_invoker_CallbacksInvoker extends cocos_core_event_callbacks_invoker_CallbacksHandler {
+                     * @zh
+                     * 删除之前与同类型，回调，目标注册的回调。
+                     *
+                     * @param key - 一个监听事件类型的字符串。
+                     * @param callback - 移除指定注册回调。如果没有给，则删除全部同事件类型的监听。
+                     * @param target - 调用回调的目标。
+                     */ off(key: string, callback?: Function, target?: Object): void;
             /**
-                     * @method emit
-                     * @param {String} key
-                     * @param {any} [p1]
-                     * @param {any} [p2]
-                     * @param {any} [p3]
-                     * @param {any} [p4]
-                     * @param {any} [p5]
+                     * @zh
+                     * 事件派发
+                     *
+                     * @param key - 一个监听事件类型的字符串
+                     * @param p1 - 派发的第一个参数。
+                     * @param p2 - 派发的第二个参数。
+                     * @param p3 - 派发的第三个参数。
+                     * @param p4 - 派发的第四个参数。
+                     * @param p5 - 派发的第五个参数。
                      */ emit(key: string, ...args: any[]): void;
         }
         export interface cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo {
@@ -14893,8 +16325,8 @@ declare module "Cocos3D" {
         }
         type cocos_scene_graph_base_node_Constructor<T = {}> = new (...args: any[]) => T;
         enum cocos_scene_graph_node_NodeSpace {
-            LOCAL,
-            WORLD
+            LOCAL = 0,
+            WORLD = 1
         }
         export class cocos_scene_graph_scene_globals_AmbientInfo {
             protected _skyColor: Color;
@@ -14939,6 +16371,8 @@ declare module "Cocos3D" {
              * @param error - null or the error info
              * @param node - the created node or null
              */ type cocos_assets_asset_CreateNodeCallback = (error: Error | null, node: Node) => void;
+        export interface cocos_core_event_event_target_factory_IEventTarget extends EventTarget {
+        }
         interface cocos_assets_sprite_atlas_ISpriteFrameList {
         }
         export interface cocos_assets_image_asset_IMemoryImageSource {
@@ -14949,177 +16383,18 @@ declare module "Cocos3D" {
             format: number;
         }
         export type cocos_assets_image_asset_ImageSource = HTMLCanvasElement | HTMLImageElement | cocos_assets_image_asset_IMemoryImageSource;
-        var cocos_assets_image_asset_ImageAsset_base: {} & typeof Asset;
         export interface cocos_assets_bitmap_font_IConfig {
         }
-        /**
-             * !#en Specifies how time is treated when it is outside of the keyframe range of an Animation.
-             * !#zh 动画使用的循环模式。
-             */ export enum cocos_animation_types_WrapMode {
-            Default,
-            Normal,
-            Reverse,
-            Loop,
-            LoopReverse,
-            PingPong,
-            PingPongReverse
-        }
-        interface cocos_animation_animation_clip_IAnimationEvent {
-            frame: number;
-            func: string;
-            params: string[];
-        }
-        export interface cocos_animation_animation_curve_ICurveTarget {
-        }
-        export type cocos_animation_animation_curve_CurveValue = any;
-        export function cocos_animation_easing_constant(): number;
-        export function cocos_animation_easing_linear(k: number): number;
-        export function cocos_animation_easing_quadIn(k: number): number;
-        export function cocos_animation_easing_quadOut(k: number): number;
-        export function cocos_animation_easing_quadInOut(k: number): number;
-        export function cocos_animation_easing_cubicIn(k: number): number;
-        export function cocos_animation_easing_cubicOut(k: number): number;
-        export function cocos_animation_easing_cubicInOut(k: number): number;
-        export function cocos_animation_easing_quartIn(k: number): number;
-        export function cocos_animation_easing_quartOut(k: number): number;
-        export function cocos_animation_easing_quartInOut(k: number): number;
-        export function cocos_animation_easing_quintIn(k: number): number;
-        export function cocos_animation_easing_quintOut(k: number): number;
-        export function cocos_animation_easing_quintInOut(k: number): number;
-        export function cocos_animation_easing_sineIn(k: number): number;
-        export function cocos_animation_easing_sineOut(k: number): number;
-        export function cocos_animation_easing_sineInOut(k: number): number;
-        export function cocos_animation_easing_expoIn(k: number): number;
-        export function cocos_animation_easing_expoOut(k: number): number;
-        export function cocos_animation_easing_expoInOut(k: number): number;
-        export function cocos_animation_easing_circIn(k: number): number;
-        export function cocos_animation_easing_circOut(k: number): number;
-        export function cocos_animation_easing_circInOut(k: number): number;
-        export function cocos_animation_easing_elasticIn(k: number): number;
-        export function cocos_animation_easing_elasticOut(k: number): number;
-        export function cocos_animation_easing_elasticInOut(k: number): number;
-        export function cocos_animation_easing_backIn(k: number): number;
-        export function cocos_animation_easing_backOut(k: number): number;
-        export function cocos_animation_easing_backInOut(k: number): number;
-        export function cocos_animation_easing_bounceIn(k: number): number;
-        export function cocos_animation_easing_bounceOut(k: number): number;
-        export function cocos_animation_easing_bounceInOut(k: number): number;
-        export function cocos_animation_easing_smooth(k: number): number;
-        export function cocos_animation_easing_fade(k: number): number;
-        var cocos_animation_easing_quadOutIn: (k: number) => number;
-        var cocos_animation_easing_cubicOutIn: (k: number) => number;
-        var cocos_animation_easing_quartOutIn: (k: number) => number;
-        var cocos_animation_easing_quintOutIn: (k: number) => number;
-        var cocos_animation_easing_sineOutIn: (k: number) => number;
-        var cocos_animation_easing_expoOutIn: (k: number) => number;
-        var cocos_animation_easing_circOutIn: (k: number) => number;
-        var cocos_animation_easing_backOutIn: (k: number) => number;
-        var cocos_animation_easing_bounceOutIn: (k: number) => number;
-        namespace cocos_animation_easing_cocos_animation_easing {
-            export function cocos_animation_easing_constant(): number;
-            export function cocos_animation_easing_linear(k: number): number;
-            export function cocos_animation_easing_quadIn(k: number): number;
-            export function cocos_animation_easing_quadOut(k: number): number;
-            export function cocos_animation_easing_quadInOut(k: number): number;
-            export function cocos_animation_easing_cubicIn(k: number): number;
-            export function cocos_animation_easing_cubicOut(k: number): number;
-            export function cocos_animation_easing_cubicInOut(k: number): number;
-            export function cocos_animation_easing_quartIn(k: number): number;
-            export function cocos_animation_easing_quartOut(k: number): number;
-            export function cocos_animation_easing_quartInOut(k: number): number;
-            export function cocos_animation_easing_quintIn(k: number): number;
-            export function cocos_animation_easing_quintOut(k: number): number;
-            export function cocos_animation_easing_quintInOut(k: number): number;
-            export function cocos_animation_easing_sineIn(k: number): number;
-            export function cocos_animation_easing_sineOut(k: number): number;
-            export function cocos_animation_easing_sineInOut(k: number): number;
-            export function cocos_animation_easing_expoIn(k: number): number;
-            export function cocos_animation_easing_expoOut(k: number): number;
-            export function cocos_animation_easing_expoInOut(k: number): number;
-            export function cocos_animation_easing_circIn(k: number): number;
-            export function cocos_animation_easing_circOut(k: number): number;
-            export function cocos_animation_easing_circInOut(k: number): number;
-            export function cocos_animation_easing_elasticIn(k: number): number;
-            export function cocos_animation_easing_elasticOut(k: number): number;
-            export function cocos_animation_easing_elasticInOut(k: number): number;
-            export function cocos_animation_easing_backIn(k: number): number;
-            export function cocos_animation_easing_backOut(k: number): number;
-            export function cocos_animation_easing_backInOut(k: number): number;
-            export function cocos_animation_easing_bounceIn(k: number): number;
-            export function cocos_animation_easing_bounceOut(k: number): number;
-            export function cocos_animation_easing_bounceInOut(k: number): number;
-            export function cocos_animation_easing_smooth(k: number): number;
-            export function cocos_animation_easing_fade(k: number): number;
-            var cocos_animation_easing_quadOutIn: (k: number) => number;
-            var cocos_animation_easing_cubicOutIn: (k: number) => number;
-            var cocos_animation_easing_quartOutIn: (k: number) => number;
-            var cocos_animation_easing_quintOutIn: (k: number) => number;
-            var cocos_animation_easing_sineOutIn: (k: number) => number;
-            var cocos_animation_easing_expoOutIn: (k: number) => number;
-            var cocos_animation_easing_circOutIn: (k: number) => number;
-            var cocos_animation_easing_backOutIn: (k: number) => number;
-            var cocos_animation_easing_bounceOutIn: (k: number) => number;
-        }
-        export type cocos_animation_animation_curve_EasingMethodName = keyof (typeof cocos_animation_easing_cocos_animation_easing);
-        type cocos_animation_animation_clip_EasingMethod = cocos_animation_animation_curve_EasingMethodName | number[];
-        export type cocos_animation_motion_path_helper_MotionPath = Vec2[];
-        interface cocos_animation_animation_clip_IPropertyCurveDataDetail {
-            keys: number;
-            values: cocos_animation_animation_curve_CurveValue[];
-            easingMethod?: cocos_animation_animation_clip_EasingMethod;
-            easingMethods?: cocos_animation_animation_clip_EasingMethod[];
-            motionPaths?: cocos_animation_motion_path_helper_MotionPath | cocos_animation_motion_path_helper_MotionPath[];
-        }
-        type cocos_animation_animation_clip_PropertyCurveData = cocos_animation_animation_clip_IPropertyCurveDataDetail;
-        export class cocos_animation_animation_curve_RatioSampler {
-            ratios: number[];
-            private _lastSampleRatio;
-            private _lastSampleResult;
-            private _findRatio;
-            constructor(ratios: number[]);
-            sample(ratio: number): number;
-        }
-        export type cocos_animation_animation_curve_LinearType = null;
-        export type cocos_animation_animation_curve_BezierType = [number, number, number, number];
-        export type cocos_animation_animation_curve_CurveType = cocos_animation_animation_curve_LinearType | cocos_animation_animation_curve_BezierType | cocos_animation_animation_curve_EasingMethodName;
-        export type cocos_animation_animation_curve_LerpFunction<T = any> = (from: T, to: T, t: number) => T;
         export type cocos_animation_animation_blend_state_PropertyBlendState<T = any> = {
             name: string;
             weight: number;
             value?: T;
             refCount: number;
         };
-        /**
-             * If propertyBlendState.weight equals to zero, the propertyBlendState.value is dirty.
-             * You shall handle this situation correctly.
-             */ export type cocos_animation_animation_curve_BlendFunction<T> = (value: T, weight: number, propertyBlendState: cocos_animation_animation_blend_state_PropertyBlendState) => T;
-        /**
-             * 动画数据类，相当于 AnimationClip。
-             * 虽然叫做 AnimCurve，但除了曲线，可以保存任何类型的值。
-             */ export class cocos_animation_animation_curve_AnimCurve {
-            onTimeChangedManually?(time: number, state: any): void;
-            /**
-                     * @param time
-                     * @param ratio The normalized time specified as a number between 0.0 and 1.0 inclusive.
-                     * @param state
-                     */ sample(time: number, ratio: number, state: cocos_animation_animation_state_AnimationState): void;
-        }
-        /**
-             * For internal
-             */ export class cocos_animation_types_WrappedInfo {
-            ratio: number;
-            time: number;
-            direction: number;
-            stopped: boolean;
-            iterations: number;
-            frameIndex: number;
-            constructor(info?: cocos_animation_types_WrappedInfo);
-            set(info: cocos_animation_types_WrappedInfo): void;
-        }
         export class cocos_animation_animation_blend_state_AnimationBlendState {
             private _blendTargets;
-            refPropertyBlendTarget(target: cocos_animation_animation_curve_ICurveTarget, propertyName: string): cocos_animation_animation_blend_state_PropertyBlendState<any>;
-            derefPropertyBlendTarget(target: cocos_animation_animation_curve_ICurveTarget, propertyName: string): void;
+            refPropertyBlendTarget(target: ICurveTarget, propertyName: string): cocos_animation_animation_blend_state_PropertyBlendState<any>;
+            derefPropertyBlendTarget(target: ICurveTarget, propertyName: string): void;
             apply(): void;
             clear(): void;
         }
@@ -15164,204 +16439,35 @@ declare module "Cocos3D" {
             protected onStop(): void;
             protected onError(message: string): void;
         }
-        /**
-             * !#en
-             * The AnimationState gives full control over animation playback process.
-             * In most cases the Animation Component is sufficient and easier to use. Use the AnimationState if you need full control.
-             * !#zh
-             * AnimationState 完全控制动画播放过程。<br/>
-             * 大多数情况下 动画组件 是足够和易于使用的。如果您需要更多的动画控制接口，请使用 AnimationState。
-             *
-             */ export class cocos_animation_animation_state_AnimationState extends cocos_animation_playable_Playable {
-            /**
-                     * !#en The clip that is being played by this animation state.
-                     * !#zh 此动画状态正在播放的剪辑。
-                     */ readonly clip: cocos_animation_animation_clip_AnimationClip;
-            /**
-                     * !#en The name of the playing animation.
-                     * !#zh 动画的名字
-                     */ readonly name: string;
-            readonly length: number;
-            curveLoaded: boolean;
-            /**
-                     * !#en
-                     * Wrapping mode of the playing animation.
-                     * Notice : dynamic change wrapMode will reset time and repeatCount property
-                     * !#zh
-                     * 动画循环方式。
-                     * 需要注意的是，动态修改 wrapMode 时，会重置 time 以及 repeatCount
-                     * @default: WrapMode.Normal
-                     */ wrapMode: cocos_animation_types_WrapMode;
-            /**
-                     * !#en The animation's iteration count property.
-                     *
-                     * A real number greater than or equal to zero (including positive infinity) representing the number of times
-                     * to repeat the animation node.
-                     *
-                     * Values less than zero and NaN values are treated as the value 1.0 for the purpose of timing model
-                     * calculations.
-                     *
-                     * !#zh 迭代次数，指动画播放多少次后结束, normalize time。 如 2.5（2次半）
-                     *
-                     * @property repeatCount
-                     * @type {Number}
-                     * @default 1
-                     */ repeatCount: number;
-            /**
-                     * !#en The start delay which represents the number of seconds from an animation's start time to the start of
-                     * the active interval.
-                     * !#zh 延迟多少秒播放。
-                     * @default 0
-                     */ delay: number;
-            /**
-                     * !#en The curves list.
-                     * !#zh 曲线列表。
-                     */ curves: cocos_animation_animation_curve_AnimCurve[];
-            /**
-                     * !#en The iteration duration of this animation in seconds. (length)
-                     * !#zh 单次动画的持续时间，秒。
-                     * @readOnly
-                     */ duration: number;
-            /**
-                     * !#en The animation's playback speed. 1 is normal playback speed.
-                     * !#zh 播放速率。
-                     * @default: 1.0
-                     */ speed: number;
-            /**
-                     * !#en The current time of this animation in seconds.
-                     * !#zh 动画当前的时间，秒。
-                     * @default 0
-                     */ time: number;
-            /**
-                     * The weight.
-                     */ weight: number;
-            frameRate: number;
-            _lastframeEventOn: boolean;
-            private _wrapMode;
-            private _repeatCount;
-            /**
-                     * Mark whether the current frame is played.
-                     * When set new time to animation state, we should ensure the frame at the specified time being played at next update.
-                     */ private _currentFramePlayed;
-            private _delay;
-            private _delayTime;
-            private _wrappedInfo;
-            private _lastWrappedInfo;
-            private _process;
-            private _target;
-            private _clip;
-            private _name;
-            private _lastIterations?;
-            constructor(clip: cocos_animation_animation_clip_AnimationClip, name?: string);
-            initialize(root: Node): void;
-            _emit(type: any, state: any): void;
-            emit(...restargs: any[]): void;
-            on(type: any, callback: any, target: any): void | null;
-            once(type: any, callback: any, target: any): void | null;
-            off(type: any, callback: any, target: any): void;
-            _setEventTarget(target: any): void;
-            setTime(time: number): void;
-            update(delta: number): void;
-            _needReverse(currentIterations: number): boolean;
-            getWrappedInfo(time: number, info?: cocos_animation_types_WrappedInfo): cocos_animation_types_WrappedInfo;
-            sample(): cocos_animation_types_WrappedInfo;
-            process(): void;
-            simpleProcess(): void;
-            attachToBlendState(blendState: cocos_animation_animation_blend_state_AnimationBlendState): void;
-            detachFromBlendState(blendState: cocos_animation_animation_blend_state_AnimationBlendState): void;
-            protected onPlay(): void;
-            protected onStop(): void;
-            protected onResume(): void;
-            protected onPause(): void;
+        export class cocos_animation_cross_fade_CrossFade extends cocos_animation_playable_Playable {
+            target: Node;
+            private _fadings;
+            constructor(target: Node);
+            update(deltaTime: number): void;
+            crossFade(state: AnimationState | null, duration: number): void;
+            sample(): void;
+            onPause(): void;
+            onResume(): void;
+            onStop(): void;
+            clear(): void;
+            private _unshiftDefault;
+            private _directStopState;
+            private _directPlayState;
         }
-        export class cocos_animation_animation_curve_DynamicAnimCurve extends cocos_animation_animation_curve_AnimCurve {
-            static Linear: null;
-            static Bezier(controlPoints: number[]): [number, number, number, number];
-            /**
-                     * The object being animated.
-                     */ target: cocos_animation_animation_curve_ICurveTarget | null;
-            /**
-                     * The name of the property being animated.
-                     */ prop: string;
-            /**
-                     * The values of the keyframes. (y)
-                     */ values: cocos_animation_animation_curve_CurveValue[];
-            /**
-                     * The keyframe ratio of the keyframe specified as a number between 0.0 and 1.0 inclusive. (x)
-                     * A null ratio indicates a zero or single frame curve.
-                     */ ratioSampler: cocos_animation_animation_curve_RatioSampler | null;
-            types?: cocos_animation_animation_curve_CurveType[];
-            type?: cocos_animation_animation_curve_CurveType;
-            /**
-                     * Lerp function used. If undefined, no lerp is performed.
-                     */ _lerp: cocos_animation_animation_curve_LerpFunction | undefined;
-            _blendFunction: cocos_animation_animation_curve_BlendFunction<any> | undefined;
-            private _propertyBlendTarget;
-            setPropertyBlendTarget(value: cocos_animation_animation_blend_state_PropertyBlendState<any> | null): void;
-            sample(time: number, ratio: number, state: cocos_animation_animation_state_AnimationState): void;
-        }
-        interface cocos_animation_animation_clip_ICurveData {
-            props?: {};
-            comps?: {};
-        }
-        export class cocos_animation_animation_clip_AnimationClip extends Asset {
-            static WrapMode: typeof cocos_animation_types_WrapMode;
-            /**
-                     * !#en Duration of this animation.
-                     * !#zh 动画的持续时间。
-                     */ readonly duration: number;
-            /**
-                     * !#en Crate clip with a set of sprite frames
-                     * !#zh 使用一组序列帧图片来创建动画剪辑
-                     * @example
-                     * const clip = cc.AnimationClip.createWithSpriteFrames(spriteFrames, 10);
-                     *
-                     */ static createWithSpriteFrames(spriteFrames: SpriteFrame[], sample: number): cocos_animation_animation_clip_AnimationClip | null;
-            /**
-                     * !#en FrameRate of this animation.
-                     * !#zh 动画的帧速率。
-                     */ sample: number;
-            /**
-                     * !#en Speed of this animation.
-                     * !#zh 动画的播放速度。
-                     */ speed: number;
-            /**
-                     * !#en WrapMode of this animation.
-                     * !#zh 动画的循环模式。
-                     */ wrapMode: cocos_animation_types_WrapMode;
-            /**
-                     * !#en Curve data.
-                     * !#zh 曲线数据。
-                     * @example {@link cocos2d/core/animation-clip/curve-data.js}
-                     */ curveDatas: {};
-            /**
-                     * !#en Event data.
-                     * !#zh 事件数据。
-                     * @example {@link cocos2d/core/animation-clip/event-data.js}
-                     * @typescript events: {frame: number, func: string, params: string[]}[]
-                     */ events: cocos_animation_animation_clip_IAnimationEvent[];
-            private _duration;
-            private _keys;
-            private _ratioSamplers;
-            private frameRate;
-            onLoad(): void;
-            createPropCurve(target: cocos_animation_animation_curve_ICurveTarget, propPath: string, propertyCurveData: cocos_animation_animation_clip_PropertyCurveData): cocos_animation_animation_curve_DynamicAnimCurve;
-            createTargetCurves(target: cocos_animation_animation_curve_ICurveTarget, curveData: cocos_animation_animation_clip_ICurveData, curves: cocos_animation_animation_curve_DynamicAnimCurve[]): void;
-            createCurves(state: cocos_animation_animation_state_AnimationState, root: Node): cocos_animation_animation_curve_DynamicAnimCurve[];
+        class cocos_components_missing_script_MissingClass {
+            _$erialized: null;
         }
         /**
              * !#en The event type supported by Animation
              * !#zh Animation 支持的事件类型
              */ export enum cocos_components_animation_component_EventType {
-            PLAY,
-            STOP,
-            PAUSE,
-            RESUME,
-            LASTFRAME,
-            FINISHED
+            PLAY = "play",
+            STOP = "stop",
+            PAUSE = "pause",
+            RESUME = "resume",
+            LASTFRAME = "lastframe",
+            FINISHED = "finished"
         }
-        export type cocos_core_event_event_target_factory_IEventTargetCallback = (...args: any[]) => void;
-        var cocos_components_animation_component_AnimationComponent_base: {} & typeof Component;
         export interface cocos_3d_physics_api_ShapeBase {
             setCenter(center: Vec3): void;
             setScale(scale: Vec3): void;
@@ -15372,9 +16478,9 @@ declare module "Cocos3D" {
             setCollisionResponse(value: boolean): void;
         }
         export enum cocos_3d_physics_physic_enum_ERigidBodyType {
-            DYNAMIC,
-            STATIC,
-            KINEMATIC
+            DYNAMIC = 1,
+            STATIC = 2,
+            KINEMATIC = 4
         }
         export type cocos_3d_physics_api_BeforeStepCallback = () => void;
         export type cocos_3d_physics_api_AfterStepCallback = () => void;
@@ -15402,15 +16508,27 @@ declare module "Cocos3D" {
                      * @return True if any body was hit.
                      */ raycastAll(from: Vec3, to: Vec3, options: cocos_3d_physics_api_IRaycastOptions, callback: (result: cocos_3d_physics_raycast_result_RaycastResult) => void): boolean;
         }
+        export type cocos_3d_physics_api_ICollisionType = 'onCollisionEnter' | 'onCollisionStay' | 'onCollisionExit';
         export interface cocos_3d_physics_api_ICollisionEvent {
             source: cocos_3d_physics_api_RigidBodyBase;
             target: cocos_3d_physics_api_RigidBodyBase;
         }
-        export type cocos_3d_physics_api_ICollisionCallback = (event: cocos_3d_physics_api_ICollisionEvent) => void;
+        export type cocos_3d_physics_api_ICollisionCallback = (type: cocos_3d_physics_api_ICollisionType, event: cocos_3d_physics_api_ICollisionEvent) => void;
         export interface cocos_3d_physics_api_RigidBodyBase {
-            /** 获取/设置刚体类型 : ERigidBodyType */ getType(): cocos_3d_physics_physic_enum_ERigidBodyType;
+            /** @return group ∈ [0, 31] (int) */ getGroup(): number;
+            /** @param v ∈ [0, 31] (int) */ setGroup(v: number): void;
+            /** @return (int) */ getMask(): number;
+            /**
+                     *  this will reset the mask
+                     * @param v ∈ [0, 31] (int)
+                     */ setMask(v: number): void;
+            /**
+                     * this will add a mask
+                     * @param v ∈ [0, 31] (int)
+                     */ addMask(v: number): void;
+            /** the body type */ getType(): cocos_3d_physics_physic_enum_ERigidBodyType;
             setType(v: cocos_3d_physics_physic_enum_ERigidBodyType): void;
-            /** 唤醒/睡眠刚体 */ wakeUp(): void;
+            wakeUp(): void;
             sleep(): void;
             addShape(shape: cocos_3d_physics_api_ShapeBase): void;
             removeShape(shape: cocos_3d_physics_api_ShapeBase): void;
@@ -15461,58 +16579,7 @@ declare module "Cocos3D" {
             private _node;
             _assign(hitPoint: vmath.vec3, distance: number, shape: cocos_3d_physics_api_ShapeBase, body: cocos_3d_physics_api_RigidBodyBase): void;
         }
-        export interface cocos_3d_primitive_define_IGeometry {
-            /**
-                     * Vertex positions.
-                     */ positions: number[];
-            /**
-                     * Min position.
-                     */ minPos?: {
-                x: number;
-                y: number;
-                z: number;
-            };
-            /**
-                     * Max position.
-                     */ maxPos?: {
-                x: number;
-                y: number;
-                z: number;
-            };
-            /**
-                     * Bounding sphere radius.
-                     */ boundingRadius?: number;
-            /**
-                     * Gemetry indices, if one needs indexed-draw.
-                     */ indices?: number[];
-            /**
-                     * Vertex normals.
-                     */ normals?: number[];
-            /**
-                     * Texture coordinates.
-                     */ uvs?: number[];
-            /**
-                     * Vertex colors.
-                     */ colors?: number[];
-            /**
-                     * Topology of the geometry vertices. Default is TRIANGLE_LIST.
-                     */ primitiveMode?: cocos_gfx_define_GFXPrimitiveMode;
-            /**
-                     * whether rays casting from the back face of this geometry could collide with it
-                     */ doubleSided?: boolean;
-            /**
-                     * specify vertex attributes, use (positions|normals|uvs|colors) as keys
-                     */ attributes?: cocos_gfx_input_assembler_IGFXAttribute[];
-        }
-        export interface cocos_3d_primitive_define_IGeometryOptions {
-            /**
-                     * Whether to include normal. Default to true.
-                     */ includeNormal: boolean;
-            /**
-                     * Whether to include uv. Default to true.
-                     */ includeUV: boolean;
-        }
-        interface cocos_3d_primitive_box_IBoxOptions extends RecursivePartial<cocos_3d_primitive_define_IGeometryOptions> {
+        interface cocos_3d_primitive_box_IBoxOptions extends RecursivePartial<primitives.IGeometryOptions> {
             /**
                      * Box extent on X-axis.
                      */ width?: number;
@@ -15532,14 +16599,14 @@ declare module "Cocos3D" {
                      * Segment count on Z-axis.
                      */ lengthSegments?: number;
         }
-        export interface cocos_3d_primitive_cylinder_ICylinderOptions extends cocos_3d_primitive_define_IGeometryOptions {
+        export interface cocos_3d_primitive_cylinder_ICylinderOptions extends primitives.IGeometryOptions {
             radialSegments: number;
             heightSegments: number;
             capped: boolean;
             arc: number;
         }
         type cocos_3d_primitive_cone_IConeOptions = cocos_3d_primitive_cylinder_ICylinderOptions;
-        interface cocos_3d_primitive_plane_IPlaneOptions extends RecursivePartial<cocos_3d_primitive_define_IGeometryOptions> {
+        interface cocos_3d_primitive_plane_IPlaneOptions extends RecursivePartial<primitives.IGeometryOptions> {
             /**
                      * Plane extent on X-axis.
                      */ width: number;
@@ -15553,10 +16620,10 @@ declare module "Cocos3D" {
                      * Segment count on Z-axis.
                      */ lengthSegments: number;
         }
-        interface cocos_3d_primitive_sphere_ISphereOptions extends cocos_3d_primitive_define_IGeometryOptions {
+        interface cocos_3d_primitive_sphere_ISphereOptions extends primitives.IGeometryOptions {
             segments: number;
         }
-        interface cocos_3d_primitive_torus_ITorusOptions extends cocos_3d_primitive_define_IGeometryOptions {
+        interface cocos_3d_primitive_torus_ITorusOptions extends primitives.IGeometryOptions {
             radialSegments: number;
             tubularSegments: number;
             arc: number;
@@ -15567,7 +16634,7 @@ declare module "Cocos3D" {
             capped: boolean;
             arc: number;
         }
-        interface cocos_3d_primitive_circle_ICircleOptions extends cocos_3d_primitive_define_IGeometryOptions {
+        interface cocos_3d_primitive_circle_ICircleOptions extends primitives.IGeometryOptions {
             segments: number;
         }
         class cocos_3d_geom_utils_octree_OctreeBlock {
@@ -15594,7 +16661,12 @@ declare module "Cocos3D" {
             constructor();
             evaluate(T: number): number;
         }
-        var cocos_3d_assets_audio_clip_AudioClip_base: {} & typeof Asset;
+        export enum cocos_3d_assets_audio_clip_AudioType {
+            UNKNOWN_AUDIO,
+            WEB_AUDIO = 0,
+            DOM_AUDIO = 1,
+            WX_GAME_AUDIO = 2
+        }
         export interface cocos_3d_assets_effect_asset_ITechniqueInfo {
             passes: cocos_3d_assets_effect_asset_IPassInfo[];
             name?: string;
@@ -15653,7 +16725,7 @@ declare module "Cocos3D" {
                      */ vertexBundelIndices: number[];
             /**
                      * This primitive's topology.
-                     */ primitiveMode: cocos_gfx_define_GFXPrimitiveMode;
+                     */ primitiveMode: GFXPrimitiveMode;
             indexView?: cocos_3d_assets_utils_buffer_view_IBufferView;
             /**
                      * Geometric info for raycast purposes.
@@ -15680,33 +16752,12 @@ declare module "Cocos3D" {
         }
         export class cocos_3d_assets_mesh_RenderingMesh {
             private _subMeshes;
-            private _vertexBuffers;
-            private _indexBuffers;
-            constructor(_subMeshes: cocos_3d_assets_mesh_IRenderingSubmesh[], _vertexBuffers: cocos_gfx_buffer_GFXBuffer[], _indexBuffers: cocos_gfx_buffer_GFXBuffer[]);
+            constructor(_subMeshes: cocos_3d_assets_mesh_IRenderingSubmesh[]);
             readonly subMeshes: cocos_3d_assets_mesh_IRenderingSubmesh[];
             readonly subMeshCount: number;
             getSubmesh(index: number): cocos_3d_assets_mesh_IRenderingSubmesh;
+            clearSubMeshes(): void;
             destroy(): void;
-        }
-        export enum cocos_gfx_define_GFXAttributeName {
-            ATTR_POSITION,
-            ATTR_NORMAL,
-            ATTR_TANGENT,
-            ATTR_BITANGENT,
-            ATTR_WEIGHTS,
-            ATTR_JOINTS,
-            ATTR_COLOR,
-            ATTR_COLOR1,
-            ATTR_COLOR2,
-            ATTR_TEX_COORD,
-            ATTR_TEX_COORD1,
-            ATTR_TEX_COORD2,
-            ATTR_TEX_COORD3,
-            ATTR_TEX_COORD4,
-            ATTR_TEX_COORD5,
-            ATTR_TEX_COORD6,
-            ATTR_TEX_COORD7,
-            ATTR_TEX_COORD8
         }
         class cocos_3d_builtin_init_BuiltinResMgr {
             protected _device: cocos_gfx_device_GFXDevice | null;
@@ -15715,8 +16766,8 @@ declare module "Cocos3D" {
             get<T extends Asset>(uuid: string): T;
         }
         export enum cocos_3d_physics_physic_enum_ETransformSource {
-            SCENE,
-            PHYSIC
+            SCENE = 0,
+            PHYSIC = 1
         }
         class cocos_3d_framework_physics_detail_physics_based_component_SharedRigidBody {
             private _body;
@@ -15756,7 +16807,24 @@ declare module "Cocos3D" {
             __preload(): void;
             onEnable(): void;
             onDisable(): void;
-            destroy(): void;
+            onDestroy(): void;
+            /**
+                     *  @return group ∈ [0, 31] (int)
+                     */ getGroup(): number;
+            /**
+                     * @param v ∈ [0, 31] (int)
+                     */ setGroup(v: number): void;
+            /**
+                     * @return (int)
+                     */ getMask(): number;
+            /**
+                     *  this will reset the mask
+                     * @param v ∈ [0, 31] (int)
+                     */ setMask(v: number): void;
+            /**
+                     * this will add a mask
+                     * @param v ∈ [0, 31] (int)
+                     */ addMask(v: number): void;
             private _refSharedBody;
         }
         export class cocos_3d_framework_physics_collider_component_ColliderComponentBase extends cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent {
@@ -15772,7 +16840,7 @@ declare module "Cocos3D" {
             onLoad(): void;
             onEnable(): void;
             onDisable(): void;
-            destroy(): void;
+            onDestroy(): void;
         }
         export class cocos_3d_framework_particle_animator_gradient_ColorKey {
             color: any;
@@ -15783,9 +16851,13 @@ declare module "Cocos3D" {
             time: number;
         }
         export class cocos_3d_framework_particle_animator_gradient_default {
+            static Mode: {
+                Blend: number;
+                Fixed: number;
+            };
             colorKeys: cocos_3d_framework_particle_animator_gradient_ColorKey[];
             alphaKeys: cocos_3d_framework_particle_animator_gradient_AlphaKey[];
-            mode: any;
+            mode: number;
             private _color;
             constructor();
             setKeys(colorKeys: cocos_3d_framework_particle_animator_gradient_ColorKey[], alphaKeys: cocos_3d_framework_particle_animator_gradient_AlphaKey[]): void;
@@ -15796,8 +16868,15 @@ declare module "Cocos3D" {
             randomColor(): Color;
         }
         export class cocos_3d_framework_particle_animator_gradient_range_default {
+            static Mode: {
+                Color: number;
+                Gradient: number;
+                TwoColors: number;
+                TwoGradients: number;
+                RandomColor: number;
+            };
             private _mode;
-            mode: any;
+            mode: number;
             color: any;
             colorMin: any;
             colorMax: any;
@@ -15807,7 +16886,13 @@ declare module "Cocos3D" {
             evaluate(time: number, rndRatio: number): any;
         }
         export class cocos_3d_framework_particle_animator_curve_range_default {
-            mode: any;
+            static Mode: {
+                Constant: number;
+                Curve: number;
+                TwoCurves: number;
+                TwoConstants: number;
+            };
+            mode: number;
             curve: geometry.AnimationCurve;
             curveMin: geometry.AnimationCurve;
             curveMax: geometry.AnimationCurve;
@@ -15855,10 +16940,10 @@ declare module "Cocos3D" {
                      */ enable: boolean;
             /**
                      * 粒子发射器类型
-                     */ shapeType: any;
+                     */ shapeType: number;
             /**
                      * 粒子从发射器哪个部位发射
-                     */ emitFrom: any;
+                     */ emitFrom: number;
             private _position;
             /**
                      * 粒子发射器位置
@@ -15898,7 +16983,7 @@ declare module "Cocos3D" {
                      */ arc: number;
             /**
                      * 粒子在扇形范围内的发射方式
-                     */ arcMode: any;
+                     */ arcMode: number;
             /**
                      * 控制可能产生粒子的弧周围的离散间隔。
                      */ arcSpread: number;
@@ -15967,7 +17052,7 @@ declare module "Cocos3D" {
                      */ speedModifier: cocos_3d_framework_particle_animator_curve_range_default;
             /**
                      * 速度计算时采用的坐标系
-                     */ space: any;
+                     */ space: number;
             private rotation;
             private needTransform;
             constructor();
@@ -15989,7 +17074,7 @@ declare module "Cocos3D" {
                      */ z: cocos_3d_framework_particle_animator_curve_range_default;
             /**
                      * 加速度计算时采用的坐标系
-                     */ space: any;
+                     */ space: number;
             randomized: boolean;
             private rotation;
             private needTransform;
@@ -16021,7 +17106,7 @@ declare module "Cocos3D" {
                      */ separateAxes: boolean;
             /**
                      * 计算速度下限时采用的坐标系
-                     */ space: any;
+                     */ space: number;
             drag: null;
             multiplyDragByParticleSize: boolean;
             multiplyDragByParticleVelocity: boolean;
@@ -16056,7 +17141,7 @@ declare module "Cocos3D" {
             private _mode;
             /**
                      * 设定粒子贴图动画的类型（暂只支持 Grid 模式）
-                     */ mode: any;
+                     */ mode: number;
             /**
                      * X 方向动画帧数
                      */ numTilesX: number;
@@ -16065,7 +17150,7 @@ declare module "Cocos3D" {
                      */ numTilesY: number;
             /**
                      * 动画播放方式
-                     */ animation: any;
+                     */ animation: number;
             /**
                      * 一个周期内动画播放的帧与时间变化曲线
                      */ frameOverTime: cocos_3d_framework_particle_animator_curve_range_default;
@@ -16100,7 +17185,7 @@ declare module "Cocos3D" {
             _enable: boolean;
             /**
                      * 设定粒子生成轨迹的方式
-                     */ mode: any;
+                     */ mode: number;
             /**
                      * 设定粒子中生成轨迹的比例
                      */ ratio: number;
@@ -16113,16 +17198,18 @@ declare module "Cocos3D" {
             _minParticleDistance: number;
             /**
                      * 轨迹设定时的坐标系
-                     */ space: any;
+                     */ private _space;
+            space: number;
             /**
                      * 粒子本身是否存在
                      */ existWithParticles: boolean;
             /**
                      * 设定纹理填充方式
-                     */ textureMode: any;
+                     */ textureMode: number;
             /**
                      * 控制轨迹长度的曲线
                      */ widthRatio: cocos_3d_framework_particle_animator_curve_range_default;
+            colorOverTrail: cocos_3d_framework_particle_animator_gradient_range_default;
             private _particleSystem;
             private _minSquaredDistance;
             private _vertSize;
@@ -16140,6 +17227,8 @@ declare module "Cocos3D" {
             private _vbF32;
             private _vbUint32;
             private _iBuffer;
+            private _needTransform;
+            private _defaultMat;
             constructor();
             init(ps: any): void;
             onEnable(): void;
@@ -16155,20 +17244,70 @@ declare module "Cocos3D" {
             private _fillVertexBuffer;
             updateIA(count: number): void;
         }
+        export class cocos_3d_framework_particle_renderer_particle_system_renderer_default {
+            /**
+                     * 设定粒子生成模式
+                     */ renderMode: number;
+            /**
+                     * 在粒子生成方式为 StrecthedBillboard 时,对粒子在运动方向上按速度大小进行拉伸
+                     */ velocityScale: number;
+            /**
+                     * 在粒子生成方式为 StrecthedBillboard 时,对粒子在运动方向上按粒子大小进行拉伸
+                     */ lengthScale: number;
+            private _renderMode;
+            private _velocityScale;
+            private _lengthScale;
+            private _mesh;
+            /**
+                     * 粒子模型
+                     */ mesh: Mesh | null;
+            particleMaterial: any;
+            trailMaterial: any;
+            private _defines;
+            private _trailDefines;
+            private _model;
+            private frameTile_velLenScale;
+            private attrs;
+            private _vertAttrs;
+            private particleSystem;
+            private _particles;
+            private _defaultMat;
+            private _isAssetReady;
+            private _defaultTrailMat;
+            constructor();
+            onInit(ps: any): void;
+            onEnable(): void;
+            onDisable(): void;
+            onDestroy(): void;
+            clear(): void;
+            _getFreeParticle(): cocos_3d_framework_particle_particle_default | null;
+            _setNewParticle(p: cocos_3d_framework_particle_particle_default): void;
+            _updateParticles(dt: number): void;
+            _updateRenderData(): void;
+            updateShaderUniform(): void;
+            getParticleCount(): number;
+            _onMaterialModified(index: number, material: Material): void;
+            _onRebuildPSO(index: number, material: Material): void;
+            protected _ensureLoadMesh(): void;
+            protected _assetReady(): void;
+            private _setVertexAttrib;
+            private _updateMaterialParams;
+            private _updateTrailMaterial;
+            private _updateModel;
+        }
         interface cocos_3d_memop_linked_array_INode {
             _prev: cocos_3d_memop_linked_array_INode;
             _next: cocos_3d_memop_linked_array_INode;
         }
         type cocos_3d_memop_linked_array_NodeAllocator = () => cocos_3d_memop_linked_array_INode;
         /**
-             * !#en Enum for transition type.
-             * !#zh 过渡类型
-             * @enum Button.Transition
+             * @zh
+             * 过渡类型
              */ enum cocos_3d_ui_components_button_component_Transition {
-            NONE,
-            COLOR,
-            SPRITE,
-            SCALE
+            NONE = 0,
+            COLOR = 1,
+            SPRITE = 2,
+            SCALE = 3
         }
         /**
              * !#en Enum for keyboard return types
@@ -16176,12 +17315,12 @@ declare module "Cocos3D" {
              * @readonly
              * @enum EditBox.KeyboardReturnType
              */ export enum cocos_3d_ui_components_editbox_types_KeyboardReturnType {
-            DEFAULT,
-            DONE,
-            SEND,
-            SEARCH,
-            GO,
-            NEXT
+            DEFAULT = 0,
+            DONE = 1,
+            SEND = 2,
+            SEARCH = 3,
+            GO = 4,
+            NEXT = 5
         }
         /**
              * !#en Enum for the EditBox's input flags
@@ -16189,12 +17328,12 @@ declare module "Cocos3D" {
              * @readonly
              * @enum EditBox.InputFlag
              */ export enum cocos_3d_ui_components_editbox_types_InputFlag {
-            PASSWORD,
-            SENSITIVE,
-            INITIAL_CAPS_WORD,
-            INITIAL_CAPS_SENTENCE,
-            INITIAL_CAPS_ALL_CHARACTERS,
-            DEFAULT
+            PASSWORD = 0,
+            SENSITIVE = 1,
+            INITIAL_CAPS_WORD = 2,
+            INITIAL_CAPS_SENTENCE = 3,
+            INITIAL_CAPS_ALL_CHARACTERS = 4,
+            DEFAULT = 5
         }
         /**
              * !#en The EditBox's InputMode defines the type of text that the user is allowed to enter.
@@ -16202,13 +17341,13 @@ declare module "Cocos3D" {
              * @readonly
              * @enum EditBox.InputMode
              */ export enum cocos_3d_ui_components_editbox_types_InputMode {
-            ANY,
-            EMAIL_ADDR,
-            NUMERIC,
-            PHONE_NUMBER,
-            URL,
-            DECIMAL,
-            SINGLE_LINE
+            ANY = 0,
+            EMAIL_ADDR = 1,
+            NUMERIC = 2,
+            PHONE_NUMBER = 3,
+            URL = 4,
+            DECIMAL = 5,
+            SINGLE_LINE = 6
         }
         export class cocos_3d_ui_components_editbox_edit_box_impl_EditBoxImpl {
             _delegate: EditBoxComponent | null;
@@ -16276,127 +17415,112 @@ declare module "Cocos3D" {
             removeDom(): void;
         }
         /**
-             * !#en Enum for Layout type
-             * !#zh 布局类型
-             * @enum Layout.Type
+             * @zh
+             * 布局类型。
              */ enum cocos_3d_ui_components_layout_component_Type {
-            NONE,
-            HORIZONTAL,
-            VERTICAL,
-            GRID
+            NONE = 0,
+            HORIZONTAL = 1,
+            VERTICAL = 2,
+            GRID = 3
         }
         /**
-             * !#en Enum for Layout Resize Mode
-             * !#zh 缩放模式
-             * @enum Layout.ResizeMode
+             * @zh
+             * 缩放模式
              */ enum cocos_3d_ui_components_layout_component_ResizeMode {
-            NONE,
-            CONTAINER,
-            CHILDREN
+            NONE = 0,
+            CONTAINER = 1,
+            CHILDREN = 2
         }
         /**
-             * !#en Enum for Grid Layout start axis direction.
-             * The items in grid layout will be arranged in each axis at first.;
-             * !#zh 布局轴向，只用于 GRID 布局。
-             * @enum Layout.AxisDirection
+             * @zh
+             * 布局轴向，只用于 GRID 布局。
              */ enum cocos_3d_ui_components_layout_component_AxisDirection {
-            HORIZONTAL,
-            VERTICAL
+            HORIZONTAL = 0,
+            VERTICAL = 1
         }
         /**
-             * !#en Enum for vertical layout direction.
-             *  Used in Grid Layout together with AxisDirection is VERTICAL
-             * !#zh 垂直方向布局方式
-             * @enum Layout.VerticalDirection
+             * @zh
+             * 垂直方向布局方式。
              */ enum cocos_3d_ui_components_layout_component_VerticalDirection {
-            BOTTOM_TO_TOP,
-            TOP_TO_BOTTOM
+            BOTTOM_TO_TOP = 0,
+            TOP_TO_BOTTOM = 1
         }
         /**
-             * !#en Enum for horizontal layout direction.
-             *  Used in Grid Layout together with AxisDirection is HORIZONTAL
-             * !#zh 水平方向布局方式
-             * @enum Layout.HorizontalDirection
+             * @zh
+             * 水平方向布局方式。
              */ enum cocos_3d_ui_components_layout_component_HorizontalDirection {
-            LEFT_TO_RIGHT,
-            RIGHT_TO_LEFT
+            LEFT_TO_RIGHT = 0,
+            RIGHT_TO_LEFT = 1
         }
         /**
-             * !#en the type for mask.
-             * !#zh 遮罩组件类型
+             * @zh 遮罩组件类型
              */ export enum cocos_3d_ui_components_mask_component_MaskType {
-            RECT,
-            ELLIPSE
+            RECT = 0,
+            ELLIPSE = 1
         }
         /**
-             * !#en Enum for ProgressBar mode
-             * !#zh 进度条模式
-             * @enum ProgressBar.Mode
+             * @zh
+             * 进度条模式
              */ enum cocos_3d_ui_components_progress_bar_component_Mode {
-            HORIZONTAL,
-            VERTICAL,
-            FILLED
+            HORIZONTAL = 0,
+            VERTICAL = 1,
+            FILLED = 2
         }
         /**
-             * Enum for Scrollbar direction
-             * @enum Scrollbar.Direction
+             * @zh
+             * 滚动条方向。
              */ enum cocos_3d_ui_components_scroll_bar_component_Direction {
-            HORIZONTAL,
-            VERTICAL
+            HORIZONTAL = 0,
+            VERTICAL = 1
         }
         /**
-             * !#en Enum for ScrollView event type.
-             * !#zh 滚动视图事件类型
-             * @enum ScrollView.EventType
+             * @zh
+             * 滚动视图事件类型。
              */ enum cocos_3d_ui_components_scroll_view_component_EventType {
-            SCROLL_TO_TOP,
-            SCROLL_TO_BOTTOM,
-            SCROLL_TO_LEFT,
-            SCROLL_TO_RIGHT,
-            SCROLLING,
-            BOUNCE_TOP,
-            BOUNCE_BOTTOM,
-            BOUNCE_LEFT,
-            BOUNCE_RIGHT,
-            SCROLL_ENDED,
-            TOUCH_UP,
-            AUTOSCROLL_ENDED_WITH_THRESHOLD,
-            SCROLL_BEGAN
+            SCROLL_TO_TOP = 0,
+            SCROLL_TO_BOTTOM = 1,
+            SCROLL_TO_LEFT = 2,
+            SCROLL_TO_RIGHT = 3,
+            SCROLLING = 4,
+            BOUNCE_TOP = 5,
+            BOUNCE_BOTTOM = 6,
+            BOUNCE_LEFT = 7,
+            BOUNCE_RIGHT = 8,
+            SCROLL_ENDED = 9,
+            TOUCH_UP = 10,
+            AUTOSCROLL_ENDED_WITH_THRESHOLD = 11,
+            SCROLL_BEGAN = 12
         }
         /**
-             * !#en The Slider Direction
-             * !#zh 滑动器方向
-             * @enum Slider.Direction
+             * @zh
+             * 滑动器方向
              */ enum cocos_3d_ui_components_slider_component_Direction {
-            Horizontal,
-            Vertical
+            Horizontal = 0,
+            Vertical = 1
         }
         /**
-             * !#en Enum for sprite type.
-             * !#zh Sprite 类型
-             * @enum Sprite.Type
+             * @zh
+             * Sprite 类型
              */ enum cocos_3d_ui_components_sprite_component_SpriteType {
-            SIMPLE,
-            SLICED,
-            FILLED
+            SIMPLE = 0,
+            SLICED = 1,
+            FILLED = 3
         }
         /**
-             * !#en Enum for fill type.
-             * !#zh 填充类型
-             * @enum Sprite.FillType
+             * @zh
+             * 填充类型
              */ enum cocos_3d_ui_components_sprite_component_FillType {
-            HORIZONTAL,
-            VERTICAL,
-            RADIAL
+            HORIZONTAL = 0,
+            VERTICAL = 1,
+            RADIAL = 2
         }
         /**
-             * !#en Sprite Size can track trimmed size, raw size or none.
-             * !#zh 精灵尺寸调整模式
-             * @enum Sprite.SizeMode
+             * @zh
+             * 精灵尺寸调整模式
              */ enum cocos_3d_ui_components_sprite_component_SizeMode {
-            CUSTOM,
-            TRIMMED,
-            RAW
+            CUSTOM = 0,
+            TRIMMED = 1,
+            RAW = 2
         }
         export interface cocos_renderer_ui_renderData_IRenderData {
             x: number;
@@ -16421,6 +17545,7 @@ declare module "Cocos3D" {
             static remove(idx: number): void;
             uvDirty: boolean;
             vertDirty: boolean;
+            rect: Rect;
             private _datas;
             private _indices;
             private _pivotX;
@@ -16430,60 +17555,44 @@ declare module "Cocos3D" {
             updateSizeNPivot(width: number, height: number, pivotX: number, pivotY: number): void;
             clear(): void;
         }
-        export enum cocos_3d_ui_components_ui_render_component_InstanceMaterialType {
-            ADDCOLOR,
-            ADDCOLORANDTEXTURE
+        /**
+             * @zh
+             * 实例后的材质的着色器属性类型
+             */ export enum cocos_3d_ui_components_ui_render_component_InstanceMaterialType {
+            ADDCOLOR = 0,
+            ADDCOLORANDTEXTURE = 1
         }
         export enum cocos_3d_ui_components_webview_webview_impl_WebViewEventType {
-            LOADING,
-            LOADED,
-            ERROR,
-            JS_EVALUATED
+            LOADING = 0,
+            LOADED = 1,
+            ERROR = 2,
+            JS_EVALUATED = 3
         }
         /**
-             * !#en Enum for Widget's alignment mode, indicating when the widget should refresh.
-             * !#zh Widget 的对齐模式，表示 Widget 应该何时刷新。
-             * @enum Widget.AlignMode
-             */ /**
-             * !#en
-             * Only align once when the Widget is enabled for the first time.
-             * This will allow the script or animation to continue controlling the current node.
-             * It will only be aligned once before the end of frame when onEnable is called,
-             * then immediately disables the Widget.
-             * !#zh
-             * 仅在 Widget 第一次激活时对齐一次，便于脚本或动画继续控制当前节点。
-             * 开启后会在 onEnable 时所在的那一帧结束前对齐一次，然后立刻禁用该 Widget。
-             * @property {Number} ONCE
-             */ /**
-             * !#en Align first from the beginning as ONCE, and then realign it every time the window is resized.
-             * !#zh 一开始会像 ONCE 一样对齐一次，之后每当窗口大小改变时还会重新对齐。
-             * @property {Number} ON_WINDOW_RESIZE
-             */ /**
-             * !#en Keep aligning all the way.
-             * !#zh 始终保持对齐。
-             * @property {Number} ALWAYS
+             * @zh
+             * Widget 的对齐模式，表示 Widget 应该何时刷新。
              */ export enum cocos_3d_ui_components_widget_component_AlignMode {
-            ONCE,
-            ON_WINDOW_RESIZE,
-            ALWAYS
+            ONCE = 0,
+            ON_WINDOW_RESIZE = 1,
+            ALWAYS = 2
         }
         /**
              * !#en Enum for LineJoin.
              * !#zh 线段拐角属性
              * @enum Graphics.LineJoin
              */ export enum cocos_3d_ui_assembler_graphics_types_LineJoin {
-            BEVEL,
-            ROUND,
-            MITER
+            BEVEL = 0,
+            ROUND = 1,
+            MITER = 2
         }
         /**
              * !#en Enum for LineCap.
              * !#zh 线段末端属性
              * @enum Graphics.LineCap
              */ export enum cocos_3d_ui_assembler_graphics_types_LineCap {
-            BUTT,
-            ROUND,
-            SQUARE
+            BUTT = 0,
+            ROUND = 1,
+            SQUARE = 2
         }
         export class cocos_3d_ui_assembler_graphics_webgl_impl_Point extends Vec2 {
             dx: number;
@@ -16515,10 +17624,10 @@ declare module "Cocos3D" {
             reset(): void;
         }
         export enum cocos_3d_ui_assembler_graphics_types_PointFlags {
-            PT_CORNER,
-            PT_LEFT,
-            PT_BEVEL,
-            PT_INNERBEVEL
+            PT_CORNER = 1,
+            PT_LEFT = 2,
+            PT_BEVEL = 4,
+            PT_INNERBEVEL = 8
         }
         export class cocos_3d_ui_assembler_graphics_webgl_impl_Impl {
             dataOffset: number;
@@ -16556,15 +17665,18 @@ declare module "Cocos3D" {
             addPoint(x: number, y: number, flags: cocos_3d_ui_assembler_graphics_types_PointFlags): void;
             private _addPath;
         }
-        export enum cocos_3d_ui_components_widget_component_AlignFlags {
-            TOP,
-            MID,
-            BOT,
-            LEFT,
-            CENTER,
-            RIGHT,
-            HORIZONTAL,
-            VERTICAL
+        /**
+             * @zh
+             * Widget 的对齐标志，表示 Widget 选择对齐状态。
+             */ export enum cocos_3d_ui_components_widget_component_AlignFlags {
+            TOP = 1,
+            MID = 2,
+            BOT = 4,
+            LEFT = 8,
+            CENTER = 16,
+            RIGHT = 32,
+            HORIZONTAL = 56,
+            VERTICAL = 7
         }
         function cocos_3d_ui_components_widget_manager_updateAlignment(node: Node): void;
         export class cocos_3d_ui_assembler_label_letter_font_LetterRenderTexture extends Texture2D {
@@ -16577,7 +17689,7 @@ declare module "Cocos3D" {
                      * @param [height]
                      * @param [string]
                      * @method initWithSize
-                     */ initWithSize(width: number, height: number, format?: cocos_gfx_define_GFXFormat): void;
+                     */ initWithSize(width: number, height: number, format?: GFXFormat): void;
             /**
                      * !#en Draw a texture to the specified position
                      * !#zh 将指定的图片渲染到指定的位置上

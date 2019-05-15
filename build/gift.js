@@ -340,7 +340,7 @@ class BundleGenerator {
     }
     _dumpEnumDeclaration(enumDeclaration, symbol, newName) {
         return typescript_1.default.createEnumDeclaration(undefined, this._dumpModifiers(enumDeclaration), newName, enumDeclaration.members.map((enumerator) => {
-            return typescript_1.default.createEnumMember(enumerator.name.getText(), undefined);
+            return typescript_1.default.createEnumMember(enumerator.name.getText(), this._dumpExpression(enumerator.initializer));
         }));
     }
     _dumpTypeAliasDeclaration(typeAliasDeclaration, symbol, newName) {
@@ -429,6 +429,28 @@ class BundleGenerator {
     }
     _dumpToken(token) {
         return token ? typescript_1.default.createToken(token.kind) : undefined;
+    }
+    // Only literals are supported
+    _dumpExpression(expression) {
+        if (!expression) {
+            return undefined;
+        }
+        if (typescript_1.default.isStringLiteral(expression)) {
+            return typescript_1.default.createStringLiteral(expression.text);
+        }
+        else if (typescript_1.default.isNumericLiteral(expression)) {
+            return typescript_1.default.createNumericLiteral(expression.text);
+        }
+        else if (expression.kind === typescript_1.default.SyntaxKind.TrueKeyword) {
+            return typescript_1.default.createTrue();
+        }
+        else if (expression.kind === typescript_1.default.SyntaxKind.FalseKeyword) {
+            return typescript_1.default.createFalse();
+        }
+        else if (expression.kind === typescript_1.default.SyntaxKind.NullKeyword) {
+            return typescript_1.default.createNull();
+        }
+        return undefined;
     }
     _getInf(symbol) {
         if (symbol.flags & typescript_1.default.SymbolFlags.TypeParameter) {
