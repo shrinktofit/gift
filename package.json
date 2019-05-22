@@ -1,6 +1,6 @@
 {
   "name": "tfig",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",
@@ -16,6 +16,9 @@
       "declaration",
       "dts"
   ],
+  "bin": {
+      "gift-cli": "./build/gift-cli.js"
+  },
   "author": "Leslie Leigh",
   "license": "MIT",
   "dependencies": {
