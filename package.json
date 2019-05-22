@@ -1,6 +1,6 @@
 {
   "name": "tfig",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",
@@ -11,6 +11,11 @@
     "type": "git",
     "url": "https://github.com/shrinktofit/gift"
   },
+  "keywords": [
+      "bundle",
+      "declaration",
+      "dts"
+  ],
   "author": "Leslie Leigh",
   "license": "MIT",
   "dependencies": {
