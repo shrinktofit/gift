@@ -1,11 +1,15 @@
 {
   "name": "tfig",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shrinktofit/gift"
   },
   "author": "Leslie Leigh",
   "license": "MIT",
