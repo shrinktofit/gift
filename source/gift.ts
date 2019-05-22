@@ -8,6 +8,7 @@ export interface IOptions {
     output: string;
     name: string;
     rootModule: string;
+    exportPrivates?: string;
     shelterName?: string;
 }
 
@@ -402,6 +403,9 @@ class BundleGenerator {
         const classElements: ts.ClassElement[] = [];
         // console.log(`Dump class ${newName}`);
         for (const element of classDeclaration.members) {
+            if (!this._options.exportPrivates && this._isPrivateMember(element)) {
+                continue;
+            }
             // const name = typeof element.name === 'string' ? typeof element.name :
             //     (element.name ? element.name.getText() : '');
             // console.log(`  Dump member ${name}`);
@@ -421,6 +425,13 @@ class BundleGenerator {
             this._dumpHeritageClauses(classDeclaration.heritageClauses),
             classElements,
         );
+    }
+
+    private _isPrivateMember(classElement: ts.ClassElement) {
+        if (!classElement.modifiers) {
+            return false;
+        }
+        return classElement.modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.PrivateKeyword);
     }
 
     private _dumpInterfaceDeclaration(

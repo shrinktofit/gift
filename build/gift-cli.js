@@ -19,8 +19,10 @@ function main() {
     yargs.alias('n', 'name').describe('n', 'The generated module name.');
     yargs.alias('o', 'output').describe('o', 'The output file.');
     yargs.alias('u', 'shelter-name').describe('u', 'Name of the unexported symbols\' namespace.(defaulted to "__internal")');
+    yargs.alias('p', 'export-privates').describe('p', 'Indicates whether export private members of class.');
+    yargs.help();
     const argv = yargs.parse(process.argv);
-    const { i, n, o, r, u } = argv;
+    const { i, n, o, r, u, p } = argv;
     let name;
     if (typeof n === 'string') {
         name = n;
@@ -51,6 +53,7 @@ function main() {
         output,
         rootModule: r,
         shelterName: u,
+        exportPrivates: p,
     };
     const bundleResult = gift_1.bundle(options);
     if (bundleResult.error !== gift_1.GiftErrors.Ok) {

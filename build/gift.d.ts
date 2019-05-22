@@ -3,6 +3,7 @@ export interface IOptions {
     output: string;
     name: string;
     rootModule: string;
+    exportPrivates?: string;
     shelterName?: string;
 }
 export interface IBundleResult {

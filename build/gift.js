@@ -272,6 +272,9 @@ class BundleGenerator {
         const classElements = [];
         // console.log(`Dump class ${newName}`);
         for (const element of classDeclaration.members) {
+            if (!this._options.exportPrivates && this._isPrivateMember(element)) {
+                continue;
+            }
             // const name = typeof element.name === 'string' ? typeof element.name :
             //     (element.name ? element.name.getText() : '');
             // console.log(`  Dump member ${name}`);
@@ -286,6 +289,12 @@ class BundleGenerator {
             }
         }
         return typescript_1.default.createClassDeclaration(undefined, this._dumpModifiers(classDeclaration), newName, this._dumpTypeParameterArray(classDeclaration.typeParameters), this._dumpHeritageClauses(classDeclaration.heritageClauses), classElements);
+    }
+    _isPrivateMember(classElement) {
+        if (!classElement.modifiers) {
+            return false;
+        }
+        return classElement.modifiers.some((modifier) => modifier.kind === typescript_1.default.SyntaxKind.PrivateKeyword);
     }
     _dumpInterfaceDeclaration(interfaceDeclaration, symbol, newName) {
         return typescript_1.default.createInterfaceDeclaration(undefined, this._dumpModifiers(interfaceDeclaration), newName, this._dumpTypeParameterArray(interfaceDeclaration.typeParameters), this._dumpHeritageClauses(interfaceDeclaration.heritageClauses), this._dumpTypeElements(interfaceDeclaration.members));
