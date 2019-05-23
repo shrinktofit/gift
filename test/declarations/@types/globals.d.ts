@@ -37,7 +37,51 @@ declare const CC_QQPLAY: boolean;
 declare const CC_RUNTIME: boolean;
 declare const CC_SUPPORT_JIT: boolean;
 
-declare const cc : {
+declare const jsb: any;
+
+declare const CC_PHYISCS_CANNON: boolean;
+declare const CC_PHYISCS_AMMO: boolean;
+declare const CC_PHYISCS_BUILT_IN: boolean;
+
+interface Window {
+    mozRequestAnimationFrame (callback: any, element?: any): any;
+    oRequestAnimationFrame (callback: any, element?: any): any;
+    msRequestAnimationFrame (callback: any, element?: any): any;
+    cancelRequestAnimationFrame (callback: any, element?: any): any;
+    msCancelRequestAnimationFrame (callback: any, element?: any): any;
+    mozCancelRequestAnimationFrame (callback: any, element?: any): any;
+    oCancelRequestAnimationFrame (callback: any, element?: any): any;
+    webkitCancelRequestAnimationFrame (callback: any, element?: any): any;
+    msCancelAnimationFrame (callback: any, element?: any): any;
+    mozCancelAnimationFrame (callback: any, element?: any): any;
+    ocancelAnimationFrame (callback: any, element?: any): any;
+
+    WebGL2RenderingContext: any;
+
+    sharedCanvas:any;
+    __canvas:any;
+    canvas:any;
+
+    XMLHttpRequest:any;
+}
+
+interface Document{
+    mozHidden: any;
+    msHidden: any;
+    webkitHidden: any;
+}
+
+interface HTMLElement{
+    content: any;
+    name: any;
+}
+
+interface ActiveXObject {
+    new (s: string): any;
+}
+declare var ActiveXObject: ActiveXObject;
+
+declare const cc: {
     // polyfills: {
     //     destroyObject? (object: any): void;
     // };
@@ -61,5 +105,9 @@ declare namespace Editor {
     function log (message?: any, ...optionalParams: any[]): void;
     function error (message?: any, ...optionalParams: any[]): void;
     function warn (message?: any, ...optionalParams: any[]): void;
+    function require (str: String): any;
     const isMainProcess: boolean | undefined;
+    const Ipc: any;
+    const Utils: any;
+    const assets: any;
 }

@@ -2071,6 +2071,7 @@ declare module "cocos/core/vmath/mat4" {
         /**
          * Decompose an affine matrix to a quaternion rotation, a translation offset and a scale vector.
          * Assumes the transformation is combined in the order of Scale -> Rotate -> Translate.
+         * Not applicable when containing negative scaling.
          * @param m - Matrix to decompose.
          * @param q - Resulting rotation quaternion.
          * @param v - Resulting translation offset.
@@ -7599,6 +7600,526 @@ declare module "cocos/core/event/event-target" {
         once(type: string, callback: Function, target?: Object): Function | undefined;
     }
 }
+declare module "cocos/core/platform/event-manager/CCTouch" {
+    /****************************************************************************
+     Copyright (c) 2013-2016 Chukong Technologies Inc.
+     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+    
+     http://www.cocos.com
+    
+     Permission is hereby granted, free of charge, to any person obtaining a copy
+     of this software and associated engine source code (the "Software"), a limited,
+      worldwide, royalty-free, non-assignable, revocable and non-exclusive license
+     to use Cocos Creator solely to develop games on your target platforms. You shall
+      not use Cocos Creator software for developing other software or tools that's
+      used for developing games. You are not granted to publish, distribute,
+      sublicense, and/or sell copies of Cocos Creator.
+    
+     The software or tools in this License Agreement are licensed, not sold.
+     Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
+    
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+     THE SOFTWARE.
+     ****************************************************************************/
+    import { Vec2 } from "cocos/core/value-types/index";
+    /**
+     * !#en The touch event class
+     * !#zh 封装了触摸相关的信息。
+     * @class Touch
+     *
+     * @param {Number} x
+     * @param {Number} y
+     * @param {Number} id
+     */
+    export default class Touch {
+        _point: Vec2;
+        _prevPoint: Vec2;
+        _lastModified: number;
+        private _id;
+        private _startPoint;
+        private _startPointCaptured;
+        constructor(x: number, y: number, id?: number | null);
+        /**
+         * !#en Returns the current touch location in OpenGL coordinates.、
+         * !#zh 获取当前触点位置。
+         */
+        getLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns X axis location value.
+         * !#zh 获取当前触点 X 轴位置。
+         */
+        getLocationX(): number;
+        /**
+         * !#en Returns Y axis location value.
+         * !#zh 获取当前触点 Y 轴位置。
+         */
+        getLocationY(): number;
+        /**
+         * !#en Returns the current touch location in OpenGL coordinates.、
+         * !#zh 获取当前触点位置。
+         */
+        getUILocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns X axis location value.
+         * !#zh 获取当前触点 X 轴位置。
+         */
+        getUILocationX(): number;
+        /**
+         * !#en Returns Y axis location value.
+         * !#zh 获取当前触点 Y 轴位置。
+         */
+        getUILocationY(): number;
+        /**
+         * !#en Returns the previous touch location in OpenGL coordinates.
+         * !#zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         */
+        getPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the previous touch location in OpenGL coordinates.
+         * !#zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         */
+        getUIPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the start touch location in OpenGL coordinates.
+         * !#zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
+         */
+        getStartLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the start touch location in OpenGL coordinates.
+         * !#zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
+         */
+        getUIStartLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the delta distance from the previous touche to the current one in screen coordinates.
+         * !#zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
+         */
+        getDelta(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the delta distance from the previous touche to the current one in screen coordinates.
+         * !#zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
+         */
+        getUIDelta(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the current touch location in screen coordinates.
+         * !#zh 获取当前事件在游戏窗口内的坐标位置对象，对象包含 x 和 y 属性。
+         */
+        getLocationInView(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the previous touch location in screen coordinates.
+         * !#zh 获取触点在上一次事件时在游戏窗口中的位置对象，对象包含 x 和 y 属性。
+         */
+        getPreviousLocationInView(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the start touch location in screen coordinates.
+         * !#zh 获取触点落下时在游戏窗口中的位置对象，对象包含 x 和 y 属性。
+         */
+        getStartLocationInView(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the id of cc.Touch.
+         * !#zh 触点的标识 ID，可以用来在多点触摸中跟踪触点。
+         */
+        getID(): number | null;
+        /**
+         * !#en Sets information to touch.
+         * !#zh 设置触摸相关的信息。用于监控触摸事件。
+         */
+        setTouchInfo(id?: number | null, x?: number, y?: number): void;
+        _setPoint(point: Vec2): void;
+        _setPoint(x: number, y: number): void;
+        _setPrevPoint(point: Vec2): void;
+        _setPrevPoint(x: number, y: number): void;
+    }
+}
+declare module "cocos/core/platform/event-manager/CCEvent" {
+    /****************************************************************************
+     Copyright (c) 2013-2016 Chukong Technologies Inc.
+     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+    
+     http://www.cocos.com
+    
+     Permission is hereby granted, free of charge, to any person obtaining a copy
+     of this software and associated engine source code (the "Software"), a limited,
+     worldwide, royalty-free, non-assignable, revocable and non-exclusive license
+     to use Cocos Creator solely to develop games on your target platforms. You shall
+     not use Cocos Creator software for developing other software or tools that's
+     used for developing games. You are not granted to publish, distribute,
+     sublicense, and/or sell copies of Cocos Creator.
+    
+     The software or tools in this License Agreement are licensed, not sold.
+     Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
+    
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+     THE SOFTWARE.
+     ****************************************************************************/
+    import Event from "cocos/core/event/event";
+    import { Vec2 } from "cocos/core/value-types/index";
+    import Touch from "cocos/core/platform/event-manager/CCTouch";
+    /**
+     * !#en The mouse event
+     * !#zh 鼠标事件类型
+     * @class Event.EventMouse
+     * @extends Event
+     */
+    export class EventMouse extends Event {
+        /**
+         * !#en The none event code of mouse event.
+         * !#zh 无。
+         */
+        static NONE: number;
+        /**
+         * !#en The event type code of mouse down event.
+         * !#zh 鼠标按下事件。
+         */
+        static DOWN: number;
+        /**
+         * !#en The event type code of mouse up event.
+         * !#zh 鼠标按下后释放事件。
+         */
+        static UP: number;
+        /**
+         * !#en The event type code of mouse move event.
+         * !#zh 鼠标移动事件。
+         */
+        static MOVE: number;
+        /**
+         * !#en The event type code of mouse scroll event.
+         * !#zh 鼠标滚轮事件。
+         */
+        static SCROLL: number;
+        /**
+         * !#en The tag of Mouse left button.
+         * !#zh 鼠标左键的标签。
+         */
+        static BUTTON_LEFT: number;
+        /**
+         * !#en The tag of Mouse right button  (The right button number is 2 on browser).
+         * !#zh 鼠标右键的标签。
+         */
+        static BUTTON_RIGHT: number;
+        /**
+         * !#en The tag of Mouse middle button  (The right button number is 1 on browser).
+         * !#zh 鼠标中键的标签。
+         */
+        static BUTTON_MIDDLE: number;
+        /**
+         * !#en The tag of Mouse button 4.
+         * !#zh 鼠标按键 4 的标签。
+         */
+        static BUTTON_4: number;
+        /**
+         * !#en The tag of Mouse button 5.
+         * !#zh 鼠标按键 5 的标签。
+         */
+        static BUTTON_5: number;
+        /**
+         * !#en The tag of Mouse button 6.
+         * !#zh 鼠标按键 6 的标签。
+         */
+        static BUTTON_6: number;
+        /**
+         * !#en The tag of Mouse button 7.
+         * !#zh 鼠标按键 7 的标签。
+         */
+        static BUTTON_7: number;
+        /**
+         * !#en The tag of Mouse button 8.
+         * !#zh 鼠标按键 8 的标签。
+         */
+        static BUTTON_8: number;
+        movementX: number;
+        movementY: number;
+        private _eventType;
+        private _button;
+        private _x;
+        private _y;
+        private _prevX;
+        private _prevY;
+        private _scrollX;
+        private _scrollY;
+        /**
+         * @param eventType - The mouse event type, UP, DOWN, MOVE, CANCELED
+         * @param [bubbles=false] - A boolean indicating whether the event bubbles up through the tree or not
+         */
+        constructor(eventType: number, bubbles?: boolean);
+        /**
+         * !#en Sets scroll data.
+         * !#zh 设置鼠标的滚动数据。
+         */
+        setScrollData(scrollX: number, scrollY: number): void;
+        /**
+         * !#en Returns the x axis scroll value.
+         * !#zh 获取鼠标滚动的X轴距离，只有滚动时才有效。
+         */
+        getScrollX(): number;
+        /**
+         * !#en Returns the y axis scroll value.
+         * !#zh 获取滚轮滚动的 Y 轴距离，只有滚动时才有效。
+         */
+        getScrollY(): number;
+        /**
+         * !#en Sets cursor location.
+         * !#zh 设置当前鼠标位置。
+         */
+        setLocation(x: number, y: number): void;
+        /**
+         * !#en Returns cursor location.
+         * !#zh 获取鼠标相对于左下角位置对象，对象包含 x 和 y 属性。
+         */
+        getLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the current cursor location in screen coordinates.
+         * !#zh 获取当前事件在游戏窗口内的坐标位置对象，对象包含 x 和 y 属性。
+         */
+        getLocationInView(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the current cursor location in ui coordinates.
+         * !#zh 获取当前事件在 UI 窗口内的坐标位置，对象包含 x 和 y 属性。
+         */
+        getUILocation(out?: Vec2): Vec2;
+        _setPrevCursor(x: number, y: number): void;
+        /**
+         * !#en Returns the previous touch location.
+         * !#zh 获取鼠标点击在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         */
+        getPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the previous touch location.
+         * !#zh 获取鼠标点击在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         */
+        getUIPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the delta distance from the previous location to current location.
+         * !#zh 获取鼠标距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
+         */
+        getDelta(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the X axis delta distance from the previous location to current location.
+         * !#zh 获取鼠标距离上一次事件移动的 X 轴距离。
+         */
+        getDeltaX(): number;
+        /**
+         * !#en Returns the Y axis delta distance from the previous location to current location.
+         * !#zh 获取鼠标距离上一次事件移动的 Y 轴距离。
+         */
+        getDeltaY(): number;
+        /**
+         * !#en Returns the delta distance from the previous location to current location.
+         * !#zh 获取鼠标距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
+         */
+        getUIDelta(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the X axis delta distance from the previous location to current location.
+         * !#zh 获取鼠标距离上一次事件移动的 X 轴距离。
+         */
+        getUIDeltaX(): number;
+        /**
+         * !#en Returns the Y axis delta distance from the previous location to current location.
+         * !#zh 获取鼠标距离上一次事件移动的 Y 轴距离。
+         */
+        getUIDeltaY(): number;
+        /**
+         * !#en Sets mouse button.
+         * !#zh 设置鼠标按键。
+         */
+        setButton(button: number | null): void;
+        /**
+         * !#en Returns mouse button.
+         * !#zh 获取鼠标按键。
+         */
+        getButton(): number | null;
+        /**
+         * !#en Returns location X axis data.
+         * !#zh 获取鼠标当前位置 X 轴。
+         */
+        getLocationX(): number;
+        /**
+         * !#en Returns location Y axis data.
+         * !#zh 获取鼠标当前位置 Y 轴。
+         */
+        getLocationY(): number;
+        /**
+         * !#en Returns location X axis data.
+         * !#zh 获取鼠标当前位置 X 轴。
+         */
+        getUILocationX(): number;
+        /**
+         * !#en Returns location Y axis data.
+         * !#zh 获取鼠标当前位置 Y 轴。
+         */
+        getUILocationY(): number;
+    }
+    /**
+     * !#en The touch event
+     * !#zh 触摸事件
+     * @class Event.EventTouch
+     * @constructor
+     * @extends Event
+     */
+    export class EventTouch extends Event {
+        /**
+         * !#en The maximum touch numbers
+         * !#zh 最大触摸数量。
+         */
+        static MAX_TOUCHES: number;
+        /**
+         * !#en The event type code of touch began event.
+         * !#zh 开始触摸事件
+         */
+        static BEGAN: number;
+        /**
+         * !#en The event type code of touch moved event.
+         * !#zh 触摸后移动事件
+         */
+        static MOVED: number;
+        /**
+         * !#en The event type code of touch ended event.
+         * !#zh 结束触摸事件
+         */
+        static ENDED: number;
+        /**
+         * !#en The event type code of touch cancelled event.
+         * !#zh 取消触摸事件
+         */
+        static CANCELLED: number;
+        /**
+         * !#en The current touch object
+         * !#zh 当前触点对象
+         */
+        touch: Touch | null;
+        currentTouch: Touch | null;
+        _eventCode: number;
+        simulate: boolean;
+        private _touches;
+        /**
+         * @param touches - The array of the touches
+         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
+         */
+        constructor(touches?: Touch[], bubbles?: boolean);
+        /**
+         * !#en Returns event code.
+         * !#zh 获取事件类型。
+         */
+        getEventCode(): number;
+        /**
+         * !#en Returns touches of event.
+         * !#zh 获取触摸点的列表。
+         */
+        getTouches(): Touch[];
+        _setEventCode(eventCode: number): void;
+        _setTouches(touches: Touch[]): void;
+        /**
+         * !#en Sets touch location.
+         * !#zh 设置当前触点位置
+         */
+        setLocation(x: number, y: number): void;
+        /**
+         * !#en Returns touch location.
+         * !#zh 获取触点位置。
+         */
+        getLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the current touch location in screen coordinates.
+         * !#zh 获取当前触点在游戏窗口中的位置。
+         */
+        getLocationInView(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the previous touch location.
+         * !#zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         */
+        getPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the start touch location.
+         * !#zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
+         */
+        getStartLocation(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the id of cc.Touch.
+         * !#zh 触点的标识 ID，可以用来在多点触摸中跟踪触点。
+         */
+        getID(): number | null;
+        /**
+         * !#en Returns the delta distance from the previous location to current location.
+         * !#zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
+         */
+        getDelta(out?: Vec2): Vec2;
+        /**
+         * !#en Returns the X axis delta distance from the previous location to current location.
+         * !#zh 获取触点距离上一次事件移动的 x 轴距离。
+         */
+        getDeltaX(out?: Vec2): number;
+        /**
+         * !#en Returns the Y axis delta distance from the previous location to current location.
+         * !#zh 获取触点距离上一次事件移动的 y 轴距离。
+         */
+        getDeltaY(out?: Vec2): number;
+        /**
+         * !#en Returns location X axis data.
+         * !#zh 获取当前触点 X 轴位置。
+         */
+        getLocationX(): number;
+        /**
+         * !#en Returns location Y axis data.
+         * !#zh 获取当前触点 Y 轴位置。
+         */
+        getLocationY(): number;
+    }
+    /**
+     * !#en The acceleration event
+     * !#zh 加速度事件
+     * @class Event.EventAcceleration
+     * @extends Event
+     */
+    export class EventAcceleration extends Event {
+        acc: Object;
+        /**
+         * @param acc - The acceleration
+         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
+         */
+        constructor(acc: Object, bubbles?: boolean);
+    }
+    /**
+     * !#en The keyboard event
+     * !#zh 键盘事件
+     * @class Event.EventKeyboard
+     * @extends Event
+     */
+    export class EventKeyboard extends Event {
+        /**
+         * !#en
+         * The keyCode read-only property represents a system and implementation dependent numerical code
+         * identifying the unmodified value of the pressed key.
+         * This is usually the decimal ASCII (RFC 20) or Windows 1252 code corresponding to the key.
+         * If the key can't be identified, this value is 0.
+         *
+         * !#zh
+         * keyCode 是只读属性它表示一个系统和依赖于实现的数字代码，可以识别按键的未修改值。
+         * 这通常是十进制 ASCII (RFC20) 或者 Windows 1252 代码，所对应的密钥。
+         * 如果无法识别该键，则该值为 0。
+         */
+        keyCode: number;
+        /**
+         * Raw DOM event.
+         */
+        rawEvent?: KeyboardEvent;
+        isPressed: boolean;
+        /**
+         * @param keyCode - The key code of which triggered this event
+         * @param isPressed - A boolean indicating whether the key have been pressed
+         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
+         */
+        constructor(keyCode: number | KeyboardEvent, isPressed: boolean, bubbles?: boolean);
+    }
+}
 declare module "cocos/core/platform/event-manager/event-listener" {
     /****************************************************************************
      Copyright (c) 2013-2016 Chukong Technologies Inc.
@@ -7626,10 +8147,52 @@ declare module "cocos/core/platform/event-manager/event-listener" {
      THE SOFTWARE.
      ****************************************************************************/
     import { Node } from "cocos/scene-graph/index";
-    export interface IEventListenerCreateInfo {
-        event?: number;
-        [x: string]: any;
+    import { EventKeyboard } from "cocos/core/platform/event-manager/CCEvent";
+    export enum EventListenerNumber {
+        TouchOneByOne = 1,
+        TouchAllAtOnce = 2,
+        Keyboard = 3,
+        Mouse = 4,
+        Acceleration = 6
     }
+    interface IEventListenerIDMap {
+        [EventListenerNumber.TouchOneByOne]: TouchOneByOne;
+        [EventListenerNumber.TouchAllAtOnce]: TouchAllAtOnce;
+        [EventListenerNumber.Keyboard]: Keyboard;
+        [EventListenerNumber.Mouse]: Mouse;
+        [EventListenerNumber.Acceleration]: Acceleration;
+    }
+    type ListenerCallback<Listener, EventOrArgs> = (listener: Listener, eventOrArgs: EventOrArgs) => void;
+    interface IEventListenerCallbacksMap {
+        [EventListenerNumber.TouchOneByOne]: Partial<{
+            onTouchBegan: Function;
+            onTouchMoved: Function;
+            onTouchEnded: Function;
+            onTouchCancelled: Function;
+        }>;
+        [EventListenerNumber.TouchAllAtOnce]: Partial<{
+            onTouchBegan: Function;
+            onTouchMoved: Function;
+            onTouchEnded: Function;
+            onTouchCancelled: Function;
+        }>;
+        [EventListenerNumber.Mouse]: Partial<{
+            onMouseDown: Function;
+            onMouseUp: Function;
+            onMouseMove: Function;
+            onMouseScroll: Function;
+        }>;
+        [EventListenerNumber.Keyboard]: Partial<{
+            onKeyPressed: ListenerCallback<Keyboard, EventKeyboard>;
+            onKeyReleased: ListenerCallback<Keyboard, EventKeyboard>;
+        }>;
+        [EventListenerNumber.Acceleration]: Partial<{
+            callback: Function;
+        }>;
+    }
+    type IEventListenerCreateInfo<EventListenerID extends keyof IEventListenerIDMap> = {
+        event: EventListenerID;
+    } & IEventListenerCallbacksMap[EventListenerID];
     export interface ILinstenerMask {
         index: number;
         node: Node;
@@ -7654,19 +8217,19 @@ declare module "cocos/core/platform/event-manager/event-listener" {
          * !#zh 未知的事件监听器类型
          */
         static UNKNOWN: number;
-        static TOUCH_ONE_BY_ONE: number;
-        static TOUCH_ALL_AT_ONCE: number;
+        static TOUCH_ONE_BY_ONE: EventListenerNumber.TouchOneByOne;
+        static TOUCH_ALL_AT_ONCE: EventListenerNumber.TouchAllAtOnce;
         /**
          * !#en The type code of keyboard event listener.
          * !#zh 键盘事件监听器类型
          */
-        static KEYBOARD: number;
-        static MOUSE: number;
+        static KEYBOARD: EventListenerNumber.Keyboard;
+        static MOUSE: EventListenerNumber.Mouse;
         /**
          * !#en The type code of acceleration event listener.
          * !#zh 加速器事件监听器类型
          */
-        static ACCELERATION: number;
+        static ACCELERATION: EventListenerNumber.Acceleration;
         static CUSTOM: number;
         static ListenerID: {
             MOUSE: string;
@@ -7685,7 +8248,7 @@ declare module "cocos/core/platform/event-manager/event-listener" {
          * @param {Object} argObj a json object
          * @example {@link cocos2d/core/event-manager/CCEventListener/create.js}
          */
-        static create(argObj: IEventListenerCreateInfo): EventListener;
+        static create<K extends keyof IEventListenerIDMap>(argObj: IEventListenerCreateInfo<K>): IEventListenerIDMap[K];
         owner: Object | null;
         mask: ILinstenerMask | null;
         _previousIn?: boolean;
@@ -7907,7 +8470,7 @@ declare module "cocos/core/platform/event-manager/event-manager" {
          * @param callback
          * @return the generated event. Needed in order to remove the event from the dispatcher
          */
-        addCustomListener(eventName: string, callback: Function): EventListener;
+        addCustomListener(eventName: string, callback: Function): any;
         /**
          * !#en Remove a listener.
          * !#zh 移除一个已添加的监听器。
@@ -9206,526 +9769,6 @@ declare module "cocos/core/platform/CCSys" {
     };
     export default sys;
 }
-declare module "cocos/core/platform/event-manager/CCTouch" {
-    /****************************************************************************
-     Copyright (c) 2013-2016 Chukong Technologies Inc.
-     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
-    
-     http://www.cocos.com
-    
-     Permission is hereby granted, free of charge, to any person obtaining a copy
-     of this software and associated engine source code (the "Software"), a limited,
-      worldwide, royalty-free, non-assignable, revocable and non-exclusive license
-     to use Cocos Creator solely to develop games on your target platforms. You shall
-      not use Cocos Creator software for developing other software or tools that's
-      used for developing games. You are not granted to publish, distribute,
-      sublicense, and/or sell copies of Cocos Creator.
-    
-     The software or tools in this License Agreement are licensed, not sold.
-     Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
-    
-     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-     THE SOFTWARE.
-     ****************************************************************************/
-    import { Vec2 } from "cocos/core/value-types/index";
-    /**
-     * !#en The touch event class
-     * !#zh 封装了触摸相关的信息。
-     * @class Touch
-     *
-     * @param {Number} x
-     * @param {Number} y
-     * @param {Number} id
-     */
-    export default class Touch {
-        _point: Vec2;
-        _prevPoint: Vec2;
-        _lastModified: number;
-        private _id;
-        private _startPoint;
-        private _startPointCaptured;
-        constructor(x: number, y: number, id?: number | null);
-        /**
-         * !#en Returns the current touch location in OpenGL coordinates.、
-         * !#zh 获取当前触点位置。
-         */
-        getLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns X axis location value.
-         * !#zh 获取当前触点 X 轴位置。
-         */
-        getLocationX(): number;
-        /**
-         * !#en Returns Y axis location value.
-         * !#zh 获取当前触点 Y 轴位置。
-         */
-        getLocationY(): number;
-        /**
-         * !#en Returns the current touch location in OpenGL coordinates.、
-         * !#zh 获取当前触点位置。
-         */
-        getUILocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns X axis location value.
-         * !#zh 获取当前触点 X 轴位置。
-         */
-        getUILocationX(): number;
-        /**
-         * !#en Returns Y axis location value.
-         * !#zh 获取当前触点 Y 轴位置。
-         */
-        getUILocationY(): number;
-        /**
-         * !#en Returns the previous touch location in OpenGL coordinates.
-         * !#zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         */
-        getPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the previous touch location in OpenGL coordinates.
-         * !#zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         */
-        getUIPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the start touch location in OpenGL coordinates.
-         * !#zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
-         */
-        getStartLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the start touch location in OpenGL coordinates.
-         * !#zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
-         */
-        getUIStartLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the delta distance from the previous touche to the current one in screen coordinates.
-         * !#zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
-         */
-        getDelta(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the delta distance from the previous touche to the current one in screen coordinates.
-         * !#zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
-         */
-        getUIDelta(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the current touch location in screen coordinates.
-         * !#zh 获取当前事件在游戏窗口内的坐标位置对象，对象包含 x 和 y 属性。
-         */
-        getLocationInView(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the previous touch location in screen coordinates.
-         * !#zh 获取触点在上一次事件时在游戏窗口中的位置对象，对象包含 x 和 y 属性。
-         */
-        getPreviousLocationInView(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the start touch location in screen coordinates.
-         * !#zh 获取触点落下时在游戏窗口中的位置对象，对象包含 x 和 y 属性。
-         */
-        getStartLocationInView(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the id of cc.Touch.
-         * !#zh 触点的标识 ID，可以用来在多点触摸中跟踪触点。
-         */
-        getID(): number | null;
-        /**
-         * !#en Sets information to touch.
-         * !#zh 设置触摸相关的信息。用于监控触摸事件。
-         */
-        setTouchInfo(id?: number | null, x?: number, y?: number): void;
-        _setPoint(point: Vec2): void;
-        _setPoint(x: number, y: number): void;
-        _setPrevPoint(point: Vec2): void;
-        _setPrevPoint(x: number, y: number): void;
-    }
-}
-declare module "cocos/core/platform/event-manager/CCEvent" {
-    /****************************************************************************
-     Copyright (c) 2013-2016 Chukong Technologies Inc.
-     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
-    
-     http://www.cocos.com
-    
-     Permission is hereby granted, free of charge, to any person obtaining a copy
-     of this software and associated engine source code (the "Software"), a limited,
-     worldwide, royalty-free, non-assignable, revocable and non-exclusive license
-     to use Cocos Creator solely to develop games on your target platforms. You shall
-     not use Cocos Creator software for developing other software or tools that's
-     used for developing games. You are not granted to publish, distribute,
-     sublicense, and/or sell copies of Cocos Creator.
-    
-     The software or tools in this License Agreement are licensed, not sold.
-     Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
-    
-     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-     THE SOFTWARE.
-     ****************************************************************************/
-    import Event from "cocos/core/event/event";
-    import { Vec2 } from "cocos/core/value-types/index";
-    import Touch from "cocos/core/platform/event-manager/CCTouch";
-    /**
-     * !#en The mouse event
-     * !#zh 鼠标事件类型
-     * @class Event.EventMouse
-     * @extends Event
-     */
-    export class EventMouse extends Event {
-        /**
-         * !#en The none event code of mouse event.
-         * !#zh 无。
-         */
-        static NONE: number;
-        /**
-         * !#en The event type code of mouse down event.
-         * !#zh 鼠标按下事件。
-         */
-        static DOWN: number;
-        /**
-         * !#en The event type code of mouse up event.
-         * !#zh 鼠标按下后释放事件。
-         */
-        static UP: number;
-        /**
-         * !#en The event type code of mouse move event.
-         * !#zh 鼠标移动事件。
-         */
-        static MOVE: number;
-        /**
-         * !#en The event type code of mouse scroll event.
-         * !#zh 鼠标滚轮事件。
-         */
-        static SCROLL: number;
-        /**
-         * !#en The tag of Mouse left button.
-         * !#zh 鼠标左键的标签。
-         */
-        static BUTTON_LEFT: number;
-        /**
-         * !#en The tag of Mouse right button  (The right button number is 2 on browser).
-         * !#zh 鼠标右键的标签。
-         */
-        static BUTTON_RIGHT: number;
-        /**
-         * !#en The tag of Mouse middle button  (The right button number is 1 on browser).
-         * !#zh 鼠标中键的标签。
-         */
-        static BUTTON_MIDDLE: number;
-        /**
-         * !#en The tag of Mouse button 4.
-         * !#zh 鼠标按键 4 的标签。
-         */
-        static BUTTON_4: number;
-        /**
-         * !#en The tag of Mouse button 5.
-         * !#zh 鼠标按键 5 的标签。
-         */
-        static BUTTON_5: number;
-        /**
-         * !#en The tag of Mouse button 6.
-         * !#zh 鼠标按键 6 的标签。
-         */
-        static BUTTON_6: number;
-        /**
-         * !#en The tag of Mouse button 7.
-         * !#zh 鼠标按键 7 的标签。
-         */
-        static BUTTON_7: number;
-        /**
-         * !#en The tag of Mouse button 8.
-         * !#zh 鼠标按键 8 的标签。
-         */
-        static BUTTON_8: number;
-        movementX: number;
-        movementY: number;
-        private _eventType;
-        private _button;
-        private _x;
-        private _y;
-        private _prevX;
-        private _prevY;
-        private _scrollX;
-        private _scrollY;
-        /**
-         * @param eventType - The mouse event type, UP, DOWN, MOVE, CANCELED
-         * @param [bubbles=false] - A boolean indicating whether the event bubbles up through the tree or not
-         */
-        constructor(eventType: number, bubbles?: boolean);
-        /**
-         * !#en Sets scroll data.
-         * !#zh 设置鼠标的滚动数据。
-         */
-        setScrollData(scrollX: number, scrollY: number): void;
-        /**
-         * !#en Returns the x axis scroll value.
-         * !#zh 获取鼠标滚动的X轴距离，只有滚动时才有效。
-         */
-        getScrollX(): number;
-        /**
-         * !#en Returns the y axis scroll value.
-         * !#zh 获取滚轮滚动的 Y 轴距离，只有滚动时才有效。
-         */
-        getScrollY(): number;
-        /**
-         * !#en Sets cursor location.
-         * !#zh 设置当前鼠标位置。
-         */
-        setLocation(x: number, y: number): void;
-        /**
-         * !#en Returns cursor location.
-         * !#zh 获取鼠标相对于左下角位置对象，对象包含 x 和 y 属性。
-         */
-        getLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the current cursor location in screen coordinates.
-         * !#zh 获取当前事件在游戏窗口内的坐标位置对象，对象包含 x 和 y 属性。
-         */
-        getLocationInView(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the current cursor location in ui coordinates.
-         * !#zh 获取当前事件在 UI 窗口内的坐标位置，对象包含 x 和 y 属性。
-         */
-        getUILocation(out?: Vec2): Vec2;
-        _setPrevCursor(x: number, y: number): void;
-        /**
-         * !#en Returns the previous touch location.
-         * !#zh 获取鼠标点击在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         */
-        getPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the previous touch location.
-         * !#zh 获取鼠标点击在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         */
-        getUIPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the delta distance from the previous location to current location.
-         * !#zh 获取鼠标距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
-         */
-        getDelta(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the X axis delta distance from the previous location to current location.
-         * !#zh 获取鼠标距离上一次事件移动的 X 轴距离。
-         */
-        getDeltaX(): number;
-        /**
-         * !#en Returns the Y axis delta distance from the previous location to current location.
-         * !#zh 获取鼠标距离上一次事件移动的 Y 轴距离。
-         */
-        getDeltaY(): number;
-        /**
-         * !#en Returns the delta distance from the previous location to current location.
-         * !#zh 获取鼠标距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
-         */
-        getUIDelta(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the X axis delta distance from the previous location to current location.
-         * !#zh 获取鼠标距离上一次事件移动的 X 轴距离。
-         */
-        getUIDeltaX(): number;
-        /**
-         * !#en Returns the Y axis delta distance from the previous location to current location.
-         * !#zh 获取鼠标距离上一次事件移动的 Y 轴距离。
-         */
-        getUIDeltaY(): number;
-        /**
-         * !#en Sets mouse button.
-         * !#zh 设置鼠标按键。
-         */
-        setButton(button: number | null): void;
-        /**
-         * !#en Returns mouse button.
-         * !#zh 获取鼠标按键。
-         */
-        getButton(): number | null;
-        /**
-         * !#en Returns location X axis data.
-         * !#zh 获取鼠标当前位置 X 轴。
-         */
-        getLocationX(): number;
-        /**
-         * !#en Returns location Y axis data.
-         * !#zh 获取鼠标当前位置 Y 轴。
-         */
-        getLocationY(): number;
-        /**
-         * !#en Returns location X axis data.
-         * !#zh 获取鼠标当前位置 X 轴。
-         */
-        getUILocationX(): number;
-        /**
-         * !#en Returns location Y axis data.
-         * !#zh 获取鼠标当前位置 Y 轴。
-         */
-        getUILocationY(): number;
-    }
-    /**
-     * !#en The touch event
-     * !#zh 触摸事件
-     * @class Event.EventTouch
-     * @constructor
-     * @extends Event
-     */
-    export class EventTouch extends Event {
-        /**
-         * !#en The maximum touch numbers
-         * !#zh 最大触摸数量。
-         */
-        static MAX_TOUCHES: number;
-        /**
-         * !#en The event type code of touch began event.
-         * !#zh 开始触摸事件
-         */
-        static BEGAN: number;
-        /**
-         * !#en The event type code of touch moved event.
-         * !#zh 触摸后移动事件
-         */
-        static MOVED: number;
-        /**
-         * !#en The event type code of touch ended event.
-         * !#zh 结束触摸事件
-         */
-        static ENDED: number;
-        /**
-         * !#en The event type code of touch cancelled event.
-         * !#zh 取消触摸事件
-         */
-        static CANCELLED: number;
-        /**
-         * !#en The current touch object
-         * !#zh 当前触点对象
-         */
-        touch: Touch | null;
-        currentTouch: Touch | null;
-        _eventCode: number;
-        simulate: boolean;
-        private _touches;
-        /**
-         * @param touches - The array of the touches
-         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
-         */
-        constructor(touches?: Touch[], bubbles?: boolean);
-        /**
-         * !#en Returns event code.
-         * !#zh 获取事件类型。
-         */
-        getEventCode(): number;
-        /**
-         * !#en Returns touches of event.
-         * !#zh 获取触摸点的列表。
-         */
-        getTouches(): Touch[];
-        _setEventCode(eventCode: number): void;
-        _setTouches(touches: Touch[]): void;
-        /**
-         * !#en Sets touch location.
-         * !#zh 设置当前触点位置
-         */
-        setLocation(x: number, y: number): void;
-        /**
-         * !#en Returns touch location.
-         * !#zh 获取触点位置。
-         */
-        getLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the current touch location in screen coordinates.
-         * !#zh 获取当前触点在游戏窗口中的位置。
-         */
-        getLocationInView(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the previous touch location.
-         * !#zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         */
-        getPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the start touch location.
-         * !#zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
-         */
-        getStartLocation(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the id of cc.Touch.
-         * !#zh 触点的标识 ID，可以用来在多点触摸中跟踪触点。
-         */
-        getID(): number | null;
-        /**
-         * !#en Returns the delta distance from the previous location to current location.
-         * !#zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
-         */
-        getDelta(out?: Vec2): Vec2;
-        /**
-         * !#en Returns the X axis delta distance from the previous location to current location.
-         * !#zh 获取触点距离上一次事件移动的 x 轴距离。
-         */
-        getDeltaX(out?: Vec2): number;
-        /**
-         * !#en Returns the Y axis delta distance from the previous location to current location.
-         * !#zh 获取触点距离上一次事件移动的 y 轴距离。
-         */
-        getDeltaY(out?: Vec2): number;
-        /**
-         * !#en Returns location X axis data.
-         * !#zh 获取当前触点 X 轴位置。
-         */
-        getLocationX(): number;
-        /**
-         * !#en Returns location Y axis data.
-         * !#zh 获取当前触点 Y 轴位置。
-         */
-        getLocationY(): number;
-    }
-    /**
-     * !#en The acceleration event
-     * !#zh 加速度事件
-     * @class Event.EventAcceleration
-     * @extends Event
-     */
-    export class EventAcceleration extends Event {
-        acc: Object;
-        /**
-         * @param acc - The acceleration
-         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
-         */
-        constructor(acc: Object, bubbles?: boolean);
-    }
-    /**
-     * !#en The keyboard event
-     * !#zh 键盘事件
-     * @class Event.EventKeyboard
-     * @extends Event
-     */
-    export class EventKeyboard extends Event {
-        /**
-         * !#en
-         * The keyCode read-only property represents a system and implementation dependent numerical code
-         * identifying the unmodified value of the pressed key.
-         * This is usually the decimal ASCII (RFC 20) or Windows 1252 code corresponding to the key.
-         * If the key can't be identified, this value is 0.
-         *
-         * !#zh
-         * keyCode 是只读属性它表示一个系统和依赖于实现的数字代码，可以识别按键的未修改值。
-         * 这通常是十进制 ASCII (RFC20) 或者 Windows 1252 代码，所对应的密钥。
-         * 如果无法识别该键，则该值为 0。
-         */
-        keyCode: number;
-        /**
-         * Raw DOM event.
-         */
-        rawEvent?: KeyboardEvent;
-        isPressed: boolean;
-        /**
-         * @param keyCode - The key code of which triggered this event
-         * @param isPressed - A boolean indicating whether the key have been pressed
-         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
-         */
-        constructor(keyCode: number | KeyboardEvent, isPressed: boolean, bubbles?: boolean);
-    }
-}
 declare module "cocos/core/platform/event-manager/input-manager" {
     import { EventMouse } from "cocos/core/platform/event-manager/CCEvent";
     import CCTouch from "cocos/core/platform/event-manager/CCTouch";
@@ -9811,7 +9854,7 @@ declare module "cocos/core/platform/event-manager/event-enum" {
      * !#zh
      * 一般用于系统事件或者节点事件的事件枚举
      */
-    export enum EventType {
+    export enum SystemEventType {
         /**
          * !#en The event type for press the key up event, you can use its value directly: 'keyup'
          * !#zh 手指开始触摸事件
@@ -9827,7 +9870,7 @@ declare module "cocos/core/platform/event-manager/event-enum" {
          * @type {String}
          * @static
          */
-        TOUCH_MOVE = "touch-move2",
+        TOUCH_MOVE = "touch-move",
         /**
          * !#en The event type for press the key up event, you can use its value directly: 'keyup'
          * !#zh 手指开始触摸事件
@@ -10021,9 +10064,10 @@ declare module "cocos/core/platform/event-manager/system-event" {
      THE SOFTWARE.
      ****************************************************************************/
     import { EventTarget } from "cocos/core/event/event-target";
-    import { EventType } from "cocos/core/platform/event-manager/event-enum";
+    import { EventKeyboard } from "cocos/core/platform/event-manager/CCEvent";
+    import { SystemEventType } from "cocos/core/platform/event-manager/event-enum";
     export class SystemEvent extends EventTarget {
-        static EventType: typeof EventType;
+        static EventType: typeof SystemEventType;
         constructor();
         /**
          * !#en whether enable accelerometer event
@@ -10039,9 +10083,18 @@ declare module "cocos/core/platform/event-manager/system-event" {
          * @param {Number} interval
          */
         setAccelerometerInterval(interval: number): void;
-        on(type: string, callback: Function, target?: Object): Function | undefined;
+        on(type: SystemEventType.KEY_DOWN | SystemEventType.KEY_UP, callback: (event: EventKeyboard) => void): any;
         off(type: string, callback?: Function, target?: Object): void;
     }
+    /**
+     * @module cc
+     */
+    /**
+     * !#en The System event singleton for global usage
+     * !#zh 系统事件单例，方便全局使用
+     */
+    const systemEvent: SystemEvent;
+    export { systemEvent };
 }
 declare module "cocos/core/platform/event-manager/index" {
     /****************************************************************************
@@ -12209,7 +12262,7 @@ declare module "cocos/assets/sprite-atlas" {
          * @returns {[SpriteFrame]}
          */
         getSpriteFrames(): (SpriteFrame | null)[];
-        _serialize(): {
+        _serialize(exporting?: any): {
             name: string;
             spriteFrames: string[];
         };
@@ -14085,7 +14138,6 @@ declare module "cocos/renderer/core/program-lib" {
         hasProgram(name: string): boolean;
         getKey(name: string, defines: IDefineMap): number;
         destroyShaderByDefines(defines: IDefineMap): void;
-        getShaderInstaceName(name: string, defines: IDefineMap, defs?: IDefineValue[]): string;
         getGFXShader(device: GFXDevice, name: string, defines: IDefineMap, pipeline: RenderPipeline): GFXShader;
     }
     export const programLib: ProgramLib;
@@ -14663,6 +14715,7 @@ declare module "cocos/renderer/models/particle-batch-model" {
         constructor(scene: RenderScene, node: Node);
         setCapacity(capacity: number): void;
         setVertexAttributes(mesh: Mesh | null, attrs: IGFXAttribute[]): void;
+        private _recreateBuffer;
         _createSubMeshData(): ArrayBuffer;
         setSubModelMaterial(idx: number, mat: Material | null): void;
         addParticleVertexData(index: number, pvdata: any[]): void;
@@ -14673,6 +14726,30 @@ declare module "cocos/renderer/models/particle-batch-model" {
     }
 }
 declare module "cocos/3d/assets/skeleton" {
+    /****************************************************************************
+     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+    
+     http://www.cocos.com
+    
+     Permission is hereby granted, free of charge, to any person obtaining a copy
+     of this software and associated engine source code (the "Software"), a limited,
+      worldwide, royalty-free, non-assignable, revocable and non-exclusive license
+     to use Cocos Creator solely to develop games on your target platforms. You shall
+      not use Cocos Creator software for developing other software or tools that's
+      used for developing games. You are not granted to publish, distribute,
+      sublicense, and/or sell copies of Cocos Creator.
+    
+     The software or tools in this License Agreement are licensed, not sold.
+     Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
+    
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+     THE SOFTWARE.
+     ****************************************************************************/
     import { Asset } from "cocos/assets/asset";
     import { Node } from "cocos/scene-graph/node";
     /**
@@ -14684,7 +14761,7 @@ declare module "cocos/3d/assets/skeleton" {
      * to produce a skeleton instance. Skeleton instances can be modified,
      * for example, be animated.
      */
-    export default class Skeleton extends Asset {
+    export class Skeleton extends Asset {
         /**
          * The path of joints.
          */
@@ -14711,7 +14788,7 @@ declare module "cocos/3d/assets/skeleton" {
 }
 declare module "cocos/renderer/models/skinning-model" {
     import Skeleton from "cocos/3d/assets/skeleton";
-    import { vec3, quat } from "cocos/core/vmath/index";
+    import { quat, vec3 } from "cocos/core/vmath/index";
     import { GFXDevice } from "cocos/gfx/device";
     import { Node } from "cocos/scene-graph/node";
     import { Pass } from "cocos/renderer/core/pass";
@@ -14732,7 +14809,7 @@ declare module "cocos/renderer/models/skinning-model" {
         protected _doCreatePSO(pass: Pass): import("cocos/gfx/pipeline-state").GFXPipelineState;
         private _destroyJointStorage;
     }
-    export function selectStorageKind(device: GFXDevice): JointStorageKind;
+    export function selectStorageKind(device: GFXDevice, jointCount: number): JointStorageKind;
 }
 declare module "cocos/renderer/index" {
     export { createIA } from "cocos/renderer/utils";
@@ -14943,14 +15020,12 @@ declare module "cocos/3d/assets/effect-asset" {
         count: number;
     }
     export interface IBlockInfo {
-        defines: string[];
         size: number;
         binding: number;
         name: string;
         members: IBlockMember[];
     }
     export interface ISamplerInfo {
-        defines: string[];
         binding: number;
         name: string;
         type: GFXType;
@@ -14961,7 +15036,6 @@ declare module "cocos/3d/assets/effect-asset" {
         type: string;
         range?: number[];
         options?: string[];
-        defines?: string[];
     }
     export interface IBuiltinInfo {
         blocks: string[];
@@ -15030,7 +15104,7 @@ declare module "cocos/3d/framework/renderable-component" {
          * @zh 返回相对应序号的材质
          * @param {Number} idx - Look for the material list number
          */
-        getMaterial(idx: number, inEditor?: boolean): Material | null;
+        getMaterial(idx: number, inEditor?: boolean, autoUpdate?: boolean): Material | null;
         getSharedMaterial(idx: number): Material | null;
         material: Material | null;
         readonly sharedMaterial: Material | null;
@@ -15321,15 +15395,15 @@ declare module "cocos/3d/assets/texture-cube" {
          * @deprecated Since v2.0.
          */
         releaseTexture(): void;
-        _serialize(): {
+        _serialize(exporting?: any): {
             base: any;
             mipmaps: {
-                front: string;
-                back: string;
-                left: string;
-                right: string;
-                top: string;
-                bottom: string;
+                front: any;
+                back: any;
+                left: any;
+                right: any;
+                top: any;
+                bottom: any;
             }[];
         };
         _deserialize(serializedData: ITextureCubeSerializeData, handle: any): void;
@@ -15683,7 +15757,7 @@ declare module "cocos/renderer/ui/ui-material" {
     }
 }
 declare module "cocos/renderer/ui/ui" {
-    import { CanvasComponent, IAssembler, MeshBuffer, UIComponent } from "cocos/3d/index";
+    import { Assembler, CanvasComponent, MeshBuffer, UIComponent } from "cocos/3d/index";
     import { Material } from "cocos/3d/assets/material";
     import { Root } from "cocos/core/root";
     import { GFXBindingLayout } from "cocos/gfx/binding-layout";
@@ -15773,7 +15847,7 @@ declare module "cocos/renderer/ui/ui" {
          * @param frame - 当前执行组件贴图。
          * @param assembler - 当前组件渲染数据组装器。
          */
-        commitComp(comp: UIComponent, frame?: GFXTextureView | null, assembler?: IAssembler): void;
+        commitComp(comp: UIComponent, frame?: GFXTextureView | null, assembler?: Assembler.IAssembler): void;
         /**
          * @zh
          * UI 渲染数据合批
@@ -15868,6 +15942,7 @@ declare module "cocos/scene-graph/layers" {
         static IgnoreRaycast: number;
         static Gizmos: number;
         static Editor: number;
+        static UI: number;
         static All: number;
         static RaycastMask: number;
         /**
@@ -16016,12 +16091,17 @@ declare module "cocos/3d/primitive/define" {
          * specify vertex attributes, use (positions|normals|uvs|colors) as keys
          */
         attributes?: IGFXAttribute[];
+        customAttributes?: Array<{
+            attr: IGFXAttribute;
+            values: number[];
+        }>;
     }
 }
 declare module "cocos/3d/misc/utils" {
+    import { GFXFormat } from "cocos/gfx/define";
     export { find } from "cocos/scene-graph/find";
-    import { Skeleton } from "cocos/3d/assets/index";
     import { Mesh } from "cocos/3d/assets/mesh";
+    import { Skeleton } from "cocos/3d/assets/skeleton";
     import { aabb } from "cocos/3d/geom-utils/index";
     import { IGeometry } from "cocos/3d/primitive/define";
     /**
@@ -16032,6 +16112,9 @@ declare module "cocos/3d/misc/utils" {
         calculateBounds?: boolean;
     }
     export function createMesh(geometry: IGeometry, out?: Mesh, options?: ICreateMeshOptions): Mesh;
+    export function readMesh(mesh: Mesh, iPrimitive?: number): IGeometry;
+    export function writeBuffer(target: DataView, data: number[], format?: GFXFormat, offset?: number, stride?: number): void;
+    export function readBuffer(target: DataView, format?: GFXFormat, offset?: number, length?: number, stride?: number, out?: number[]): number[];
     export function calculateBoneSpaceBounds(mesh: Mesh, skeleton: Skeleton): (aabb | null)[];
 }
 declare module "cocos/3d/primitive/utils" {
@@ -16308,6 +16391,22 @@ declare module "cocos/renderer/scene/render-scene" {
          * @returns the results array
          */
         raycast(worldRay: ray, mask?: number): IRaycastResult[];
+        /**
+         * Cast a ray into the scene, record all the intersected ui aabb in the result array
+         * @param worldRay - the testing ray
+         * @param mask - the layer mask to filter the ui aabb
+         * @returns the results array
+         */
+        raycastUI(worldRay: ray, mask?: number): IRaycastResult[];
+        /**
+         * Before you raycast the ui node, make sure the node is not null
+         * @param worldRay - the testing ray
+         * @param mask - the layer mask to filter the models
+         * @param uiNode - the ui node
+         * @returns IRaycastResult | undefined
+         */
+        raycastUINode(worldRay: ray, mask: number | undefined, uiNode: Node): IRaycastResult | undefined;
+        private _raycastUINodeRecursiveChildren;
     }
 }
 declare module "cocos/components/component" {
@@ -16832,6 +16931,10 @@ declare module "cocos/scene-graph/base-node" {
      */
     export class BaseNode extends CCObject {
         /**
+         * Gets all components attached to this node.
+         */
+        readonly components: ReadonlyArray<Component>;
+        /**
          * If true, the node is an persist node which won't be destroyed during scene transition.
          * If false, the node will be destroyed automatically when loading a new scene. Default is false.
          * @property _persistNode
@@ -17256,7 +17359,7 @@ declare module "cocos/scene-graph/base-node" {
 declare module "cocos/scene-graph/node" {
     import { UITransformComponent } from "cocos/3d/index";
     import Event from "cocos/core/event/event";
-    import { EventType } from "cocos/core/platform/event-manager/event-enum";
+    import { SystemEventType } from "cocos/core/platform/event-manager/event-enum";
     import { Mat4, Quat, Vec3 } from "cocos/core/value-types/index";
     import Size from "cocos/core/value-types/size";
     import Vec2 from "cocos/core/value-types/vec2";
@@ -17267,7 +17370,7 @@ declare module "cocos/scene-graph/node" {
         WORLD = 1
     }
     class Node extends BaseNode {
-        static EventType: typeof EventType;
+        static EventType: typeof SystemEventType;
         static NodeSpace: typeof NodeSpace;
         static isNode(obj: object): boolean;
         _pos: Vec3;
@@ -17497,7 +17600,7 @@ declare module "cocos/scene-graph/node" {
         setAnchorPoint(point: Vec2 | number, y?: number): void;
         getContentSize(): Size;
         setContentSize(size: Size | number, height?: number): void;
-        on(type: string | EventType, callback: Function, target?: Object, useCapture?: any): void;
+        on(type: string | SystemEventType, callback: Function, target?: Object, useCapture?: any): void;
         off(type: string, callback: Function, target?: Object, useCapture?: any): void;
         once(type: string, callback: Function, target?: Object, useCapture?: any): void;
         emit(type: string, ...args: any[]): void;
@@ -17749,6 +17852,7 @@ declare module "cocos/assets/asset" {
     import { Node } from "cocos/scene-graph/index";
     import { RawAsset } from "cocos/assets/raw-asset";
     import { IEventTarget } from "cocos/core/event/event-target-factory";
+    import { Event } from "cocos/core/event/index";
     /**
      * !#en
      * Base class for handling assets used in Creator.<br/>
@@ -17779,7 +17883,7 @@ declare module "cocos/assets/asset" {
         off(type: string, callback?: Function | undefined, target?: Object | undefined): void;
         targetOff(keyOrTarget?: string | Object | undefined): void;
         once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
-        dispatchEvent(event: import("cocos/core/index").Event): void;
+        dispatchEvent(event: Event): void;
         hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
         removeAll(keyOrTarget?: string | Object | undefined): void;
         emit(key: string, ...args: any[]): void;
@@ -18134,7 +18238,7 @@ declare module "cocos/3d/assets/index" {
     export { EffectAsset } from "cocos/3d/assets/effect-asset";
     export { Material } from "cocos/3d/assets/material";
     export { Mesh } from "cocos/3d/assets/mesh";
-    export { default as Skeleton } from "cocos/3d/assets/skeleton";
+    export { Skeleton } from "cocos/3d/assets/skeleton";
     export { PhysicsMaterial } from "cocos/3d/assets/physics/material";
 }
 declare module "cocos/3d/framework/audio-source-component" {
@@ -18401,13 +18505,23 @@ declare module "cocos/3d/framework/model-component" {
     }
 }
 declare module "cocos/3d/framework/skinning-model-component" {
+    import { Quat, Vec3 } from "cocos/core/value-types/index";
     import { SkinningModel } from "cocos/renderer/models/skinning-model";
     import { Node } from "cocos/scene-graph/node";
     import { Mesh } from "cocos/3d/assets/index";
     import { Material } from "cocos/3d/assets/material";
-    import Skeleton from "cocos/3d/assets/skeleton";
+    import { Skeleton } from "cocos/3d/assets/skeleton";
     import { aabb } from "cocos/3d/geom-utils/index";
     import { ModelComponent } from "cocos/3d/framework/model-component";
+    class Joint {
+        node: Node;
+        position: Vec3;
+        rotation: Quat;
+        scale: Vec3;
+        protected _lastUpdate: number;
+        constructor(node: Node);
+        update(parent: Joint): void;
+    }
     /**
      * @en The Skinning Model Component
      * @zh 蒙皮模型组件
@@ -18422,14 +18536,14 @@ declare module "cocos/3d/framework/skinning-model-component" {
          * 骨骼根节点的引用
          */
         skinningRoot: Node | null;
-        private _skeleton;
-        private _skinningRoot;
-        private _joints;
-        private _jointParentIndices;
-        private _boneSpaceBounds;
-        constructor();
+        protected _skeleton: Skeleton | null;
+        protected _skinningRoot: Node | null;
+        protected _joints: Joint[];
+        protected _jointParentIndices: number[];
+        protected _boneSpaceBounds: null | Array<aabb | null>;
+        protected _jointCount: number;
         onLoad(): void;
-        update(): void;
+        update(dt: any): void;
         _tryUpdateMatrices(): void;
         calculateSkinnedBounds(out?: aabb): boolean;
         _updateModelParams(): void;
@@ -18437,7 +18551,7 @@ declare module "cocos/3d/framework/skinning-model-component" {
         protected _getModelConstructor(): typeof SkinningModel;
         protected _onMeshChanged(old: Mesh | null): void;
         protected _onSkeletonChanged(old: Skeleton | null): void;
-        protected _onMaterialModified(index: number, material: Material): void;
+        protected _onMaterialModified(index: number, material: Material | null): void;
         private _bindSkeleton;
         private _resetSkinningTarget;
     }
@@ -18469,13 +18583,16 @@ declare module "cocos/3d/framework/avatar-model-component" {
     import { Texture2D } from "cocos/assets/index";
     import { Vec2 } from "cocos/core/value-types/index";
     import { Mesh } from "cocos/3d/assets/index";
+    import { Skeleton } from "cocos/3d/assets/skeleton";
     import { SkinningModelComponent } from "cocos/3d/framework/skinning-model-component";
     export class AvatarUnit {
         mesh: Mesh | null;
+        skeleton: Skeleton | null;
         atlasSize: Vec2;
         offset: Vec2;
         albedoMap: Texture2D | null;
         private _mesh;
+        private _skeleton;
         private _offset;
         private _atlasSize;
         private _albedoMap;
@@ -18490,10 +18607,10 @@ declare module "cocos/3d/framework/avatar-model-component" {
         private _albedoMapName;
         private _avatarUnits;
         readonly mesh: Mesh | null;
+        readonly skeleton: Skeleton | null;
         combinedTexSize: number;
         albedoMapName: string;
         avatarUnits: AvatarUnit[];
-        constructor();
         onLoad(): void;
         update(dt: any): void;
         onDestroy(): void;
@@ -18502,8 +18619,9 @@ declare module "cocos/3d/framework/avatar-model-component" {
         bindTextures(): void;
         combine(): void;
         combineTextures(): void;
+        combineSkeletons(): void;
         combineMeshes(): void;
-        private resizeCombiendTexture;
+        private resizeCombinedTexture;
     }
 }
 declare module "cocos/3d/framework/camera-component" {
@@ -18773,6 +18891,2421 @@ declare module "cocos/3d/framework/editor-camera-component" {
         onDisable(): void;
         onDestroy(): void;
         protected _createCamera(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-command-allocator" {
+    import { CachedArray } from "cocos/core/memop/cached-array";
+    import { GFXCommandAllocator, IGFXCommandAllocatorInfo } from "cocos/gfx/command-allocator";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { WebGLCmdBeginRenderPass, WebGLCmdBindStates, WebGLCmdCopyBufferToTexture, WebGLCmdDraw, WebGLCmdObject, WebGLCmdPackage, WebGLCmdUpdateBuffer } from "cocos/gfx/webgl/webgl-commands";
+    export class WebGLGFXCommandPool<T extends WebGLCmdObject> {
+        private _frees;
+        private _freeIdx;
+        private _freeCmds;
+        constructor(clazz: new () => T, count: number);
+        alloc(clazz: new () => T): T;
+        free(cmd: T): void;
+        freeCmds(cmds: CachedArray<T>): void;
+        release(): void;
+    }
+    export class WebGLGFXCommandAllocator extends GFXCommandAllocator {
+        beginRenderPassCmdPool: WebGLGFXCommandPool<WebGLCmdBeginRenderPass>;
+        bindStatesCmdPool: WebGLGFXCommandPool<WebGLCmdBindStates>;
+        drawCmdPool: WebGLGFXCommandPool<WebGLCmdDraw>;
+        updateBufferCmdPool: WebGLGFXCommandPool<WebGLCmdUpdateBuffer>;
+        copyBufferToTextureCmdPool: WebGLGFXCommandPool<WebGLCmdCopyBufferToTexture>;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXCommandAllocatorInfo): boolean;
+        destroy(): void;
+        clearCmds(cmdPackage: WebGLCmdPackage): void;
+        releaseCmds(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-gpu-objects" {
+    import { IGFXDrawInfo } from "cocos/gfx/buffer";
+    import { GFXBindingType, GFXBufferUsage, GFXDynamicState, GFXFormat, GFXMemoryUsage, GFXSampleCount, GFXShaderType, GFXTextureFlags, GFXTextureType, GFXTextureUsage, GFXTextureViewType, GFXType } from "cocos/gfx/define";
+    import { IGFXAttribute } from "cocos/gfx/input-assembler";
+    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/gfx/pipeline-state";
+    import { GFXColorAttachment, GFXDepthStencilAttachment } from "cocos/gfx/render-pass";
+    import { GFXUniformBlock, GFXUniformSampler, IGFXShaderMacro } from "cocos/gfx/shader";
+    export interface IWebGLGPUUniformInfo {
+        name: string;
+        type: GFXType;
+        count: number;
+        offset: number;
+        view: Float32Array | Int32Array;
+        isDirty: boolean;
+    }
+    export class WebGLGPUBuffer {
+        usage: GFXBufferUsage;
+        memUsage: GFXMemoryUsage;
+        size: number;
+        stride: number;
+        glTarget: GLenum;
+        glBuffer: WebGLBuffer | null;
+        buffer: ArrayBuffer | null;
+        vf32: Float32Array | null;
+        indirects: IGFXDrawInfo[];
+    }
+    export class WebGLGPUTexture {
+        type: GFXTextureType;
+        viewType: GFXTextureViewType;
+        format: GFXFormat;
+        usage: GFXTextureUsage;
+        width: number;
+        height: number;
+        depth: number;
+        size: number;
+        arrayLayer: number;
+        mipLevel: number;
+        samples: GFXSampleCount;
+        flags: GFXTextureFlags;
+        isPowerOf2: boolean;
+        glTarget: GLenum;
+        glInternelFmt: GLenum;
+        glFormat: GLenum;
+        glType: GLenum;
+        glUsage: GLenum;
+        glTexture: WebGLTexture | null;
+        glRenderbuffer: WebGLRenderbuffer | null;
+        glWrapS: GLenum;
+        glWrapT: GLenum;
+        glMinFilter: GLenum;
+        glMagFilter: GLenum;
+    }
+    export class WebGLGPUTextureView {
+        gpuTexture: WebGLGPUTexture;
+        type: GFXTextureViewType;
+        format: GFXFormat;
+        baseLevel: number;
+        levelCount: number;
+        constructor(texture: WebGLGPUTexture);
+    }
+    export class WebGLGPURenderPass {
+        colorAttachments: GFXColorAttachment[];
+        depthStencilAttachment: GFXDepthStencilAttachment | null;
+    }
+    export class WebGLGPUFramebuffer {
+        gpuRenderPass: WebGLGPURenderPass;
+        gpuColorViews: WebGLGPUTextureView[];
+        gpuDepthStencilView: WebGLGPUTextureView | null;
+        isOffscreen?: boolean;
+        glFramebuffer: WebGLFramebuffer | null;
+        constructor(gpuRenderPass: WebGLGPURenderPass);
+    }
+    export class WebGLGPUSampler {
+        glMinFilter: GLenum;
+        glMagFilter: GLenum;
+        glWrapS: GLenum;
+        glWrapT: GLenum;
+        glWrapR: GLenum;
+    }
+    export class WebGLGPUInput {
+        binding: number;
+        name: string;
+        type: GFXType;
+        stride: number;
+        count: number;
+        size: number;
+        glType: GLenum;
+        glLoc: GLint;
+    }
+    export interface IWebGLGPUUniform {
+        binding: number;
+        name: string;
+        type: GFXType;
+        stride: number;
+        count: number;
+        size: number;
+        offset: number;
+        glType: GLenum;
+        glLoc: WebGLUniformLocation;
+        array: number[];
+        begin: number;
+        isFirst: boolean;
+    }
+    export class WebGLGPUUniformBlock {
+        binding: number;
+        name: string;
+        size: number;
+        glUniforms: IWebGLGPUUniform[];
+        glActiveUniforms: IWebGLGPUUniform[];
+        isUniformPackage: boolean;
+    }
+    export class WebGLGPUUniformSampler {
+        binding: number;
+        name: string;
+        type: GFXType;
+        units: number[];
+        glType: GLenum;
+        glLoc: WebGLUniformLocation;
+    }
+    export class WebGLGPUShaderStage {
+        type: GFXShaderType;
+        source: string;
+        macros: IGFXShaderMacro[];
+        glShader: WebGLShader | null;
+    }
+    export class WebGLGPUShader {
+        name: string;
+        blocks: GFXUniformBlock[];
+        samplers: GFXUniformSampler[];
+        gpuStages: WebGLGPUShaderStage[];
+        glProgram: WebGLProgram | null;
+        glInputs: WebGLGPUInput[];
+        glUniforms: IWebGLGPUUniform[];
+        glBlocks: WebGLGPUUniformBlock[];
+        glSamplers: WebGLGPUUniformSampler[];
+    }
+    export class WebGLGPUPipelineLayout {
+    }
+    export class WebGLGPUPipelineState {
+        glPrimitive: GLenum;
+        gpuShader: WebGLGPUShader | null;
+        rs: GFXRasterizerState;
+        dss: GFXDepthStencilState;
+        bs: GFXBlendState;
+        dynamicStates: GFXDynamicState[];
+        gpuLayout: WebGLGPUPipelineLayout | null;
+        gpuRenderPass: WebGLGPURenderPass | null;
+    }
+    export class WebGLGPUBinding {
+        binding: number;
+        type: GFXBindingType;
+        name: string;
+        gpuBuffer: WebGLGPUBuffer | null;
+        gpuTexView: WebGLGPUTextureView | null;
+        gpuSampler: WebGLGPUSampler | null;
+    }
+    export class WebGLGPUBindingLayout {
+        gpuBindings: WebGLGPUBinding[];
+    }
+    export class WebGLAttrib {
+        name: string;
+        glBuffer: WebGLBuffer | null;
+        glType: GLenum;
+        size: number;
+        count: number;
+        stride: number;
+        componentCount: number;
+        isNormalized: boolean;
+        isInstanced: boolean;
+        offset: number;
+    }
+    export interface IWebGLGPUInputAssembler {
+        attributes: IGFXAttribute[];
+        gpuVertexBuffers: WebGLGPUBuffer[];
+        gpuIndexBuffer: WebGLGPUBuffer | null;
+        gpuIndirectBuffer: WebGLGPUBuffer | null;
+        glAttribs: WebGLAttrib[];
+        glIndexType: GLenum;
+        glVAOs: Map<WebGLProgram, WebGLVertexArrayObjectOES>;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-render-pass" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXRenderPass, IGFXRenderPassInfo } from "cocos/gfx/render-pass";
+    import { WebGLGPURenderPass } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXRenderPass extends GFXRenderPass {
+        readonly gpuRenderPass: WebGLGPURenderPass;
+        private _gpuRenderPass;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXRenderPassInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-texture" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXTexture, IGFXTextureInfo } from "cocos/gfx/texture";
+    import { WebGLGPUTexture } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXTexture extends GFXTexture {
+        readonly gpuTexture: WebGLGPUTexture;
+        private _gpuTexture;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXTextureInfo): boolean;
+        destroy(): void;
+        resize(width: number, height: number): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-texture-view" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXTextureView, IGFXTextureViewInfo } from "cocos/gfx/texture-view";
+    import { WebGLGPUTextureView } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXTextureView extends GFXTextureView {
+        readonly gpuTextureView: WebGLGPUTextureView;
+        private _gpuTextureView;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXTextureViewInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-framebuffer" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXFramebuffer, IGFXFramebufferInfo } from "cocos/gfx/framebuffer";
+    import { WebGLGPUFramebuffer } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXFramebuffer extends GFXFramebuffer {
+        readonly gpuFramebuffer: WebGLGPUFramebuffer;
+        private _gpuFramebuffer;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXFramebufferInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-input-assembler" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXInputAssembler, IGFXInputAssemblerInfo } from "cocos/gfx/input-assembler";
+    import { WebGLCmdDraw } from "cocos/gfx/webgl/webgl-commands";
+    import { IWebGLGPUInputAssembler } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXInputAssembler extends GFXInputAssembler {
+        readonly gpuInputAssembler: IWebGLGPUInputAssembler;
+        private _gpuInputAssembler;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXInputAssemblerInfo): boolean;
+        destroy(): void;
+        extractCmdDraw(cmd: WebGLCmdDraw): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-pipeline-layout" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXPipelineLayout, IGFXPipelineLayoutInfo } from "cocos/gfx/pipeline-layout";
+    import { WebGLGPUPipelineLayout } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXPipelineLayout extends GFXPipelineLayout {
+        readonly gpuPipelineLayout: WebGLGPUPipelineLayout;
+        private _gpuPipelineLayout;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXPipelineLayoutInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-shader" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXShader, IGFXShaderInfo } from "cocos/gfx/shader";
+    import { WebGLGPUShader } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXShader extends GFXShader {
+        readonly gpuShader: WebGLGPUShader;
+        private _gpuShader;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXShaderInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-pipeline-state" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXPipelineState, IGFXPipelineStateInfo } from "cocos/gfx/pipeline-state";
+    import { WebGLGPUPipelineState } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXPipelineState extends GFXPipelineState {
+        readonly gpuPipelineState: WebGLGPUPipelineState;
+        private _gpuPipelineState;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXPipelineStateInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-command-buffer" {
+    import { GFXBindingLayout } from "cocos/gfx/binding-layout";
+    import { GFXBuffer, GFXBufferSource } from "cocos/gfx/buffer";
+    import { GFXCommandBuffer, IGFXCommandBufferInfo } from "cocos/gfx/command-buffer";
+    import { GFXBufferTextureCopy, GFXClearFlag, GFXStencilFace, GFXTextureLayout, IGFXColor, IGFXRect, IGFXViewport } from "cocos/gfx/define";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXFramebuffer } from "cocos/gfx/framebuffer";
+    import { GFXInputAssembler } from "cocos/gfx/input-assembler";
+    import { GFXPipelineState } from "cocos/gfx/pipeline-state";
+    import { GFXTexture } from "cocos/gfx/texture";
+    import { WebGLCmdPackage } from "cocos/gfx/webgl/webgl-commands";
+    import { WebGLGFXDevice } from "cocos/gfx/webgl/webgl-device";
+    export interface IWebGLDepthBias {
+        constantFactor: number;
+        clamp: number;
+        slopeFactor: number;
+    }
+    export interface IWebGLDepthBounds {
+        minBounds: number;
+        maxBounds: number;
+    }
+    export interface IWebGLStencilWriteMask {
+        face: GFXStencilFace;
+        writeMask: number;
+    }
+    export interface IWebGLStencilCompareMask {
+        face: GFXStencilFace;
+        reference: number;
+        compareMask: number;
+    }
+    export class WebGLGFXCommandBuffer extends GFXCommandBuffer {
+        cmdPackage: WebGLCmdPackage;
+        private _webGLAllocator;
+        private _isInRenderPass;
+        private _curGPUPipelineState;
+        private _curGPUBindingLayout;
+        private _curGPUInputAssembler;
+        private _curViewport;
+        private _curScissor;
+        private _curLineWidth;
+        private _curDepthBias;
+        private _curBlendConstants;
+        private _curDepthBounds;
+        private _curStencilWriteMask;
+        private _curStencilCompareMask;
+        private _isStateInvalied;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXCommandBufferInfo): boolean;
+        destroy(): void;
+        begin(): void;
+        end(): void;
+        beginRenderPass(framebuffer: GFXFramebuffer, renderArea: IGFXRect, clearFlag: GFXClearFlag, clearColors: IGFXColor[], clearDepth: number, clearStencil: number): void;
+        endRenderPass(): void;
+        bindPipelineState(pipelineState: GFXPipelineState): void;
+        bindBindingLayout(bindingLayout: GFXBindingLayout): void;
+        bindInputAssembler(inputAssembler: GFXInputAssembler): void;
+        setViewport(viewport: IGFXViewport): void;
+        setScissor(scissor: IGFXRect): void;
+        setLineWidth(lineWidth: number): void;
+        setDepthBias(depthBiasConstantFacotr: number, depthBiasClamp: number, depthBiasSlopeFactor: number): void;
+        setBlendConstants(blendConstants: number[]): void;
+        setDepthBound(minDepthBounds: number, maxDepthBounds: number): void;
+        setStencilWriteMask(face: GFXStencilFace, writeMask: number): void;
+        setStencilCompareMask(face: GFXStencilFace, reference: number, compareMask: number): void;
+        draw(inputAssembler: GFXInputAssembler): void;
+        updateBuffer(buffer: GFXBuffer, data: GFXBufferSource, offset?: number, size?: number): void;
+        copyBufferToTexture(srcBuff: GFXBuffer, dstTex: GFXTexture, dstLayout: GFXTextureLayout, regions: GFXBufferTextureCopy[]): void;
+        execute(cmdBuffs: GFXCommandBuffer[], count: number): void;
+        readonly webGLDevice: WebGLGFXDevice;
+        private bindStates;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-define" {
+    export enum WebGLEXT {
+        RGBA16F_EXT = 34842,
+        RGB16F_EXT = 34843,
+        RGBA32F_EXT = 34836,
+        FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE_EXT = 33297,
+        UNSIGNED_NORMALIZED_EXT = 35863,
+        UNSIGNED_INT_24_8_WEBGL = 34042,
+        HALF_FLOAT_OES = 36193,
+        COMPRESSED_RGB_S3TC_DXT1_EXT = 33776,
+        COMPRESSED_RGBA_S3TC_DXT1_EXT = 33777,
+        COMPRESSED_RGBA_S3TC_DXT3_EXT = 33778,
+        COMPRESSED_RGBA_S3TC_DXT5_EXT = 33779,
+        COMPRESSED_SRGB_S3TC_DXT1_EXT = 35916,
+        COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT = 35917,
+        COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT = 35918,
+        COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT = 35919,
+        COMPRESSED_RGB_PVRTC_4BPPV1_IMG = 35840,
+        COMPRESSED_RGB_PVRTC_2BPPV1_IMG = 35841,
+        COMPRESSED_RGBA_PVRTC_4BPPV1_IMG = 35842,
+        COMPRESSED_RGBA_PVRTC_2BPPV1_IMG = 35843,
+        COMPRESSED_RGB_ETC1_WEBGL = 36196,
+        COMPRESSED_R11_EAC = 37488,
+        COMPRESSED_SIGNED_R11_EAC = 37489,
+        COMPRESSED_RG11_EAC = 37490,
+        COMPRESSED_SIGNED_RG11_EAC = 37491,
+        COMPRESSED_RGB8_ETC2 = 37492,
+        COMPRESSED_SRGB8_ETC2 = 37493,
+        COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 37494,
+        COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 37495,
+        COMPRESSED_RGBA8_ETC2_EAC = 37496,
+        COMPRESSED_SRGB8_ALPHA8_ETC2_EAC = 37497
+    }
+}
+declare module "cocos/gfx/webgl/webgl-state-cache" {
+    import { IGFXRect, IGFXViewport } from "cocos/gfx/define";
+    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/gfx/pipeline-state";
+    export interface IWebGLTexUnit {
+        glTexture: WebGLTexture | null;
+    }
+    export class WebGLStateCache {
+        glArrayBuffer: WebGLBuffer | null;
+        glElementArrayBuffer: WebGLBuffer | null;
+        glVAO: WebGLVertexArrayObjectOES | null;
+        texUnit: number;
+        glTex2DUnits: IWebGLTexUnit[];
+        glTexCubeUnits: IWebGLTexUnit[];
+        glRenderbuffer: WebGLRenderbuffer | null;
+        glFramebuffer: WebGLFramebuffer | null;
+        viewport: IGFXViewport;
+        scissorRect: IGFXRect;
+        rs: GFXRasterizerState;
+        dss: GFXDepthStencilState;
+        bs: GFXBlendState;
+        glProgram: WebGLProgram | null;
+        glEnabledAttribLocs: boolean[];
+        glCurrentAttribLocs: boolean[];
+        constructor();
+    }
+}
+declare module "cocos/gfx/webgl/webgl-commands" {
+    import { CachedArray } from "cocos/core/memop/cached-array";
+    import { GFXBufferSource, IGFXDrawInfo } from "cocos/gfx/buffer";
+    import { GFXBufferTextureCopy, GFXClearFlag, GFXTextureLayout, IGFXColor, IGFXRect, IGFXViewport } from "cocos/gfx/define";
+    import { WebGLGFXCommandAllocator } from "cocos/gfx/webgl/webgl-command-allocator";
+    import { IWebGLDepthBias, IWebGLDepthBounds, IWebGLStencilCompareMask, IWebGLStencilWriteMask } from "cocos/gfx/webgl/webgl-command-buffer";
+    import { WebGLGFXDevice } from "cocos/gfx/webgl/webgl-device";
+    import { IWebGLGPUInputAssembler, WebGLGPUBindingLayout, WebGLGPUBuffer, WebGLGPUFramebuffer, WebGLGPUPipelineState, WebGLGPUShader, WebGLGPUTexture } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export enum WebGLCmd {
+        BEGIN_RENDER_PASS = 0,
+        END_RENDER_PASS = 1,
+        BIND_STATES = 2,
+        DRAW = 3,
+        UPDATE_BUFFER = 4,
+        COPY_BUFFER_TO_TEXTURE = 5,
+        COUNT = 6
+    }
+    export abstract class WebGLCmdObject {
+        cmdType: WebGLCmd;
+        refCount: number;
+        constructor(type: WebGLCmd);
+        abstract clear(): any;
+    }
+    export class WebGLCmdBeginRenderPass extends WebGLCmdObject {
+        gpuFramebuffer: WebGLGPUFramebuffer | null;
+        renderArea: IGFXRect;
+        clearFlag: GFXClearFlag;
+        clearColors: IGFXColor[];
+        clearDepth: number;
+        clearStencil: number;
+        constructor();
+        clear(): void;
+    }
+    export class WebGLCmdBindStates extends WebGLCmdObject {
+        gpuPipelineState: WebGLGPUPipelineState | null;
+        gpuBindingLayout: WebGLGPUBindingLayout | null;
+        gpuInputAssembler: IWebGLGPUInputAssembler | null;
+        viewport: IGFXViewport | null;
+        scissor: IGFXRect | null;
+        lineWidth: number | null;
+        depthBias: IWebGLDepthBias | null;
+        blendConstants: number[] | null;
+        depthBounds: IWebGLDepthBounds | null;
+        stencilWriteMask: IWebGLStencilWriteMask | null;
+        stencilCompareMask: IWebGLStencilCompareMask | null;
+        constructor();
+        clear(): void;
+    }
+    export class WebGLCmdDraw extends WebGLCmdObject {
+        drawInfo: IGFXDrawInfo;
+        constructor();
+        clear(): void;
+    }
+    export class WebGLCmdUpdateBuffer extends WebGLCmdObject {
+        gpuBuffer: WebGLGPUBuffer | null;
+        buffer: GFXBufferSource | null;
+        offset: number;
+        size: number;
+        constructor();
+        clear(): void;
+    }
+    export class WebGLGFXTextureSubres {
+        baseMipLevel: number;
+        levelCount: number;
+        baseArrayLayer: number;
+        layerCount: number;
+    }
+    export class WebGLGFXBufferTextureCopy {
+        buffOffset: number;
+        buffStride: number;
+        buffTexHeight: number;
+        texOffset: number[];
+        texExtent: number[];
+        texSubres: WebGLGFXTextureSubres;
+    }
+    export class WebGLCmdCopyBufferToTexture extends WebGLCmdObject {
+        gpuBuffer: WebGLGPUBuffer | null;
+        gpuTexture: WebGLGPUTexture | null;
+        dstLayout: GFXTextureLayout | null;
+        regions: GFXBufferTextureCopy[];
+        constructor();
+        clear(): void;
+    }
+    export class WebGLCmdPackage {
+        cmds: CachedArray<WebGLCmd>;
+        beginRenderPassCmds: CachedArray<WebGLCmdBeginRenderPass>;
+        bindStatesCmds: CachedArray<WebGLCmdBindStates>;
+        drawCmds: CachedArray<WebGLCmdDraw>;
+        updateBufferCmds: CachedArray<WebGLCmdUpdateBuffer>;
+        copyBufferToTextureCmds: CachedArray<WebGLCmdCopyBufferToTexture>;
+        clearCmds(allocator: WebGLGFXCommandAllocator): void;
+    }
+    export function WebGLCmdFuncCreateBuffer(device: WebGLGFXDevice, gpuBuffer: WebGLGPUBuffer): void;
+    export function WebGLCmdFuncDestroyBuffer(device: WebGLGFXDevice, gpuBuffer: WebGLGPUBuffer): void;
+    export function WebGLCmdFuncResizeBuffer(device: WebGLGFXDevice, gpuBuffer: WebGLGPUBuffer): void;
+    export function WebGLCmdFuncUpdateBuffer(device: WebGLGFXDevice, gpuBuffer: WebGLGPUBuffer, buffer: GFXBufferSource, offset: number, size: number): void;
+    export function WebGLCmdFuncCreateTexture(device: WebGLGFXDevice, gpuTexture: WebGLGPUTexture): void;
+    export function WebGLCmdFuncDestroyTexture(device: WebGLGFXDevice, gpuTexture: WebGLGPUTexture): void;
+    export function WebGLCmdFuncResizeTexture(device: WebGLGFXDevice, gpuTexture: WebGLGPUTexture): void;
+    export function WebGLCmdFuncCreateFramebuffer(device: WebGLGFXDevice, gpuFramebuffer: WebGLGPUFramebuffer): void;
+    export function WebGLCmdFuncDestroyFramebuffer(device: WebGLGFXDevice, gpuFramebuffer: WebGLGPUFramebuffer): void;
+    export function WebGLCmdFuncCreateShader(device: WebGLGFXDevice, gpuShader: WebGLGPUShader): void;
+    export function WebGLCmdFuncDestroyShader(device: WebGLGFXDevice, gpuShader: WebGLGPUShader): void;
+    export function WebGLCmdFuncCreateInputAssember(device: WebGLGFXDevice, gpuInputAssembler: IWebGLGPUInputAssembler): void;
+    export function WebGLCmdFuncDestroyInputAssembler(device: WebGLGFXDevice, gpuInputAssembler: IWebGLGPUInputAssembler): void;
+    export function WebGLCmdFuncExecuteCmds(device: WebGLGFXDevice, cmdPackage: WebGLCmdPackage): void;
+    export function WebGLCmdFuncCopyTexImagesToTexture(device: WebGLGFXDevice, texImages: TexImageSource[], gpuTexture: WebGLGPUTexture, regions: GFXBufferTextureCopy[]): void;
+    export function WebGLCmdFuncCopyBuffersToTexture(device: WebGLGFXDevice, buffers: ArrayBuffer[], gpuTexture: WebGLGPUTexture, regions: GFXBufferTextureCopy[]): void;
+}
+declare module "cocos/gfx/webgl/webgl-buffer" {
+    import { GFXBuffer, GFXBufferSource, IGFXBufferInfo } from "cocos/gfx/buffer";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { WebGLGPUBuffer } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXBuffer extends GFXBuffer {
+        readonly gpuBuffer: WebGLGPUBuffer;
+        private _gpuBuffer;
+        private _uniformBuffer;
+        private _indirectBuffer;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXBufferInfo): boolean;
+        destroy(): void;
+        resize(size: number): void;
+        update(buffer: GFXBufferSource, offset?: number, size?: number): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-sampler" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXSampler, IGFXSamplerInfo } from "cocos/gfx/sampler";
+    import { WebGLGPUSampler } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXSampler extends GFXSampler {
+        readonly gpuSampler: WebGLGPUSampler;
+        private _gpuSampler;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXSamplerInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-binding-layout" {
+    import { GFXBindingLayout, IGFXBindingLayoutInfo } from "cocos/gfx/binding-layout";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { WebGLGPUBindingLayout } from "cocos/gfx/webgl/webgl-gpu-objects";
+    export class WebGLGFXBindingLayout extends GFXBindingLayout {
+        readonly gpuBindingLayout: WebGLGPUBindingLayout;
+        private _gpuBindingLayout;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXBindingLayoutInfo): boolean;
+        destroy(): void;
+        update(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-queue" {
+    import { GFXCommandBuffer } from "cocos/gfx/command-buffer";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXQueue, IGFXQueueInfo } from "cocos/gfx/queue";
+    export class WebGLGFXQueue extends GFXQueue {
+        numDrawCalls: number;
+        numTris: number;
+        private _isAsync;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXQueueInfo): boolean;
+        destroy(): void;
+        submit(cmdBuffs: GFXCommandBuffer[], fence?: any): void;
+        clear(): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-window" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXWindow, IGFXWindowInfo } from "cocos/gfx/window";
+    export class WebGLGFXWindow extends GFXWindow {
+        constructor(device: GFXDevice);
+        initialize(info: IGFXWindowInfo): boolean;
+        destroy(): void;
+        resize(width: number, height: number): void;
+    }
+}
+declare module "cocos/gfx/webgl/webgl-device" {
+    import { GFXBindingLayout, IGFXBindingLayoutInfo } from "cocos/gfx/binding-layout";
+    import { GFXBuffer, IGFXBufferInfo } from "cocos/gfx/buffer";
+    import { GFXCommandAllocator, IGFXCommandAllocatorInfo } from "cocos/gfx/command-allocator";
+    import { GFXCommandBuffer, IGFXCommandBufferInfo } from "cocos/gfx/command-buffer";
+    import { GFXBufferTextureCopy, GFXFilter, IGFXRect } from "cocos/gfx/define";
+    import { GFXDevice, IGFXDeviceInfo } from "cocos/gfx/device";
+    import { GFXFramebuffer, IGFXFramebufferInfo } from "cocos/gfx/framebuffer";
+    import { GFXInputAssembler, IGFXInputAssemblerInfo } from "cocos/gfx/input-assembler";
+    import { GFXPipelineLayout, IGFXPipelineLayoutInfo } from "cocos/gfx/pipeline-layout";
+    import { GFXPipelineState, IGFXPipelineStateInfo } from "cocos/gfx/pipeline-state";
+    import { GFXQueue, IGFXQueueInfo } from "cocos/gfx/queue";
+    import { GFXRenderPass, IGFXRenderPassInfo } from "cocos/gfx/render-pass";
+    import { GFXSampler, IGFXSamplerInfo } from "cocos/gfx/sampler";
+    import { GFXShader, IGFXShaderInfo } from "cocos/gfx/shader";
+    import { GFXTexture, IGFXTextureInfo } from "cocos/gfx/texture";
+    import { GFXTextureView, IGFXTextureViewInfo } from "cocos/gfx/texture-view";
+    import { GFXWindow, IGFXWindowInfo } from "cocos/gfx/window";
+    import { WebGLGFXQueue } from "cocos/gfx/webgl/webgl-queue";
+    import { WebGLStateCache } from "cocos/gfx/webgl/webgl-state-cache";
+    import { WebGLGFXTexture } from "cocos/gfx/webgl/webgl-texture";
+    export class WebGLGFXDevice extends GFXDevice {
+        readonly gl: WebGLRenderingContext;
+        readonly webGLQueue: WebGLGFXQueue;
+        readonly isAntialias: boolean;
+        readonly isPremultipliedAlpha: boolean;
+        readonly useVAO: boolean;
+        readonly EXT_texture_filter_anisotropic: EXT_texture_filter_anisotropic | null;
+        readonly EXT_frag_depth: EXT_frag_depth | null;
+        readonly EXT_shader_texture_lod: EXT_shader_texture_lod | null;
+        readonly EXT_sRGB: EXT_sRGB | null;
+        readonly OES_vertex_array_object: OES_vertex_array_object | null;
+        readonly WEBGL_color_buffer_float: WEBGL_color_buffer_float | null;
+        readonly WEBGL_compressed_texture_etc1: WEBGL_compressed_texture_etc1 | null;
+        readonly WEBGL_compressed_texture_pvrtc: WEBGL_compressed_texture_pvrtc | null;
+        readonly WEBGL_compressed_texture_astc: WEBGL_compressed_texture_astc | null;
+        readonly WEBGL_compressed_texture_s3tc: WEBGL_compressed_texture_s3tc | null;
+        readonly WEBGL_compressed_texture_s3tc_srgb: WEBGL_compressed_texture_s3tc_srgb | null;
+        readonly WEBGL_debug_shaders: WEBGL_debug_shaders | null;
+        readonly WEBGL_draw_buffers: WEBGL_draw_buffers | null;
+        readonly WEBGL_lose_context: WEBGL_lose_context | null;
+        readonly WEBGL_depth_texture: WEBGL_depth_texture | null;
+        readonly WEBGL_debug_renderer_info: WEBGL_debug_renderer_info | null;
+        readonly OES_texture_half_float: OES_texture_half_float | null;
+        readonly OES_texture_half_float_linear: OES_texture_half_float_linear | null;
+        readonly OES_texture_float: OES_texture_float | null;
+        readonly OES_standard_derivatives: OES_standard_derivatives | null;
+        readonly OES_element_index_uint: OES_element_index_uint | null;
+        readonly ANGLE_instanced_arrays: ANGLE_instanced_arrays | null;
+        stateCache: WebGLStateCache;
+        nullTex2D: WebGLGFXTexture | null;
+        nullTexCube: WebGLGFXTexture | null;
+        private _webGLRC;
+        private _isAntialias;
+        private _isPremultipliedAlpha;
+        private _useVAO;
+        private _extensions;
+        private _EXT_texture_filter_anisotropic;
+        private _EXT_frag_depth;
+        private _EXT_shader_texture_lod;
+        private _EXT_sRGB;
+        private _OES_vertex_array_object;
+        private _EXT_color_buffer_half_float;
+        private _WEBGL_color_buffer_float;
+        private _WEBGL_compressed_texture_etc1;
+        private _WEBGL_compressed_texture_etc;
+        private _WEBGL_compressed_texture_pvrtc;
+        private _WEBGL_compressed_texture_astc;
+        private _WEBGL_compressed_texture_s3tc;
+        private _WEBGL_compressed_texture_s3tc_srgb;
+        private _WEBGL_debug_shaders;
+        private _WEBGL_draw_buffers;
+        private _WEBGL_lose_context;
+        private _WEBGL_depth_texture;
+        private _WEBGL_debug_renderer_info;
+        private _OES_texture_half_float;
+        private _OES_texture_half_float_linear;
+        private _OES_texture_float;
+        private _OES_texture_float_linear;
+        private _OES_standard_derivatives;
+        private _OES_element_index_uint;
+        private _ANGLE_instanced_arrays;
+        constructor();
+        initialize(info: IGFXDeviceInfo): boolean;
+        destroy(): void;
+        resize(width: number, height: number): void;
+        createBuffer(info: IGFXBufferInfo): GFXBuffer;
+        createTexture(info: IGFXTextureInfo): GFXTexture;
+        createTextureView(info: IGFXTextureViewInfo): GFXTextureView;
+        createSampler(info: IGFXSamplerInfo): GFXSampler;
+        createBindingLayout(info: IGFXBindingLayoutInfo): GFXBindingLayout;
+        createShader(info: IGFXShaderInfo): GFXShader;
+        createInputAssembler(info: IGFXInputAssemblerInfo): GFXInputAssembler;
+        createRenderPass(info: IGFXRenderPassInfo): GFXRenderPass;
+        createFramebuffer(info: IGFXFramebufferInfo): GFXFramebuffer;
+        createPipelineLayout(info: IGFXPipelineLayoutInfo): GFXPipelineLayout;
+        createPipelineState(info: IGFXPipelineStateInfo): GFXPipelineState;
+        createCommandAllocator(info: IGFXCommandAllocatorInfo): GFXCommandAllocator;
+        createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
+        createQueue(info: IGFXQueueInfo): GFXQueue;
+        createWindow(info: IGFXWindowInfo): GFXWindow;
+        present(): void;
+        copyBuffersToTexture(buffers: ArrayBuffer[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
+        copyTexImagesToTexture(texImages: TexImageSource[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
+        copyFramebufferToBuffer(srcFramebuffer: GFXFramebuffer, dstBuffer: ArrayBuffer, regions: GFXBufferTextureCopy[]): void;
+        blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
+        private initStates;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-command-allocator" {
+    import { CachedArray } from "cocos/core/memop/cached-array";
+    import { GFXCommandAllocator, IGFXCommandAllocatorInfo } from "cocos/gfx/command-allocator";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { WebGL2CmdBeginRenderPass, WebGL2CmdBindStates, WebGL2CmdCopyBufferToTexture, WebGL2CmdDraw, WebGL2CmdObject, WebGL2CmdPackage, WebGL2CmdUpdateBuffer } from "cocos/gfx/webgl2/webgl2-commands";
+    export class WebGL2GFXCommandPool<T extends WebGL2CmdObject> {
+        private _frees;
+        private _freeIdx;
+        private _freeCmds;
+        constructor(clazz: new () => T, count: number);
+        alloc(clazz: new () => T): T;
+        free(cmd: T): void;
+        freeCmds(cmds: CachedArray<T>): void;
+        release(): void;
+    }
+    export class WebGL2GFXCommandAllocator extends GFXCommandAllocator {
+        beginRenderPassCmdPool: WebGL2GFXCommandPool<WebGL2CmdBeginRenderPass>;
+        bindStatesCmdPool: WebGL2GFXCommandPool<WebGL2CmdBindStates>;
+        drawCmdPool: WebGL2GFXCommandPool<WebGL2CmdDraw>;
+        updateBufferCmdPool: WebGL2GFXCommandPool<WebGL2CmdUpdateBuffer>;
+        copyBufferToTextureCmdPool: WebGL2GFXCommandPool<WebGL2CmdCopyBufferToTexture>;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXCommandAllocatorInfo): boolean;
+        destroy(): void;
+        clearCmds(cmdPackage: WebGL2CmdPackage): void;
+        releaseCmds(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-gpu-objects" {
+    import { IGFXDrawInfo } from "cocos/gfx/buffer";
+    import { GFXAddress, GFXBindingType, GFXBufferUsage, GFXDynamicState, GFXFilter, GFXFormat, GFXMemoryUsage, GFXSampleCount, GFXShaderType, GFXTextureFlags, GFXTextureType, GFXTextureUsage, GFXTextureViewType, GFXType } from "cocos/gfx/define";
+    import { IGFXAttribute } from "cocos/gfx/input-assembler";
+    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/gfx/pipeline-state";
+    import { GFXColorAttachment, GFXDepthStencilAttachment } from "cocos/gfx/render-pass";
+    import { GFXUniformBlock, GFXUniformSampler, IGFXShaderMacro } from "cocos/gfx/shader";
+    export interface IWebGL2GPUUniformInfo {
+        name: string;
+        type: GFXType;
+        count: number;
+        offset: number;
+        view: Float32Array | Int32Array;
+        isDirty: boolean;
+    }
+    export class WebGL2GPUBuffer {
+        usage: GFXBufferUsage;
+        memUsage: GFXMemoryUsage;
+        size: number;
+        stride: number;
+        glTarget: GLenum;
+        glBuffer: WebGLBuffer | null;
+        buffer: ArrayBuffer | null;
+        vf32: Float32Array | null;
+        indirects: IGFXDrawInfo[];
+    }
+    export class WebGL2GPUTexture {
+        type: GFXTextureType;
+        viewType: GFXTextureViewType;
+        format: GFXFormat;
+        usage: GFXTextureUsage;
+        width: number;
+        height: number;
+        depth: number;
+        size: number;
+        arrayLayer: number;
+        mipLevel: number;
+        samples: GFXSampleCount;
+        flags: GFXTextureFlags;
+        isPowerOf2: boolean;
+        glTarget: GLenum;
+        glInternelFmt: GLenum;
+        glFormat: GLenum;
+        glType: GLenum;
+        glUsage: GLenum;
+        glTexture: WebGLTexture | null;
+        glRenderbuffer: WebGLRenderbuffer | null;
+        glWrapS: GLenum;
+        glWrapT: GLenum;
+        glMinFilter: GLenum;
+        glMagFilter: GLenum;
+    }
+    export class WebGL2GPUTextureView {
+        gpuTexture: WebGL2GPUTexture;
+        type: GFXTextureViewType;
+        format: GFXFormat;
+        baseLevel: number;
+        levelCount: number;
+        constructor(texture: WebGL2GPUTexture);
+    }
+    export class WebGL2GPURenderPass {
+        colorAttachments: GFXColorAttachment[];
+        depthStencilAttachment: GFXDepthStencilAttachment | null;
+    }
+    export class WebGL2GPUFramebuffer {
+        gpuRenderPass: WebGL2GPURenderPass;
+        gpuColorViews: WebGL2GPUTextureView[];
+        gpuDepthStencilView: WebGL2GPUTextureView | null;
+        isOffscreen?: boolean;
+        glFramebuffer: WebGLFramebuffer | null;
+        constructor(gpuRenderPass: WebGL2GPURenderPass);
+    }
+    export class WebGL2GPUSampler {
+        glSampler: WebGLSampler | null;
+        minFilter: GFXFilter;
+        magFilter: GFXFilter;
+        mipFilter: GFXFilter;
+        addressU: GFXAddress;
+        addressV: GFXAddress;
+        addressW: GFXAddress;
+        minLOD: number;
+        maxLOD: number;
+        glMinFilter: GLenum;
+        glMagFilter: GLenum;
+        glWrapS: GLenum;
+        glWrapT: GLenum;
+        glWrapR: GLenum;
+    }
+    export class WebGL2GPUInput {
+        binding: number;
+        name: string;
+        type: GFXType;
+        stride: number;
+        count: number;
+        size: number;
+        glType: GLenum;
+        glLoc: GLint;
+    }
+    export interface IWebGL2GPUUniform {
+        binding: number;
+        name: string;
+        type: GFXType;
+        stride: number;
+        count: number;
+        size: number;
+        offset: number;
+        glType: GLenum;
+        glLoc: WebGLUniformLocation;
+        array: number[];
+        begin: number;
+        isFirst: boolean;
+    }
+    export class WebGL2GPUUniformBlock {
+        binding: number;
+        idx: number;
+        name: string;
+        size: number;
+        glUniforms: IWebGL2GPUUniform[];
+        glActiveUniforms: IWebGL2GPUUniform[];
+        isUniformPackage: boolean;
+    }
+    export class WebGL2GPUUniformSampler {
+        binding: number;
+        name: string;
+        type: GFXType;
+        units: number[];
+        glType: GLenum;
+        glLoc: WebGLUniformLocation;
+    }
+    export class WebGL2GPUShaderStage {
+        type: GFXShaderType;
+        source: string;
+        macros: IGFXShaderMacro[];
+        glShader: WebGLShader | null;
+    }
+    export class WebGL2GPUShader {
+        name: string;
+        blocks: GFXUniformBlock[];
+        samplers: GFXUniformSampler[];
+        gpuStages: WebGL2GPUShaderStage[];
+        glProgram: WebGLProgram | null;
+        glInputs: WebGL2GPUInput[];
+        glUniforms: IWebGL2GPUUniform[];
+        glBlocks: WebGL2GPUUniformBlock[];
+        glSamplers: WebGL2GPUUniformSampler[];
+    }
+    export class WebGL2GPUPipelineLayout {
+    }
+    export class WebGL2GPUPipelineState {
+        glPrimitive: GLenum;
+        gpuShader: WebGL2GPUShader | null;
+        rs: GFXRasterizerState;
+        dss: GFXDepthStencilState;
+        bs: GFXBlendState;
+        dynamicStates: GFXDynamicState[];
+        gpuLayout: WebGL2GPUPipelineLayout | null;
+        gpuRenderPass: WebGL2GPURenderPass | null;
+    }
+    export class WebGL2GPUBinding {
+        binding: number;
+        type: GFXBindingType;
+        name: string;
+        gpuBuffer: WebGL2GPUBuffer | null;
+        gpuTexView: WebGL2GPUTextureView | null;
+        gpuSampler: WebGL2GPUSampler | null;
+    }
+    export class WebGL2GPUBindingLayout {
+        gpuBindings: WebGL2GPUBinding[];
+    }
+    export class WebGL2Attrib {
+        name: string;
+        glBuffer: WebGLBuffer | null;
+        glType: GLenum;
+        size: number;
+        count: number;
+        stride: number;
+        componentCount: number;
+        isNormalized: boolean;
+        isInstanced: boolean;
+        offset: number;
+    }
+    export interface IWebGL2GPUInputAssembler {
+        attributes: IGFXAttribute[];
+        gpuVertexBuffers: WebGL2GPUBuffer[];
+        gpuIndexBuffer: WebGL2GPUBuffer | null;
+        gpuIndirectBuffer: WebGL2GPUBuffer | null;
+        glAttribs: WebGL2Attrib[];
+        glIndexType: GLenum;
+        glVAOs: Map<WebGLProgram, WebGLVertexArrayObject>;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-render-pass" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXRenderPass, IGFXRenderPassInfo } from "cocos/gfx/render-pass";
+    import { WebGL2GPURenderPass } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXRenderPass extends GFXRenderPass {
+        readonly gpuRenderPass: WebGL2GPURenderPass;
+        private _gpuRenderPass;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXRenderPassInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-texture" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXTexture, IGFXTextureInfo } from "cocos/gfx/texture";
+    import { WebGL2GPUTexture } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXTexture extends GFXTexture {
+        readonly gpuTexture: WebGL2GPUTexture;
+        private _gpuTexture;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXTextureInfo): boolean;
+        destroy(): void;
+        resize(width: number, height: number): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-texture-view" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXTextureView, IGFXTextureViewInfo } from "cocos/gfx/texture-view";
+    import { WebGL2GPUTextureView } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXTextureView extends GFXTextureView {
+        readonly gpuTextureView: WebGL2GPUTextureView;
+        private _gpuTextureView;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXTextureViewInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-framebuffer" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXFramebuffer, IGFXFramebufferInfo } from "cocos/gfx/framebuffer";
+    import { WebGL2GPUFramebuffer } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXFramebuffer extends GFXFramebuffer {
+        readonly gpuFramebuffer: WebGL2GPUFramebuffer;
+        private _gpuFramebuffer;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXFramebufferInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-input-assembler" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXInputAssembler, IGFXInputAssemblerInfo } from "cocos/gfx/input-assembler";
+    import { WebGL2CmdDraw } from "cocos/gfx/webgl2/webgl2-commands";
+    import { IWebGL2GPUInputAssembler } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXInputAssembler extends GFXInputAssembler {
+        readonly gpuInputAssembler: IWebGL2GPUInputAssembler;
+        private _gpuInputAssembler;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXInputAssemblerInfo): boolean;
+        destroy(): void;
+        extractCmdDraw(cmd: WebGL2CmdDraw): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-pipeline-layout" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXPipelineLayout, IGFXPipelineLayoutInfo } from "cocos/gfx/pipeline-layout";
+    import { WebGL2GPUPipelineLayout } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXPipelineLayout extends GFXPipelineLayout {
+        readonly gpuPipelineLayout: WebGL2GPUPipelineLayout;
+        private _gpuPipelineLayout;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXPipelineLayoutInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-shader" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXShader, IGFXShaderInfo } from "cocos/gfx/shader";
+    import { WebGL2GPUShader } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXShader extends GFXShader {
+        readonly gpuShader: WebGL2GPUShader;
+        private _gpuShader;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXShaderInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-pipeline-state" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXPipelineState, IGFXPipelineStateInfo } from "cocos/gfx/pipeline-state";
+    import { WebGL2GPUPipelineState } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXPipelineState extends GFXPipelineState {
+        readonly gpuPipelineState: WebGL2GPUPipelineState;
+        private _gpuPipelineState;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXPipelineStateInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-command-buffer" {
+    import { GFXBindingLayout } from "cocos/gfx/binding-layout";
+    import { GFXBuffer, GFXBufferSource } from "cocos/gfx/buffer";
+    import { GFXCommandBuffer, IGFXCommandBufferInfo } from "cocos/gfx/command-buffer";
+    import { GFXBufferTextureCopy, GFXClearFlag, GFXStencilFace, GFXTextureLayout, IGFXColor, IGFXRect, IGFXViewport } from "cocos/gfx/define";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXFramebuffer } from "cocos/gfx/framebuffer";
+    import { GFXInputAssembler } from "cocos/gfx/input-assembler";
+    import { GFXPipelineState } from "cocos/gfx/pipeline-state";
+    import { GFXTexture } from "cocos/gfx/texture";
+    import { WebGL2CmdPackage } from "cocos/gfx/webgl2/webgl2-commands";
+    import { WebGL2GFXDevice } from "cocos/gfx/webgl2/webgl2-device";
+    export interface IWebGL2DepthBias {
+        constantFactor: number;
+        clamp: number;
+        slopeFactor: number;
+    }
+    export interface IWebGL2DepthBounds {
+        minBounds: number;
+        maxBounds: number;
+    }
+    export interface IWebGL2StencilWriteMask {
+        face: GFXStencilFace;
+        writeMask: number;
+    }
+    export interface IWebGL2StencilCompareMask {
+        face: GFXStencilFace;
+        reference: number;
+        compareMask: number;
+    }
+    export class WebGL2GFXCommandBuffer extends GFXCommandBuffer {
+        cmdPackage: WebGL2CmdPackage;
+        private _webGLAllocator;
+        private _isInRenderPass;
+        private _curGPUPipelineState;
+        private _curGPUBindingLayout;
+        private _curGPUInputAssembler;
+        private _curViewport;
+        private _curScissor;
+        private _curLineWidth;
+        private _curDepthBias;
+        private _curBlendConstants;
+        private _curDepthBounds;
+        private _curStencilWriteMask;
+        private _curStencilCompareMask;
+        private _isStateInvalied;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXCommandBufferInfo): boolean;
+        destroy(): void;
+        begin(): void;
+        end(): void;
+        beginRenderPass(framebuffer: GFXFramebuffer, renderArea: IGFXRect, clearFlag: GFXClearFlag, clearColors: IGFXColor[], clearDepth: number, clearStencil: number): void;
+        endRenderPass(): void;
+        bindPipelineState(pipelineState: GFXPipelineState): void;
+        bindBindingLayout(bindingLayout: GFXBindingLayout): void;
+        bindInputAssembler(inputAssembler: GFXInputAssembler): void;
+        setViewport(viewport: IGFXViewport): void;
+        setScissor(scissor: IGFXRect): void;
+        setLineWidth(lineWidth: number): void;
+        setDepthBias(depthBiasConstantFacotr: number, depthBiasClamp: number, depthBiasSlopeFactor: number): void;
+        setBlendConstants(blendConstants: number[]): void;
+        setDepthBound(minDepthBounds: number, maxDepthBounds: number): void;
+        setStencilWriteMask(face: GFXStencilFace, writeMask: number): void;
+        setStencilCompareMask(face: GFXStencilFace, reference: number, compareMask: number): void;
+        draw(inputAssembler: GFXInputAssembler): void;
+        updateBuffer(buffer: GFXBuffer, data: GFXBufferSource, offset?: number, size?: number): void;
+        copyBufferToTexture(srcBuff: GFXBuffer, dstTex: GFXTexture, dstLayout: GFXTextureLayout, regions: GFXBufferTextureCopy[]): void;
+        execute(cmdBuffs: GFXCommandBuffer[], count: number): void;
+        readonly webGLDevice: WebGL2GFXDevice;
+        private bindStates;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-state-cache" {
+    import { IGFXRect, IGFXViewport } from "cocos/gfx/define";
+    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/gfx/pipeline-state";
+    export interface IWebGL2TexUnit {
+        glTexture: WebGLTexture | null;
+    }
+    export class WebGL2StateCache {
+        glArrayBuffer: WebGLBuffer | null;
+        glElementArrayBuffer: WebGLBuffer | null;
+        glUniformBuffer: WebGLBuffer | null;
+        glBindUBOs: Array<WebGLBuffer | null>;
+        glVAO: WebGLVertexArrayObject | null;
+        texUnit: number;
+        glTex2DUnits: IWebGL2TexUnit[];
+        glTexCubeUnits: IWebGL2TexUnit[];
+        glSamplerUnits: Array<WebGLSampler | null>;
+        glRenderbuffer: WebGLRenderbuffer | null;
+        glFramebuffer: WebGLFramebuffer | null;
+        glReadFramebuffer: WebGLFramebuffer | null;
+        viewport: IGFXViewport;
+        scissorRect: IGFXRect;
+        rs: GFXRasterizerState;
+        dss: GFXDepthStencilState;
+        bs: GFXBlendState;
+        glProgram: WebGLProgram | null;
+        glEnabledAttribLocs: boolean[];
+        glCurrentAttribLocs: boolean[];
+        constructor();
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-commands" {
+    import { CachedArray } from "cocos/core/memop/cached-array";
+    import { GFXBufferSource, IGFXDrawInfo } from "cocos/gfx/buffer";
+    import { GFXBufferTextureCopy, GFXClearFlag, GFXFilter, GFXTextureLayout, IGFXColor, IGFXRect, IGFXViewport } from "cocos/gfx/define";
+    import { WebGL2GFXCommandAllocator } from "cocos/gfx/webgl2/webgl2-command-allocator";
+    import { IWebGL2DepthBias, IWebGL2DepthBounds, IWebGL2StencilCompareMask, IWebGL2StencilWriteMask } from "cocos/gfx/webgl2/webgl2-command-buffer";
+    import { WebGL2GFXDevice } from "cocos/gfx/webgl2/webgl2-device";
+    import { IWebGL2GPUInputAssembler, WebGL2GPUBindingLayout, WebGL2GPUBuffer, WebGL2GPUFramebuffer, WebGL2GPUPipelineState, WebGL2GPUSampler, WebGL2GPUShader, WebGL2GPUTexture } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export enum WebGL2Cmd {
+        BEGIN_RENDER_PASS = 0,
+        END_RENDER_PASS = 1,
+        BIND_STATES = 2,
+        DRAW = 3,
+        UPDATE_BUFFER = 4,
+        COPY_BUFFER_TO_TEXTURE = 5,
+        COUNT = 6
+    }
+    export abstract class WebGL2CmdObject {
+        cmdType: WebGL2Cmd;
+        refCount: number;
+        constructor(type: WebGL2Cmd);
+        abstract clear(): any;
+    }
+    export class WebGL2CmdBeginRenderPass extends WebGL2CmdObject {
+        gpuFramebuffer: WebGL2GPUFramebuffer | null;
+        renderArea: IGFXRect;
+        clearFlag: GFXClearFlag;
+        clearColors: IGFXColor[];
+        clearDepth: number;
+        clearStencil: number;
+        constructor();
+        clear(): void;
+    }
+    export class WebGL2CmdBindStates extends WebGL2CmdObject {
+        gpuPipelineState: WebGL2GPUPipelineState | null;
+        gpuBindingLayout: WebGL2GPUBindingLayout | null;
+        gpuInputAssembler: IWebGL2GPUInputAssembler | null;
+        viewport: IGFXViewport | null;
+        scissor: IGFXRect | null;
+        lineWidth: number | null;
+        depthBias: IWebGL2DepthBias | null;
+        blendConstants: number[] | null;
+        depthBounds: IWebGL2DepthBounds | null;
+        stencilWriteMask: IWebGL2StencilWriteMask | null;
+        stencilCompareMask: IWebGL2StencilCompareMask | null;
+        constructor();
+        clear(): void;
+    }
+    export class WebGL2CmdDraw extends WebGL2CmdObject {
+        drawInfo: IGFXDrawInfo;
+        constructor();
+        clear(): void;
+    }
+    export class WebGL2CmdUpdateBuffer extends WebGL2CmdObject {
+        gpuBuffer: WebGL2GPUBuffer | null;
+        buffer: GFXBufferSource | null;
+        offset: number;
+        size: number;
+        constructor();
+        clear(): void;
+    }
+    export class WebGL2GFXTextureSubres {
+        baseMipLevel: number;
+        levelCount: number;
+        baseArrayLayer: number;
+        layerCount: number;
+    }
+    export class WebGL2GFXBufferTextureCopy {
+        buffOffset: number;
+        buffStride: number;
+        buffTexHeight: number;
+        texOffset: number[];
+        texExtent: number[];
+        texSubres: WebGL2GFXTextureSubres;
+    }
+    export class WebGL2CmdCopyBufferToTexture extends WebGL2CmdObject {
+        gpuBuffer: WebGL2GPUBuffer | null;
+        gpuTexture: WebGL2GPUTexture | null;
+        dstLayout: GFXTextureLayout | null;
+        regions: GFXBufferTextureCopy[];
+        constructor();
+        clear(): void;
+    }
+    export class WebGL2CmdPackage {
+        cmds: CachedArray<WebGL2Cmd>;
+        beginRenderPassCmds: CachedArray<WebGL2CmdBeginRenderPass>;
+        bindStatesCmds: CachedArray<WebGL2CmdBindStates>;
+        drawCmds: CachedArray<WebGL2CmdDraw>;
+        updateBufferCmds: CachedArray<WebGL2CmdUpdateBuffer>;
+        copyBufferToTextureCmds: CachedArray<WebGL2CmdCopyBufferToTexture>;
+        clearCmds(allocator: WebGL2GFXCommandAllocator): void;
+    }
+    export function WebGL2CmdFuncCreateBuffer(device: WebGL2GFXDevice, gpuBuffer: WebGL2GPUBuffer): void;
+    export function WebGL2CmdFuncDestroyBuffer(device: WebGL2GFXDevice, gpuBuffer: WebGL2GPUBuffer): void;
+    export function WebGL2CmdFuncResizeBuffer(device: WebGL2GFXDevice, gpuBuffer: WebGL2GPUBuffer): void;
+    export function WebGL2CmdFuncUpdateBuffer(device: WebGL2GFXDevice, gpuBuffer: WebGL2GPUBuffer, buffer: GFXBufferSource, offset: number, size: number): void;
+    export function WebGL2CmdFuncCreateTexture(device: WebGL2GFXDevice, gpuTexture: WebGL2GPUTexture): void;
+    export function WebGL2CmdFuncDestroyTexture(device: WebGL2GFXDevice, gpuTexture: WebGL2GPUTexture): void;
+    export function WebGL2CmdFuncResizeTexture(device: WebGL2GFXDevice, gpuTexture: WebGL2GPUTexture): void;
+    export function WebGL2CmdFuncCreateSampler(device: WebGL2GFXDevice, gpuSampler: WebGL2GPUSampler): void;
+    export function WebGL2CmdFuncDestroySampler(device: WebGL2GFXDevice, gpuSampler: WebGL2GPUSampler): void;
+    export function WebGL2CmdFuncCreateFramebuffer(device: WebGL2GFXDevice, gpuFramebuffer: WebGL2GPUFramebuffer): void;
+    export function WebGL2CmdFuncDestroyFramebuffer(device: WebGL2GFXDevice, gpuFramebuffer: WebGL2GPUFramebuffer): void;
+    export function WebGL2CmdFuncCreateShader(device: WebGL2GFXDevice, gpuShader: WebGL2GPUShader): void;
+    export function WebGL2CmdFuncDestroyShader(device: WebGL2GFXDevice, gpuShader: WebGL2GPUShader): void;
+    export function WebGL2CmdFuncCreateInputAssember(device: WebGL2GFXDevice, gpuInputAssembler: IWebGL2GPUInputAssembler): void;
+    export function WebGL2CmdFuncDestroyInputAssembler(device: WebGL2GFXDevice, gpuInputAssembler: IWebGL2GPUInputAssembler): void;
+    export function WebGL2CmdFuncExecuteCmds(device: WebGL2GFXDevice, cmdPackage: WebGL2CmdPackage): void;
+    export function WebGL2CmdFuncCopyTexImagesToTexture(device: WebGL2GFXDevice, texImages: TexImageSource[], gpuTexture: WebGL2GPUTexture, regions: GFXBufferTextureCopy[]): void;
+    export function WebGL2CmdFuncCopyBuffersToTexture(device: WebGL2GFXDevice, buffers: ArrayBuffer[], gpuTexture: WebGL2GPUTexture, regions: GFXBufferTextureCopy[]): void;
+    export function WebGL2CmdFuncBlitFramebuffer(device: WebGL2GFXDevice, src: WebGL2GPUFramebuffer, dst: WebGL2GPUFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
+}
+declare module "cocos/gfx/webgl2/webgl2-buffer" {
+    import { GFXBuffer, GFXBufferSource, IGFXBufferInfo } from "cocos/gfx/buffer";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { WebGL2GPUBuffer } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXBuffer extends GFXBuffer {
+        readonly gpuBuffer: WebGL2GPUBuffer;
+        private _gpuBuffer;
+        private _indirectBuffer;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXBufferInfo): boolean;
+        destroy(): void;
+        resize(size: number): void;
+        update(buffer: GFXBufferSource, offset?: number, size?: number): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-sampler" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXSampler, IGFXSamplerInfo } from "cocos/gfx/sampler";
+    import { WebGL2GPUSampler } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXSampler extends GFXSampler {
+        readonly gpuSampler: WebGL2GPUSampler;
+        private _gpuSampler;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXSamplerInfo): boolean;
+        destroy(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-binding-layout" {
+    import { GFXBindingLayout, IGFXBindingLayoutInfo } from "cocos/gfx/binding-layout";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { WebGL2GPUBindingLayout } from "cocos/gfx/webgl2/webgl2-gpu-objects";
+    export class WebGL2GFXBindingLayout extends GFXBindingLayout {
+        readonly gpuBindingLayout: WebGL2GPUBindingLayout;
+        private _gpuBindingLayout;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXBindingLayoutInfo): boolean;
+        destroy(): void;
+        update(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-queue" {
+    import { GFXCommandBuffer } from "cocos/gfx/command-buffer";
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXQueue, IGFXQueueInfo } from "cocos/gfx/queue";
+    export class WebGL2GFXQueue extends GFXQueue {
+        numDrawCalls: number;
+        numTris: number;
+        private _isAsync;
+        constructor(device: GFXDevice);
+        initialize(info: IGFXQueueInfo): boolean;
+        destroy(): void;
+        submit(cmdBuffs: GFXCommandBuffer[], fence?: any): void;
+        clear(): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-window" {
+    import { GFXDevice } from "cocos/gfx/device";
+    import { GFXWindow, IGFXWindowInfo } from "cocos/gfx/window";
+    export class WebGL2GFXWindow extends GFXWindow {
+        constructor(device: GFXDevice);
+        initialize(info: IGFXWindowInfo): boolean;
+        destroy(): void;
+        resize(width: number, height: number): void;
+    }
+}
+declare module "cocos/gfx/webgl2/webgl2-device" {
+    import { GFXBindingLayout, IGFXBindingLayoutInfo } from "cocos/gfx/binding-layout";
+    import { GFXBuffer, IGFXBufferInfo } from "cocos/gfx/buffer";
+    import { GFXCommandAllocator, IGFXCommandAllocatorInfo } from "cocos/gfx/command-allocator";
+    import { GFXCommandBuffer, IGFXCommandBufferInfo } from "cocos/gfx/command-buffer";
+    import { GFXBufferTextureCopy, GFXFilter, IGFXRect } from "cocos/gfx/define";
+    import { GFXDevice, IGFXDeviceInfo } from "cocos/gfx/device";
+    import { GFXFramebuffer, IGFXFramebufferInfo } from "cocos/gfx/framebuffer";
+    import { GFXInputAssembler, IGFXInputAssemblerInfo } from "cocos/gfx/input-assembler";
+    import { GFXPipelineLayout, IGFXPipelineLayoutInfo } from "cocos/gfx/pipeline-layout";
+    import { GFXPipelineState, IGFXPipelineStateInfo } from "cocos/gfx/pipeline-state";
+    import { GFXQueue, IGFXQueueInfo } from "cocos/gfx/queue";
+    import { GFXRenderPass, IGFXRenderPassInfo } from "cocos/gfx/render-pass";
+    import { GFXSampler, IGFXSamplerInfo } from "cocos/gfx/sampler";
+    import { GFXShader, IGFXShaderInfo } from "cocos/gfx/shader";
+    import { GFXTexture, IGFXTextureInfo } from "cocos/gfx/texture";
+    import { GFXTextureView, IGFXTextureViewInfo } from "cocos/gfx/texture-view";
+    import { GFXWindow, IGFXWindowInfo } from "cocos/gfx/window";
+    import { WebGL2StateCache } from "cocos/gfx/webgl2/webgl2-state-cache";
+    import { WebGL2GFXTexture } from "cocos/gfx/webgl2/webgl2-texture";
+    export class WebGL2GFXDevice extends GFXDevice {
+        readonly gl: WebGL2RenderingContext;
+        readonly isAntialias: boolean;
+        readonly isPremultipliedAlpha: boolean;
+        readonly useVAO: boolean;
+        readonly EXT_texture_filter_anisotropic: EXT_texture_filter_anisotropic | null;
+        readonly OES_texture_float_linear: OES_texture_float_linear | null;
+        readonly EXT_color_buffer_float: EXT_color_buffer_float | null;
+        readonly EXT_disjoint_timer_query_webgl2: EXT_disjoint_timer_query_webgl2 | null;
+        readonly WEBGL_compressed_texture_etc1: WEBGL_compressed_texture_etc1 | null;
+        readonly WEBGL_compressed_texture_etc: WEBGL_compressed_texture_etc | null;
+        readonly WEBGL_compressed_texture_pvrtc: WEBGL_compressed_texture_pvrtc | null;
+        readonly WEBGL_compressed_texture_s3tc: WEBGL_compressed_texture_s3tc | null;
+        readonly WEBGL_compressed_texture_s3tc_srgb: WEBGL_compressed_texture_s3tc_srgb | null;
+        stateCache: WebGL2StateCache;
+        nullTex2D: WebGL2GFXTexture | null;
+        nullTexCube: WebGL2GFXTexture | null;
+        private _webGL2RC;
+        private _isAntialias;
+        private _isPremultipliedAlpha;
+        private _useVAO;
+        private _extensions;
+        private _EXT_texture_filter_anisotropic;
+        private _OES_texture_float_linear;
+        private _OES_texture_half_float_linear;
+        private _EXT_color_buffer_float;
+        private _EXT_disjoint_timer_query_webgl2;
+        private _WEBGL_compressed_texture_etc1;
+        private _WEBGL_compressed_texture_etc;
+        private _WEBGL_compressed_texture_pvrtc;
+        private _WEBGL_compressed_texture_s3tc;
+        private _WEBGL_compressed_texture_s3tc_srgb;
+        private _WEBGL_debug_renderer_info;
+        private _WEBGL_texture_storage_multisample;
+        private _WEBGL_debug_shaders;
+        private _WEBGL_lose_context;
+        constructor();
+        initialize(info: IGFXDeviceInfo): boolean;
+        destroy(): void;
+        resize(width: number, height: number): void;
+        createBuffer(info: IGFXBufferInfo): GFXBuffer;
+        createTexture(info: IGFXTextureInfo): GFXTexture;
+        createTextureView(info: IGFXTextureViewInfo): GFXTextureView;
+        createSampler(info: IGFXSamplerInfo): GFXSampler;
+        createBindingLayout(info: IGFXBindingLayoutInfo): GFXBindingLayout;
+        createShader(info: IGFXShaderInfo): GFXShader;
+        createInputAssembler(info: IGFXInputAssemblerInfo): GFXInputAssembler;
+        createRenderPass(info: IGFXRenderPassInfo): GFXRenderPass;
+        createFramebuffer(info: IGFXFramebufferInfo): GFXFramebuffer;
+        createPipelineLayout(info: IGFXPipelineLayoutInfo): GFXPipelineLayout;
+        createPipelineState(info: IGFXPipelineStateInfo): GFXPipelineState;
+        createCommandAllocator(info: IGFXCommandAllocatorInfo): GFXCommandAllocator;
+        createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
+        createQueue(info: IGFXQueueInfo): GFXQueue;
+        createWindow(info: IGFXWindowInfo): GFXWindow;
+        present(): void;
+        copyBuffersToTexture(buffers: ArrayBuffer[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
+        copyTexImagesToTexture(texImages: TexImageSource[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
+        copyFramebufferToBuffer(srcFramebuffer: GFXFramebuffer, dstBuffer: ArrayBuffer, regions: GFXBufferTextureCopy[]): void;
+        blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
+        private initStates;
+    }
+}
+declare module "cocos/gfx/index" {
+    export { GFXAttributeName, GFXFormat, GFXPrimitiveMode } from "cocos/gfx/define";
+}
+declare module "cocos/components/component-event-handler" {
+    import { Node } from "cocos/scene-graph/index";
+    /**
+     * @zh
+     * “EventHandler” 类用来设置场景中的事件回调，该类允许用户设置回调目标节点，目标组件名，组件方法名，并可通过 emit 方法调用目标函数。
+     *
+     * @example
+     * ```ts
+     * var eventHandler = new cc.Component.EventHandler();
+     * eventHandler.target = newTarget;
+     * eventHandler.component = "MainMenu";
+     * eventHandler.handler = "OnClick";
+     * eventHandler.customEventData = "my data";
+     * ```
+     */
+    export class EventHandler {
+        _componentName: any;
+        /**
+         * @zh
+         * 组件事件派发。
+         *
+         * @param events - 需要派发的组件事件列表。
+         * @param args - 派发参数数组。
+         */
+        static emitEvents(events: EventHandler[], ...args: any[]): void;
+        /**
+         * @zh
+         * 目标节点
+         */
+        target: Node | null;
+        /**
+         * @zh
+         * 目标组件名
+         */
+        component: string;
+        _componentId: string;
+        /**
+         * @zh
+         * 响应事件函数名
+         */
+        handler: string;
+        /**
+         * @zh
+         * 自定义事件数据
+         */
+        customEventData: string;
+        /**
+         * @zh
+         * 触发目标组件上的指定 handler 函数，该参数是回调函数的参数值（可不填）。
+         *
+         * @param params - 派发参数数组
+         * @example
+         * ```ts
+         * var eventHandler = new cc.Component.EventHandler();
+         * eventHandler.target = newTarget;
+         * eventHandler.component = "MainMenu";
+         * eventHandler.handler = "OnClick"
+         * eventHandler.emit(["param1", "param2", ....]);
+         * ```
+         */
+        emit(params: any[]): void;
+        private _compName2Id;
+        private _compId2Name;
+        private _genCompIdIfNeeded;
+    }
+}
+declare module "cocos/components/missing-script" {
+    import { Component } from "cocos/components/component";
+    class MissingClass {
+        _$erialized: null;
+    }
+    export default class MissingScript extends Component {
+        static safeFindClass(id: any, data: any): any;
+        static getMissingWrapper(id: any, data: any): typeof MissingClass;
+        compiled: boolean;
+        _$erialized: null;
+        constructor();
+        onLoad(): void;
+    }
+}
+declare module "cocos/animation/easing" {
+    export function constant(): number;
+    export function linear(k: number): number;
+    export function quadIn(k: number): number;
+    export function quadOut(k: number): number;
+    export function quadInOut(k: number): number;
+    export function cubicIn(k: number): number;
+    export function cubicOut(k: number): number;
+    export function cubicInOut(k: number): number;
+    export function quartIn(k: number): number;
+    export function quartOut(k: number): number;
+    export function quartInOut(k: number): number;
+    export function quintIn(k: number): number;
+    export function quintOut(k: number): number;
+    export function quintInOut(k: number): number;
+    export function sineIn(k: number): number;
+    export function sineOut(k: number): number;
+    export function sineInOut(k: number): number;
+    export function expoIn(k: number): number;
+    export function expoOut(k: number): number;
+    export function expoInOut(k: number): number;
+    export function circIn(k: number): number;
+    export function circOut(k: number): number;
+    export function circInOut(k: number): number;
+    export function elasticIn(k: number): number;
+    export function elasticOut(k: number): number;
+    export function elasticInOut(k: number): number;
+    export function backIn(k: number): number;
+    export function backOut(k: number): number;
+    export function backInOut(k: number): number;
+    export function bounceIn(k: number): number;
+    export function bounceOut(k: number): number;
+    export function bounceInOut(k: number): number;
+    export function smooth(k: number): number;
+    export function fade(k: number): number;
+    export const quadOutIn: (k: number) => number;
+    export const cubicOutIn: (k: number) => number;
+    export const quartOutIn: (k: number) => number;
+    export const quintOutIn: (k: number) => number;
+    export const sineOutIn: (k: number) => number;
+    export const expoOutIn: (k: number) => number;
+    export const circOutIn: (k: number) => number;
+    export const backOutIn: (k: number) => number;
+    export const bounceOutIn: (k: number) => number;
+}
+declare module "cocos/animation/bezier" {
+    export function bezier(C1: number, C2: number, C3: number, C4: number, t: number): number;
+    export function bezierByTime(controlPoints: any, x: any): number;
+}
+declare module "cocos/core/data/utils/binary-search" {
+    export function binarySearchEpsilon(array: number[], value: number): number;
+}
+declare module "cocos/animation/animation-blend-state" {
+    import { ICurveTarget } from "cocos/animation/animation-curve";
+    export type PropertyBlendState<T = any> = {
+        name: string;
+        weight: number;
+        value?: T;
+        refCount: number;
+    };
+    export class AnimationBlendState {
+        private _blendTargets;
+        refPropertyBlendTarget(target: ICurveTarget, propertyName: string): PropertyBlendState<any>;
+        derefPropertyBlendTarget(target: ICurveTarget, propertyName: string): void;
+        apply(): void;
+        clear(): void;
+    }
+}
+declare module "cocos/animation/blending" {
+    import { Quat, Vec3 } from "cocos/core/value-types/index";
+    import { PropertyBlendState } from "cocos/animation/animation-blend-state";
+    export function additive1D(value: number, weight: number, propertyBlendState: PropertyBlendState<number>): number;
+    export function additive3D(value: Vec3, weight: number, propertyBlendState: PropertyBlendState<Vec3>): Vec3;
+    export function additiveQuat(value: Quat, weight: number, propertyBlendState: PropertyBlendState<Quat>): Quat;
+}
+declare module "cocos/animation/types" {
+    export enum WrapModeMask {
+        Loop = 2,
+        ShouldWrap = 4,
+        PingPong = 22,
+        Reverse = 36
+    }
+    /**
+     * !#en Specifies how time is treated when it is outside of the keyframe range of an Animation.
+     * !#zh 动画使用的循环模式。
+     */
+    export enum WrapMode {
+        /**
+         * !#en Reads the default wrap mode set higher up.
+         * !#zh 向 Animation Component 或者 AnimationClip 查找 wrapMode
+         */
+        Default = 0,
+        /**
+         * !#en All iterations are played as specified.
+         * !#zh 动画只播放一遍
+         */
+        Normal = 1,
+        /**
+         * !#en All iterations are played in the reverse direction from the way they are specified.
+         * !#zh 从最后一帧或结束位置开始反向播放，到第一帧或开始位置停止
+         */
+        Reverse = 36,
+        /**
+         * !#en When time reaches the end of the animation, time will continue at the beginning.
+         * !#zh 循环播放
+         */
+        Loop = 2,
+        /**
+         * !#en All iterations are played in the reverse direction from the way they are specified.
+         * And when time reaches the start of the animation, time will continue at the ending.
+         * !#zh 反向循环播放
+         */
+        LoopReverse = 38,
+        /**
+         * !#en Even iterations are played as specified, odd iterations are played in the reverse direction from the way they
+         * are specified.
+         * !#zh 从第一帧播放到最后一帧，然后反向播放回第一帧，到第一帧后再正向播放，如此循环
+         */
+        PingPong = 22,
+        /**
+         * !#en Even iterations are played in the reverse direction from the way they are specified, odd iterations are played
+         * as specified.
+         * !#zh 从最后一帧开始反向播放，其他同 PingPong
+         */
+        PingPongReverse = 54
+    }
+    /**
+     * For internal
+     */
+    export class WrappedInfo {
+        ratio: number;
+        time: number;
+        direction: number;
+        stopped: boolean;
+        iterations: number;
+        frameIndex: number;
+        constructor(info?: WrappedInfo);
+        set(info: WrappedInfo): void;
+    }
+    export interface ILerpable {
+        lerp(to: this, t: number): this;
+    }
+    export function isLerpable(object: any): object is ILerpable;
+}
+declare module "cocos/animation/animation-curve" {
+    import { PropertyBlendState } from "cocos/animation/animation-blend-state";
+    import * as easing from "cocos/animation/easing";
+    import { MotionPath } from "cocos/animation/motion-path-helper";
+    export type CurveValue = any;
+    export interface ICurveTarget {
+        [x: string]: any;
+    }
+    export type LerpFunction<T = any> = (from: T, to: T, t: number, dt: number) => T;
+    /**
+     * If propertyBlendState.weight equals to zero, the propertyBlendState.value is dirty.
+     * You shall handle this situation correctly.
+     */
+    export type BlendFunction<T> = (value: T, weight: number, propertyBlendState: PropertyBlendState) => T;
+    export type FrameFinder = (framevalues: number[], value: number) => number;
+    export type LinearType = null;
+    export type BezierType = [number, number, number, number];
+    export type EasingMethodName = keyof (typeof easing);
+    export type CurveType = LinearType | BezierType | EasingMethodName;
+    export enum AnimationInterpolation {
+        Linear = 0,
+        Step = 1,
+        CubicSpline = 2
+    }
+    type EasingMethod = EasingMethodName | number[];
+    export interface PropertyCurveData {
+        keys: number;
+        values: CurveValue[];
+        easingMethod?: EasingMethod;
+        easingMethods?: EasingMethod[];
+        motionPaths?: MotionPath | MotionPath[];
+        /**
+         * When the interpolation is 'AnimationInterpolation.CubicSpline', the values must be array of ICubicSplineValue.
+         */
+        interpolation?: AnimationInterpolation;
+    }
+    export class RatioSampler {
+        ratios: number[];
+        private _lastSampleRatio;
+        private _lastSampleResult;
+        private _findRatio;
+        constructor(ratios: number[]);
+        sample(ratio: number): number;
+    }
+    /**
+     * 动画曲线。
+     */
+    export class AnimCurve {
+        static Linear: null;
+        static Bezier(controlPoints: number[]): [number, number, number, number];
+        /**
+         * The keyframe ratio of the keyframe specified as a number between 0.0 and 1.0 inclusive. (x)
+         * A null ratio indicates a zero or single frame curve.
+         */
+        _ratioSampler: RatioSampler | null;
+        types?: CurveType[];
+        type?: CurveType;
+        _blendFunction: BlendFunction<any> | undefined;
+        /**
+         * The values of the keyframes. (y)
+         */
+        private _values;
+        /**
+         * Lerp function used. If undefined, no lerp is performed.
+         */
+        private _lerp;
+        private _stepfiedValues?;
+        private _interpolation;
+        constructor(propertyCurveData: PropertyCurveData, propertyName: string, isNode: boolean, ratioSampler: RatioSampler | null);
+        /**
+         * @param ratio The normalized time specified as a number between 0.0 and 1.0 inclusive.
+         */
+        sample(ratio: number): any;
+        stepfy(stepCount: number): void;
+        empty(): boolean;
+        private _sampleFromOriginal;
+    }
+    export class EventInfo {
+        events: any[];
+        /**
+         * @param func event function
+         * @param params event params
+         */
+        add(func: string, params: any[]): void;
+    }
+    /**
+     * Compute a new ratio by curve type
+     * @param ratio - The origin ratio
+     * @param type - If it's Array, then ratio will be computed with bezierByTime.
+     * If it's string, then ratio will be computed with cc.easing function
+     */
+    export function computeRatioByType(ratio: number, type: CurveType): number;
+}
+declare module "cocos/animation/motion-path-helper" {
+    import { Vec2 } from "cocos/core/value-types/index";
+    import { AnimCurve } from "cocos/animation/animation-curve";
+    export class Curve {
+        points: IControlPoint[];
+        beziers: Bezier[];
+        ratios: number[];
+        progresses: number[];
+        length: number;
+        constructor(points?: IControlPoint[]);
+        computeBeziers(): Bezier[];
+    }
+    export class Bezier {
+        start: Vec2;
+        end: Vec2;
+        /**
+         * cp0, cp1
+         */
+        startCtrlPoint: Vec2;
+        /**
+         * cp2, cp3
+         */
+        endCtrlPoint: Vec2;
+        __arcLengthDivisions?: number;
+        private cacheArcLengths?;
+        /**
+         * Get point at relative position in curve according to arc length
+         * @param u [0 .. 1]
+         */
+        getPointAt(u: number): Vec2;
+        /**
+         * Get point at time t.
+         * @param t [0 .. 1]
+         */
+        getPoint(t: number): Vec2;
+        /**
+         * Get total curve arc length.
+         */
+        getLength(): number;
+        /**
+         * Get list of cumulative segment lengths.
+         */
+        getLengths(divisions?: number): number[];
+        getUtoTmapping(u: number, distance?: number): number;
+    }
+    interface IControlPoint {
+        in: Vec2;
+        pos: Vec2;
+        out: Vec2;
+    }
+    export type MotionPath = Vec2[];
+    export function sampleMotionPaths(motionPaths: Array<(MotionPath | undefined)>, data: AnimCurve, duration: number, fps: number): void;
+}
+declare module "cocos/core/utils/binary-search" {
+    /**
+     * Searches the entire sorted Array for an element and returns the index of the element.
+     *
+     * @method binarySearch
+     * @param {number[]} array
+     * @param {number} value
+     * @return {number} The index of item in the sorted Array, if item is found; otherwise, a negative number that is the bitwise complement of the index of the next element that is larger than item or, if there is no larger element, the bitwise complement of array's length.
+     */
+    /**
+     * Searches the entire sorted Array for an element and returns the index of the element.
+     * It accepts iteratee which is invoked for value and each element of array to compute their sort ranking.
+     * The iteratee is invoked with one argument: (value).
+     *
+     * @method binarySearchBy
+     * @param {number[]} array
+     * @param {number} value
+     * @param {function} iteratee - the iteratee invoked per element
+     * @return {number} The index of item in the sorted Array, if item is found; otherwise, a negative number that is the bitwise complement of the index of the next element that is larger than item or, if there is no larger element, the bitwise complement of array's length.
+     */
+    export default function binarySearchEpsilon(array: any, value: any): number;
+}
+declare module "cocos/animation/animation-clip" {
+    import { Asset, SpriteFrame } from "cocos/assets/index";
+    import { AnimCurve, PropertyCurveData } from "cocos/animation/animation-curve";
+    import { WrapMode as AnimationWrapMode } from "cocos/animation/types";
+    interface IAnimationEventData {
+        frame: number;
+        func: string;
+        params: string[];
+    }
+    interface ICurveData {
+        props?: {
+            [propertyName: string]: PropertyCurveData;
+        };
+        comps?: {
+            [componentName: string]: {
+                [propertyName: string]: PropertyCurveData;
+            };
+        };
+    }
+    export interface IPropertyCurve {
+        /**
+         * 结点路径。
+         */
+        path: string;
+        /**
+         * 组件名称。
+         */
+        component?: string;
+        /**
+         * 属性名称。
+         */
+        propertyName: string;
+        /**
+         * 属性曲线。
+         */
+        curve: AnimCurve;
+    }
+    export interface IAnimationEvent {
+        functionName: string;
+        parameters: string[];
+    }
+    export interface IAnimationEventGroup {
+        events: IAnimationEvent[];
+    }
+    export class AnimationClip extends Asset {
+        static WrapMode: typeof AnimationWrapMode;
+        /**
+         * !#en Duration of this animation.
+         * !#zh 动画的持续时间。
+         */
+        readonly duration: number;
+        /**
+         * !#en Crate clip with a set of sprite frames
+         * !#zh 使用一组序列帧图片来创建动画剪辑
+         * @example
+         * const clip = cc.AnimationClip.createWithSpriteFrames(spriteFrames, 10);
+         *
+         */
+        static createWithSpriteFrames(spriteFrames: SpriteFrame[], sample: number): AnimationClip | null;
+        /**
+         * !#en FrameRate of this animation.
+         * !#zh 动画的帧速率。
+         */
+        sample: number;
+        /**
+         * !#en Speed of this animation.
+         * !#zh 动画的播放速度。
+         */
+        speed: number;
+        /**
+         * !#en WrapMode of this animation.
+         * !#zh 动画的循环模式。
+         */
+        wrapMode: AnimationWrapMode;
+        /**
+         * !#en Curve data.
+         * !#zh 曲线数据。
+         * @example {@link cocos2d/core/animation-clip/curve-data.js}
+         */
+        curveDatas: {
+            [path: string]: ICurveData;
+        };
+        /**
+         * !#en Event data.
+         * !#zh 事件数据。
+         * @example {@link cocos2d/core/animation-clip/event-data.js}
+         * @typescript events: {frame: number, func: string, params: string[]}[]
+         */
+        events: IAnimationEventData[];
+        private _duration;
+        private _keys;
+        private _ratioSamplers;
+        private _propertyCurves?;
+        private _runtimeEvents?;
+        private frameRate;
+        private _stepness;
+        readonly propertyCurves: ReadonlyArray<IPropertyCurve>;
+        readonly eventGroups: ReadonlyArray<IAnimationEventGroup>;
+        stepness: number;
+        onLoad(): void;
+        /**
+         * Call it when you modify `this.curveDatas`;
+         */
+        updateCurveDatas(): void;
+        /**
+         * Call it when you modify `this.events`;
+         */
+        updateEventDatas(): void;
+        getEventGroupIndexAtRatio(ratio: number): number;
+        hasEvents(): boolean;
+        private _createPropertyCurves;
+        private _createCurve;
+        private _createRuntimeEvents;
+        private _applyStepness;
+    }
+}
+declare module "cocos/core/event/defines" {
+    export type EventArgumentsOf<K extends string, Map extends any, AllowCustomEvents extends boolean = false> = K extends (keyof Map) ? Parameters<Map[K]> : (AllowCustomEvents extends true ? any[] : never);
+    export type EventCallbackOf<K extends string, Map extends any, AllowCustomEvents extends boolean = false> = K extends (keyof Map) ? (...args: Parameters<Map[K]>) => void : (AllowCustomEvents extends true ? (...args: any[]) => void : never);
+}
+declare module "cocos/animation/playable" {
+    export class Playable {
+        /**
+         * !#en Is playing or paused in play mode?
+         * !#zh 当前是否正在播放。
+         * @default false
+         */
+        readonly isPlaying: boolean;
+        /**
+         * !#en Is currently paused? This can be true even if in edit mode(isPlaying == false).
+         * !#zh 当前是否正在暂停
+         * @default false
+         */
+        readonly isPaused: boolean;
+        private _isPlaying;
+        private _isPaused;
+        private _stepOnce;
+        /**
+         * !#en Play this animation.
+         * !#zh 播放动画。
+         */
+        play(): void;
+        /**
+         * !#en Stop this animation.
+         * !#zh 停止动画播放。
+         */
+        stop(): void;
+        /**
+         * !#en Pause this animation.
+         * !#zh 暂停动画。
+         */
+        pause(): void;
+        /**
+         * !#en Resume this animation.
+         * !#zh 重新播放动画。
+         */
+        resume(): void;
+        /**
+         * !#en Perform a single frame step.
+         * !#zh 执行一帧动画。
+         */
+        step(): void;
+        update(deltaTime: number): void;
+        protected onPlay(): void;
+        protected onPause(): void;
+        protected onResume(): void;
+        protected onStop(): void;
+        protected onError(message: string): void;
+    }
+}
+declare module "cocos/animation/animation-state" {
+    import { EventArgumentsOf, EventCallbackOf } from "cocos/core/event/defines";
+    import { Node } from "cocos/scene-graph/index";
+    import { AnimationBlendState } from "cocos/animation/animation-blend-state";
+    import { AnimationClip } from "cocos/animation/animation-clip";
+    import { Playable } from "cocos/animation/playable";
+    import { WrapMode, WrappedInfo } from "cocos/animation/types";
+    export namespace AnimationState {
+        interface IEventDefinitionMap {
+            'finished': (animationState: AnimationState) => void;
+            'lastframe': (animationState: AnimationState) => void;
+            'play': (animationState: AnimationState) => void;
+            'pause': (animationState: AnimationState) => void;
+            'resume': (animationState: AnimationState) => void;
+            'stop': (animationState: AnimationState) => void;
+        }
+    }
+    /**
+     * !#en
+     * The AnimationState gives full control over animation playback process.
+     * In most cases the Animation Component is sufficient and easier to use. Use the AnimationState if you need full control.
+     * !#zh
+     * AnimationState 完全控制动画播放过程。<br/>
+     * 大多数情况下 动画组件 是足够和易于使用的。如果您需要更多的动画控制接口，请使用 AnimationState。
+     *
+     */
+    export class AnimationState extends Playable {
+        /**
+         * !#en The clip that is being played by this animation state.
+         * !#zh 此动画状态正在播放的剪辑。
+         */
+        readonly clip: AnimationClip;
+        /**
+         * !#en The name of the playing animation.
+         * !#zh 动画的名字
+         */
+        readonly name: string;
+        readonly length: number;
+        /**
+         * !#en
+         * Wrapping mode of the playing animation.
+         * Notice : dynamic change wrapMode will reset time and repeatCount property
+         * !#zh
+         * 动画循环方式。
+         * 需要注意的是，动态修改 wrapMode 时，会重置 time 以及 repeatCount
+         * @default: WrapMode.Normal
+         */
+        wrapMode: WrapMode;
+        /**
+         * !#en The animation's iteration count property.
+         *
+         * A real number greater than or equal to zero (including positive infinity) representing the number of times
+         * to repeat the animation node.
+         *
+         * Values less than zero and NaN values are treated as the value 1.0 for the purpose of timing model
+         * calculations.
+         *
+         * !#zh 迭代次数，指动画播放多少次后结束, normalize time。 如 2.5（2次半）
+         *
+         * @property repeatCount
+         * @type {Number}
+         * @default 1
+         */
+        repeatCount: number;
+        /**
+         * !#en The start delay which represents the number of seconds from an animation's start time to the start of
+         * the active interval.
+         * !#zh 延迟多少秒播放。
+         * @default 0
+         */
+        delay: number;
+        /**
+         * !#en The curves list.
+         * !#zh 曲线列表。
+         */
+        /**
+         * !#en The iteration duration of this animation in seconds. (length)
+         * !#zh 单次动画的持续时间，秒。
+         * @readOnly
+         */
+        duration: number;
+        /**
+         * !#en The animation's playback speed. 1 is normal playback speed.
+         * !#zh 播放速率。
+         * @default: 1.0
+         */
+        speed: number;
+        /**
+         * !#en The current time of this animation in seconds.
+         * !#zh 动画当前的时间，秒。
+         * @default 0
+         */
+        time: number;
+        /**
+         * The weight.
+         */
+        weight: number;
+        frameRate: number;
+        _lastframeEventOn: boolean;
+        private _wrapMode;
+        private _repeatCount;
+        /**
+         * Mark whether the current frame is played.
+         * When set new time to animation state, we should ensure the frame at the specified time being played at next update.
+         */
+        private _currentFramePlayed;
+        private _delay;
+        private _delayTime;
+        private _wrappedInfo;
+        private _lastWrapInfo;
+        private _lastWrapInfoEvent;
+        private _process;
+        private _target;
+        private _targetNode;
+        private _clip;
+        private _name;
+        private _lastIterations?;
+        private _curveInstances;
+        private _curveLoaded;
+        private _ignoreIndex;
+        constructor(clip: AnimationClip, name?: string);
+        readonly curveLoaded: boolean;
+        initialize(root: Node): void;
+        _emit(type: any, state: any): void;
+        emit<K extends string>(type: K, ...args: EventArgumentsOf<K, AnimationState.IEventDefinitionMap>): void;
+        on<K extends string>(type: K, callback: EventCallbackOf<K, AnimationState.IEventDefinitionMap>, target?: any): void;
+        once<K extends string>(type: K, callback: EventCallbackOf<K, AnimationState.IEventDefinitionMap>, target?: any): void;
+        off(type: string, callback: Function, target?: any): void;
+        _setEventTarget(target: any): void;
+        setTime(time: number): void;
+        update(delta: number): void;
+        _needReverse(currentIterations: number): boolean;
+        getWrappedInfo(time: number, info?: WrappedInfo): WrappedInfo;
+        sample(): WrappedInfo;
+        process(): void;
+        simpleProcess(): void;
+        attachToBlendState(blendState: AnimationBlendState): void;
+        detachFromBlendState(blendState: AnimationBlendState): void;
+        cache(frames: number): void;
+        protected onPlay(): void;
+        protected onStop(): void;
+        protected onResume(): void;
+        protected onPause(): void;
+        private _sampleCurves;
+        private _sampleEvents;
+        private _fireEvent;
+    }
+}
+declare module "cocos/animation/cross-fade" {
+    import { Node } from "cocos/scene-graph/index";
+    import { AnimationState } from "cocos/animation/animation-state";
+    import { Playable } from "cocos/animation/playable";
+    export class CrossFade extends Playable {
+        target: Node;
+        private _fadings;
+        constructor(target: Node);
+        update(deltaTime: number): void;
+        crossFade(state: AnimationState | null, duration: number): void;
+        sample(): void;
+        onPause(): void;
+        onResume(): void;
+        onStop(): void;
+        clear(): void;
+        private _unshiftDefault;
+        private _directStopState;
+        private _directPlayState;
+    }
+}
+declare module "cocos/animation/animation-manager" {
+    import { Node } from "cocos/scene-graph/index";
+    import { AnimationBlendState } from "cocos/animation/animation-blend-state";
+    import { AnimationState } from "cocos/animation/animation-state";
+    import { CrossFade } from "cocos/animation/cross-fade";
+    export class AnimationManager {
+        private _anims;
+        private _delayEvents;
+        private _blendState;
+        private _crossFades;
+        constructor();
+        readonly blendState: AnimationBlendState;
+        addCrossFade(crossFade: CrossFade): void;
+        removeCrossFade(crossFade: CrossFade): void;
+        update(dt: number): void;
+        destruct(): void;
+        addAnimation(anim: AnimationState): void;
+        removeAnimation(anim: AnimationState): void;
+        pushDelayEvent(target: Node, func: string, args: any[]): void;
+    }
+}
+declare module "cocos/animation/index" {
+    import * as easing from "cocos/animation/easing";
+    export * from "cocos/animation/bezier";
+    export { easing };
+    export * from "cocos/animation/motion-path-helper";
+    export * from "cocos/animation/animation-curve";
+    export * from "cocos/animation/animation-clip";
+    export * from "cocos/animation/animation-manager";
+    export * from "cocos/animation/animation-state";
+}
+declare module "cocos/components/animation-component" {
+    import { AnimationClip, AnimationState } from "cocos/animation/index";
+    import { Event } from "cocos/core/event/index";
+    import { ICallbackTable } from "cocos/core/event/callbacks-invoker";
+    import { IEventTarget } from "cocos/core/event/event-target-factory";
+    import { Component } from "cocos/components/component";
+    /**
+     * !#en The event type supported by Animation
+     * !#zh Animation 支持的事件类型
+     */
+    export enum EventType {
+        /**
+         * !#en Emit when begin playing animation
+         * !#zh 开始播放时触发
+         */
+        PLAY = "play",
+        /**
+         * !#en Emit when stop playing animation
+         * !#zh 停止播放时触发
+         */
+        STOP = "stop",
+        /**
+         * !#en Emit when pause animation
+         * !#zh 暂停播放时触发
+         */
+        PAUSE = "pause",
+        /**
+         * !#en Emit when resume animation
+         * !#zh 恢复播放时触发
+         */
+        RESUME = "resume",
+        /**
+         * !#en If animation repeat count is larger than 1, emit when animation play to the last frame
+         * !#zh 假如动画循环次数大于 1，当动画播放到最后一帧时触发
+         */
+        LASTFRAME = "lastframe",
+        /**
+         * !#en Emit when finish playing animation
+         * !#zh 动画播放完成时触发
+         */
+        FINISHED = "finished"
+    }
+    /**
+     * !#en The animation component is used to play back animations.
+     *
+     * Animation provide several events to register：
+     *  - play : Emit when begin playing animation
+     *  - stop : Emit when stop playing animation
+     *  - pause : Emit when pause animation
+     *  - resume : Emit when resume animation
+     *  - lastframe : If animation repeat count is larger than 1, emit when animation play to the last frame
+     *  - finished : Emit when finish playing animation
+     *
+     * !#zh Animation 组件用于播放动画。
+     *
+     * Animation 提供了一系列可注册的事件：
+     *  - play : 开始播放时
+     *  - stop : 停止播放时
+     *  - pause : 暂停播放时
+     *  - resume : 恢复播放时
+     *  - lastframe : 假如动画循环次数大于 1，当动画播放到最后一帧时
+     *  - finished : 动画播放完成时
+     */
+    export class AnimationComponent extends Component implements IEventTarget {
+        /**
+         * !#en Animation will play the default clip when start game.
+         * !#zh 在勾选自动播放或调用 play() 时默认播放的动画剪辑。
+         */
+        defaultClip: AnimationClip | null;
+        /**
+         * !#en Current played clip.
+         * !#zh 当前播放的动画剪辑。
+         */
+        currentClip: AnimationClip | null;
+        /**
+         * Get or (re)set all the clips can be used in this animation.
+         * Once clips are (re)set, old animation states will be stoped.
+         * You shall no longer operate on them.
+         */
+        clips: (AnimationClip | null)[];
+        static EventType: typeof EventType;
+        _callbackTable: ICallbackTable;
+        /**
+         * !#en Whether the animation should auto play the default clip when start game.
+         * !#zh 是否在运行游戏后自动播放默认动画剪辑。
+         */
+        playOnLoad: boolean;
+        private _crossFade;
+        private _nameToState;
+        private _didInit;
+        private _currentClip;
+        /**
+         * !#en All the clips used in this animation.
+         * !#zh 通过脚本可以访问并播放的 AnimationClip 列表。
+         */
+        private _clips;
+        private _defaultClip;
+        constructor();
+        start(): void;
+        onEnable(): void;
+        onDisable(): void;
+        onDestroy(): void;
+        /**
+         * !#en Plays an animation and stop other animations.
+         * !#zh 播放指定的动画，并且停止当前正在播放动画。如果没有指定动画，则播放默认动画。
+         * @param [name] - The name of animation to play. If no name is supplied then the default animation will be played.
+         * @param [startTime] - play an animation from startTime
+         * @return The AnimationState of playing animation. In cases where the animation can't be played
+         * (ie, there is no default animation or no animation with the specified name), the function will return null.
+         * @example
+         * var animCtrl = this.node.getComponent(cc.Animation);
+         * animCtrl.play("linear");
+         */
+        play(name?: string, startTime?: number): AnimationState;
+        crossFade(name?: string, duration?: number): AnimationState;
+        /**
+         * !#en Returns the animation state named name. If no animation with the specified name, the function will return null.
+         * !#zh 获取当前或者指定的动画状态，如果未找到指定动画剪辑则返回 null。
+         */
+        getAnimationState(name: string): AnimationState;
+        /**
+         * !#en Adds a clip to the animation with name newName. If a clip with that name already exists it will be replaced with the new clip.
+         * !#zh 添加动画剪辑，并且可以重新设置该动画剪辑的名称。
+         * @param clip the clip to add
+         * @return The AnimationState which gives full control over the animation clip.
+         */
+        addClip(clip: AnimationClip, newName?: string): AnimationState | undefined;
+        /**
+         * !#en
+         * Remove clip from the animation list. This will remove the clip and any animation states based on it.
+         * If there are animation states depand on the clip are playing or clip is defaultClip, it will not delete the clip.
+         * But if force is true, then will always remove the clip and any animation states based on it. If clip is defaultClip, defaultClip will be reset to null
+         * !#zh
+         * 从动画列表中移除指定的动画剪辑，<br/>
+         * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。
+         * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。
+         * @param {Boolean} [force=false] - If force is true, then will always remove the clip and any animation states based on it.
+         */
+        removeClip(clip: AnimationClip, force?: boolean): void;
+        /**
+         * !#en
+         * Register animation event callback.
+         * The event arguments will provide the AnimationState which emit the event.
+         * When play an animation, will auto register the event callback to the AnimationState,
+         * and unregister the event callback from the AnimationState when animation stopped.
+         * !#zh
+         * 注册动画事件回调。
+         * 回调的事件里将会附上发送事件的 AnimationState。
+         * 当播放一个动画时，会自动将事件注册到对应的 AnimationState 上，停止播放时会将事件从这个 AnimationState 上取消注册。
+         * @param type - A string representing the event type to listen for.
+         * @param callback - The callback that will be invoked when the event is dispatched.
+         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+         * @param [target] - The target (this object) to invoke the callback, can be null
+         * @return Just returns the incoming callback so you can save the anonymous function easier.
+         * @typescript
+         * on(type: string, callback: (event: Event.EventCustom) => void, target?: any, useCapture?: boolean): (event: Event.EventCustom) => void
+         * on<T>(type: string, callback: (event: T) => void, target?: any, useCapture?: boolean): (event: T) => void
+         * @example
+         * onPlay: function (type, state) {
+         *     // callback
+         * }
+         *
+         * // register event to all animation
+         * animation.on('play', this.onPlay, this);
+         */
+        on(type: string, callback: (state: AnimationState) => void, target?: Object): Function | undefined;
+        /**
+         * !#en
+         * Unregister animation event callback.
+         * !#zh
+         * 取消注册动画事件回调。
+         * @method off
+         * @param {String} type - A string representing the event type being removed.
+         * @param {Function} [callback] - The callback to remove.
+         * @param {Object} [target] - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
+         * @example
+         * // unregister event to all animation
+         * animation.off('play', this.onPlay, this);
+         */
+        off(type: string, callback: Function, target?: Object): void;
+        /**
+         * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
+         */
+        targetOff(keyOrTarget?: string | Object | undefined): void;
+        once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
+        dispatchEvent(event: Event): void;
+        hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
+        removeAll(keyOrTarget?: string | Object | undefined): void;
+        emit(key: string, ...args: any[]): void;
+        private _init;
+        private _startCrossFade;
+        private _createStates;
+        private _createState;
+    }
+}
+declare module "cocos/components/index" {
+    /****************************************************************************
+     Copyright (c) 2013-2016 Chukong Technologies Inc.
+     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+    
+     http://www.cocos.com
+    
+     Permission is hereby granted, free of charge, to any person obtaining a copy
+     of this software and associated engine source code (the "Software"), a limited,
+      worldwide, royalty-free, non-assignable, revocable and non-exclusive license
+     to use Cocos Creator solely to develop games on your target platforms. You shall
+      not use Cocos Creator software for developing other software or tools that's
+      used for developing games. You are not granted to publish, distribute,
+      sublicense, and/or sell copies of Cocos Creator.
+    
+     The software or tools in this License Agreement are licensed, not sold.
+     Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
+    
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+     THE SOFTWARE.
+     ****************************************************************************/
+    export { Component } from "cocos/components/component";
+    export { EventHandler } from "cocos/components/component-event-handler";
+    export { default as MissingScript } from "cocos/components/missing-script";
+    export { AnimationComponent } from "cocos/components/animation-component";
+}
+declare module "cocos/3d/framework/particle/billboard-component" {
+    import { Component } from "cocos/components/index";
+    export class BillboardComponent extends Component {
+        private _texture;
+        texture: null;
+        private _height;
+        height: number;
+        private _width;
+        width: number;
+        private _rotation;
+        rotation: number;
+        private _model;
+        private _mesh;
+        private _material;
+        private _uniform;
+        constructor();
+        onEnable(): void;
+        onDisable(): void;
+        private createModel;
     }
 }
 declare module "cocos/3d/framework/particle/particle" {
@@ -19482,7 +22015,7 @@ declare module "cocos/3d/framework/particle/renderer/particle-system-renderer" {
         clear(): void;
         _getFreeParticle(): Particle | null;
         _setNewParticle(p: Particle): void;
-        _updateParticles(dt: number): void;
+        _updateParticles(dt: number): number;
         _updateRenderData(): void;
         updateShaderUniform(): void;
         getParticleCount(): number;
@@ -19536,11 +22069,14 @@ declare module "cocos/3d/framework/particle/renderer/trail" {
          * 设定纹理填充方式
          */
         textureMode: number;
+        widthFromParticle: boolean;
         /**
          * 控制轨迹长度的曲线
          */
         widthRatio: CurveRange;
+        colorFromParticle: boolean;
         colorOverTrail: GradientRange;
+        colorOvertime: GradientRange;
         private _particleSystem;
         private _minSquaredDistance;
         private _vertSize;
@@ -19872,6 +22408,11 @@ declare module "cocos/3d/physics/api" {
          * @param v ∈ [0, 31] (int)
          */
         addMask(v: number): void;
+        /**
+         * this will remove a mask
+         * @param v ∈ [0, 31] (int)
+         */
+        removeMask(v: number): void;
         /** the body type */
         getType(): ERigidBodyType;
         setType(v: ERigidBodyType): void;
@@ -20031,7 +22572,6 @@ declare module "cocos/3d/physics/cannon-impl" {
     export class CannonRigidBody implements RigidBodyBase {
         readonly impl: CANNON.Body;
         private _group;
-        private _mask;
         private _cannonBody;
         private _velocityResult;
         private _useGravity;
@@ -20051,6 +22591,7 @@ declare module "cocos/3d/physics/cannon-impl" {
         getMask(): number;
         setMask(v: number): void;
         addMask(v: number): void;
+        removeMask(v: number): void;
         wakeUp(): void;
         sleep(): void;
         name(): string;
@@ -20359,6 +22900,7 @@ declare module "cocos/3d/physics/cocos/built-in-body" {
         getMask(): number;
         setMask(v: number): void;
         addMask(v: number): void;
+        removeMask(v: number): void;
         intersects(body: BuiltInBody): boolean;
         onCollision(type: ICollisionEventType, event: ICollisionEvent): void;
         onTrigger(type: ICollisionEventType, event: ICollisionEvent): void;
@@ -20473,6 +23015,7 @@ declare module "cocos/3d/framework/physics/detail/physics-based-component" {
         private _transformInitialized;
         /** 是否只有Collider组件 */
         private _isShapeOnly;
+        readonly isShapeOnly: boolean;
         /** 上一次的缩放 */
         private _prevScale;
         constructor(node: Node, world: PhysicsWorldBase);
@@ -20714,942 +23257,21 @@ declare module "cocos/3d/framework/index" {
     import { CameraComponent } from "cocos/3d/framework/camera-component";
     import { LightComponent } from "cocos/3d/framework/light-component";
     import { ModelComponent } from "cocos/3d/framework/model-component";
+    import { BillboardComponent } from "cocos/3d/framework/particle/billboard-component";
     import { ParticleSystemComponent } from "cocos/3d/framework/particle/particle-system-component";
     import { BoxColliderComponent, SphereColliderComponent } from "cocos/3d/framework/physics/collider-component";
     import { RigidBodyComponent } from "cocos/3d/framework/physics/rigid-body-component";
     import { RenderableComponent } from "cocos/3d/framework/renderable-component";
     import { SkinningModelComponent } from "cocos/3d/framework/skinning-model-component";
     export * from "cocos/3d/framework/physics/index";
-    export { AudioSourceComponent, CameraComponent, LightComponent, ModelComponent, SkinningModelComponent, BoxColliderComponent, ParticleSystemComponent, RigidBodyComponent, SphereColliderComponent, RenderableComponent, };
-}
-declare module "cocos/components/component-event-handler" {
-    import { Node } from "cocos/scene-graph/index";
-    /**
-     * @zh
-     * “EventHandler” 类用来设置场景中的事件回调，该类允许用户设置回调目标节点，目标组件名，组件方法名，并可通过 emit 方法调用目标函数。
-     *
-     * @example
-     * ```ts
-     * var eventHandler = new cc.Component.EventHandler();
-     * eventHandler.target = newTarget;
-     * eventHandler.component = "MainMenu";
-     * eventHandler.handler = "OnClick";
-     * eventHandler.customEventData = "my data";
-     * ```
-     */
-    export class EventHandler {
-        _componentName: any;
-        /**
-         * @zh
-         * 组件事件派发。
-         *
-         * @param events - 需要派发的组件事件列表。
-         * @param args - 派发参数数组。
-         */
-        static emitEvents(events: EventHandler[], ...args: any[]): void;
-        /**
-         * @zh
-         * 目标节点
-         */
-        target: Node | null;
-        /**
-         * @zh
-         * 目标组件名
-         */
-        component: string;
-        _componentId: string;
-        /**
-         * @zh
-         * 响应事件函数名
-         */
-        handler: string;
-        /**
-         * @zh
-         * 自定义事件数据
-         */
-        customEventData: string;
-        /**
-         * @zh
-         * 触发目标组件上的指定 handler 函数，该参数是回调函数的参数值（可不填）。
-         *
-         * @param params - 派发参数数组
-         * @example
-         * ```ts
-         * var eventHandler = new cc.Component.EventHandler();
-         * eventHandler.target = newTarget;
-         * eventHandler.component = "MainMenu";
-         * eventHandler.handler = "OnClick"
-         * eventHandler.emit(["param1", "param2", ....]);
-         * ```
-         */
-        emit(params: any[]): void;
-        private _compName2Id;
-        private _compId2Name;
-        private _genCompIdIfNeeded;
-    }
-}
-declare module "cocos/components/missing-script" {
-    import { Component } from "cocos/components/component";
-    class MissingClass {
-        _$erialized: null;
-    }
-    export default class MissingScript extends Component {
-        static safeFindClass(id: any, data: any): any;
-        static getMissingWrapper(id: any, data: any): typeof MissingClass;
-        compiled: boolean;
-        _$erialized: null;
-        constructor();
-        onLoad(): void;
-    }
-}
-declare module "cocos/animation/easing" {
-    export function constant(): number;
-    export function linear(k: number): number;
-    export function quadIn(k: number): number;
-    export function quadOut(k: number): number;
-    export function quadInOut(k: number): number;
-    export function cubicIn(k: number): number;
-    export function cubicOut(k: number): number;
-    export function cubicInOut(k: number): number;
-    export function quartIn(k: number): number;
-    export function quartOut(k: number): number;
-    export function quartInOut(k: number): number;
-    export function quintIn(k: number): number;
-    export function quintOut(k: number): number;
-    export function quintInOut(k: number): number;
-    export function sineIn(k: number): number;
-    export function sineOut(k: number): number;
-    export function sineInOut(k: number): number;
-    export function expoIn(k: number): number;
-    export function expoOut(k: number): number;
-    export function expoInOut(k: number): number;
-    export function circIn(k: number): number;
-    export function circOut(k: number): number;
-    export function circInOut(k: number): number;
-    export function elasticIn(k: number): number;
-    export function elasticOut(k: number): number;
-    export function elasticInOut(k: number): number;
-    export function backIn(k: number): number;
-    export function backOut(k: number): number;
-    export function backInOut(k: number): number;
-    export function bounceIn(k: number): number;
-    export function bounceOut(k: number): number;
-    export function bounceInOut(k: number): number;
-    export function smooth(k: number): number;
-    export function fade(k: number): number;
-    export const quadOutIn: (k: number) => number;
-    export const cubicOutIn: (k: number) => number;
-    export const quartOutIn: (k: number) => number;
-    export const quintOutIn: (k: number) => number;
-    export const sineOutIn: (k: number) => number;
-    export const expoOutIn: (k: number) => number;
-    export const circOutIn: (k: number) => number;
-    export const backOutIn: (k: number) => number;
-    export const bounceOutIn: (k: number) => number;
-}
-declare module "cocos/animation/bezier" {
-    export function bezier(C1: number, C2: number, C3: number, C4: number, t: number): number;
-    export function bezierByTime(controlPoints: any, x: any): number;
-}
-declare module "cocos/animation/types" {
-    export enum WrapModeMask {
-        Loop = 2,
-        ShouldWrap = 4,
-        PingPong = 22,
-        Reverse = 36
-    }
-    /**
-     * !#en Specifies how time is treated when it is outside of the keyframe range of an Animation.
-     * !#zh 动画使用的循环模式。
-     */
-    export enum WrapMode {
-        /**
-         * !#en Reads the default wrap mode set higher up.
-         * !#zh 向 Animation Component 或者 AnimationClip 查找 wrapMode
-         */
-        Default = 0,
-        /**
-         * !#en All iterations are played as specified.
-         * !#zh 动画只播放一遍
-         */
-        Normal = 1,
-        /**
-         * !#en All iterations are played in the reverse direction from the way they are specified.
-         * !#zh 从最后一帧或结束位置开始反向播放，到第一帧或开始位置停止
-         */
-        Reverse = 36,
-        /**
-         * !#en When time reaches the end of the animation, time will continue at the beginning.
-         * !#zh 循环播放
-         */
-        Loop = 2,
-        /**
-         * !#en All iterations are played in the reverse direction from the way they are specified.
-         * And when time reaches the start of the animation, time will continue at the ending.
-         * !#zh 反向循环播放
-         */
-        LoopReverse = 38,
-        /**
-         * !#en Even iterations are played as specified, odd iterations are played in the reverse direction from the way they
-         * are specified.
-         * !#zh 从第一帧播放到最后一帧，然后反向播放回第一帧，到第一帧后再正向播放，如此循环
-         */
-        PingPong = 22,
-        /**
-         * !#en Even iterations are played in the reverse direction from the way they are specified, odd iterations are played
-         * as specified.
-         * !#zh 从最后一帧开始反向播放，其他同 PingPong
-         */
-        PingPongReverse = 54
-    }
-    /**
-     * For internal
-     */
-    export class WrappedInfo {
-        ratio: number;
-        time: number;
-        direction: number;
-        stopped: boolean;
-        iterations: number;
-        frameIndex: number;
-        constructor(info?: WrappedInfo);
-        set(info: WrappedInfo): void;
-    }
-    export interface ILerpable {
-        lerp(to: this, t: number): this;
-    }
-    export function isLerpable(object: any): object is ILerpable;
-}
-declare module "cocos/core/data/utils/binary-search" {
-    export function binarySearchEpsilon(array: number[], value: number): number;
-}
-declare module "cocos/animation/animation-blend-state" {
-    import { ICurveTarget } from "cocos/animation/animation-curve";
-    export type PropertyBlendState<T = any> = {
-        name: string;
-        weight: number;
-        value?: T;
-        refCount: number;
-    };
-    export class AnimationBlendState {
-        private _blendTargets;
-        refPropertyBlendTarget(target: ICurveTarget, propertyName: string): PropertyBlendState<any>;
-        derefPropertyBlendTarget(target: ICurveTarget, propertyName: string): void;
-        apply(): void;
-        clear(): void;
-    }
-}
-declare module "cocos/animation/blending" {
-    import { Quat, Vec3 } from "cocos/core/value-types/index";
-    import { PropertyBlendState } from "cocos/animation/animation-blend-state";
-    export function additive1D(value: number, weight: number, propertyBlendState: PropertyBlendState<number>): number;
-    export function additive3D(value: Vec3, weight: number, propertyBlendState: PropertyBlendState<Vec3>): Vec3;
-    export function additiveQuat(value: Quat, weight: number, propertyBlendState: PropertyBlendState<Quat>): Quat;
-}
-declare module "cocos/animation/animation-curve" {
-    import { PropertyBlendState } from "cocos/animation/animation-blend-state";
-    import * as easing from "cocos/animation/easing";
-    import { MotionPath } from "cocos/animation/motion-path-helper";
-    export type CurveValue = any;
-    export interface ICurveTarget {
-        [x: string]: any;
-    }
-    export type LerpFunction<T = any> = (from: T, to: T, t: number, dt: number) => T;
-    /**
-     * If propertyBlendState.weight equals to zero, the propertyBlendState.value is dirty.
-     * You shall handle this situation correctly.
-     */
-    export type BlendFunction<T> = (value: T, weight: number, propertyBlendState: PropertyBlendState) => T;
-    export type FrameFinder = (framevalues: number[], value: number) => number;
-    export type LinearType = null;
-    export type BezierType = [number, number, number, number];
-    export type EasingMethodName = keyof (typeof easing);
-    export type CurveType = LinearType | BezierType | EasingMethodName;
-    export enum AnimationInterpolation {
-        Linear = 0,
-        Step = 1,
-        CubicSpline = 2
-    }
-    type EasingMethod = EasingMethodName | number[];
-    export interface PropertyCurveData {
-        keys: number;
-        values: CurveValue[];
-        easingMethod?: EasingMethod;
-        easingMethods?: EasingMethod[];
-        motionPaths?: MotionPath | MotionPath[];
-        /**
-         * When the interpolation is 'AnimationInterpolation.CubicSpline', the values must be array of ICubicSplineValue.
-         */
-        interpolation?: AnimationInterpolation;
-    }
-    export class RatioSampler {
-        ratios: number[];
-        private _lastSampleRatio;
-        private _lastSampleResult;
-        private _findRatio;
-        constructor(ratios: number[]);
-        sample(ratio: number): number;
-    }
-    /**
-     * 动画曲线。
-     */
-    export class AnimCurve {
-        static Linear: null;
-        static Bezier(controlPoints: number[]): [number, number, number, number];
-        /**
-         * The values of the keyframes. (y)
-         */
-        values: CurveValue[];
-        /**
-         * The keyframe ratio of the keyframe specified as a number between 0.0 and 1.0 inclusive. (x)
-         * A null ratio indicates a zero or single frame curve.
-         */
-        ratioSampler: RatioSampler | null;
-        types?: CurveType[];
-        type?: CurveType;
-        _blendFunction: BlendFunction<any> | undefined;
-        /**
-         * Lerp function used. If undefined, no lerp is performed.
-         */
-        private _lerp;
-        private _stepfiedValues?;
-        private _interpolation;
-        constructor(propertyCurveData: PropertyCurveData, propertyName: string, isNode: boolean, ratioSampler: RatioSampler | null);
-        /**
-         * @param ratio The normalized time specified as a number between 0.0 and 1.0 inclusive.
-         */
-        sample(ratio: number): any;
-        stepfy(stepCount: number): void;
-        private _sampleFromOriginal;
-    }
-    export class EventInfo {
-        events: any[];
-        /**
-         * @param func event function
-         * @param params event params
-         */
-        add(func: string, params: any[]): void;
-    }
-    /**
-     * Compute a new ratio by curve type
-     * @param ratio - The origin ratio
-     * @param type - If it's Array, then ratio will be computed with bezierByTime.
-     * If it's string, then ratio will be computed with cc.easing function
-     */
-    export function computeRatioByType(ratio: number, type: CurveType): number;
-}
-declare module "cocos/animation/motion-path-helper" {
-    import { Vec2 } from "cocos/core/value-types/index";
-    import { AnimCurve } from "cocos/animation/animation-curve";
-    export class Curve {
-        points: IControlPoint[];
-        beziers: Bezier[];
-        ratios: number[];
-        progresses: number[];
-        length: number;
-        constructor(points?: IControlPoint[]);
-        computeBeziers(): Bezier[];
-    }
-    export class Bezier {
-        start: Vec2;
-        end: Vec2;
-        /**
-         * cp0, cp1
-         */
-        startCtrlPoint: Vec2;
-        /**
-         * cp2, cp3
-         */
-        endCtrlPoint: Vec2;
-        __arcLengthDivisions?: number;
-        private cacheArcLengths?;
-        /**
-         * Get point at relative position in curve according to arc length
-         * @param u [0 .. 1]
-         */
-        getPointAt(u: number): Vec2;
-        /**
-         * Get point at time t.
-         * @param t [0 .. 1]
-         */
-        getPoint(t: number): Vec2;
-        /**
-         * Get total curve arc length.
-         */
-        getLength(): number;
-        /**
-         * Get list of cumulative segment lengths.
-         */
-        getLengths(divisions?: number): number[];
-        getUtoTmapping(u: number, distance?: number): number;
-    }
-    interface IControlPoint {
-        in: Vec2;
-        pos: Vec2;
-        out: Vec2;
-    }
-    export type MotionPath = Vec2[];
-    export function sampleMotionPaths(motionPaths: Array<(MotionPath | undefined)>, data: AnimCurve, duration: number, fps: number): void;
-}
-declare module "cocos/animation/animation-clip" {
-    import { Asset, SpriteFrame } from "cocos/assets/index";
-    import { AnimCurve, PropertyCurveData } from "cocos/animation/animation-curve";
-    import { WrapMode as AnimationWrapMode } from "cocos/animation/types";
-    interface IAnimationEvent {
-        frame: number;
-        func: string;
-        params: string[];
-    }
-    interface ICurveData {
-        props?: {
-            [propertyName: string]: PropertyCurveData;
-        };
-        comps?: {
-            [componentName: string]: {
-                [propertyName: string]: PropertyCurveData;
-            };
-        };
-    }
-    export interface IPropertyCurve {
-        /**
-         * 结点路径。
-         */
-        path: string;
-        /**
-         * 组件名称。
-         */
-        component?: string;
-        /**
-         * 属性名称。
-         */
-        propertyName: string;
-        /**
-         * 属性曲线。
-         */
-        curve: AnimCurve;
-    }
-    export class AnimationClip extends Asset {
-        static WrapMode: typeof AnimationWrapMode;
-        /**
-         * !#en Duration of this animation.
-         * !#zh 动画的持续时间。
-         */
-        readonly duration: number;
-        /**
-         * !#en Crate clip with a set of sprite frames
-         * !#zh 使用一组序列帧图片来创建动画剪辑
-         * @example
-         * const clip = cc.AnimationClip.createWithSpriteFrames(spriteFrames, 10);
-         *
-         */
-        static createWithSpriteFrames(spriteFrames: SpriteFrame[], sample: number): AnimationClip | null;
-        /**
-         * !#en FrameRate of this animation.
-         * !#zh 动画的帧速率。
-         */
-        sample: number;
-        /**
-         * !#en Speed of this animation.
-         * !#zh 动画的播放速度。
-         */
-        speed: number;
-        /**
-         * !#en WrapMode of this animation.
-         * !#zh 动画的循环模式。
-         */
-        wrapMode: AnimationWrapMode;
-        /**
-         * !#en Curve data.
-         * !#zh 曲线数据。
-         * @example {@link cocos2d/core/animation-clip/curve-data.js}
-         */
-        curveDatas: {
-            [path: string]: ICurveData;
-        };
-        /**
-         * !#en Event data.
-         * !#zh 事件数据。
-         * @example {@link cocos2d/core/animation-clip/event-data.js}
-         * @typescript events: {frame: number, func: string, params: string[]}[]
-         */
-        events: IAnimationEvent[];
-        private _duration;
-        private _keys;
-        private _ratioSamplers;
-        private _propertyCurves?;
-        private frameRate;
-        private _stepness;
-        readonly propertyCurves: ReadonlyArray<IPropertyCurve>;
-        stepness: number;
-        onLoad(): void;
-        private _createPropertyCurves;
-        private _createCurve;
-        private _applyStepness;
-    }
-}
-declare module "cocos/animation/playable" {
-    export class Playable {
-        /**
-         * !#en Is playing or paused in play mode?
-         * !#zh 当前是否正在播放。
-         * @default false
-         */
-        readonly isPlaying: boolean;
-        /**
-         * !#en Is currently paused? This can be true even if in edit mode(isPlaying == false).
-         * !#zh 当前是否正在暂停
-         * @default false
-         */
-        readonly isPaused: boolean;
-        private _isPlaying;
-        private _isPaused;
-        private _stepOnce;
-        /**
-         * !#en Play this animation.
-         * !#zh 播放动画。
-         */
-        play(): void;
-        /**
-         * !#en Stop this animation.
-         * !#zh 停止动画播放。
-         */
-        stop(): void;
-        /**
-         * !#en Pause this animation.
-         * !#zh 暂停动画。
-         */
-        pause(): void;
-        /**
-         * !#en Resume this animation.
-         * !#zh 重新播放动画。
-         */
-        resume(): void;
-        /**
-         * !#en Perform a single frame step.
-         * !#zh 执行一帧动画。
-         */
-        step(): void;
-        update(deltaTime: number): void;
-        protected onPlay(): void;
-        protected onPause(): void;
-        protected onResume(): void;
-        protected onStop(): void;
-        protected onError(message: string): void;
-    }
-}
-declare module "cocos/animation/animation-state" {
-    import { Node } from "cocos/scene-graph/index";
-    import { AnimationBlendState } from "cocos/animation/animation-blend-state";
-    import { AnimationClip } from "cocos/animation/animation-clip";
-    import { Playable } from "cocos/animation/playable";
-    import { WrapMode, WrappedInfo } from "cocos/animation/types";
-    /**
-     * !#en
-     * The AnimationState gives full control over animation playback process.
-     * In most cases the Animation Component is sufficient and easier to use. Use the AnimationState if you need full control.
-     * !#zh
-     * AnimationState 完全控制动画播放过程。<br/>
-     * 大多数情况下 动画组件 是足够和易于使用的。如果您需要更多的动画控制接口，请使用 AnimationState。
-     *
-     */
-    export class AnimationState extends Playable {
-        /**
-         * !#en The clip that is being played by this animation state.
-         * !#zh 此动画状态正在播放的剪辑。
-         */
-        readonly clip: AnimationClip;
-        /**
-         * !#en The name of the playing animation.
-         * !#zh 动画的名字
-         */
-        readonly name: string;
-        readonly length: number;
-        /**
-         * !#en
-         * Wrapping mode of the playing animation.
-         * Notice : dynamic change wrapMode will reset time and repeatCount property
-         * !#zh
-         * 动画循环方式。
-         * 需要注意的是，动态修改 wrapMode 时，会重置 time 以及 repeatCount
-         * @default: WrapMode.Normal
-         */
-        wrapMode: WrapMode;
-        /**
-         * !#en The animation's iteration count property.
-         *
-         * A real number greater than or equal to zero (including positive infinity) representing the number of times
-         * to repeat the animation node.
-         *
-         * Values less than zero and NaN values are treated as the value 1.0 for the purpose of timing model
-         * calculations.
-         *
-         * !#zh 迭代次数，指动画播放多少次后结束, normalize time。 如 2.5（2次半）
-         *
-         * @property repeatCount
-         * @type {Number}
-         * @default 1
-         */
-        repeatCount: number;
-        /**
-         * !#en The start delay which represents the number of seconds from an animation's start time to the start of
-         * the active interval.
-         * !#zh 延迟多少秒播放。
-         * @default 0
-         */
-        delay: number;
-        /**
-         * !#en The curves list.
-         * !#zh 曲线列表。
-         */
-        /**
-         * !#en The iteration duration of this animation in seconds. (length)
-         * !#zh 单次动画的持续时间，秒。
-         * @readOnly
-         */
-        duration: number;
-        /**
-         * !#en The animation's playback speed. 1 is normal playback speed.
-         * !#zh 播放速率。
-         * @default: 1.0
-         */
-        speed: number;
-        /**
-         * !#en The current time of this animation in seconds.
-         * !#zh 动画当前的时间，秒。
-         * @default 0
-         */
-        time: number;
-        /**
-         * The weight.
-         */
-        weight: number;
-        frameRate: number;
-        _lastframeEventOn: boolean;
-        private _wrapMode;
-        private _repeatCount;
-        /**
-         * Mark whether the current frame is played.
-         * When set new time to animation state, we should ensure the frame at the specified time being played at next update.
-         */
-        private _currentFramePlayed;
-        private _delay;
-        private _delayTime;
-        private _wrappedInfo;
-        private _lastWrappedInfo;
-        private _process;
-        private _target;
-        private _clip;
-        private _name;
-        private _lastIterations?;
-        private _curveInstances;
-        constructor(clip: AnimationClip, name?: string);
-        initialize(root: Node): void;
-        _emit(type: any, state: any): void;
-        emit(...restargs: any[]): void;
-        on(type: any, callback: any, target: any): void | null;
-        once(type: any, callback: any, target: any): void | null;
-        off(type: any, callback: any, target: any): void;
-        _setEventTarget(target: any): void;
-        setTime(time: number): void;
-        update(delta: number): void;
-        _needReverse(currentIterations: number): boolean;
-        getWrappedInfo(time: number, info?: WrappedInfo): WrappedInfo;
-        sample(): WrappedInfo;
-        process(): void;
-        simpleProcess(): void;
-        attachToBlendState(blendState: AnimationBlendState): void;
-        detachFromBlendState(blendState: AnimationBlendState): void;
-        cache(frames: number): void;
-        protected onPlay(): void;
-        protected onStop(): void;
-        protected onResume(): void;
-        protected onPause(): void;
-        private _sampleCurves;
-        private _sampleEvents;
-    }
-}
-declare module "cocos/animation/cross-fade" {
-    import { Node } from "cocos/scene-graph/index";
-    import { AnimationState } from "cocos/animation/animation-state";
-    import { Playable } from "cocos/animation/playable";
-    export class CrossFade extends Playable {
-        target: Node;
-        private _fadings;
-        constructor(target: Node);
-        update(deltaTime: number): void;
-        crossFade(state: AnimationState | null, duration: number): void;
-        sample(): void;
-        onPause(): void;
-        onResume(): void;
-        onStop(): void;
-        clear(): void;
-        private _unshiftDefault;
-        private _directStopState;
-        private _directPlayState;
-    }
-}
-declare module "cocos/animation/animation-manager" {
-    import { Node } from "cocos/scene-graph/index";
-    import { AnimationBlendState } from "cocos/animation/animation-blend-state";
-    import { AnimationState } from "cocos/animation/animation-state";
-    import { CrossFade } from "cocos/animation/cross-fade";
-    export class AnimationManager {
-        private _anims;
-        private _delayEvents;
-        private _blendState;
-        private _crossFades;
-        constructor();
-        readonly blendState: AnimationBlendState;
-        addCrossFade(crossFade: CrossFade): void;
-        removeCrossFade(crossFade: CrossFade): void;
-        update(dt: number): void;
-        destruct(): void;
-        addAnimation(anim: AnimationState): void;
-        removeAnimation(anim: AnimationState): void;
-        pushDelayEvent(target: Node, func: string, args: any[]): void;
-    }
-}
-declare module "cocos/animation/index" {
-    import * as easing from "cocos/animation/easing";
-    export * from "cocos/animation/bezier";
-    export { easing };
-    export * from "cocos/animation/types";
-    export * from "cocos/animation/motion-path-helper";
-    export * from "cocos/animation/animation-curve";
-    export * from "cocos/animation/animation-clip";
-    export * from "cocos/animation/animation-manager";
-    export * from "cocos/animation/animation-state";
-}
-declare module "cocos/components/animation-component" {
-    import { AnimationClip, AnimationState } from "cocos/animation/index";
-    import { Component } from "cocos/components/component";
-    import { IEventTarget } from "cocos/core/event/event-target-factory";
-    import { ICallbackTable } from "cocos/core/event/callbacks-invoker";
-    /**
-     * !#en The event type supported by Animation
-     * !#zh Animation 支持的事件类型
-     */
-    export enum EventType {
-        /**
-         * !#en Emit when begin playing animation
-         * !#zh 开始播放时触发
-         */
-        PLAY = "play",
-        /**
-         * !#en Emit when stop playing animation
-         * !#zh 停止播放时触发
-         */
-        STOP = "stop",
-        /**
-         * !#en Emit when pause animation
-         * !#zh 暂停播放时触发
-         */
-        PAUSE = "pause",
-        /**
-         * !#en Emit when resume animation
-         * !#zh 恢复播放时触发
-         */
-        RESUME = "resume",
-        /**
-         * !#en If animation repeat count is larger than 1, emit when animation play to the last frame
-         * !#zh 假如动画循环次数大于 1，当动画播放到最后一帧时触发
-         */
-        LASTFRAME = "lastframe",
-        /**
-         * !#en Emit when finish playing animation
-         * !#zh 动画播放完成时触发
-         */
-        FINISHED = "finished"
-    }
-    /**
-     * !#en The animation component is used to play back animations.
-     *
-     * Animation provide several events to register：
-     *  - play : Emit when begin playing animation
-     *  - stop : Emit when stop playing animation
-     *  - pause : Emit when pause animation
-     *  - resume : Emit when resume animation
-     *  - lastframe : If animation repeat count is larger than 1, emit when animation play to the last frame
-     *  - finished : Emit when finish playing animation
-     *
-     * !#zh Animation 组件用于播放动画。
-     *
-     * Animation 提供了一系列可注册的事件：
-     *  - play : 开始播放时
-     *  - stop : 停止播放时
-     *  - pause : 暂停播放时
-     *  - resume : 恢复播放时
-     *  - lastframe : 假如动画循环次数大于 1，当动画播放到最后一帧时
-     *  - finished : 动画播放完成时
-     */
-    export class AnimationComponent extends Component implements IEventTarget {
-        _callbackTable: ICallbackTable;
-        /**
-         * !#en Animation will play the default clip when start game.
-         * !#zh 在勾选自动播放或调用 play() 时默认播放的动画剪辑。
-         */
-        defaultClip: AnimationClip | null;
-        /**
-         * !#en Current played clip.
-         * !#zh 当前播放的动画剪辑。
-         */
-        currentClip: AnimationClip | null;
-        /**
-         * Get or (re)set all the clips can be used in this animation.
-         * Once clips are (re)set, old animation states will be stoped.
-         * You shall no longer operate on them.
-         */
-        clips: (AnimationClip | null)[];
-        static EventType: typeof EventType;
-        /**
-         * !#en Whether the animation should auto play the default clip when start game.
-         * !#zh 是否在运行游戏后自动播放默认动画剪辑。
-         */
-        playOnLoad: boolean;
-        private _crossFade;
-        private _nameToState;
-        private _didInit;
-        private _currentClip;
-        /**
-         * !#en All the clips used in this animation.
-         * !#zh 通过脚本可以访问并播放的 AnimationClip 列表。
-         */
-        private _clips;
-        private _defaultClip;
-        constructor();
-        start(): void;
-        onEnable(): void;
-        onDisable(): void;
-        onDestroy(): void;
-        /**
-         * !#en Plays an animation and stop other animations.
-         * !#zh 播放指定的动画，并且停止当前正在播放动画。如果没有指定动画，则播放默认动画。
-         * @param [name] - The name of animation to play. If no name is supplied then the default animation will be played.
-         * @param [startTime] - play an animation from startTime
-         * @return The AnimationState of playing animation. In cases where the animation can't be played
-         * (ie, there is no default animation or no animation with the specified name), the function will return null.
-         * @example
-         * var animCtrl = this.node.getComponent(cc.Animation);
-         * animCtrl.play("linear");
-         */
-        play(name?: string, startTime?: number): AnimationState;
-        crossFade(name?: string, duration?: number): AnimationState;
-        /**
-         * !#en Returns the animation state named name. If no animation with the specified name, the function will return null.
-         * !#zh 获取当前或者指定的动画状态，如果未找到指定动画剪辑则返回 null。
-         */
-        getAnimationState(name: string): AnimationState;
-        /**
-         * !#en Adds a clip to the animation with name newName. If a clip with that name already exists it will be replaced with the new clip.
-         * !#zh 添加动画剪辑，并且可以重新设置该动画剪辑的名称。
-         * @param clip the clip to add
-         * @return The AnimationState which gives full control over the animation clip.
-         */
-        addClip(clip: AnimationClip, newName?: string): AnimationState | undefined;
-        /**
-         * !#en
-         * Remove clip from the animation list. This will remove the clip and any animation states based on it.
-         * If there are animation states depand on the clip are playing or clip is defaultClip, it will not delete the clip.
-         * But if force is true, then will always remove the clip and any animation states based on it. If clip is defaultClip, defaultClip will be reset to null
-         * !#zh
-         * 从动画列表中移除指定的动画剪辑，<br/>
-         * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。
-         * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。
-         * @param {Boolean} [force=false] - If force is true, then will always remove the clip and any animation states based on it.
-         */
-        removeClip(clip: AnimationClip, force?: boolean): void;
-        /**
-         * !#en
-         * Register animation event callback.
-         * The event arguments will provide the AnimationState which emit the event.
-         * When play an animation, will auto register the event callback to the AnimationState,
-         * and unregister the event callback from the AnimationState when animation stopped.
-         * !#zh
-         * 注册动画事件回调。
-         * 回调的事件里将会附上发送事件的 AnimationState。
-         * 当播放一个动画时，会自动将事件注册到对应的 AnimationState 上，停止播放时会将事件从这个 AnimationState 上取消注册。
-         * @param type - A string representing the event type to listen for.
-         * @param callback - The callback that will be invoked when the event is dispatched.
-         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-         * @param [target] - The target (this object) to invoke the callback, can be null
-         * @return Just returns the incoming callback so you can save the anonymous function easier.
-         * @typescript
-         * on(type: string, callback: (event: Event.EventCustom) => void, target?: any, useCapture?: boolean): (event: Event.EventCustom) => void
-         * on<T>(type: string, callback: (event: T) => void, target?: any, useCapture?: boolean): (event: T) => void
-         * @example
-         * onPlay: function (type, state) {
-         *     // callback
-         * }
-         *
-         * // register event to all animation
-         * animation.on('play', this.onPlay, this);
-         */
-        on(type: string, callback: (state: AnimationState) => void, target?: Object): Function | undefined;
-        /**
-         * !#en
-         * Unregister animation event callback.
-         * !#zh
-         * 取消注册动画事件回调。
-         * @method off
-         * @param {String} type - A string representing the event type being removed.
-         * @param {Function} [callback] - The callback to remove.
-         * @param {Object} [target] - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
-         * @example
-         * // unregister event to all animation
-         * animation.off('play', this.onPlay, this);
-         */
-        off(type: string, callback: Function, target?: Object): void;
-        /**
-         * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
-         */
-        targetOff(keyOrTarget?: string | Object | undefined): void;
-        once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
-        dispatchEvent(event: import("cocos/core/index").Event): void;
-        hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
-        removeAll(keyOrTarget?: string | Object | undefined): void;
-        emit(key: string, ...args: any[]): void;
-        private _init;
-        private _startCrossFade;
-        private _createStates;
-        private _createState;
-    }
-}
-declare module "cocos/components/index" {
-    /****************************************************************************
-     Copyright (c) 2013-2016 Chukong Technologies Inc.
-     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
-    
-     http://www.cocos.com
-    
-     Permission is hereby granted, free of charge, to any person obtaining a copy
-     of this software and associated engine source code (the "Software"), a limited,
-      worldwide, royalty-free, non-assignable, revocable and non-exclusive license
-     to use Cocos Creator solely to develop games on your target platforms. You shall
-      not use Cocos Creator software for developing other software or tools that's
-      used for developing games. You are not granted to publish, distribute,
-      sublicense, and/or sell copies of Cocos Creator.
-    
-     The software or tools in this License Agreement are licensed, not sold.
-     Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
-    
-     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-     THE SOFTWARE.
-     ****************************************************************************/
-    export { Component } from "cocos/components/component";
-    export { EventHandler } from "cocos/components/component-event-handler";
-    export { default as MissingScript } from "cocos/components/missing-script";
-    export { AnimationComponent } from "cocos/components/animation-component";
+    export { AudioSourceComponent, CameraComponent, LightComponent, ModelComponent, SkinningModelComponent, BoxColliderComponent, ParticleSystemComponent, BillboardComponent, RigidBodyComponent, SphereColliderComponent, RenderableComponent, };
 }
 declare module "cocos/3d/ui/components/ui-transfrom-component" {
     import { Component } from "cocos/components/index";
-    import { EventType } from "cocos/core/platform/event-manager/event-enum";
+    import { SystemEventType } from "cocos/core/platform/event-manager/event-enum";
     import { EventListener } from "cocos/core/platform/event-manager/event-listener";
     import { Mat4, Rect, Size, Vec2, Vec3 } from "cocos/core/value-types/index";
+    import { aabb } from "cocos/3d/geom-utils/index";
     export class UITransformComponent extends Component {
         /**
          * @zh
@@ -21665,7 +23287,7 @@ declare module "cocos/3d/ui/components/ui-transfrom-component" {
         anchorPoint: Vec2;
         anchorX: number;
         anchorY: number;
-        static EventType: typeof EventType;
+        static EventType: typeof SystemEventType;
         _contentSize: Size;
         _anchorPoint: Vec2;
         __preload(): void;
@@ -21755,6 +23377,10 @@ declare module "cocos/3d/ui/components/ui-transfrom-component" {
          * @return
          */
         getBoundingBoxTo(parentMat: Mat4): Rect;
+        /**
+         * compute the corresponding aabb in world space for raycast
+         */
+        getComputeAABB(out?: aabb): aabb | undefined;
         private _getVisibility;
     }
 }
@@ -22892,7 +24518,7 @@ declare module "cocos/core/platform/index" {
 }
 declare module "cocos/renderer/ui/renderData" {
     import { Material } from "cocos/3d/assets/material";
-    import { Color, Rect } from "cocos/core/value-types/index";
+    import { Color } from "cocos/core/value-types/index";
     export interface IRenderData {
         x: number;
         y: number;
@@ -22916,7 +24542,6 @@ declare module "cocos/renderer/ui/renderData" {
         static remove(idx: number): void;
         uvDirty: boolean;
         vertDirty: boolean;
-        rect: Rect;
         private _datas;
         private _indices;
         private _pivotX;
@@ -25088,6 +26713,7 @@ declare module "cocos/3d/ui/components/mask-component" {
         private _segments;
         private _graphics;
         private _clearGraphics;
+        private _lastVisibleSize;
         constructor();
         onLoad(): void;
         /**
@@ -26832,6 +28458,9 @@ declare module "cocos/3d/ui/assembler/graphics/webgl/index" {
     import { IAssemblerManager } from "cocos/3d/ui/assembler/assembler";
     export const graphicsAssemblerManager: IAssemblerManager;
 }
+declare module "cocos/3d/ui/assembler/graphics/index" {
+    export * from "cocos/3d/ui/assembler/graphics/webgl/index";
+}
 declare module "cocos/3d/ui/mesh-buffer" {
     import { GFXBuffer } from "cocos/gfx/buffer";
     import { GFXInputAssembler, IGFXAttribute } from "cocos/gfx/input-assembler";
@@ -26920,7 +28549,11 @@ declare module "cocos/3d/ui/assembler/label/ttf" {
 }
 declare module "cocos/3d/ui/assembler/label/index" {
     import { IAssemblerManager } from "cocos/3d/ui/assembler/assembler";
-    export const labelAssembler: IAssemblerManager;
+    import { bmfontUtils } from "cocos/3d/ui/assembler/label/bmfontUtils";
+    import { CanvasPool } from "cocos/3d/ui/assembler/label/font-utils";
+    import { ttfUtils } from "cocos/3d/ui/assembler/label/ttfUtils";
+    const labelAssembler: IAssemblerManager;
+    export { labelAssembler, ttfUtils, bmfontUtils, CanvasPool, };
 }
 declare module "cocos/3d/ui/assembler/mask/stencil-manager" {
     import { Material } from "cocos/3d/assets/material";
@@ -26958,7 +28591,7 @@ declare module "cocos/3d/ui/assembler/mask/mask-assembler" {
     export const maskEndAssembler: IAssembler;
 }
 declare module "cocos/3d/ui/assembler/mask/index" {
-    export * from "cocos/3d/ui/assembler/mask/mask-assembler";
+    import "cocos/3d/ui/assembler/mask/mask-assembler";
     export * from "cocos/3d/ui/assembler/mask/stencil-manager";
 }
 declare module "cocos/3d/ui/assembler/sprite/bar-filled" {
@@ -27006,16 +28639,18 @@ declare module "cocos/3d/ui/assembler/index" {
      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
      THE SOFTWARE.
      ****************************************************************************/
-    import "cocos/3d/ui/assembler/graphics/webgl/index";
-    import "cocos/3d/ui/assembler/label/index";
+    export * from "cocos/3d/ui/assembler/graphics/index";
+    export * from "cocos/3d/ui/assembler/label/index";
     export * from "cocos/3d/ui/assembler/mask/index";
-    import "cocos/3d/ui/assembler/sprite/index";
+    export * from "cocos/3d/ui/assembler/sprite/index";
     export * from "cocos/3d/ui/assembler/assembler";
+    export * from "cocos/3d/ui/assembler/utils";
 }
 declare module "cocos/3d/ui/index" {
-    export * from "cocos/3d/ui/assembler/index";
+    import * as Assembler from "cocos/3d/ui/assembler/index";
+    import { MeshBuffer } from "cocos/3d/ui/mesh-buffer";
     export * from "cocos/3d/ui/components/index";
-    export { MeshBuffer } from "cocos/3d/ui/mesh-buffer";
+    export { Assembler, MeshBuffer, };
 }
 declare module "cocos/3d/index" {
     /****************************************************************************
@@ -27980,1413 +29615,6 @@ declare module "cocos/core/index" {
     import "cocos/core/director";
     export { vmath };
 }
-declare module "cocos/gfx/webgl/webgl-command-allocator" {
-    import { CachedArray } from "cocos/core/memop/cached-array";
-    import { GFXCommandAllocator, IGFXCommandAllocatorInfo } from "cocos/gfx/command-allocator";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { WebGLCmdBeginRenderPass, WebGLCmdBindStates, WebGLCmdCopyBufferToTexture, WebGLCmdDraw, WebGLCmdObject, WebGLCmdPackage, WebGLCmdUpdateBuffer } from "cocos/gfx/webgl/webgl-commands";
-    export class WebGLGFXCommandPool<T extends WebGLCmdObject> {
-        private _frees;
-        private _freeIdx;
-        private _freeCmds;
-        constructor(clazz: new () => T, count: number);
-        alloc(clazz: new () => T): T;
-        free(cmd: T): void;
-        freeCmds(cmds: CachedArray<T>): void;
-        release(): void;
-    }
-    export class WebGLGFXCommandAllocator extends GFXCommandAllocator {
-        beginRenderPassCmdPool: WebGLGFXCommandPool<WebGLCmdBeginRenderPass>;
-        bindStatesCmdPool: WebGLGFXCommandPool<WebGLCmdBindStates>;
-        drawCmdPool: WebGLGFXCommandPool<WebGLCmdDraw>;
-        updateBufferCmdPool: WebGLGFXCommandPool<WebGLCmdUpdateBuffer>;
-        copyBufferToTextureCmdPool: WebGLGFXCommandPool<WebGLCmdCopyBufferToTexture>;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXCommandAllocatorInfo): boolean;
-        destroy(): void;
-        clearCmds(cmdPackage: WebGLCmdPackage): void;
-        releaseCmds(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-gpu-objects" {
-    import { IGFXDrawInfo } from "cocos/gfx/buffer";
-    import { GFXBindingType, GFXBufferUsage, GFXDynamicState, GFXFormat, GFXMemoryUsage, GFXSampleCount, GFXShaderType, GFXTextureFlags, GFXTextureType, GFXTextureUsage, GFXTextureViewType, GFXType } from "cocos/gfx/define";
-    import { IGFXAttribute } from "cocos/gfx/input-assembler";
-    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/gfx/pipeline-state";
-    import { GFXColorAttachment, GFXDepthStencilAttachment } from "cocos/gfx/render-pass";
-    import { GFXUniformBlock, GFXUniformSampler, IGFXShaderMacro } from "cocos/gfx/shader";
-    export interface IWebGLGPUUniformInfo {
-        name: string;
-        type: GFXType;
-        count: number;
-        offset: number;
-        view: Float32Array | Int32Array;
-        isDirty: boolean;
-    }
-    export class WebGLGPUBuffer {
-        usage: GFXBufferUsage;
-        memUsage: GFXMemoryUsage;
-        size: number;
-        stride: number;
-        glTarget: GLenum;
-        glBuffer: WebGLBuffer | null;
-        buffer: ArrayBuffer | null;
-        vf32: Float32Array | null;
-        indirects: IGFXDrawInfo[];
-    }
-    export class WebGLGPUTexture {
-        type: GFXTextureType;
-        viewType: GFXTextureViewType;
-        format: GFXFormat;
-        usage: GFXTextureUsage;
-        width: number;
-        height: number;
-        depth: number;
-        size: number;
-        arrayLayer: number;
-        mipLevel: number;
-        samples: GFXSampleCount;
-        flags: GFXTextureFlags;
-        isPowerOf2: boolean;
-        glTarget: GLenum;
-        glInternelFmt: GLenum;
-        glFormat: GLenum;
-        glType: GLenum;
-        glUsage: GLenum;
-        glTexture: WebGLTexture | null;
-        glRenderbuffer: WebGLRenderbuffer | null;
-        glWrapS: GLenum;
-        glWrapT: GLenum;
-        glMinFilter: GLenum;
-        glMagFilter: GLenum;
-    }
-    export class WebGLGPUTextureView {
-        gpuTexture: WebGLGPUTexture;
-        type: GFXTextureViewType;
-        format: GFXFormat;
-        baseLevel: number;
-        levelCount: number;
-        constructor(texture: WebGLGPUTexture);
-    }
-    export class WebGLGPURenderPass {
-        colorAttachments: GFXColorAttachment[];
-        depthStencilAttachment: GFXDepthStencilAttachment | null;
-    }
-    export class WebGLGPUFramebuffer {
-        gpuRenderPass: WebGLGPURenderPass;
-        gpuColorViews: WebGLGPUTextureView[];
-        gpuDepthStencilView: WebGLGPUTextureView | null;
-        isOffscreen?: boolean;
-        glFramebuffer: WebGLFramebuffer | null;
-        constructor(gpuRenderPass: WebGLGPURenderPass);
-    }
-    export class WebGLGPUSampler {
-        glMinFilter: GLenum;
-        glMagFilter: GLenum;
-        glWrapS: GLenum;
-        glWrapT: GLenum;
-        glWrapR: GLenum;
-    }
-    export class WebGLGPUInput {
-        binding: number;
-        name: string;
-        type: GFXType;
-        stride: number;
-        count: number;
-        size: number;
-        glType: GLenum;
-        glLoc: GLint;
-    }
-    export interface IWebGLGPUUniform {
-        binding: number;
-        name: string;
-        type: GFXType;
-        stride: number;
-        count: number;
-        size: number;
-        offset: number;
-        glType: GLenum;
-        glLoc: WebGLUniformLocation;
-        array: number[];
-        begin: number;
-        isFirst: boolean;
-    }
-    export class WebGLGPUUniformBlock {
-        binding: number;
-        name: string;
-        size: number;
-        glUniforms: IWebGLGPUUniform[];
-        glActiveUniforms: IWebGLGPUUniform[];
-        isUniformPackage: boolean;
-    }
-    export class WebGLGPUUniformSampler {
-        binding: number;
-        name: string;
-        type: GFXType;
-        units: number[];
-        glType: GLenum;
-        glLoc: WebGLUniformLocation;
-    }
-    export class WebGLGPUShaderStage {
-        type: GFXShaderType;
-        source: string;
-        macros: IGFXShaderMacro[];
-        glShader: WebGLShader | null;
-    }
-    export class WebGLGPUShader {
-        name: string;
-        blocks: GFXUniformBlock[];
-        samplers: GFXUniformSampler[];
-        gpuStages: WebGLGPUShaderStage[];
-        glProgram: WebGLProgram | null;
-        glInputs: WebGLGPUInput[];
-        glUniforms: IWebGLGPUUniform[];
-        glBlocks: WebGLGPUUniformBlock[];
-        glSamplers: WebGLGPUUniformSampler[];
-    }
-    export class WebGLGPUPipelineLayout {
-    }
-    export class WebGLGPUPipelineState {
-        glPrimitive: GLenum;
-        gpuShader: WebGLGPUShader | null;
-        rs: GFXRasterizerState;
-        dss: GFXDepthStencilState;
-        bs: GFXBlendState;
-        dynamicStates: GFXDynamicState[];
-        gpuLayout: WebGLGPUPipelineLayout | null;
-        gpuRenderPass: WebGLGPURenderPass | null;
-    }
-    export class WebGLGPUBinding {
-        binding: number;
-        type: GFXBindingType;
-        name: string;
-        gpuBuffer: WebGLGPUBuffer | null;
-        gpuTexView: WebGLGPUTextureView | null;
-        gpuSampler: WebGLGPUSampler | null;
-    }
-    export class WebGLGPUBindingLayout {
-        gpuBindings: WebGLGPUBinding[];
-    }
-    export class WebGLAttrib {
-        name: string;
-        glBuffer: WebGLBuffer | null;
-        glType: GLenum;
-        size: number;
-        count: number;
-        stride: number;
-        componentCount: number;
-        isNormalized: boolean;
-        isInstanced: boolean;
-        offset: number;
-    }
-    export interface IWebGLGPUInputAssembler {
-        attributes: IGFXAttribute[];
-        gpuVertexBuffers: WebGLGPUBuffer[];
-        gpuIndexBuffer: WebGLGPUBuffer | null;
-        gpuIndirectBuffer: WebGLGPUBuffer | null;
-        glAttribs: WebGLAttrib[];
-        glIndexType: GLenum;
-        glVAOs: Map<WebGLProgram, WebGLVertexArrayObjectOES>;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-render-pass" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXRenderPass, IGFXRenderPassInfo } from "cocos/gfx/render-pass";
-    import { WebGLGPURenderPass } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXRenderPass extends GFXRenderPass {
-        readonly gpuRenderPass: WebGLGPURenderPass;
-        private _gpuRenderPass;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXRenderPassInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-texture" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXTexture, IGFXTextureInfo } from "cocos/gfx/texture";
-    import { WebGLGPUTexture } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXTexture extends GFXTexture {
-        readonly gpuTexture: WebGLGPUTexture;
-        private _gpuTexture;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXTextureInfo): boolean;
-        destroy(): void;
-        resize(width: number, height: number): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-texture-view" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXTextureView, IGFXTextureViewInfo } from "cocos/gfx/texture-view";
-    import { WebGLGPUTextureView } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXTextureView extends GFXTextureView {
-        readonly gpuTextureView: WebGLGPUTextureView;
-        private _gpuTextureView;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXTextureViewInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-framebuffer" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXFramebuffer, IGFXFramebufferInfo } from "cocos/gfx/framebuffer";
-    import { WebGLGPUFramebuffer } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXFramebuffer extends GFXFramebuffer {
-        readonly gpuFramebuffer: WebGLGPUFramebuffer;
-        private _gpuFramebuffer;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXFramebufferInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-input-assembler" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXInputAssembler, IGFXInputAssemblerInfo } from "cocos/gfx/input-assembler";
-    import { WebGLCmdDraw } from "cocos/gfx/webgl/webgl-commands";
-    import { IWebGLGPUInputAssembler } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXInputAssembler extends GFXInputAssembler {
-        readonly gpuInputAssembler: IWebGLGPUInputAssembler;
-        private _gpuInputAssembler;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXInputAssemblerInfo): boolean;
-        destroy(): void;
-        extractCmdDraw(cmd: WebGLCmdDraw): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-pipeline-layout" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXPipelineLayout, IGFXPipelineLayoutInfo } from "cocos/gfx/pipeline-layout";
-    import { WebGLGPUPipelineLayout } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXPipelineLayout extends GFXPipelineLayout {
-        readonly gpuPipelineLayout: WebGLGPUPipelineLayout;
-        private _gpuPipelineLayout;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXPipelineLayoutInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-shader" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXShader, IGFXShaderInfo } from "cocos/gfx/shader";
-    import { WebGLGPUShader } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXShader extends GFXShader {
-        readonly gpuShader: WebGLGPUShader;
-        private _gpuShader;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXShaderInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-pipeline-state" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXPipelineState, IGFXPipelineStateInfo } from "cocos/gfx/pipeline-state";
-    import { WebGLGPUPipelineState } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXPipelineState extends GFXPipelineState {
-        readonly gpuPipelineState: WebGLGPUPipelineState;
-        private _gpuPipelineState;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXPipelineStateInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-command-buffer" {
-    import { GFXBindingLayout } from "cocos/gfx/binding-layout";
-    import { GFXBuffer, GFXBufferSource } from "cocos/gfx/buffer";
-    import { GFXCommandBuffer, IGFXCommandBufferInfo } from "cocos/gfx/command-buffer";
-    import { GFXBufferTextureCopy, GFXClearFlag, GFXStencilFace, GFXTextureLayout, IGFXColor, IGFXRect, IGFXViewport } from "cocos/gfx/define";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXFramebuffer } from "cocos/gfx/framebuffer";
-    import { GFXInputAssembler } from "cocos/gfx/input-assembler";
-    import { GFXPipelineState } from "cocos/gfx/pipeline-state";
-    import { GFXTexture } from "cocos/gfx/texture";
-    import { WebGLCmdPackage } from "cocos/gfx/webgl/webgl-commands";
-    import { WebGLGFXDevice } from "cocos/gfx/webgl/webgl-device";
-    export interface IWebGLDepthBias {
-        constantFactor: number;
-        clamp: number;
-        slopeFactor: number;
-    }
-    export interface IWebGLDepthBounds {
-        minBounds: number;
-        maxBounds: number;
-    }
-    export interface IWebGLStencilWriteMask {
-        face: GFXStencilFace;
-        writeMask: number;
-    }
-    export interface IWebGLStencilCompareMask {
-        face: GFXStencilFace;
-        reference: number;
-        compareMask: number;
-    }
-    export class WebGLGFXCommandBuffer extends GFXCommandBuffer {
-        cmdPackage: WebGLCmdPackage;
-        private _webGLAllocator;
-        private _isInRenderPass;
-        private _curGPUPipelineState;
-        private _curGPUBindingLayout;
-        private _curGPUInputAssembler;
-        private _curViewport;
-        private _curScissor;
-        private _curLineWidth;
-        private _curDepthBias;
-        private _curBlendConstants;
-        private _curDepthBounds;
-        private _curStencilWriteMask;
-        private _curStencilCompareMask;
-        private _isStateInvalied;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXCommandBufferInfo): boolean;
-        destroy(): void;
-        begin(): void;
-        end(): void;
-        beginRenderPass(framebuffer: GFXFramebuffer, renderArea: IGFXRect, clearFlag: GFXClearFlag, clearColors: IGFXColor[], clearDepth: number, clearStencil: number): void;
-        endRenderPass(): void;
-        bindPipelineState(pipelineState: GFXPipelineState): void;
-        bindBindingLayout(bindingLayout: GFXBindingLayout): void;
-        bindInputAssembler(inputAssembler: GFXInputAssembler): void;
-        setViewport(viewport: IGFXViewport): void;
-        setScissor(scissor: IGFXRect): void;
-        setLineWidth(lineWidth: number): void;
-        setDepthBias(depthBiasConstantFacotr: number, depthBiasClamp: number, depthBiasSlopeFactor: number): void;
-        setBlendConstants(blendConstants: number[]): void;
-        setDepthBound(minDepthBounds: number, maxDepthBounds: number): void;
-        setStencilWriteMask(face: GFXStencilFace, writeMask: number): void;
-        setStencilCompareMask(face: GFXStencilFace, reference: number, compareMask: number): void;
-        draw(inputAssembler: GFXInputAssembler): void;
-        updateBuffer(buffer: GFXBuffer, data: GFXBufferSource, offset?: number, size?: number): void;
-        copyBufferToTexture(srcBuff: GFXBuffer, dstTex: GFXTexture, dstLayout: GFXTextureLayout, regions: GFXBufferTextureCopy[]): void;
-        execute(cmdBuffs: GFXCommandBuffer[], count: number): void;
-        readonly webGLDevice: WebGLGFXDevice;
-        private bindStates;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-define" {
-    export enum WebGLEXT {
-        RGBA16F_EXT = 34842,
-        RGB16F_EXT = 34843,
-        RGBA32F_EXT = 34836,
-        FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE_EXT = 33297,
-        UNSIGNED_NORMALIZED_EXT = 35863,
-        UNSIGNED_INT_24_8_WEBGL = 34042,
-        HALF_FLOAT_OES = 36193,
-        COMPRESSED_RGB_S3TC_DXT1_EXT = 33776,
-        COMPRESSED_RGBA_S3TC_DXT1_EXT = 33777,
-        COMPRESSED_RGBA_S3TC_DXT3_EXT = 33778,
-        COMPRESSED_RGBA_S3TC_DXT5_EXT = 33779,
-        COMPRESSED_SRGB_S3TC_DXT1_EXT = 35916,
-        COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT = 35917,
-        COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT = 35918,
-        COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT = 35919,
-        COMPRESSED_RGB_PVRTC_4BPPV1_IMG = 35840,
-        COMPRESSED_RGB_PVRTC_2BPPV1_IMG = 35841,
-        COMPRESSED_RGBA_PVRTC_4BPPV1_IMG = 35842,
-        COMPRESSED_RGBA_PVRTC_2BPPV1_IMG = 35843,
-        COMPRESSED_RGB_ETC1_WEBGL = 36196,
-        COMPRESSED_R11_EAC = 37488,
-        COMPRESSED_SIGNED_R11_EAC = 37489,
-        COMPRESSED_RG11_EAC = 37490,
-        COMPRESSED_SIGNED_RG11_EAC = 37491,
-        COMPRESSED_RGB8_ETC2 = 37492,
-        COMPRESSED_SRGB8_ETC2 = 37493,
-        COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 37494,
-        COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 = 37495,
-        COMPRESSED_RGBA8_ETC2_EAC = 37496,
-        COMPRESSED_SRGB8_ALPHA8_ETC2_EAC = 37497
-    }
-}
-declare module "cocos/gfx/webgl/webgl-state-cache" {
-    import { IGFXRect, IGFXViewport } from "cocos/gfx/define";
-    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/gfx/pipeline-state";
-    export interface IWebGLTexUnit {
-        glTexture: WebGLTexture | null;
-    }
-    export class WebGLStateCache {
-        glArrayBuffer: WebGLBuffer | null;
-        glElementArrayBuffer: WebGLBuffer | null;
-        glVAO: WebGLVertexArrayObjectOES | null;
-        texUnit: number;
-        glTex2DUnits: IWebGLTexUnit[];
-        glTexCubeUnits: IWebGLTexUnit[];
-        glRenderbuffer: WebGLRenderbuffer | null;
-        glFramebuffer: WebGLFramebuffer | null;
-        viewport: IGFXViewport;
-        scissorRect: IGFXRect;
-        rs: GFXRasterizerState;
-        dss: GFXDepthStencilState;
-        bs: GFXBlendState;
-        glProgram: WebGLProgram | null;
-        glEnabledAttribLocs: boolean[];
-        glCurrentAttribLocs: boolean[];
-        constructor();
-    }
-}
-declare module "cocos/gfx/webgl/webgl-commands" {
-    import { CachedArray } from "cocos/core/memop/cached-array";
-    import { GFXBufferSource, IGFXDrawInfo } from "cocos/gfx/buffer";
-    import { GFXBufferTextureCopy, GFXClearFlag, GFXTextureLayout, IGFXColor, IGFXRect, IGFXViewport } from "cocos/gfx/define";
-    import { WebGLGFXCommandAllocator } from "cocos/gfx/webgl/webgl-command-allocator";
-    import { IWebGLDepthBias, IWebGLDepthBounds, IWebGLStencilCompareMask, IWebGLStencilWriteMask } from "cocos/gfx/webgl/webgl-command-buffer";
-    import { WebGLGFXDevice } from "cocos/gfx/webgl/webgl-device";
-    import { IWebGLGPUInputAssembler, WebGLGPUBindingLayout, WebGLGPUBuffer, WebGLGPUFramebuffer, WebGLGPUPipelineState, WebGLGPUShader, WebGLGPUTexture } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export enum WebGLCmd {
-        BEGIN_RENDER_PASS = 0,
-        END_RENDER_PASS = 1,
-        BIND_STATES = 2,
-        DRAW = 3,
-        UPDATE_BUFFER = 4,
-        COPY_BUFFER_TO_TEXTURE = 5,
-        COUNT = 6
-    }
-    export abstract class WebGLCmdObject {
-        cmdType: WebGLCmd;
-        refCount: number;
-        constructor(type: WebGLCmd);
-        abstract clear(): any;
-    }
-    export class WebGLCmdBeginRenderPass extends WebGLCmdObject {
-        gpuFramebuffer: WebGLGPUFramebuffer | null;
-        renderArea: IGFXRect;
-        clearFlag: GFXClearFlag;
-        clearColors: IGFXColor[];
-        clearDepth: number;
-        clearStencil: number;
-        constructor();
-        clear(): void;
-    }
-    export class WebGLCmdBindStates extends WebGLCmdObject {
-        gpuPipelineState: WebGLGPUPipelineState | null;
-        gpuBindingLayout: WebGLGPUBindingLayout | null;
-        gpuInputAssembler: IWebGLGPUInputAssembler | null;
-        viewport: IGFXViewport | null;
-        scissor: IGFXRect | null;
-        lineWidth: number | null;
-        depthBias: IWebGLDepthBias | null;
-        blendConstants: number[] | null;
-        depthBounds: IWebGLDepthBounds | null;
-        stencilWriteMask: IWebGLStencilWriteMask | null;
-        stencilCompareMask: IWebGLStencilCompareMask | null;
-        constructor();
-        clear(): void;
-    }
-    export class WebGLCmdDraw extends WebGLCmdObject {
-        drawInfo: IGFXDrawInfo;
-        constructor();
-        clear(): void;
-    }
-    export class WebGLCmdUpdateBuffer extends WebGLCmdObject {
-        gpuBuffer: WebGLGPUBuffer | null;
-        buffer: GFXBufferSource | null;
-        offset: number;
-        size: number;
-        constructor();
-        clear(): void;
-    }
-    export class WebGLGFXTextureSubres {
-        baseMipLevel: number;
-        levelCount: number;
-        baseArrayLayer: number;
-        layerCount: number;
-    }
-    export class WebGLGFXBufferTextureCopy {
-        buffOffset: number;
-        buffStride: number;
-        buffTexHeight: number;
-        texOffset: number[];
-        texExtent: number[];
-        texSubres: WebGLGFXTextureSubres;
-    }
-    export class WebGLCmdCopyBufferToTexture extends WebGLCmdObject {
-        gpuBuffer: WebGLGPUBuffer | null;
-        gpuTexture: WebGLGPUTexture | null;
-        dstLayout: GFXTextureLayout | null;
-        regions: GFXBufferTextureCopy[];
-        constructor();
-        clear(): void;
-    }
-    export class WebGLCmdPackage {
-        cmds: CachedArray<WebGLCmd>;
-        beginRenderPassCmds: CachedArray<WebGLCmdBeginRenderPass>;
-        bindStatesCmds: CachedArray<WebGLCmdBindStates>;
-        drawCmds: CachedArray<WebGLCmdDraw>;
-        updateBufferCmds: CachedArray<WebGLCmdUpdateBuffer>;
-        copyBufferToTextureCmds: CachedArray<WebGLCmdCopyBufferToTexture>;
-        clearCmds(allocator: WebGLGFXCommandAllocator): void;
-    }
-    export function WebGLCmdFuncCreateBuffer(device: WebGLGFXDevice, gpuBuffer: WebGLGPUBuffer): void;
-    export function WebGLCmdFuncDestroyBuffer(device: WebGLGFXDevice, gpuBuffer: WebGLGPUBuffer): void;
-    export function WebGLCmdFuncResizeBuffer(device: WebGLGFXDevice, gpuBuffer: WebGLGPUBuffer): void;
-    export function WebGLCmdFuncUpdateBuffer(device: WebGLGFXDevice, gpuBuffer: WebGLGPUBuffer, buffer: GFXBufferSource, offset: number, size: number): void;
-    export function WebGLCmdFuncCreateTexture(device: WebGLGFXDevice, gpuTexture: WebGLGPUTexture): void;
-    export function WebGLCmdFuncDestroyTexture(device: WebGLGFXDevice, gpuTexture: WebGLGPUTexture): void;
-    export function WebGLCmdFuncResizeTexture(device: WebGLGFXDevice, gpuTexture: WebGLGPUTexture): void;
-    export function WebGLCmdFuncCreateFramebuffer(device: WebGLGFXDevice, gpuFramebuffer: WebGLGPUFramebuffer): void;
-    export function WebGLCmdFuncDestroyFramebuffer(device: WebGLGFXDevice, gpuFramebuffer: WebGLGPUFramebuffer): void;
-    export function WebGLCmdFuncCreateShader(device: WebGLGFXDevice, gpuShader: WebGLGPUShader): void;
-    export function WebGLCmdFuncDestroyShader(device: WebGLGFXDevice, gpuShader: WebGLGPUShader): void;
-    export function WebGLCmdFuncCreateInputAssember(device: WebGLGFXDevice, gpuInputAssembler: IWebGLGPUInputAssembler): void;
-    export function WebGLCmdFuncDestroyInputAssembler(device: WebGLGFXDevice, gpuInputAssembler: IWebGLGPUInputAssembler): void;
-    export function WebGLCmdFuncExecuteCmds(device: WebGLGFXDevice, cmdPackage: WebGLCmdPackage): void;
-    export function WebGLCmdFuncCopyTexImagesToTexture(device: WebGLGFXDevice, texImages: TexImageSource[], gpuTexture: WebGLGPUTexture, regions: GFXBufferTextureCopy[]): void;
-    export function WebGLCmdFuncCopyBuffersToTexture(device: WebGLGFXDevice, buffers: ArrayBuffer[], gpuTexture: WebGLGPUTexture, regions: GFXBufferTextureCopy[]): void;
-}
-declare module "cocos/gfx/webgl/webgl-buffer" {
-    import { GFXBuffer, GFXBufferSource, IGFXBufferInfo } from "cocos/gfx/buffer";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { WebGLGPUBuffer } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXBuffer extends GFXBuffer {
-        readonly gpuBuffer: WebGLGPUBuffer;
-        private _gpuBuffer;
-        private _uniformBuffer;
-        private _indirectBuffer;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXBufferInfo): boolean;
-        destroy(): void;
-        resize(size: number): void;
-        update(buffer: GFXBufferSource, offset?: number, size?: number): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-sampler" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXSampler, IGFXSamplerInfo } from "cocos/gfx/sampler";
-    import { WebGLGPUSampler } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXSampler extends GFXSampler {
-        readonly gpuSampler: WebGLGPUSampler;
-        private _gpuSampler;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXSamplerInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-binding-layout" {
-    import { GFXBindingLayout, IGFXBindingLayoutInfo } from "cocos/gfx/binding-layout";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { WebGLGPUBindingLayout } from "cocos/gfx/webgl/webgl-gpu-objects";
-    export class WebGLGFXBindingLayout extends GFXBindingLayout {
-        readonly gpuBindingLayout: WebGLGPUBindingLayout;
-        private _gpuBindingLayout;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXBindingLayoutInfo): boolean;
-        destroy(): void;
-        update(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-queue" {
-    import { GFXCommandBuffer } from "cocos/gfx/command-buffer";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXQueue, IGFXQueueInfo } from "cocos/gfx/queue";
-    export class WebGLGFXQueue extends GFXQueue {
-        numDrawCalls: number;
-        numTris: number;
-        private _isAsync;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXQueueInfo): boolean;
-        destroy(): void;
-        submit(cmdBuffs: GFXCommandBuffer[], fence?: any): void;
-        clear(): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-window" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXWindow, IGFXWindowInfo } from "cocos/gfx/window";
-    export class WebGLGFXWindow extends GFXWindow {
-        constructor(device: GFXDevice);
-        initialize(info: IGFXWindowInfo): boolean;
-        destroy(): void;
-        resize(width: number, height: number): void;
-    }
-}
-declare module "cocos/gfx/webgl/webgl-device" {
-    import { GFXBindingLayout, IGFXBindingLayoutInfo } from "cocos/gfx/binding-layout";
-    import { GFXBuffer, IGFXBufferInfo } from "cocos/gfx/buffer";
-    import { GFXCommandAllocator, IGFXCommandAllocatorInfo } from "cocos/gfx/command-allocator";
-    import { GFXCommandBuffer, IGFXCommandBufferInfo } from "cocos/gfx/command-buffer";
-    import { GFXBufferTextureCopy, GFXFilter, IGFXRect } from "cocos/gfx/define";
-    import { GFXDevice, IGFXDeviceInfo } from "cocos/gfx/device";
-    import { GFXFramebuffer, IGFXFramebufferInfo } from "cocos/gfx/framebuffer";
-    import { GFXInputAssembler, IGFXInputAssemblerInfo } from "cocos/gfx/input-assembler";
-    import { GFXPipelineLayout, IGFXPipelineLayoutInfo } from "cocos/gfx/pipeline-layout";
-    import { GFXPipelineState, IGFXPipelineStateInfo } from "cocos/gfx/pipeline-state";
-    import { GFXQueue, IGFXQueueInfo } from "cocos/gfx/queue";
-    import { GFXRenderPass, IGFXRenderPassInfo } from "cocos/gfx/render-pass";
-    import { GFXSampler, IGFXSamplerInfo } from "cocos/gfx/sampler";
-    import { GFXShader, IGFXShaderInfo } from "cocos/gfx/shader";
-    import { GFXTexture, IGFXTextureInfo } from "cocos/gfx/texture";
-    import { GFXTextureView, IGFXTextureViewInfo } from "cocos/gfx/texture-view";
-    import { GFXWindow, IGFXWindowInfo } from "cocos/gfx/window";
-    import { WebGLGFXQueue } from "cocos/gfx/webgl/webgl-queue";
-    import { WebGLStateCache } from "cocos/gfx/webgl/webgl-state-cache";
-    import { WebGLGFXTexture } from "cocos/gfx/webgl/webgl-texture";
-    export class WebGLGFXDevice extends GFXDevice {
-        readonly gl: WebGLRenderingContext;
-        readonly webGLQueue: WebGLGFXQueue;
-        readonly isAntialias: boolean;
-        readonly isPremultipliedAlpha: boolean;
-        readonly useVAO: boolean;
-        readonly EXT_texture_filter_anisotropic: EXT_texture_filter_anisotropic | null;
-        readonly EXT_frag_depth: EXT_frag_depth | null;
-        readonly EXT_shader_texture_lod: EXT_shader_texture_lod | null;
-        readonly EXT_sRGB: EXT_sRGB | null;
-        readonly OES_vertex_array_object: OES_vertex_array_object | null;
-        readonly WEBGL_color_buffer_float: WEBGL_color_buffer_float | null;
-        readonly WEBGL_compressed_texture_etc1: WEBGL_compressed_texture_etc1 | null;
-        readonly WEBGL_compressed_texture_pvrtc: WEBGL_compressed_texture_pvrtc | null;
-        readonly WEBGL_compressed_texture_astc: WEBGL_compressed_texture_astc | null;
-        readonly WEBGL_compressed_texture_s3tc: WEBGL_compressed_texture_s3tc | null;
-        readonly WEBGL_compressed_texture_s3tc_srgb: WEBGL_compressed_texture_s3tc_srgb | null;
-        readonly WEBGL_debug_shaders: WEBGL_debug_shaders | null;
-        readonly WEBGL_draw_buffers: WEBGL_draw_buffers | null;
-        readonly WEBGL_lose_context: WEBGL_lose_context | null;
-        readonly WEBGL_depth_texture: WEBGL_depth_texture | null;
-        readonly WEBGL_debug_renderer_info: WEBGL_debug_renderer_info | null;
-        readonly OES_texture_half_float: OES_texture_half_float | null;
-        readonly OES_texture_half_float_linear: OES_texture_half_float_linear | null;
-        readonly OES_texture_float: OES_texture_float | null;
-        readonly OES_standard_derivatives: OES_standard_derivatives | null;
-        readonly OES_element_index_uint: OES_element_index_uint | null;
-        readonly ANGLE_instanced_arrays: ANGLE_instanced_arrays | null;
-        stateCache: WebGLStateCache;
-        nullTex2D: WebGLGFXTexture | null;
-        nullTexCube: WebGLGFXTexture | null;
-        private _webGLRC;
-        private _isAntialias;
-        private _isPremultipliedAlpha;
-        private _useVAO;
-        private _extensions;
-        private _EXT_texture_filter_anisotropic;
-        private _EXT_frag_depth;
-        private _EXT_shader_texture_lod;
-        private _EXT_sRGB;
-        private _OES_vertex_array_object;
-        private _EXT_color_buffer_half_float;
-        private _WEBGL_color_buffer_float;
-        private _WEBGL_compressed_texture_etc1;
-        private _WEBGL_compressed_texture_etc;
-        private _WEBGL_compressed_texture_pvrtc;
-        private _WEBGL_compressed_texture_astc;
-        private _WEBGL_compressed_texture_s3tc;
-        private _WEBGL_compressed_texture_s3tc_srgb;
-        private _WEBGL_debug_shaders;
-        private _WEBGL_draw_buffers;
-        private _WEBGL_lose_context;
-        private _WEBGL_depth_texture;
-        private _WEBGL_debug_renderer_info;
-        private _OES_texture_half_float;
-        private _OES_texture_half_float_linear;
-        private _OES_texture_float;
-        private _OES_texture_float_linear;
-        private _OES_standard_derivatives;
-        private _OES_element_index_uint;
-        private _ANGLE_instanced_arrays;
-        constructor();
-        initialize(info: IGFXDeviceInfo): boolean;
-        destroy(): void;
-        resize(width: number, height: number): void;
-        createBuffer(info: IGFXBufferInfo): GFXBuffer;
-        createTexture(info: IGFXTextureInfo): GFXTexture;
-        createTextureView(info: IGFXTextureViewInfo): GFXTextureView;
-        createSampler(info: IGFXSamplerInfo): GFXSampler;
-        createBindingLayout(info: IGFXBindingLayoutInfo): GFXBindingLayout;
-        createShader(info: IGFXShaderInfo): GFXShader;
-        createInputAssembler(info: IGFXInputAssemblerInfo): GFXInputAssembler;
-        createRenderPass(info: IGFXRenderPassInfo): GFXRenderPass;
-        createFramebuffer(info: IGFXFramebufferInfo): GFXFramebuffer;
-        createPipelineLayout(info: IGFXPipelineLayoutInfo): GFXPipelineLayout;
-        createPipelineState(info: IGFXPipelineStateInfo): GFXPipelineState;
-        createCommandAllocator(info: IGFXCommandAllocatorInfo): GFXCommandAllocator;
-        createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
-        createQueue(info: IGFXQueueInfo): GFXQueue;
-        createWindow(info: IGFXWindowInfo): GFXWindow;
-        present(): void;
-        copyBuffersToTexture(buffers: ArrayBuffer[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
-        copyTexImagesToTexture(texImages: TexImageSource[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
-        copyFramebufferToBuffer(srcFramebuffer: GFXFramebuffer, dstBuffer: ArrayBuffer, regions: GFXBufferTextureCopy[]): void;
-        blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
-        private initStates;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-command-allocator" {
-    import { CachedArray } from "cocos/core/memop/cached-array";
-    import { GFXCommandAllocator, IGFXCommandAllocatorInfo } from "cocos/gfx/command-allocator";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { WebGL2CmdBeginRenderPass, WebGL2CmdBindStates, WebGL2CmdCopyBufferToTexture, WebGL2CmdDraw, WebGL2CmdObject, WebGL2CmdPackage, WebGL2CmdUpdateBuffer } from "cocos/gfx/webgl2/webgl2-commands";
-    export class WebGL2GFXCommandPool<T extends WebGL2CmdObject> {
-        private _frees;
-        private _freeIdx;
-        private _freeCmds;
-        constructor(clazz: new () => T, count: number);
-        alloc(clazz: new () => T): T;
-        free(cmd: T): void;
-        freeCmds(cmds: CachedArray<T>): void;
-        release(): void;
-    }
-    export class WebGL2GFXCommandAllocator extends GFXCommandAllocator {
-        beginRenderPassCmdPool: WebGL2GFXCommandPool<WebGL2CmdBeginRenderPass>;
-        bindStatesCmdPool: WebGL2GFXCommandPool<WebGL2CmdBindStates>;
-        drawCmdPool: WebGL2GFXCommandPool<WebGL2CmdDraw>;
-        updateBufferCmdPool: WebGL2GFXCommandPool<WebGL2CmdUpdateBuffer>;
-        copyBufferToTextureCmdPool: WebGL2GFXCommandPool<WebGL2CmdCopyBufferToTexture>;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXCommandAllocatorInfo): boolean;
-        destroy(): void;
-        clearCmds(cmdPackage: WebGL2CmdPackage): void;
-        releaseCmds(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-gpu-objects" {
-    import { IGFXDrawInfo } from "cocos/gfx/buffer";
-    import { GFXAddress, GFXBindingType, GFXBufferUsage, GFXDynamicState, GFXFilter, GFXFormat, GFXMemoryUsage, GFXSampleCount, GFXShaderType, GFXTextureFlags, GFXTextureType, GFXTextureUsage, GFXTextureViewType, GFXType } from "cocos/gfx/define";
-    import { IGFXAttribute } from "cocos/gfx/input-assembler";
-    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/gfx/pipeline-state";
-    import { GFXColorAttachment, GFXDepthStencilAttachment } from "cocos/gfx/render-pass";
-    import { GFXUniformBlock, GFXUniformSampler, IGFXShaderMacro } from "cocos/gfx/shader";
-    export interface IWebGL2GPUUniformInfo {
-        name: string;
-        type: GFXType;
-        count: number;
-        offset: number;
-        view: Float32Array | Int32Array;
-        isDirty: boolean;
-    }
-    export class WebGL2GPUBuffer {
-        usage: GFXBufferUsage;
-        memUsage: GFXMemoryUsage;
-        size: number;
-        stride: number;
-        glTarget: GLenum;
-        glBuffer: WebGLBuffer | null;
-        buffer: ArrayBuffer | null;
-        vf32: Float32Array | null;
-        indirects: IGFXDrawInfo[];
-    }
-    export class WebGL2GPUTexture {
-        type: GFXTextureType;
-        viewType: GFXTextureViewType;
-        format: GFXFormat;
-        usage: GFXTextureUsage;
-        width: number;
-        height: number;
-        depth: number;
-        size: number;
-        arrayLayer: number;
-        mipLevel: number;
-        samples: GFXSampleCount;
-        flags: GFXTextureFlags;
-        isPowerOf2: boolean;
-        glTarget: GLenum;
-        glInternelFmt: GLenum;
-        glFormat: GLenum;
-        glType: GLenum;
-        glUsage: GLenum;
-        glTexture: WebGLTexture | null;
-        glRenderbuffer: WebGLRenderbuffer | null;
-        glWrapS: GLenum;
-        glWrapT: GLenum;
-        glMinFilter: GLenum;
-        glMagFilter: GLenum;
-    }
-    export class WebGL2GPUTextureView {
-        gpuTexture: WebGL2GPUTexture;
-        type: GFXTextureViewType;
-        format: GFXFormat;
-        baseLevel: number;
-        levelCount: number;
-        constructor(texture: WebGL2GPUTexture);
-    }
-    export class WebGL2GPURenderPass {
-        colorAttachments: GFXColorAttachment[];
-        depthStencilAttachment: GFXDepthStencilAttachment | null;
-    }
-    export class WebGL2GPUFramebuffer {
-        gpuRenderPass: WebGL2GPURenderPass;
-        gpuColorViews: WebGL2GPUTextureView[];
-        gpuDepthStencilView: WebGL2GPUTextureView | null;
-        isOffscreen?: boolean;
-        glFramebuffer: WebGLFramebuffer | null;
-        constructor(gpuRenderPass: WebGL2GPURenderPass);
-    }
-    export class WebGL2GPUSampler {
-        glSampler: WebGLSampler | null;
-        minFilter: GFXFilter;
-        magFilter: GFXFilter;
-        mipFilter: GFXFilter;
-        addressU: GFXAddress;
-        addressV: GFXAddress;
-        addressW: GFXAddress;
-        minLOD: number;
-        maxLOD: number;
-        glMinFilter: GLenum;
-        glMagFilter: GLenum;
-        glWrapS: GLenum;
-        glWrapT: GLenum;
-        glWrapR: GLenum;
-    }
-    export class WebGL2GPUInput {
-        binding: number;
-        name: string;
-        type: GFXType;
-        stride: number;
-        count: number;
-        size: number;
-        glType: GLenum;
-        glLoc: GLint;
-    }
-    export interface IWebGL2GPUUniform {
-        binding: number;
-        name: string;
-        type: GFXType;
-        stride: number;
-        count: number;
-        size: number;
-        offset: number;
-        glType: GLenum;
-        glLoc: WebGLUniformLocation;
-        array: number[];
-        begin: number;
-        isFirst: boolean;
-    }
-    export class WebGL2GPUUniformBlock {
-        binding: number;
-        idx: number;
-        name: string;
-        size: number;
-        glUniforms: IWebGL2GPUUniform[];
-        glActiveUniforms: IWebGL2GPUUniform[];
-        isUniformPackage: boolean;
-    }
-    export class WebGL2GPUUniformSampler {
-        binding: number;
-        name: string;
-        type: GFXType;
-        units: number[];
-        glType: GLenum;
-        glLoc: WebGLUniformLocation;
-    }
-    export class WebGL2GPUShaderStage {
-        type: GFXShaderType;
-        source: string;
-        macros: IGFXShaderMacro[];
-        glShader: WebGLShader | null;
-    }
-    export class WebGL2GPUShader {
-        name: string;
-        blocks: GFXUniformBlock[];
-        samplers: GFXUniformSampler[];
-        gpuStages: WebGL2GPUShaderStage[];
-        glProgram: WebGLProgram | null;
-        glInputs: WebGL2GPUInput[];
-        glUniforms: IWebGL2GPUUniform[];
-        glBlocks: WebGL2GPUUniformBlock[];
-        glSamplers: WebGL2GPUUniformSampler[];
-    }
-    export class WebGL2GPUPipelineLayout {
-    }
-    export class WebGL2GPUPipelineState {
-        glPrimitive: GLenum;
-        gpuShader: WebGL2GPUShader | null;
-        rs: GFXRasterizerState;
-        dss: GFXDepthStencilState;
-        bs: GFXBlendState;
-        dynamicStates: GFXDynamicState[];
-        gpuLayout: WebGL2GPUPipelineLayout | null;
-        gpuRenderPass: WebGL2GPURenderPass | null;
-    }
-    export class WebGL2GPUBinding {
-        binding: number;
-        type: GFXBindingType;
-        name: string;
-        gpuBuffer: WebGL2GPUBuffer | null;
-        gpuTexView: WebGL2GPUTextureView | null;
-        gpuSampler: WebGL2GPUSampler | null;
-    }
-    export class WebGL2GPUBindingLayout {
-        gpuBindings: WebGL2GPUBinding[];
-    }
-    export class WebGL2Attrib {
-        name: string;
-        glBuffer: WebGLBuffer | null;
-        glType: GLenum;
-        size: number;
-        count: number;
-        stride: number;
-        componentCount: number;
-        isNormalized: boolean;
-        isInstanced: boolean;
-        offset: number;
-    }
-    export interface IWebGL2GPUInputAssembler {
-        attributes: IGFXAttribute[];
-        gpuVertexBuffers: WebGL2GPUBuffer[];
-        gpuIndexBuffer: WebGL2GPUBuffer | null;
-        gpuIndirectBuffer: WebGL2GPUBuffer | null;
-        glAttribs: WebGL2Attrib[];
-        glIndexType: GLenum;
-        glVAOs: Map<WebGLProgram, WebGLVertexArrayObject>;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-render-pass" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXRenderPass, IGFXRenderPassInfo } from "cocos/gfx/render-pass";
-    import { WebGL2GPURenderPass } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXRenderPass extends GFXRenderPass {
-        readonly gpuRenderPass: WebGL2GPURenderPass;
-        private _gpuRenderPass;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXRenderPassInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-texture" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXTexture, IGFXTextureInfo } from "cocos/gfx/texture";
-    import { WebGL2GPUTexture } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXTexture extends GFXTexture {
-        readonly gpuTexture: WebGL2GPUTexture;
-        private _gpuTexture;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXTextureInfo): boolean;
-        destroy(): void;
-        resize(width: number, height: number): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-texture-view" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXTextureView, IGFXTextureViewInfo } from "cocos/gfx/texture-view";
-    import { WebGL2GPUTextureView } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXTextureView extends GFXTextureView {
-        readonly gpuTextureView: WebGL2GPUTextureView;
-        private _gpuTextureView;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXTextureViewInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-framebuffer" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXFramebuffer, IGFXFramebufferInfo } from "cocos/gfx/framebuffer";
-    import { WebGL2GPUFramebuffer } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXFramebuffer extends GFXFramebuffer {
-        readonly gpuFramebuffer: WebGL2GPUFramebuffer;
-        private _gpuFramebuffer;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXFramebufferInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-input-assembler" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXInputAssembler, IGFXInputAssemblerInfo } from "cocos/gfx/input-assembler";
-    import { WebGL2CmdDraw } from "cocos/gfx/webgl2/webgl2-commands";
-    import { IWebGL2GPUInputAssembler } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXInputAssembler extends GFXInputAssembler {
-        readonly gpuInputAssembler: IWebGL2GPUInputAssembler;
-        private _gpuInputAssembler;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXInputAssemblerInfo): boolean;
-        destroy(): void;
-        extractCmdDraw(cmd: WebGL2CmdDraw): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-pipeline-layout" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXPipelineLayout, IGFXPipelineLayoutInfo } from "cocos/gfx/pipeline-layout";
-    import { WebGL2GPUPipelineLayout } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXPipelineLayout extends GFXPipelineLayout {
-        readonly gpuPipelineLayout: WebGL2GPUPipelineLayout;
-        private _gpuPipelineLayout;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXPipelineLayoutInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-shader" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXShader, IGFXShaderInfo } from "cocos/gfx/shader";
-    import { WebGL2GPUShader } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXShader extends GFXShader {
-        readonly gpuShader: WebGL2GPUShader;
-        private _gpuShader;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXShaderInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-pipeline-state" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXPipelineState, IGFXPipelineStateInfo } from "cocos/gfx/pipeline-state";
-    import { WebGL2GPUPipelineState } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXPipelineState extends GFXPipelineState {
-        readonly gpuPipelineState: WebGL2GPUPipelineState;
-        private _gpuPipelineState;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXPipelineStateInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-command-buffer" {
-    import { GFXBindingLayout } from "cocos/gfx/binding-layout";
-    import { GFXBuffer, GFXBufferSource } from "cocos/gfx/buffer";
-    import { GFXCommandBuffer, IGFXCommandBufferInfo } from "cocos/gfx/command-buffer";
-    import { GFXBufferTextureCopy, GFXClearFlag, GFXStencilFace, GFXTextureLayout, IGFXColor, IGFXRect, IGFXViewport } from "cocos/gfx/define";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXFramebuffer } from "cocos/gfx/framebuffer";
-    import { GFXInputAssembler } from "cocos/gfx/input-assembler";
-    import { GFXPipelineState } from "cocos/gfx/pipeline-state";
-    import { GFXTexture } from "cocos/gfx/texture";
-    import { WebGL2CmdPackage } from "cocos/gfx/webgl2/webgl2-commands";
-    import { WebGL2GFXDevice } from "cocos/gfx/webgl2/webgl2-device";
-    export interface IWebGL2DepthBias {
-        constantFactor: number;
-        clamp: number;
-        slopeFactor: number;
-    }
-    export interface IWebGL2DepthBounds {
-        minBounds: number;
-        maxBounds: number;
-    }
-    export interface IWebGL2StencilWriteMask {
-        face: GFXStencilFace;
-        writeMask: number;
-    }
-    export interface IWebGL2StencilCompareMask {
-        face: GFXStencilFace;
-        reference: number;
-        compareMask: number;
-    }
-    export class WebGL2GFXCommandBuffer extends GFXCommandBuffer {
-        cmdPackage: WebGL2CmdPackage;
-        private _webGLAllocator;
-        private _isInRenderPass;
-        private _curGPUPipelineState;
-        private _curGPUBindingLayout;
-        private _curGPUInputAssembler;
-        private _curViewport;
-        private _curScissor;
-        private _curLineWidth;
-        private _curDepthBias;
-        private _curBlendConstants;
-        private _curDepthBounds;
-        private _curStencilWriteMask;
-        private _curStencilCompareMask;
-        private _isStateInvalied;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXCommandBufferInfo): boolean;
-        destroy(): void;
-        begin(): void;
-        end(): void;
-        beginRenderPass(framebuffer: GFXFramebuffer, renderArea: IGFXRect, clearFlag: GFXClearFlag, clearColors: IGFXColor[], clearDepth: number, clearStencil: number): void;
-        endRenderPass(): void;
-        bindPipelineState(pipelineState: GFXPipelineState): void;
-        bindBindingLayout(bindingLayout: GFXBindingLayout): void;
-        bindInputAssembler(inputAssembler: GFXInputAssembler): void;
-        setViewport(viewport: IGFXViewport): void;
-        setScissor(scissor: IGFXRect): void;
-        setLineWidth(lineWidth: number): void;
-        setDepthBias(depthBiasConstantFacotr: number, depthBiasClamp: number, depthBiasSlopeFactor: number): void;
-        setBlendConstants(blendConstants: number[]): void;
-        setDepthBound(minDepthBounds: number, maxDepthBounds: number): void;
-        setStencilWriteMask(face: GFXStencilFace, writeMask: number): void;
-        setStencilCompareMask(face: GFXStencilFace, reference: number, compareMask: number): void;
-        draw(inputAssembler: GFXInputAssembler): void;
-        updateBuffer(buffer: GFXBuffer, data: GFXBufferSource, offset?: number, size?: number): void;
-        copyBufferToTexture(srcBuff: GFXBuffer, dstTex: GFXTexture, dstLayout: GFXTextureLayout, regions: GFXBufferTextureCopy[]): void;
-        execute(cmdBuffs: GFXCommandBuffer[], count: number): void;
-        readonly webGLDevice: WebGL2GFXDevice;
-        private bindStates;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-state-cache" {
-    import { IGFXRect, IGFXViewport } from "cocos/gfx/define";
-    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/gfx/pipeline-state";
-    export interface IWebGL2TexUnit {
-        glTexture: WebGLTexture | null;
-    }
-    export class WebGL2StateCache {
-        glArrayBuffer: WebGLBuffer | null;
-        glElementArrayBuffer: WebGLBuffer | null;
-        glUniformBuffer: WebGLBuffer | null;
-        glBindUBOs: Array<WebGLBuffer | null>;
-        glVAO: WebGLVertexArrayObject | null;
-        texUnit: number;
-        glTex2DUnits: IWebGL2TexUnit[];
-        glTexCubeUnits: IWebGL2TexUnit[];
-        glSamplerUnits: Array<WebGLSampler | null>;
-        glRenderbuffer: WebGLRenderbuffer | null;
-        glFramebuffer: WebGLFramebuffer | null;
-        glReadFramebuffer: WebGLFramebuffer | null;
-        viewport: IGFXViewport;
-        scissorRect: IGFXRect;
-        rs: GFXRasterizerState;
-        dss: GFXDepthStencilState;
-        bs: GFXBlendState;
-        glProgram: WebGLProgram | null;
-        glEnabledAttribLocs: boolean[];
-        glCurrentAttribLocs: boolean[];
-        constructor();
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-commands" {
-    import { CachedArray } from "cocos/core/memop/cached-array";
-    import { GFXBufferSource, IGFXDrawInfo } from "cocos/gfx/buffer";
-    import { GFXBufferTextureCopy, GFXClearFlag, GFXFilter, GFXTextureLayout, IGFXColor, IGFXRect, IGFXViewport } from "cocos/gfx/define";
-    import { WebGL2GFXCommandAllocator } from "cocos/gfx/webgl2/webgl2-command-allocator";
-    import { IWebGL2DepthBias, IWebGL2DepthBounds, IWebGL2StencilCompareMask, IWebGL2StencilWriteMask } from "cocos/gfx/webgl2/webgl2-command-buffer";
-    import { WebGL2GFXDevice } from "cocos/gfx/webgl2/webgl2-device";
-    import { IWebGL2GPUInputAssembler, WebGL2GPUBindingLayout, WebGL2GPUBuffer, WebGL2GPUFramebuffer, WebGL2GPUPipelineState, WebGL2GPUSampler, WebGL2GPUShader, WebGL2GPUTexture } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export enum WebGL2Cmd {
-        BEGIN_RENDER_PASS = 0,
-        END_RENDER_PASS = 1,
-        BIND_STATES = 2,
-        DRAW = 3,
-        UPDATE_BUFFER = 4,
-        COPY_BUFFER_TO_TEXTURE = 5,
-        COUNT = 6
-    }
-    export abstract class WebGL2CmdObject {
-        cmdType: WebGL2Cmd;
-        refCount: number;
-        constructor(type: WebGL2Cmd);
-        abstract clear(): any;
-    }
-    export class WebGL2CmdBeginRenderPass extends WebGL2CmdObject {
-        gpuFramebuffer: WebGL2GPUFramebuffer | null;
-        renderArea: IGFXRect;
-        clearFlag: GFXClearFlag;
-        clearColors: IGFXColor[];
-        clearDepth: number;
-        clearStencil: number;
-        constructor();
-        clear(): void;
-    }
-    export class WebGL2CmdBindStates extends WebGL2CmdObject {
-        gpuPipelineState: WebGL2GPUPipelineState | null;
-        gpuBindingLayout: WebGL2GPUBindingLayout | null;
-        gpuInputAssembler: IWebGL2GPUInputAssembler | null;
-        viewport: IGFXViewport | null;
-        scissor: IGFXRect | null;
-        lineWidth: number | null;
-        depthBias: IWebGL2DepthBias | null;
-        blendConstants: number[] | null;
-        depthBounds: IWebGL2DepthBounds | null;
-        stencilWriteMask: IWebGL2StencilWriteMask | null;
-        stencilCompareMask: IWebGL2StencilCompareMask | null;
-        constructor();
-        clear(): void;
-    }
-    export class WebGL2CmdDraw extends WebGL2CmdObject {
-        drawInfo: IGFXDrawInfo;
-        constructor();
-        clear(): void;
-    }
-    export class WebGL2CmdUpdateBuffer extends WebGL2CmdObject {
-        gpuBuffer: WebGL2GPUBuffer | null;
-        buffer: GFXBufferSource | null;
-        offset: number;
-        size: number;
-        constructor();
-        clear(): void;
-    }
-    export class WebGL2GFXTextureSubres {
-        baseMipLevel: number;
-        levelCount: number;
-        baseArrayLayer: number;
-        layerCount: number;
-    }
-    export class WebGL2GFXBufferTextureCopy {
-        buffOffset: number;
-        buffStride: number;
-        buffTexHeight: number;
-        texOffset: number[];
-        texExtent: number[];
-        texSubres: WebGL2GFXTextureSubres;
-    }
-    export class WebGL2CmdCopyBufferToTexture extends WebGL2CmdObject {
-        gpuBuffer: WebGL2GPUBuffer | null;
-        gpuTexture: WebGL2GPUTexture | null;
-        dstLayout: GFXTextureLayout | null;
-        regions: GFXBufferTextureCopy[];
-        constructor();
-        clear(): void;
-    }
-    export class WebGL2CmdPackage {
-        cmds: CachedArray<WebGL2Cmd>;
-        beginRenderPassCmds: CachedArray<WebGL2CmdBeginRenderPass>;
-        bindStatesCmds: CachedArray<WebGL2CmdBindStates>;
-        drawCmds: CachedArray<WebGL2CmdDraw>;
-        updateBufferCmds: CachedArray<WebGL2CmdUpdateBuffer>;
-        copyBufferToTextureCmds: CachedArray<WebGL2CmdCopyBufferToTexture>;
-        clearCmds(allocator: WebGL2GFXCommandAllocator): void;
-    }
-    export function WebGL2CmdFuncCreateBuffer(device: WebGL2GFXDevice, gpuBuffer: WebGL2GPUBuffer): void;
-    export function WebGL2CmdFuncDestroyBuffer(device: WebGL2GFXDevice, gpuBuffer: WebGL2GPUBuffer): void;
-    export function WebGL2CmdFuncResizeBuffer(device: WebGL2GFXDevice, gpuBuffer: WebGL2GPUBuffer): void;
-    export function WebGL2CmdFuncUpdateBuffer(device: WebGL2GFXDevice, gpuBuffer: WebGL2GPUBuffer, buffer: GFXBufferSource, offset: number, size: number): void;
-    export function WebGL2CmdFuncCreateTexture(device: WebGL2GFXDevice, gpuTexture: WebGL2GPUTexture): void;
-    export function WebGL2CmdFuncDestroyTexture(device: WebGL2GFXDevice, gpuTexture: WebGL2GPUTexture): void;
-    export function WebGL2CmdFuncResizeTexture(device: WebGL2GFXDevice, gpuTexture: WebGL2GPUTexture): void;
-    export function WebGL2CmdFuncCreateSampler(device: WebGL2GFXDevice, gpuSampler: WebGL2GPUSampler): void;
-    export function WebGL2CmdFuncDestroySampler(device: WebGL2GFXDevice, gpuSampler: WebGL2GPUSampler): void;
-    export function WebGL2CmdFuncCreateFramebuffer(device: WebGL2GFXDevice, gpuFramebuffer: WebGL2GPUFramebuffer): void;
-    export function WebGL2CmdFuncDestroyFramebuffer(device: WebGL2GFXDevice, gpuFramebuffer: WebGL2GPUFramebuffer): void;
-    export function WebGL2CmdFuncCreateShader(device: WebGL2GFXDevice, gpuShader: WebGL2GPUShader): void;
-    export function WebGL2CmdFuncDestroyShader(device: WebGL2GFXDevice, gpuShader: WebGL2GPUShader): void;
-    export function WebGL2CmdFuncCreateInputAssember(device: WebGL2GFXDevice, gpuInputAssembler: IWebGL2GPUInputAssembler): void;
-    export function WebGL2CmdFuncDestroyInputAssembler(device: WebGL2GFXDevice, gpuInputAssembler: IWebGL2GPUInputAssembler): void;
-    export function WebGL2CmdFuncExecuteCmds(device: WebGL2GFXDevice, cmdPackage: WebGL2CmdPackage): void;
-    export function WebGL2CmdFuncCopyTexImagesToTexture(device: WebGL2GFXDevice, texImages: TexImageSource[], gpuTexture: WebGL2GPUTexture, regions: GFXBufferTextureCopy[]): void;
-    export function WebGL2CmdFuncCopyBuffersToTexture(device: WebGL2GFXDevice, buffers: ArrayBuffer[], gpuTexture: WebGL2GPUTexture, regions: GFXBufferTextureCopy[]): void;
-    export function WebGL2CmdFuncBlitFramebuffer(device: WebGL2GFXDevice, src: WebGL2GPUFramebuffer, dst: WebGL2GPUFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
-}
-declare module "cocos/gfx/webgl2/webgl2-buffer" {
-    import { GFXBuffer, GFXBufferSource, IGFXBufferInfo } from "cocos/gfx/buffer";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { WebGL2GPUBuffer } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXBuffer extends GFXBuffer {
-        readonly gpuBuffer: WebGL2GPUBuffer;
-        private _gpuBuffer;
-        private _indirectBuffer;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXBufferInfo): boolean;
-        destroy(): void;
-        resize(size: number): void;
-        update(buffer: GFXBufferSource, offset?: number, size?: number): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-sampler" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXSampler, IGFXSamplerInfo } from "cocos/gfx/sampler";
-    import { WebGL2GPUSampler } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXSampler extends GFXSampler {
-        readonly gpuSampler: WebGL2GPUSampler;
-        private _gpuSampler;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXSamplerInfo): boolean;
-        destroy(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-binding-layout" {
-    import { GFXBindingLayout, IGFXBindingLayoutInfo } from "cocos/gfx/binding-layout";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { WebGL2GPUBindingLayout } from "cocos/gfx/webgl2/webgl2-gpu-objects";
-    export class WebGL2GFXBindingLayout extends GFXBindingLayout {
-        readonly gpuBindingLayout: WebGL2GPUBindingLayout;
-        private _gpuBindingLayout;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXBindingLayoutInfo): boolean;
-        destroy(): void;
-        update(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-queue" {
-    import { GFXCommandBuffer } from "cocos/gfx/command-buffer";
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXQueue, IGFXQueueInfo } from "cocos/gfx/queue";
-    export class WebGL2GFXQueue extends GFXQueue {
-        numDrawCalls: number;
-        numTris: number;
-        private _isAsync;
-        constructor(device: GFXDevice);
-        initialize(info: IGFXQueueInfo): boolean;
-        destroy(): void;
-        submit(cmdBuffs: GFXCommandBuffer[], fence?: any): void;
-        clear(): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-window" {
-    import { GFXDevice } from "cocos/gfx/device";
-    import { GFXWindow, IGFXWindowInfo } from "cocos/gfx/window";
-    export class WebGL2GFXWindow extends GFXWindow {
-        constructor(device: GFXDevice);
-        initialize(info: IGFXWindowInfo): boolean;
-        destroy(): void;
-        resize(width: number, height: number): void;
-    }
-}
-declare module "cocos/gfx/webgl2/webgl2-device" {
-    import { GFXBindingLayout, IGFXBindingLayoutInfo } from "cocos/gfx/binding-layout";
-    import { GFXBuffer, IGFXBufferInfo } from "cocos/gfx/buffer";
-    import { GFXCommandAllocator, IGFXCommandAllocatorInfo } from "cocos/gfx/command-allocator";
-    import { GFXCommandBuffer, IGFXCommandBufferInfo } from "cocos/gfx/command-buffer";
-    import { GFXBufferTextureCopy, GFXFilter, IGFXRect } from "cocos/gfx/define";
-    import { GFXDevice, IGFXDeviceInfo } from "cocos/gfx/device";
-    import { GFXFramebuffer, IGFXFramebufferInfo } from "cocos/gfx/framebuffer";
-    import { GFXInputAssembler, IGFXInputAssemblerInfo } from "cocos/gfx/input-assembler";
-    import { GFXPipelineLayout, IGFXPipelineLayoutInfo } from "cocos/gfx/pipeline-layout";
-    import { GFXPipelineState, IGFXPipelineStateInfo } from "cocos/gfx/pipeline-state";
-    import { GFXQueue, IGFXQueueInfo } from "cocos/gfx/queue";
-    import { GFXRenderPass, IGFXRenderPassInfo } from "cocos/gfx/render-pass";
-    import { GFXSampler, IGFXSamplerInfo } from "cocos/gfx/sampler";
-    import { GFXShader, IGFXShaderInfo } from "cocos/gfx/shader";
-    import { GFXTexture, IGFXTextureInfo } from "cocos/gfx/texture";
-    import { GFXTextureView, IGFXTextureViewInfo } from "cocos/gfx/texture-view";
-    import { GFXWindow, IGFXWindowInfo } from "cocos/gfx/window";
-    import { WebGL2StateCache } from "cocos/gfx/webgl2/webgl2-state-cache";
-    import { WebGL2GFXTexture } from "cocos/gfx/webgl2/webgl2-texture";
-    export class WebGL2GFXDevice extends GFXDevice {
-        readonly gl: WebGL2RenderingContext;
-        readonly isAntialias: boolean;
-        readonly isPremultipliedAlpha: boolean;
-        readonly useVAO: boolean;
-        readonly EXT_texture_filter_anisotropic: EXT_texture_filter_anisotropic | null;
-        readonly OES_texture_float_linear: OES_texture_float_linear | null;
-        readonly EXT_color_buffer_float: EXT_color_buffer_float | null;
-        readonly EXT_disjoint_timer_query_webgl2: EXT_disjoint_timer_query_webgl2 | null;
-        readonly WEBGL_compressed_texture_etc1: WEBGL_compressed_texture_etc1 | null;
-        readonly WEBGL_compressed_texture_etc: WEBGL_compressed_texture_etc | null;
-        readonly WEBGL_compressed_texture_pvrtc: WEBGL_compressed_texture_pvrtc | null;
-        readonly WEBGL_compressed_texture_s3tc: WEBGL_compressed_texture_s3tc | null;
-        readonly WEBGL_compressed_texture_s3tc_srgb: WEBGL_compressed_texture_s3tc_srgb | null;
-        stateCache: WebGL2StateCache;
-        nullTex2D: WebGL2GFXTexture | null;
-        nullTexCube: WebGL2GFXTexture | null;
-        private _webGL2RC;
-        private _isAntialias;
-        private _isPremultipliedAlpha;
-        private _useVAO;
-        private _extensions;
-        private _EXT_texture_filter_anisotropic;
-        private _OES_texture_float_linear;
-        private _OES_texture_half_float_linear;
-        private _EXT_color_buffer_float;
-        private _EXT_disjoint_timer_query_webgl2;
-        private _WEBGL_compressed_texture_etc1;
-        private _WEBGL_compressed_texture_etc;
-        private _WEBGL_compressed_texture_pvrtc;
-        private _WEBGL_compressed_texture_s3tc;
-        private _WEBGL_compressed_texture_s3tc_srgb;
-        private _WEBGL_debug_renderer_info;
-        private _WEBGL_texture_storage_multisample;
-        private _WEBGL_debug_shaders;
-        private _WEBGL_lose_context;
-        constructor();
-        initialize(info: IGFXDeviceInfo): boolean;
-        destroy(): void;
-        resize(width: number, height: number): void;
-        createBuffer(info: IGFXBufferInfo): GFXBuffer;
-        createTexture(info: IGFXTextureInfo): GFXTexture;
-        createTextureView(info: IGFXTextureViewInfo): GFXTextureView;
-        createSampler(info: IGFXSamplerInfo): GFXSampler;
-        createBindingLayout(info: IGFXBindingLayoutInfo): GFXBindingLayout;
-        createShader(info: IGFXShaderInfo): GFXShader;
-        createInputAssembler(info: IGFXInputAssemblerInfo): GFXInputAssembler;
-        createRenderPass(info: IGFXRenderPassInfo): GFXRenderPass;
-        createFramebuffer(info: IGFXFramebufferInfo): GFXFramebuffer;
-        createPipelineLayout(info: IGFXPipelineLayoutInfo): GFXPipelineLayout;
-        createPipelineState(info: IGFXPipelineStateInfo): GFXPipelineState;
-        createCommandAllocator(info: IGFXCommandAllocatorInfo): GFXCommandAllocator;
-        createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
-        createQueue(info: IGFXQueueInfo): GFXQueue;
-        createWindow(info: IGFXWindowInfo): GFXWindow;
-        present(): void;
-        copyBuffersToTexture(buffers: ArrayBuffer[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
-        copyTexImagesToTexture(texImages: TexImageSource[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
-        copyFramebufferToBuffer(srcFramebuffer: GFXFramebuffer, dstBuffer: ArrayBuffer, regions: GFXBufferTextureCopy[]): void;
-        blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
-        private initStates;
-    }
-}
-declare module "cocos/gfx/index" {
-    export { GFXAttributeName, GFXFormat, GFXPrimitiveMode } from "cocos/gfx/define";
-}
 declare module "cocos/pipeline/utils" {
     import { CameraComponent } from "cocos/3d/index";
     import { Vec3 } from "cocos/core/index";
@@ -29879,31 +30107,6 @@ declare module "cocos/3d/physics/ammo/debugger" {
         DBG_MAX_DEBUG_DRAW_MODE = 32769
     }
 }
-/****************************************************************************
- Copyright (c) 2013-2016 Chukong Technologies Inc.
- Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
-
- http://www.cocos.com
-
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated engine source code (the "Software"), a limited,
-  worldwide, royalty-free, non-assignable, revocable and non-exclusive license
- to use Cocos Creator solely to develop games on your target platforms. You shall
-  not use Cocos Creator software for developing other software or tools that's
-  used for developing games. You are not granted to publish, distribute,
-  sublicense, and/or sell copies of Cocos Creator.
-
- The software or tools in this License Agreement are licensed, not sold.
- Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
-
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE.
- ****************************************************************************/
 declare module "cocos/3d/ui/assembler/sprite/tiled" {
     import { IAssembler } from "cocos/3d/ui/assembler/assembler";
     export const tilled: IAssembler;
@@ -29911,28 +30114,6 @@ declare module "cocos/3d/ui/assembler/sprite/tiled" {
 declare module "cocos/components/WXSubContextView" {
     let WXSubContextView: any;
     export default WXSubContextView;
-}
-declare module "cocos/core/utils/binary-search" {
-    /**
-     * Searches the entire sorted Array for an element and returns the index of the element.
-     *
-     * @method binarySearch
-     * @param {number[]} array
-     * @param {number} value
-     * @return {number} The index of item in the sorted Array, if item is found; otherwise, a negative number that is the bitwise complement of the index of the next element that is larger than item or, if there is no larger element, the bitwise complement of array's length.
-     */
-    /**
-     * Searches the entire sorted Array for an element and returns the index of the element.
-     * It accepts iteratee which is invoked for value and each element of array to compute their sort ranking.
-     * The iteratee is invoked with one argument: (value).
-     *
-     * @method binarySearchBy
-     * @param {number[]} array
-     * @param {number} value
-     * @param {function} iteratee - the iteratee invoked per element
-     * @return {number} The index of item in the sorted Array, if item is found; otherwise, a negative number that is the bitwise complement of the index of the next element that is larger than item or, if there is no larger element, the bitwise complement of array's length.
-     */
-    export default function binarySearchEpsilon(array: any, value: any): number;
 }
 declare module "cocos/core/vmath/rect" {
     export interface IRect2D {

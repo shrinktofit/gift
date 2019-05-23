@@ -136,14 +136,15 @@ class BundleGenerator {
             return result;
         }
 
-        const declaration0 = originalSymbol.declarations[0];
-        if (declaration0.kind === ts.SyntaxKind.ModuleDeclaration) {
-            const exportedSymbols = this._typeChecker.getExportsOfModule(originalSymbol);
-            result.children = [];
-            for (const exportedSymbol of exportedSymbols) {
-                const child = this._bundleSymbolPass1(exportedSymbol, exportedSymbol.name);
-                child.parent = result;
-                result.children.push(child);
+        for (const declaration of originalSymbol.declarations) {
+            if (declaration.kind === ts.SyntaxKind.ModuleDeclaration) {
+                const exportedSymbols = this._typeChecker.getExportsOfModule(originalSymbol);
+                result.children = result.children || [];
+                for (const exportedSymbol of exportedSymbols) {
+                    const child = this._bundleSymbolPass1(exportedSymbol, exportedSymbol.name);
+                    child.parent = result;
+                    result.children.push(child);
+                }
             }
         }
 
@@ -178,72 +179,75 @@ class BundleGenerator {
             return null;
         }
 
-        const declaration0 = symbol.declarations[0];
-        if (declaration0.kind === ts.SyntaxKind.ModuleDeclaration) {
-            if (symbolInf.children) {
-                const statements: ts.Statement[] = [];
-                if (!topLevel) {
-                    this._scopeStack.push(symbolInf.name);
-                }
-                for (const child of symbolInf.children) {
-                    const statement = this._bundleSymbolPass2(child);
-                    if (statement) {
-                        statements.push(...statement);
-                    }
-                }
-                if (!topLevel) {
-                    this._scopeStack.pop();
-                }
-                if (topLevel) {
-                    const unexportedDecls: ts.Statement[] = [];
-                    this._scopeStack.push(this._shelterName);
-                    for (const unexportedSymbolInf of this._unexportedSymbolsDetail.pending) {
-                        const decl = unexportedSymbolInf.dumpedDeclarations;
-                        if (decl) {
-                            unexportedDecls.push(...decl);
-                        }
-                    }
-                    this._scopeStack.pop();
-                    const unexportedNs = ts.createModuleDeclaration(
-                        undefined,
-                        undefined,
-                        ts.createIdentifier(this._shelterName),
-                        ts.createModuleBlock(unexportedDecls),
-                        ts.NodeFlags.Namespace,
-                    );
-                    const moduleDeclaration = ts.createModuleDeclaration(
-                        undefined,
-                        [ts.createModifier(ts.SyntaxKind.DeclareKeyword)],
-                        ts.createStringLiteral(this._options.name),
-                        ts.createModuleBlock(statements.concat([unexportedNs])),
-                    );
-                    return [moduleDeclaration];
-                } else {
-                    const namespaceDeclaration = ts.createModuleDeclaration(
-                        undefined,
-                        undefined,
-                        ts.createIdentifier(symbolInf.name),
-                        ts.createModuleBlock(statements),
-                        ts.NodeFlags.Namespace,
-                    );
-                    return [namespaceDeclaration];
-                }
-            }
-            return null;
-        }
-
-        return this._dumpSymbol(symbol, symbolInf.name);
-    }
-
-    private _dumpSymbol(symbol: ts.Symbol, newName: string) {
         const result: ts.Statement[] = [];
         for (const declaration of symbol.declarations) {
-            const dumpedDeclaration = this._dumpDeclaration(declaration, symbol, newName);
-            if (dumpedDeclaration) {
-                result.push(dumpedDeclaration);
+            if (declaration.kind === ts.SyntaxKind.ModuleDeclaration) {
+                const dumpedModuleDeclaration = this._dumpModuleDeclaration(symbolInf, topLevel);
+                if (dumpedModuleDeclaration) {
+                    result.push(...dumpedModuleDeclaration);
+                }
+            } else {
+                const dumpedDeclaration = this._dumpDeclaration(declaration, symbol, symbolInf.name);
+                if (dumpedDeclaration) {
+                    result.push(dumpedDeclaration);
+                }
             }
         }
+
         return result;
+    }
+
+    private _dumpModuleDeclaration(symbolInf: ISymbolInf, topLevel?: boolean) {
+        if (!symbolInf.children) {
+            return null;
+        }
+        const statements: ts.Statement[] = [];
+        if (!topLevel) {
+            this._scopeStack.push(symbolInf.name);
+        }
+        for (const child of symbolInf.children) {
+            const statement = this._bundleSymbolPass2(child);
+            if (statement) {
+                statements.push(...statement);
+            }
+        }
+        if (!topLevel) {
+            this._scopeStack.pop();
+        }
+        if (topLevel) {
+            const unexportedDecls: ts.Statement[] = [];
+            this._scopeStack.push(this._shelterName);
+            for (const unexportedSymbolInf of this._unexportedSymbolsDetail.pending) {
+                const decl = unexportedSymbolInf.dumpedDeclarations;
+                if (decl) {
+                    unexportedDecls.push(...decl);
+                }
+            }
+            this._scopeStack.pop();
+            const unexportedNs = ts.createModuleDeclaration(
+                undefined,
+                undefined,
+                ts.createIdentifier(this._shelterName),
+                ts.createModuleBlock(unexportedDecls),
+                ts.NodeFlags.Namespace,
+            );
+            const moduleDeclaration = ts.createModuleDeclaration(
+                undefined,
+                [ts.createModifier(ts.SyntaxKind.DeclareKeyword)],
+                ts.createStringLiteral(this._options.name),
+                ts.createModuleBlock(statements.concat([unexportedNs])),
+            );
+            return [moduleDeclaration];
+        } else {
+            const namespaceDeclaration = ts.createModuleDeclaration(
+                undefined,
+                undefined,
+                ts.createIdentifier(symbolInf.name),
+                ts.createModuleBlock(statements),
+                ts.NodeFlags.Namespace,
+            );
+            return [namespaceDeclaration];
+        }
     }
 
     private _dumpDeclaration(declaration: ts.Declaration, symbol: ts.Symbol, newName: string) {
