@@ -604,9 +604,6 @@ class BundleGenerator {
     }
 
     private _dumpEntityName(name: ts.EntityName) {
-        if (name.getText() === 'jsarray') {
-            debugger;
-        }
         const identifiers: ts.Identifier[] = [];
         while (ts.isQualifiedName(name)) {
             identifiers.unshift(name.right);
