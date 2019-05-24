@@ -3562,7 +3562,7 @@ declare module "Cocos3D" {
                      * !#zh 设置对象池容量。
                      */ resize(length: number): void;
         }
-        var array: typeof __internal.cocos_core_utils_array_cocos_core_utils_array;
+        var array: typeof jsarray;
         /**
              * Check the object whether is number or not
              * If a number is created by using 'new Number(10086)', the typeof it will be "object"...
@@ -4299,777 +4299,777 @@ declare module "Cocos3D" {
                          * @property none
                          * @type {Number}
                          * @readonly
-                         */ 'none': number;
+                         */ "none": number;
             /**
                          * !#en The back key
                          * !#zh 返回键
                          * @property back
                          * @type {Number}
                          * @readonly
-                         */ 'back': number;
+                         */ "back": number;
             /**
                          * !#en The menu key
                          * !#zh 菜单键
                          * @property menu
                          * @type {Number}
                          * @readonly
-                         */ 'menu': number;
+                         */ "menu": number;
             /**
                          * !#en The backspace key
                          * !#zh 退格键
                          * @property backspace
                          * @type {Number}
                          * @readonly
-                         */ 'backspace': number;
+                         */ "backspace": number;
             /**
                          * !#en The tab key
                          * !#zh Tab 键
                          * @property tab
                          * @type {Number}
                          * @readonly
-                         */ 'tab': number;
+                         */ "tab": number;
             /**
                          * !#en The enter key
                          * !#zh 回车键
                          * @property enter
                          * @type {Number}
                          * @readonly
-                         */ 'enter': number;
+                         */ "enter": number;
             /**
                          * !#en The shift key
                          * !#zh Shift 键
                          * @property shift
                          * @type {Number}
                          * @readonly
-                         */ 'shift': number;
+                         */ "shift": number;
             /**
                          * !#en The ctrl key
                          * !#zh Ctrl 键
                          * @property ctrl
                          * @type {Number}
                          * @readonly
-                         */ 'ctrl': number;
+                         */ "ctrl": number;
             /**
                          * !#en The alt key
                          * !#zh Alt 键
                          * @property alt
                          * @type {Number}
                          * @readonly
-                         */ 'alt': number;
+                         */ "alt": number;
             /**
                          * !#en The pause key
                          * !#zh 暂停键
                          * @property pause
                          * @type {Number}
                          * @readonly
-                         */ 'pause': number;
+                         */ "pause": number;
             /**
                          * !#en The caps lock key
                          * !#zh 大写锁定键
                          * @property capslock
                          * @type {Number}
                          * @readonly
-                         */ 'capslock': number;
+                         */ "capslock": number;
             /**
                          * !#en The esc key
                          * !#zh ESC 键
                          * @property escape
                          * @type {Number}
                          * @readonly
-                         */ 'escape': number;
+                         */ "escape": number;
             /**
                          * !#en The space key
                          * !#zh 空格键
                          * @property space
                          * @type {Number}
                          * @readonly
-                         */ 'space': number;
+                         */ "space": number;
             /**
                          * !#en The page up key
                          * !#zh 向上翻页键
                          * @property pageup
                          * @type {Number}
                          * @readonly
-                         */ 'pageup': number;
+                         */ "pageup": number;
             /**
                          * !#en The page down key
                          * !#zh 向下翻页键
                          * @property pagedown
                          * @type {Number}
                          * @readonly
-                         */ 'pagedown': number;
+                         */ "pagedown": number;
             /**
                          * !#en The end key
                          * !#zh 结束键
                          * @property end
                          * @type {Number}
                          * @readonly
-                         */ 'end': number;
+                         */ "end": number;
             /**
                          * !#en The home key
                          * !#zh 主菜单键
                          * @property home
                          * @type {Number}
                          * @readonly
-                         */ 'home': number;
+                         */ "home": number;
             /**
                          * !#en The left key
                          * !#zh 向左箭头键
                          * @property left
                          * @type {Number}
                          * @readonly
-                         */ 'left': number;
+                         */ "left": number;
             /**
                          * !#en The up key
                          * !#zh 向上箭头键
                          * @property up
                          * @type {Number}
                          * @readonly
-                         */ 'up': number;
+                         */ "up": number;
             /**
                          * !#en The right key
                          * !#zh 向右箭头键
                          * @property right
                          * @type {Number}
                          * @readonly
-                         */ 'right': number;
+                         */ "right": number;
             /**
                          * !#en The down key
                          * !#zh 向下箭头键
                          * @property down
                          * @type {Number}
                          * @readonly
-                         */ 'down': number;
+                         */ "down": number;
             /**
                          * !#en The select key
                          * !#zh Select 键
                          * @property select
                          * @type {Number}
                          * @readonly
-                         */ 'select': number;
+                         */ "select": number;
             /**
                          * !#en The insert key
                          * !#zh 插入键
                          * @property insert
                          * @type {Number}
                          * @readonly
-                         */ 'insert': number;
+                         */ "insert": number;
             /**
                          * !#en The Delete key
                          * !#zh 删除键
                          * @property Delete
                          * @type {Number}
                          * @readonly
-                         */ 'Delete': number;
+                         */ "Delete": number;
             /**
                          * !#en The '0' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 0 键
                          * @property 0
                          * @type {Number}
                          * @readonly
-                         */ '0': number;
+                         */ "0": number;
             /**
                          * !#en The '1' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 1 键
                          * @property 1
                          * @type {Number}
                          * @readonly
-                         */ '1': number;
+                         */ "1": number;
             /**
                          * !#en The '2' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 2 键
                          * @property 2
                          * @type {Number}
                          * @readonly
-                         */ '2': number;
+                         */ "2": number;
             /**
                          * !#en The '3' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 3 键
                          * @property 3
                          * @type {Number}
                          * @readonly
-                         */ '3': number;
+                         */ "3": number;
             /**
                          * !#en The '4' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 4 键
                          * @property 4
                          * @type {Number}
                          * @readonly
-                         */ '4': number;
+                         */ "4": number;
             /**
                          * !#en The '5' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 5 键
                          * @property 5
                          * @type {Number}
                          * @readonly
-                         */ '5': number;
+                         */ "5": number;
             /**
                          * !#en The '6' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 6 键
                          * @property 6
                          * @type {Number}
                          * @readonly
-                         */ '6': number;
+                         */ "6": number;
             /**
                          * !#en The '7' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 7 键
                          * @property 7
                          * @type {Number}
                          * @readonly
-                         */ '7': number;
+                         */ "7": number;
             /**
                          * !#en The '8' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 8 键
                          * @property 8
                          * @type {Number}
                          * @readonly
-                         */ '8': number;
+                         */ "8": number;
             /**
                          * !#en The '9' key on the top of the alphanumeric keyboard.
                          * !#zh 字母键盘上的 9 键
                          * @property 9
                          * @type {Number}
                          * @readonly
-                         */ '9': number;
+                         */ "9": number;
             /**
                          * !#en The a key
                          * !#zh A 键
                          * @property a
                          * @type {Number}
                          * @readonly
-                         */ 'a': number;
+                         */ "a": number;
             /**
                          * !#en The b key
                          * !#zh B 键
                          * @property b
                          * @type {Number}
                          * @readonly
-                         */ 'b': number;
+                         */ "b": number;
             /**
                          * !#en The c key
                          * !#zh C 键
                          * @property c
                          * @type {Number}
                          * @readonly
-                         */ 'c': number;
+                         */ "c": number;
             /**
                          * !#en The d key
                          * !#zh D 键
                          * @property d
                          * @type {Number}
                          * @readonly
-                         */ 'd': number;
+                         */ "d": number;
             /**
                          * !#en The e key
                          * !#zh E 键
                          * @property e
                          * @type {Number}
                          * @readonly
-                         */ 'e': number;
+                         */ "e": number;
             /**
                          * !#en The f key
                          * !#zh F 键
                          * @property f
                          * @type {Number}
                          * @readonly
-                         */ 'f': number;
+                         */ "f": number;
             /**
                          * !#en The g key
                          * !#zh G 键
                          * @property g
                          * @type {Number}
                          * @readonly
-                         */ 'g': number;
+                         */ "g": number;
             /**
                          * !#en The h key
                          * !#zh H 键
                          * @property h
                          * @type {Number}
                          * @readonly
-                         */ 'h': number;
+                         */ "h": number;
             /**
                          * !#en The i key
                          * !#zh I 键
                          * @property i
                          * @type {Number}
                          * @readonly
-                         */ 'i': number;
+                         */ "i": number;
             /**
                          * !#en The j key
                          * !#zh J 键
                          * @property j
                          * @type {Number}
                          * @readonly
-                         */ 'j': number;
+                         */ "j": number;
             /**
                          * !#en The k key
                          * !#zh K 键
                          * @property k
                          * @type {Number}
                          * @readonly
-                         */ 'k': number;
+                         */ "k": number;
             /**
                          * !#en The l key
                          * !#zh L 键
                          * @property l
                          * @type {Number}
                          * @readonly
-                         */ 'l': number;
+                         */ "l": number;
             /**
                          * !#en The m key
                          * !#zh M 键
                          * @property m
                          * @type {Number}
                          * @readonly
-                         */ 'm': number;
+                         */ "m": number;
             /**
                          * !#en The n key
                          * !#zh N 键
                          * @property n
                          * @type {Number}
                          * @readonly
-                         */ 'n': number;
+                         */ "n": number;
             /**
                          * !#en The o key
                          * !#zh O 键
                          * @property o
                          * @type {Number}
                          * @readonly
-                         */ 'o': number;
+                         */ "o": number;
             /**
                          * !#en The p key
                          * !#zh P 键
                          * @property p
                          * @type {Number}
                          * @readonly
-                         */ 'p': number;
+                         */ "p": number;
             /**
                          * !#en The q key
                          * !#zh Q 键
                          * @property q
                          * @type {Number}
                          * @readonly
-                         */ 'q': number;
+                         */ "q": number;
             /**
                          * !#en The r key
                          * !#zh R 键
                          * @property r
                          * @type {Number}
                          * @readonly
-                         */ 'r': number;
+                         */ "r": number;
             /**
                          * !#en The s key
                          * !#zh S 键
                          * @property s
                          * @type {Number}
                          * @readonly
-                         */ 's': number;
+                         */ "s": number;
             /**
                          * !#en The t key
                          * !#zh T 键
                          * @property t
                          * @type {Number}
                          * @readonly
-                         */ 't': number;
+                         */ "t": number;
             /**
                          * !#en The u key
                          * !#zh U 键
                          * @property u
                          * @type {Number}
                          * @readonly
-                         */ 'u': number;
+                         */ "u": number;
             /**
                          * !#en The v key
                          * !#zh V 键
                          * @property v
                          * @type {Number}
                          * @readonly
-                         */ 'v': number;
+                         */ "v": number;
             /**
                          * !#en The w key
                          * !#zh W 键
                          * @property w
                          * @type {Number}
                          * @readonly
-                         */ 'w': number;
+                         */ "w": number;
             /**
                          * !#en The x key
                          * !#zh X 键
                          * @property x
                          * @type {Number}
                          * @readonly
-                         */ 'x': number;
+                         */ "x": number;
             /**
                          * !#en The y key
                          * !#zh Y 键
                          * @property y
                          * @type {Number}
                          * @readonly
-                         */ 'y': number;
+                         */ "y": number;
             /**
                          * !#en The z key
                          * !#zh Z 键
                          * @property z
                          * @type {Number}
                          * @readonly
-                         */ 'z': number;
+                         */ "z": number;
             /**
                          * !#en The numeric keypad 0
                          * !#zh 数字键盘 0
                          * @property num0
                          * @type {Number}
                          * @readonly
-                         */ 'num0': number;
+                         */ "num0": number;
             /**
                          * !#en The numeric keypad 1
                          * !#zh 数字键盘 1
                          * @property num1
                          * @type {Number}
                          * @readonly
-                         */ 'num1': number;
+                         */ "num1": number;
             /**
                          * !#en The numeric keypad 2
                          * !#zh 数字键盘 2
                          * @property num2
                          * @type {Number}
                          * @readonly
-                         */ 'num2': number;
+                         */ "num2": number;
             /**
                          * !#en The numeric keypad 3
                          * !#zh 数字键盘 3
                          * @property num3
                          * @type {Number}
                          * @readonly
-                         */ 'num3': number;
+                         */ "num3": number;
             /**
                          * !#en The numeric keypad 4
                          * !#zh 数字键盘 4
                          * @property num4
                          * @type {Number}
                          * @readonly
-                         */ 'num4': number;
+                         */ "num4": number;
             /**
                          * !#en The numeric keypad 5
                          * !#zh 数字键盘 5
                          * @property num5
                          * @type {Number}
                          * @readonly
-                         */ 'num5': number;
+                         */ "num5": number;
             /**
                          * !#en The numeric keypad 6
                          * !#zh 数字键盘 6
                          * @property num6
                          * @type {Number}
                          * @readonly
-                         */ 'num6': number;
+                         */ "num6": number;
             /**
                          * !#en The numeric keypad 7
                          * !#zh 数字键盘 7
                          * @property num7
                          * @type {Number}
                          * @readonly
-                         */ 'num7': number;
+                         */ "num7": number;
             /**
                          * !#en The numeric keypad 8
                          * !#zh 数字键盘 8
                          * @property num8
                          * @type {Number}
                          * @readonly
-                         */ 'num8': number;
+                         */ "num8": number;
             /**
                          * !#en The numeric keypad 9
                          * !#zh 数字键盘 9
                          * @property num9
                          * @type {Number}
                          * @readonly
-                         */ 'num9': number;
+                         */ "num9": number;
             /**
                          * !#en The numeric keypad '*'
                          * !#zh 数字键盘 *
                          * @property *
                          * @type {Number}
                          * @readonly
-                         */ '*': number;
+                         */ "*": number;
             /**
                          * !#en The numeric keypad '+'
                          * !#zh 数字键盘 +
                          * @property +
                          * @type {Number}
                          * @readonly
-                         */ '+': number;
+                         */ "+": number;
             /**
                          * !#en The numeric keypad '-'
                          * !#zh 数字键盘 -
                          * @property -
                          * @type {Number}
                          * @readonly
-                         */ '-': number;
+                         */ "-": number;
             /**
                          * !#en The numeric keypad 'delete'
                          * !#zh 数字键盘删除键
                          * @property numdel
                          * @type {Number}
                          * @readonly
-                         */ 'numdel': number;
+                         */ "numdel": number;
             /**
                          * !#en The numeric keypad '/'
                          * !#zh 数字键盘 /
                          * @property /
                          * @type {Number}
                          * @readonly
-                         */ '/': number;
+                         */ "/": number;
             /**
                          * !#en The F1 function key
                          * !#zh F1 功能键
                          * @property f1
                          * @type {Number}
                          * @readonly
-                         */ 'f1': number;
+                         */ "f1": number;
             /**
                          * !#en The F2 function key
                          * !#zh F2 功能键
                          * @property f2
                          * @type {Number}
                          * @readonly
-                         */ 'f2': number;
+                         */ "f2": number;
             /**
                          * !#en The F3 function key
                          * !#zh F3 功能键
                          * @property f3
                          * @type {Number}
                          * @readonly
-                         */ 'f3': number;
+                         */ "f3": number;
             /**
                          * !#en The F4 function key
                          * !#zh F4 功能键
                          * @property f4
                          * @type {Number}
                          * @readonly
-                         */ 'f4': number;
+                         */ "f4": number;
             /**
                          * !#en The F5 function key
                          * !#zh F5 功能键
                          * @property f5
                          * @type {Number}
                          * @readonly
-                         */ 'f5': number;
+                         */ "f5": number;
             /**
                          * !#en The F6 function key
                          * !#zh F6 功能键
                          * @property f6
                          * @type {Number}
                          * @readonly
-                         */ 'f6': number;
+                         */ "f6": number;
             /**
                          * !#en The F7 function key
                          * !#zh F7 功能键
                          * @property f7
                          * @type {Number}
                          * @readonly
-                         */ 'f7': number;
+                         */ "f7": number;
             /**
                          * !#en The F8 function key
                          * !#zh F8 功能键
                          * @property f8
                          * @type {Number}
                          * @readonly
-                         */ 'f8': number;
+                         */ "f8": number;
             /**
                          * !#en The F9 function key
                          * !#zh F9 功能键
                          * @property f9
                          * @type {Number}
                          * @readonly
-                         */ 'f9': number;
+                         */ "f9": number;
             /**
                          * !#en The F10 function key
                          * !#zh F10 功能键
                          * @property f10
                          * @type {Number}
                          * @readonly
-                         */ 'f10': number;
+                         */ "f10": number;
             /**
                          * !#en The F11 function key
                          * !#zh F11 功能键
                          * @property f11
                          * @type {Number}
                          * @readonly
-                         */ 'f11': number;
+                         */ "f11": number;
             /**
                          * !#en The F12 function key
                          * !#zh F12 功能键
                          * @property f12
                          * @type {Number}
                          * @readonly
-                         */ 'f12': number;
+                         */ "f12": number;
             /**
                          * !#en The numlock key
                          * !#zh 数字锁定键
                          * @property numlock
                          * @type {Number}
                          * @readonly
-                         */ 'numlock': number;
+                         */ "numlock": number;
             /**
                          * !#en The scroll lock key
                          * !#zh 滚动锁定键
                          * @property scrolllock
                          * @type {Number}
                          * @readonly
-                         */ 'scrolllock': number;
+                         */ "scrolllock": number;
             /**
                          * !#en The ';' key.
                          * !#zh 分号键
                          * @property ;
                          * @type {Number}
                          * @readonly
-                         */ ';': number;
+                         */ ";": number;
             /**
                          * !#en The ';' key.
                          * !#zh 分号键
                          * @property semicolon
                          * @type {Number}
                          * @readonly
-                         */ 'semicolon': number;
+                         */ "semicolon": number;
             /**
                          * !#en The '=' key.
                          * !#zh 等于号键
                          * @property equal
                          * @type {Number}
                          * @readonly
-                         */ 'equal': number;
+                         */ "equal": number;
             /**
                          * !#en The '=' key.
                          * !#zh 等于号键
                          * @property =
                          * @type {Number}
                          * @readonly
-                         */ '=': number;
+                         */ "=": number;
             /**
                          * !#en The ',' key.
                          * !#zh 逗号键
                          * @property ,
                          * @type {Number}
                          * @readonly
-                         */ ',': number;
+                         */ ",": number;
             /**
                          * !#en The ',' key.
                          * !#zh 逗号键
                          * @property comma
                          * @type {Number}
                          * @readonly
-                         */ 'comma': number;
+                         */ "comma": number;
             /**
                          * !#en The dash '-' key.
                          * !#zh 中划线键
                          * @property dash
                          * @type {Number}
                          * @readonly
-                         */ 'dash': number;
+                         */ "dash": number;
             /**
                          * !#en The '.' key.
                          * !#zh 句号键
                          * @property .
                          * @type {Number}
                          * @readonly
-                         */ '.': number;
+                         */ ".": number;
             /**
                          * !#en The '.' key
                          * !#zh 句号键
                          * @property period
                          * @type {Number}
                          * @readonly
-                         */ 'period': number;
+                         */ "period": number;
             /**
                          * !#en The forward slash key
                          * !#zh 正斜杠键
                          * @property forwardslash
                          * @type {Number}
                          * @readonly
-                         */ 'forwardslash': number;
+                         */ "forwardslash": number;
             /**
                          * !#en The grave key
                          * !#zh 按键 `
                          * @property grave
                          * @type {Number}
                          * @readonly
-                         */ 'grave': number;
+                         */ "grave": number;
             /**
                          * !#en The '[' key
                          * !#zh 按键 [
                          * @property [
                          * @type {Number}
                          * @readonly
-                         */ '[': number;
+                         */ "[": number;
             /**
                          * !#en The '[' key
                          * !#zh 按键 [
                          * @property openbracket
                          * @type {Number}
                          * @readonly
-                         */ 'openbracket': number;
+                         */ "openbracket": number;
             /**
                          * !#en The '\' key
                          * !#zh 反斜杠键
                          * @property backslash
                          * @type {Number}
                          * @readonly
-                         */ 'backslash': number;
+                         */ "backslash": number;
             /**
                          * !#en The ']' key
                          * !#zh 按键 ]
                          * @property ]
                          * @type {Number}
                          * @readonly
-                         */ ']': number;
+                         */ "]": number;
             /**
                          * !#en The ']' key
                          * !#zh 按键 ]
                          * @property closebracket
                          * @type {Number}
                          * @readonly
-                         */ 'closebracket': number;
+                         */ "closebracket": number;
             /**
                          * !#en The quote key
                          * !#zh 单引号键
                          * @property quote
                          * @type {Number}
                          * @readonly
-                         */ 'quote': number;
+                         */ "quote": number;
             /**
                          * !#en The dpad left key
                          * !#zh 导航键 向左
                          * @property dpadLeft
                          * @type {Number}
                          * @readonly
-                         */ 'dpadLeft': number;
+                         */ "dpadLeft": number;
             /**
                          * !#en The dpad right key
                          * !#zh 导航键 向右
                          * @property dpadRight
                          * @type {Number}
                          * @readonly
-                         */ 'dpadRight': number;
+                         */ "dpadRight": number;
             /**
                          * !#en The dpad up key
                          * !#zh 导航键 向上
                          * @property dpadUp
                          * @type {Number}
                          * @readonly
-                         */ 'dpadUp': number;
+                         */ "dpadUp": number;
             /**
                          * !#en The dpad down key
                          * !#zh 导航键 向下
                          * @property dpadDown
                          * @type {Number}
                          * @readonly
-                         */ 'dpadDown': number;
+                         */ "dpadDown": number;
             /**
                          * !#en The dpad center key
                          * !#zh 导航键 确定键
                          * @property dpadCenter
                          * @type {Number}
                          * @readonly
-                         */ 'dpadCenter': number;
+                         */ "dpadCenter": number;
         };
         ImageFormat: any;
         /**
@@ -5286,7 +5286,7 @@ declare module "Cocos3D" {
                  * @method setAccelerometerInterval
                  * @param {Number} interval
                  */ setAccelerometerInterval(interval: number): void;
-        on(type: __internal.cocos_core_platform_event_manager_event_enum_KEY_DOWN | __internal.cocos_core_platform_event_manager_event_enum_KEY_UP, callback: (event: EventKeyboard) => void): any;
+        on(type: SystemEventType.KEY_DOWN | SystemEventType.KEY_UP, callback: (event: EventKeyboard) => void): any;
         off(type: string, callback?: Function, target?: Object): void;
     }
     var systemEvent: SystemEvent;
@@ -8896,12 +8896,12 @@ declare module "Cocos3D" {
     }
     namespace AnimationState {
         interface IEventDefinitionMap {
-            'finished': (animationState: AnimationState) => void;
-            'lastframe': (animationState: AnimationState) => void;
-            'play': (animationState: AnimationState) => void;
-            'pause': (animationState: AnimationState) => void;
-            'resume': (animationState: AnimationState) => void;
-            'stop': (animationState: AnimationState) => void;
+            "finished": (animationState: AnimationState) => void;
+            "lastframe": (animationState: AnimationState) => void;
+            "play": (animationState: AnimationState) => void;
+            "pause": (animationState: AnimationState) => void;
+            "resume": (animationState: AnimationState) => void;
+            "stop": (animationState: AnimationState) => void;
         }
     }
     /**
@@ -14620,7 +14620,7 @@ declare module "Cocos3D" {
                      * @param comp - 当前执行组件。
                      * @param frame - 当前执行组件贴图。
                      * @param assembler - 当前组件渲染数据组装器。
-                     */ commitComp(comp: UIComponent, frame?: cocos_gfx_texture_view_GFXTextureView | null, assembler?: Assembler.IAssembler): void;
+                     */ commitComp(comp: UIComponent, frame?: cocos_gfx_texture_view_GFXTextureView | null, assembler?: Assembler.Assembler.IAssembler): void;
             /**
                      * @zh
                      * UI 渲染数据合批
@@ -15046,188 +15046,6 @@ declare module "Cocos3D" {
              OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
              THE SOFTWARE.
              ****************************************************************************/ type cocos_core_utils_pool_CleanUpFunction<T> = (value: T) => boolean | void;
-        /**
-             * Removes the array item at the specified index.
-             */ export function cocos_core_utils_array_removeAt<T>(array: T[], index: number): void;
-        /**
-             * Removes the array item at the specified index.
-             * It's faster but the order of the array will be changed.
-             */ export function cocos_core_utils_array_fastRemoveAt<T>(array: T[], index: number): void;
-        /**
-             * Removes the first occurrence of a specific object from the array.
-             */ export function cocos_core_utils_array_remove<T>(array: T[], value: T): boolean;
-        /**
-             * Removes the first occurrence of a specific object from the array.
-             * It's faster but the order of the array will be changed.
-             */ export function cocos_core_utils_array_fastRemove<T>(array: T[], value: T): void;
-        export function cocos_core_utils_array_removeIf<T>(array: T[], predicate: (value: T) => boolean): T | undefined;
-        /**
-             * Verify array's Type.
-             */ export function cocos_core_utils_array_verifyType<T>(array: T[], type: Function): boolean;
-        /**
-             * Removes from array all values in minusArr. For each Value in minusArr, the first matching instance in array will be removed.
-             * @param array Source Array
-             * @param minusArr minus Array
-             */ export function cocos_core_utils_array_removeArray<T>(array: T[], minusArr: T[]): void;
-        /**
-             * Inserts some objects at index.
-             */ export function cocos_core_utils_array_appendObjectsAt<T>(array: T[], addObjs: T[], index: number): T[];
-        /**
-             * Exact same function as Array.prototype.indexOf.<br>
-             * HACK: ugliy hack for Baidu mobile browser compatibility,
-             * stupid Baidu guys modify Array.prototype.indexOf for all pages loaded,
-             * their version changes strict comparison to non-strict comparison,
-             * it also ignores the second parameter of the original API, and this will cause event handler enter infinite loop.<br>
-             * Baidu developers, if you ever see this documentation,
-             * here is the standard: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf, Seriously!
-             *
-             * @method indexOf
-             * @param searchElement - Element to locate in the array.
-             * @param [fromIndex=0] - The index to start the search at
-             * @return the first index at which a given element can be found in the array, or -1 if it is not present.
-             */ export function cocos_core_utils_array_indexOf<T>(array: T[], searchElement: T, fromIndex?: number): number;
-        /**
-             * Determines whether the array contains a specific value.
-             */ export function cocos_core_utils_array_contains<T>(array: T[], value: T): boolean;
-        /**
-             * Copy an array's item to a new array (its performance is better than Array.slice)
-             */ export function cocos_core_utils_array_copy<T>(array: T[]): any[];
-        /****************************************************************************
-             Copyright (c) 2013-2016 Chukong Technologies Inc.
-             Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
-            
-             http://www.cocos.com
-            
-             Permission is hereby granted, free of charge, to any person obtaining a copy
-             of this software and associated engine source code (the "Software"), a limited,
-             worldwide, royalty-free, non-assignable, revocable and non-exclusive license
-             to use Cocos Creator solely to develop games on your target platforms. You shall
-             not use Cocos Creator software for developing other software or tools that's
-             used for developing games. You are not granted to publish, distribute,
-             sublicense, and/or sell copies of Cocos Creator.
-            
-             The software or tools in this License Agreement are licensed, not sold.
-             Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
-            
-             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-             THE SOFTWARE.
-             ****************************************************************************/ /**
-             * @class js.array.MutableForwardIterator
-             * @example
-             * var array = [0, 1, 2, 3, 4];
-             * var iterator = new cc.js.array.MutableForwardIterator(array);
-             * for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
-             *     var item = array[iterator.i];
-             *     ...
-             * }
-             */ export class cocos_core_utils_mutable_forward_iterator_default<T> {
-            array: T[];
-            i: number;
-            constructor(array: T[]);
-            length: number;
-            remove(value: T): void;
-            removeAt(i: number): void;
-            fastRemove(value: T): void;
-            fastRemoveAt(i: number): void;
-            push(item: T): void;
-        }
-        namespace cocos_core_utils_array_cocos_core_utils_array {
-            /**
-                 * Removes the array item at the specified index.
-                 */ export function cocos_core_utils_array_removeAt<T>(array: T[], index: number): void;
-            /**
-                 * Removes the array item at the specified index.
-                 * It's faster but the order of the array will be changed.
-                 */ export function cocos_core_utils_array_fastRemoveAt<T>(array: T[], index: number): void;
-            /**
-                 * Removes the first occurrence of a specific object from the array.
-                 */ export function cocos_core_utils_array_remove<T>(array: T[], value: T): boolean;
-            /**
-                 * Removes the first occurrence of a specific object from the array.
-                 * It's faster but the order of the array will be changed.
-                 */ export function cocos_core_utils_array_fastRemove<T>(array: T[], value: T): void;
-            export function cocos_core_utils_array_removeIf<T>(array: T[], predicate: (value: T) => boolean): T | undefined;
-            /**
-                 * Verify array's Type.
-                 */ export function cocos_core_utils_array_verifyType<T>(array: T[], type: Function): boolean;
-            /**
-                 * Removes from array all values in minusArr. For each Value in minusArr, the first matching instance in array will be removed.
-                 * @param array Source Array
-                 * @param minusArr minus Array
-                 */ export function cocos_core_utils_array_removeArray<T>(array: T[], minusArr: T[]): void;
-            /**
-                 * Inserts some objects at index.
-                 */ export function cocos_core_utils_array_appendObjectsAt<T>(array: T[], addObjs: T[], index: number): T[];
-            /**
-                 * Exact same function as Array.prototype.indexOf.<br>
-                 * HACK: ugliy hack for Baidu mobile browser compatibility,
-                 * stupid Baidu guys modify Array.prototype.indexOf for all pages loaded,
-                 * their version changes strict comparison to non-strict comparison,
-                 * it also ignores the second parameter of the original API, and this will cause event handler enter infinite loop.<br>
-                 * Baidu developers, if you ever see this documentation,
-                 * here is the standard: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf, Seriously!
-                 *
-                 * @method indexOf
-                 * @param searchElement - Element to locate in the array.
-                 * @param [fromIndex=0] - The index to start the search at
-                 * @return the first index at which a given element can be found in the array, or -1 if it is not present.
-                 */ export function cocos_core_utils_array_indexOf<T>(array: T[], searchElement: T, fromIndex?: number): number;
-            /**
-                 * Determines whether the array contains a specific value.
-                 */ export function cocos_core_utils_array_contains<T>(array: T[], value: T): boolean;
-            /**
-                 * Copy an array's item to a new array (its performance is better than Array.slice)
-                 */ export function cocos_core_utils_array_copy<T>(array: T[]): any[];
-            /****************************************************************************
-                 Copyright (c) 2013-2016 Chukong Technologies Inc.
-                 Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
-                
-                 http://www.cocos.com
-                
-                 Permission is hereby granted, free of charge, to any person obtaining a copy
-                 of this software and associated engine source code (the "Software"), a limited,
-                 worldwide, royalty-free, non-assignable, revocable and non-exclusive license
-                 to use Cocos Creator solely to develop games on your target platforms. You shall
-                 not use Cocos Creator software for developing other software or tools that's
-                 used for developing games. You are not granted to publish, distribute,
-                 sublicense, and/or sell copies of Cocos Creator.
-                
-                 The software or tools in this License Agreement are licensed, not sold.
-                 Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
-                
-                 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-                 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-                 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-                 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-                 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-                 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-                 THE SOFTWARE.
-                 ****************************************************************************/ /**
-                 * @class js.array.MutableForwardIterator
-                 * @example
-                 * var array = [0, 1, 2, 3, 4];
-                 * var iterator = new cc.js.array.MutableForwardIterator(array);
-                 * for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
-                 *     var item = array[iterator.i];
-                 *     ...
-                 * }
-                 */ export class cocos_core_utils_mutable_forward_iterator_default<T> {
-                array: T[];
-                i: number;
-                constructor(array: T[]);
-                length: number;
-                remove(value: T): void;
-                removeAt(i: number): void;
-                fastRemove(value: T): void;
-                fastRemoveAt(i: number): void;
-                push(item: T): void;
-            }
-        }
         export interface cocos_core_data_utils_attibute_defines_IExposedAttributes {
             /**
                      * 指定属性的类型。
@@ -15342,6 +15160,13 @@ declare module "Cocos3D" {
                      * @param p5 - 派发的第五个参数。
                      */ emit(key: string, ...args: any[]): void;
         }
+        export enum cocos_core_platform_event_manager_event_listener_EventListenerNumber {
+            TouchOneByOne = 1,
+            TouchAllAtOnce = 2,
+            Keyboard = 3,
+            Mouse = 4,
+            Acceleration = 6
+        }
         export class cocos_core_platform_event_manager_event_listener_TouchOneByOne extends cocos_core_platform_event_manager_event_listener_EventListener {
             swallowTouches: boolean;
             onTouchBegan: Function | null;
@@ -15389,15 +15214,43 @@ declare module "Cocos3D" {
             clone(): cocos_core_platform_event_manager_event_listener_Acceleration;
         }
         interface cocos_core_platform_event_manager_event_listener_IEventListenerIDMap {
-            [EventListenerNumber.TouchOneByOne]: cocos_core_platform_event_manager_event_listener_TouchOneByOne;
-            [EventListenerNumber.TouchAllAtOnce]: cocos_core_platform_event_manager_event_listener_TouchAllAtOnce;
-            [EventListenerNumber.Keyboard]: cocos_core_platform_event_manager_event_listener_Keyboard;
-            [EventListenerNumber.Mouse]: cocos_core_platform_event_manager_event_listener_Mouse;
-            [EventListenerNumber.Acceleration]: cocos_core_platform_event_manager_event_listener_Acceleration;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.TouchOneByOne]: cocos_core_platform_event_manager_event_listener_TouchOneByOne;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.TouchAllAtOnce]: cocos_core_platform_event_manager_event_listener_TouchAllAtOnce;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.Keyboard]: cocos_core_platform_event_manager_event_listener_Keyboard;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.Mouse]: cocos_core_platform_event_manager_event_listener_Mouse;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.Acceleration]: cocos_core_platform_event_manager_event_listener_Acceleration;
+        }
+        type cocos_core_platform_event_manager_event_listener_ListenerCallback<Listener, EventOrArgs> = (listener: Listener, eventOrArgs: EventOrArgs) => void;
+        interface cocos_core_platform_event_manager_event_listener_IEventListenerCallbacksMap {
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.TouchOneByOne]: Partial<{
+                onTouchBegan: Function;
+                onTouchMoved: Function;
+                onTouchEnded: Function;
+                onTouchCancelled: Function;
+            }>;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.TouchAllAtOnce]: Partial<{
+                onTouchBegan: Function;
+                onTouchMoved: Function;
+                onTouchEnded: Function;
+                onTouchCancelled: Function;
+            }>;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.Mouse]: Partial<{
+                onMouseDown: Function;
+                onMouseUp: Function;
+                onMouseMove: Function;
+                onMouseScroll: Function;
+            }>;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.Keyboard]: Partial<{
+                onKeyPressed: cocos_core_platform_event_manager_event_listener_ListenerCallback<cocos_core_platform_event_manager_event_listener_Keyboard, EventKeyboard>;
+                onKeyReleased: cocos_core_platform_event_manager_event_listener_ListenerCallback<cocos_core_platform_event_manager_event_listener_Keyboard, EventKeyboard>;
+            }>;
+            [cocos_core_platform_event_manager_event_listener_EventListenerNumber.Acceleration]: Partial<{
+                callback: Function;
+            }>;
         }
         type cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo<EventListenerID extends keyof cocos_core_platform_event_manager_event_listener_IEventListenerIDMap> = {
             event: EventListenerID;
-        } & IEventListenerCallbacksMap[EventListenerID];
+        } & cocos_core_platform_event_manager_event_listener_IEventListenerCallbacksMap[EventListenerID];
         export interface cocos_core_platform_event_manager_event_listener_ILinstenerMask {
             index: number;
             node: Node;
@@ -15420,17 +15273,17 @@ declare module "Cocos3D" {
                      * !#en The type code of unknown event listener.
                      * !#zh 未知的事件监听器类型
                      */ static UNKNOWN: number;
-            static TOUCH_ONE_BY_ONE: cocos_core_platform_event_manager_event_listener_TouchOneByOne;
-            static TOUCH_ALL_AT_ONCE: cocos_core_platform_event_manager_event_listener_TouchAllAtOnce;
+            static TOUCH_ONE_BY_ONE: cocos_core_platform_event_manager_event_listener_EventListenerNumber.TouchOneByOne;
+            static TOUCH_ALL_AT_ONCE: cocos_core_platform_event_manager_event_listener_EventListenerNumber.TouchAllAtOnce;
             /**
                      * !#en The type code of keyboard event listener.
                      * !#zh 键盘事件监听器类型
-                     */ static KEYBOARD: cocos_core_platform_event_manager_event_listener_Keyboard;
-            static MOUSE: cocos_core_platform_event_manager_event_listener_Mouse;
+                     */ static KEYBOARD: cocos_core_platform_event_manager_event_listener_EventListenerNumber.Keyboard;
+            static MOUSE: cocos_core_platform_event_manager_event_listener_EventListenerNumber.Mouse;
             /**
                      * !#en The type code of acceleration event listener.
                      * !#zh 加速器事件监听器类型
-                     */ static ACCELERATION: cocos_core_platform_event_manager_event_listener_Acceleration;
+                     */ static ACCELERATION: cocos_core_platform_event_manager_event_listener_EventListenerNumber.Acceleration;
             static CUSTOM: number;
             static ListenerID: {
                 MOUSE: string;
@@ -15448,7 +15301,7 @@ declare module "Cocos3D" {
                      * !#zh 通过指定不同的 Event 对象来设置想要创建的事件监听器。
                      * @param {Object} argObj a json object
                      * @example {@link cocos2d/core/event-manager/CCEventListener/create.js}
-                     */ static create<K extends keyof cocos_core_platform_event_manager_event_listener_IEventListenerIDMap>(argObj: cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo<K>): IEventListenerIDMap[K];
+                     */ static create<K extends keyof cocos_core_platform_event_manager_event_listener_IEventListenerIDMap>(argObj: cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo<K>): cocos_core_platform_event_manager_event_listener_IEventListenerIDMap[K];
             owner: Object | null;
             mask: cocos_core_platform_event_manager_event_listener_ILinstenerMask | null;
             _previousIn?: boolean;
@@ -16078,7 +15931,7 @@ declare module "Cocos3D" {
             evaluate(T: number): number;
         }
         export enum cocos_3d_assets_audio_clip_AudioType {
-            UNKNOWN_AUDIO,
+            UNKNOWN_AUDIO = "Bad expression <-1>",
             WEB_AUDIO = 0,
             DOM_AUDIO = 1,
             WX_GAME_AUDIO = 2
@@ -16988,6 +16841,50 @@ declare module "Cocos3D" {
             requestRenderData(): cocos_renderer_ui_renderData_IARenderData;
             getRenderDatas(): cocos_renderer_ui_renderData_IARenderData[];
             addPoint(x: number, y: number, flags: cocos_3d_ui_assembler_graphics_types_PointFlags): void;
+        }
+        /****************************************************************************
+             Copyright (c) 2013-2016 Chukong Technologies Inc.
+             Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+            
+             http://www.cocos.com
+            
+             Permission is hereby granted, free of charge, to any person obtaining a copy
+             of this software and associated engine source code (the "Software"), a limited,
+             worldwide, royalty-free, non-assignable, revocable and non-exclusive license
+             to use Cocos Creator solely to develop games on your target platforms. You shall
+             not use Cocos Creator software for developing other software or tools that's
+             used for developing games. You are not granted to publish, distribute,
+             sublicense, and/or sell copies of Cocos Creator.
+            
+             The software or tools in this License Agreement are licensed, not sold.
+             Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
+            
+             THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+             IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+             FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+             AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+             LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+             OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+             THE SOFTWARE.
+             ****************************************************************************/ /**
+             * @class js.array.MutableForwardIterator
+             * @example
+             * var array = [0, 1, 2, 3, 4];
+             * var iterator = new cc.js.array.MutableForwardIterator(array);
+             * for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
+             *     var item = array[iterator.i];
+             *     ...
+             * }
+             */ export class cocos_core_utils_mutable_forward_iterator_default<T> {
+            array: T[];
+            i: number;
+            constructor(array: T[]);
+            length: number;
+            remove(value: T): void;
+            removeAt(i: number): void;
+            fastRemove(value: T): void;
+            fastRemoveAt(i: number): void;
+            push(item: T): void;
         }
         /**
              * @zh

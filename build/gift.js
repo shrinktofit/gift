@@ -241,16 +241,16 @@ class BundleGenerator {
         return typescript_1.default.createVariableStatement(this._dumpModifiers(variableDeclaration.parent), [typescript_1.default.createVariableDeclaration(newName, this._dumpType(variableDeclaration.type))]);
     }
     _dumpPropertySignature(propertySignature) {
-        return this._copyComments(propertySignature, typescript_1.default.createPropertySignature(undefined, propertySignature.name.getText(), this._dumpToken(propertySignature.questionToken), this._dumpType(propertySignature.type), undefined));
+        return this._copyComments(propertySignature, typescript_1.default.createPropertySignature(undefined, this._dumpPropertyName(propertySignature.name), this._dumpToken(propertySignature.questionToken), this._dumpType(propertySignature.type), undefined));
     }
     _dumpMethodSignature(methodSignature) {
-        return this._copyComments(methodSignature, typescript_1.default.createMethodSignature(undefined, methodSignature.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodSignature.type), methodSignature.name.getText(), this._dumpToken(methodSignature.questionToken)));
+        return this._copyComments(methodSignature, typescript_1.default.createMethodSignature(undefined, methodSignature.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodSignature.type), this._dumpPropertyName(methodSignature.name), this._dumpToken(methodSignature.questionToken)));
     }
     _dumpPropertyDeclaration(propertyDeclaration) {
-        return this._copyComments(propertyDeclaration, typescript_1.default.createProperty(undefined, this._dumpModifiers(propertyDeclaration), propertyDeclaration.name.getText(), this._dumpToken(propertyDeclaration.questionToken), this._dumpType(propertyDeclaration.type), undefined));
+        return this._copyComments(propertyDeclaration, typescript_1.default.createProperty(undefined, this._dumpModifiers(propertyDeclaration), this._dumpPropertyName(propertyDeclaration.name), this._dumpToken(propertyDeclaration.questionToken), this._dumpType(propertyDeclaration.type), undefined));
     }
     _dumpMethodDeclaration(methodDeclaration) {
-        return this._copyComments(methodDeclaration, (typescript_1.default.createMethod(undefined, this._dumpModifiers(methodDeclaration), this._dumpToken(methodDeclaration.asteriskToken), methodDeclaration.name.getText(), this._dumpToken(methodDeclaration.questionToken), this._dumpTypeParameterArray(methodDeclaration.typeParameters), methodDeclaration.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodDeclaration.type), undefined)));
+        return this._copyComments(methodDeclaration, (typescript_1.default.createMethod(undefined, this._dumpModifiers(methodDeclaration), this._dumpToken(methodDeclaration.asteriskToken), this._dumpPropertyName(methodDeclaration.name), this._dumpToken(methodDeclaration.questionToken), this._dumpTypeParameterArray(methodDeclaration.typeParameters), methodDeclaration.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodDeclaration.type), undefined)));
     }
     _dumpConstructorDeclaration(constructorDeclaration) {
         return this._copyComments(constructorDeclaration, (typescript_1.default.createConstructor(undefined, this._dumpModifiers(constructorDeclaration), constructorDeclaration.parameters.map((p) => this._dumpParameter(p)), undefined)));
@@ -325,18 +325,7 @@ class BundleGenerator {
     _dumpHeritageClause(heritageClause) {
         const validClauses = [];
         for (const type of heritageClause.types) {
-            const exprSymbol = this._typeChecker.getSymbolAtLocation(type.expression);
-            let exprType;
-            if (exprSymbol) {
-                const exprSymbolInf = this._getInf(exprSymbol);
-                if (exprSymbolInf) {
-                    exprType = typescript_1.default.createIdentifier(this._resolveSymbolPath(exprSymbolInf));
-                }
-            }
-            if (!exprType) {
-                exprType = typescript_1.default.createIdentifier(type.expression.getText());
-            }
-            validClauses.push(typescript_1.default.createExpressionWithTypeArguments(type.typeArguments ? type.typeArguments.map((ta) => this._dumpType(ta)) : undefined, exprType));
+            validClauses.push(typescript_1.default.createExpressionWithTypeArguments(type.typeArguments ? type.typeArguments.map((ta) => this._dumpType(ta)) : undefined, this._dumpExpression(type.expression)));
         }
         return typescript_1.default.createHeritageClause(heritageClause.token, validClauses);
     }
@@ -380,13 +369,7 @@ class BundleGenerator {
             return typescript_1.default.createTypeReferenceNode(type.getText(), undefined);
         };
         if (typescript_1.default.isTypeReferenceNode(type)) {
-            const symbol = this._typeChecker.getSymbolAtLocation(type.typeName);
-            if (!symbol) {
-                return fallthrough();
-            }
-            const inf = this._getInf(symbol);
-            const mainTypeName = inf ? this._resolveSymbolPath(inf) : type.typeName.getText();
-            return typescript_1.default.createTypeReferenceNode(mainTypeName, type.typeArguments ?
+            return typescript_1.default.createTypeReferenceNode(this._dumpEntityName(type.typeName), type.typeArguments ?
                 type.typeArguments.map((ta) => this._dumpType(ta)) : undefined);
         }
         else if (typescript_1.isUnionTypeNode(type)) {
@@ -402,17 +385,7 @@ class BundleGenerator {
             return typescript_1.default.createParenthesizedType(this._dumpType(type.type));
         }
         else if (typescript_1.default.isTypeQueryNode(type)) {
-            // Note: Only support typeof identifer.
-            if (typescript_1.default.isIdentifier(type.exprName)) {
-                const symbol = this._typeChecker.getSymbolAtLocation(type.exprName);
-                if (symbol) {
-                    const inf = this._getInf(symbol);
-                    if (inf) {
-                        const name = this._resolveSymbolPath(inf);
-                        return typescript_1.default.createTypeQueryNode(typescript_1.default.createIdentifier(name));
-                    }
-                }
-            }
+            return typescript_1.default.createTypeQueryNode(this._dumpEntityName(type.exprName));
         }
         else if (typescript_1.default.isTypeOperatorNode(type)) {
             return typescript_1.default.createTypeOperatorNode(this._dumpType(type.type));
@@ -439,10 +412,49 @@ class BundleGenerator {
         else if (typescript_1.default.isIntersectionTypeNode(type)) {
             return typescript_1.default.createIntersectionTypeNode(type.types.map((t) => this._dumpType(t)));
         }
+        else if (typescript_1.default.isIndexedAccessTypeNode(type)) {
+            return typescript_1.default.createIndexedAccessTypeNode(this._dumpType(type.objectType), this._dumpType(type.indexType));
+        }
         return type ? typescript_1.default.createTypeReferenceNode(type.getText(), undefined) : undefined;
     }
     _dumpToken(token) {
         return token ? typescript_1.default.createToken(token.kind) : undefined;
+    }
+    _dumpEntityName(name) {
+        if (name.getText() === 'jsarray') {
+            debugger;
+        }
+        const identifiers = [];
+        while (typescript_1.default.isQualifiedName(name)) {
+            identifiers.unshift(name.right);
+            name = name.left;
+        }
+        identifiers.unshift(name);
+        let result = null;
+        for (const id of identifiers) {
+            const newID = typescript_1.default.createIdentifier(this._getDumpedNameOfSymbolAt(id));
+            if (!result) {
+                result = newID;
+            }
+            else {
+                result = typescript_1.default.createQualifiedName(result, newID);
+            }
+        }
+        return result;
+    }
+    _dumpPropertyName(propertyName) {
+        if (typescript_1.default.isIdentifier(propertyName)) {
+            return typescript_1.default.createIdentifier(propertyName.text);
+        }
+        else if (typescript_1.default.isStringLiteral(propertyName)) {
+            return typescript_1.default.createStringLiteral(propertyName.text);
+        }
+        else if (typescript_1.default.isNumericLiteral(propertyName)) {
+            return typescript_1.default.createNumericLiteral(propertyName.text);
+        }
+        else {
+            return typescript_1.default.createComputedPropertyName(this._dumpExpression(propertyName.expression));
+        }
     }
     // Only literals are supported
     _dumpExpression(expression) {
@@ -464,15 +476,64 @@ class BundleGenerator {
         else if (expression.kind === typescript_1.default.SyntaxKind.NullKeyword) {
             return typescript_1.default.createNull();
         }
-        return undefined;
+        else if (typescript_1.default.isIdentifier(expression)) {
+            return this._dumpIdentifier(expression);
+        }
+        else if (typescript_1.default.isPropertyAccessExpression(expression)) {
+            return typescript_1.default.createPropertyAccess(this._dumpExpression(expression.expression), this._dumpIdentifier(expression.name));
+        }
+        else {
+            return typescript_1.default.createStringLiteral(`Bad expression <${expression.getText()}>`);
+        }
     }
-    _getInf(symbol) {
-        if (symbol.flags & typescript_1.default.SymbolFlags.TypeParameter) {
+    _dumpIdentifier(id) {
+        return typescript_1.default.createIdentifier(this._getDumpedNameOfSymbolAt(id));
+    }
+    _getDumpedNameOfSymbolAt(node) {
+        const symbolInf = this._getSymbolInfAt(node);
+        if (symbolInf) {
+            return this._resolveSymbolPath(symbolInf);
+        }
+        else {
+            return node.getText();
+        }
+    }
+    _getSymbolInfAt(node) {
+        const symbol = this._typeChecker.getSymbolAtLocation(node);
+        if (!symbol) {
             return null;
         }
+        return this._getInf(symbol);
+    }
+    _getInf(symbol) {
+        // TODO: import * as xx from 'xx';
+        // xx's Inf
         let originalSymbol = symbol;
         if (originalSymbol.flags & typescript_1.default.SymbolFlags.Alias) {
             originalSymbol = this._typeChecker.getAliasedSymbol(originalSymbol);
+        }
+        if (originalSymbol.flags & typescript_1.default.SymbolFlags.TypeParameter ||
+            originalSymbol.flags & typescript_1.default.SymbolFlags.EnumMember) {
+            return null;
+        }
+        if (originalSymbol.flags & typescript_1.default.SymbolFlags.ModuleMember) {
+            const declaration = originalSymbol.valueDeclaration ||
+                (originalSymbol.declarations && originalSymbol.declarations.length > 0 ?
+                    originalSymbol.declarations[0] : null);
+            if (declaration) {
+                let isTopLevelModuleMember = false;
+                if (typescript_1.default.isModuleDeclaration(declaration.parent) &&
+                    typescript_1.default.isSourceFile(declaration.parent.parent)) {
+                    isTopLevelModuleMember = true;
+                }
+                else if (typescript_1.default.isModuleBlock(declaration.parent) &&
+                    typescript_1.default.isSourceFile(declaration.parent.parent.parent)) {
+                    isTopLevelModuleMember = true;
+                }
+                if (!isTopLevelModuleMember) {
+                    return null;
+                }
+            }
         }
         let inf = this._pass1Result.map.get(originalSymbol) || null;
         if (!inf) {
