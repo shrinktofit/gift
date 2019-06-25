@@ -8,6 +8,7 @@ export interface IOptions {
 }
 export interface IBundleResult {
     error: GiftErrors;
+    typeReferencePaths?: string[];
     code?: string;
 }
 export declare enum GiftErrors {

@@ -14,6 +14,7 @@ export interface IOptions {
 
 export interface IBundleResult {
     error: GiftErrors;
+    typeReferencePaths?: string[];
     code?: string;
 }
 
@@ -114,6 +115,7 @@ class BundleGenerator {
         console.log(`]`);
 
         const lines: string[] = [];
+        const typeReferencePaths: string[] = [];
         if (rootModule.declarations && rootModule.declarations.length !== 0) {
             const declaration0 = rootModule.declarations[0];
             const rootSourceFile = declaration0.getSourceFile();
@@ -128,13 +130,14 @@ class BundleGenerator {
                     return;
                 }
                 lines.push(`/// <reference types="${key}"/>`);
+                typeReferencePaths.push(trd.resolvedFileName);
             });
         }
         const statementsArray = ts.createNodeArray(statements);
         const result = printer.printList(ts.ListFormat.None, statementsArray, sourceFile);
         lines.push(result);
         const code = lines.join('\n');
-        return { error: GiftErrors.Ok, code };
+        return { error: GiftErrors.Ok, code, typeReferencePaths };
     }
 
     private _bundleSymbolPass1(symbol: ts.Symbol, name: string): ISymbolInf {

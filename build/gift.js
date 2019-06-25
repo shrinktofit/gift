@@ -75,6 +75,7 @@ class BundleGenerator {
         }
         console.log(`]`);
         const lines = [];
+        const typeReferencePaths = [];
         if (rootModule.declarations && rootModule.declarations.length !== 0) {
             const declaration0 = rootModule.declarations[0];
             const rootSourceFile = declaration0.getSourceFile();
@@ -88,13 +89,14 @@ class BundleGenerator {
                     return;
                 }
                 lines.push(`/// <reference types="${key}"/>`);
+                typeReferencePaths.push(trd.resolvedFileName);
             });
         }
         const statementsArray = typescript_1.default.createNodeArray(statements);
         const result = printer.printList(typescript_1.default.ListFormat.None, statementsArray, sourceFile);
         lines.push(result);
         const code = lines.join('\n');
-        return { error: GiftErrors.Ok, code };
+        return { error: GiftErrors.Ok, code, typeReferencePaths };
     }
     _bundleSymbolPass1(symbol, name) {
         let originalSymbol = symbol;
