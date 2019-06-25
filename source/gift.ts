@@ -744,7 +744,7 @@ class BundleGenerator {
         const declaration0 = symbol.declarations[0];
         const sourceFile = declaration0.getSourceFile();
         if (this._program.isSourceFileFromExternalLibrary(sourceFile) ||
-            this._program.isSourceFileFromExternalLibrary(sourceFile)) {
+            this._program.isSourceFileDefaultLibrary(sourceFile)) {
             return null;
         }
         const moduleSymbol = this._getModuleSymbol(declaration0);

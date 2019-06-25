@@ -421,9 +421,6 @@ class BundleGenerator {
         return token ? typescript_1.default.createToken(token.kind) : undefined;
     }
     _dumpEntityName(name) {
-        if (name.getText() === 'jsarray') {
-            debugger;
-        }
         const identifiers = [];
         while (typescript_1.default.isQualifiedName(name)) {
             identifiers.unshift(name.right);
@@ -556,7 +553,7 @@ class BundleGenerator {
         const declaration0 = symbol.declarations[0];
         const sourceFile = declaration0.getSourceFile();
         if (this._program.isSourceFileFromExternalLibrary(sourceFile) ||
-            this._program.isSourceFileFromExternalLibrary(sourceFile)) {
+            this._program.isSourceFileDefaultLibrary(sourceFile)) {
             return null;
         }
         const moduleSymbol = this._getModuleSymbol(declaration0);
