@@ -1,4 +1,4 @@
-/****************************************************************************
+/*
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
@@ -22,7 +22,7 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
- ****************************************************************************/
+*/
 
 declare const CC_BUILD: boolean;
 declare const CC_TEST: boolean;
@@ -39,9 +39,9 @@ declare const CC_SUPPORT_JIT: boolean;
 
 declare const jsb: any;
 
-declare const CC_PHYISCS_CANNON: boolean;
-declare const CC_PHYISCS_AMMO: boolean;
-declare const CC_PHYISCS_BUILT_IN: boolean;
+declare const CC_PHYSICS_CANNON: boolean;
+declare const CC_PHYSICS_AMMO: boolean;
+declare const CC_PHYSICS_BUILT_IN: boolean;
 
 interface Window {
     mozRequestAnimationFrame (callback: any, element?: any): any;
@@ -90,6 +90,8 @@ declare const cc: {
 
 declare type CompareFunction<T> = (a: T, b: T) => number;
 
+declare type Constructor<T = {}> = new(...args: any[]) => T;
+
 declare type RecursivePartial<T> = {
     [P in keyof T]?:
         T[P] extends Array<infer U> ? Array<RecursivePartial<U>> :
@@ -110,4 +112,8 @@ declare namespace Editor {
     const Ipc: any;
     const Utils: any;
     const assets: any;
+    const serialize: any;
+    const Selection: any;
 }
+
+declare const Buffer: any;

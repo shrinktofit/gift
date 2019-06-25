@@ -61,6 +61,7 @@ class BundleGenerator {
         pending: new Array<ISymbolInf>(),
     };
     private _scopeStack: string[] = [];
+    private _referencedSourceFiles = new Set<ts.SourceFile>();
 
     constructor(options: IOptions) {
         this._options = options;
@@ -105,12 +106,29 @@ class BundleGenerator {
         const statements = [
             ...bundledRootModule,
         ];
-        let lines: string[] = [];
+
+        console.log(`Referenced source files:[`);
+        for (const referencedSourceFile of this._referencedSourceFiles) {
+            console.log(`  ${referencedSourceFile.fileName},`);
+        }
+        console.log(`]`);
+
+        const lines: string[] = [];
         if (rootModule.declarations && rootModule.declarations.length !== 0) {
             const declaration0 = rootModule.declarations[0];
             const rootSourceFile = declaration0.getSourceFile();
-            lines = rootSourceFile.typeReferenceDirectives.map(
-                (lrd) => `/// <reference types="${lrd.fileName}"/>`);
+            const resolvedTypeReferenceDirectives: ts.Map<ts.ResolvedTypeReferenceDirective> =
+                this._program.getResolvedTypeReferenceDirectives();
+            resolvedTypeReferenceDirectives.forEach((trd, key) => {
+                if (!trd.resolvedFileName) {
+                    return;
+                }
+                const trdSourceFile = this._program.getSourceFile(trd.resolvedFileName);
+                if (!trdSourceFile || !this._referencedSourceFiles.has(trdSourceFile)) {
+                    return;
+                }
+                lines.push(`/// <reference types="${key}"/>`);
+            });
         }
         const statementsArray = ts.createNodeArray(statements);
         const result = printer.printList(ts.ListFormat.None, statementsArray, sourceFile);
@@ -706,6 +724,10 @@ class BundleGenerator {
                 (originalSymbol.declarations && originalSymbol.declarations.length > 0 ?
                     originalSymbol.declarations[0] : null);
             if (declaration) {
+                // if (declaration.getSourceFile().fileName.includes('ammo')) {
+                //     debugger;
+                // }
+                this._referencedSourceFiles.add(declaration.getSourceFile());
                 let isTopLevelModuleMember = false;
                 if (ts.isModuleDeclaration(declaration.parent) &&
                     ts.isSourceFile(declaration.parent.parent)) {

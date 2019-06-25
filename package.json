@@ -1,6 +1,6 @@
 {
   "name": "tfig",
-  "version": "1.0.15",
+  "version": "1.0.17",
   "description": "",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",
@@ -23,7 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "fs-extra": "^7.0.1",
-    "typescript": "^3.4.5",
+    "typescript": "^3.5.2",
     "yargs": "^13.2.2"
   },
   "devDependencies": {
