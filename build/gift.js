@@ -113,8 +113,14 @@ class BundleGenerator {
             fullPrefix: [],
         };
         if (!originalSymbol.declarations || originalSymbol.declarations.length === 0) {
-            const aliasStuff = symbol === originalSymbol ? '' : ` (alias of ${originalSymbol.name})`;
-            console.error(`Found symbol with no declarations: ${symbol.name}${aliasStuff}.`);
+            if (originalSymbol === symbol) {
+                console.error(`Symbol [[${symbol.name}]] has no declaration.`);
+            }
+            else {
+                console.error(`Aliasing symbol of ${symbol.name}, ` +
+                    `which is ${originalSymbol.name}, ` +
+                    `has no declaration.`);
+            }
             return result;
         }
         for (const declaration of originalSymbol.declarations) {
