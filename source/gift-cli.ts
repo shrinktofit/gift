@@ -17,10 +17,11 @@ function main() {
         'u', 'Name of the unexported symbols\' namespace.(defaulted to "__internal")');
     yargs.alias('p', 'export-privates').describe(
         'p', 'Indicates whether export private members of class.');
+    yargs.option('verbose', { type: 'boolean', default: false });
     yargs.help();
 
     const argv = yargs.parse(process.argv);
-    const { i, n, o, r, u, p } = argv;
+    const { i, n, o, r, u, p, verbose } = argv;
 
     let name: undefined | string;
     if (typeof n === 'string') {
@@ -51,6 +52,7 @@ function main() {
         rootModule: r as string,
         shelterName: u as (string | undefined),
         exportPrivates: p as (string | undefined),
+        verbose: verbose as boolean,
     };
 
     const bundleResult = bundle(options);

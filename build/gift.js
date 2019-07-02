@@ -18,8 +18,10 @@ var GiftErrors;
     GiftErrors[GiftErrors["Fatal"] = 3] = "Fatal";
 })(GiftErrors = exports.GiftErrors || (exports.GiftErrors = {}));
 function bundle(options) {
-    console.log(`Cwd: ${process.cwd()}`);
-    console.log(`Options: ${JSON.stringify(options)}`);
+    if (options.verbose) {
+        console.log(`Cwd: ${process.cwd()}`);
+        console.log(`Options: ${JSON.stringify(options)}`);
+    }
     // Check the input.
     if (!fs.existsSync(options.input)) {
         return { error: GiftErrors.InputFileNotFound };
@@ -69,11 +71,13 @@ class BundleGenerator {
         const statements = [
             ...bundledRootModule,
         ];
-        console.log(`Referenced source files:[`);
-        for (const referencedSourceFile of this._referencedSourceFiles) {
-            console.log(`  ${referencedSourceFile.fileName},`);
+        if (this._options.verbose) {
+            console.log(`Referenced source files:[`);
+            for (const referencedSourceFile of this._referencedSourceFiles) {
+                console.log(`  ${referencedSourceFile.fileName},`);
+            }
+            console.log(`]`);
         }
-        console.log(`]`);
         const lines = [];
         const typeReferencePaths = [];
         if (rootModule.declarations && rootModule.declarations.length !== 0) {
@@ -109,7 +113,8 @@ class BundleGenerator {
             fullPrefix: [],
         };
         if (!originalSymbol.declarations || originalSymbol.declarations.length === 0) {
-            console.error(`Found symbol with no declarations: ${originalSymbol.name}.`);
+            const aliasStuff = symbol === originalSymbol ? '' : ` (alias of ${originalSymbol.name})`;
+            console.error(`Found symbol with no declarations: ${symbol.name}${aliasStuff}.`);
             return result;
         }
         for (const declaration of originalSymbol.declarations) {
@@ -556,7 +561,9 @@ class BundleGenerator {
         }
         let inf = this._pass1Result.map.get(originalSymbol) || null;
         if (!inf) {
-            console.warn(`Found symbol ${originalSymbol.name} not exported.`);
+            if (this._options.verbose) {
+                console.debug(`Found symbol ${originalSymbol.name} not exported.`);
+            }
             inf = this._getUnexported(originalSymbol);
         }
         return inf;

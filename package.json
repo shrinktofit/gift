@@ -1,6 +1,6 @@
 {
   "name": "tfig",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",

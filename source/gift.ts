@@ -10,6 +10,7 @@ export interface IOptions {
     rootModule: string;
     exportPrivates?: string;
     shelterName?: string;
+    verbose?: boolean;
 }
 
 export interface IBundleResult {
@@ -26,8 +27,10 @@ export enum GiftErrors {
 }
 
 export function bundle(options: IOptions): IBundleResult {
-    console.log(`Cwd: ${process.cwd()}`);
-    console.log(`Options: ${JSON.stringify(options)}`);
+    if (options.verbose) {
+        console.log(`Cwd: ${process.cwd()}`);
+        console.log(`Options: ${JSON.stringify(options)}`);
+    }
 
     // Check the input.
     if (!fs.existsSync(options.input)) {
@@ -108,11 +111,13 @@ class BundleGenerator {
             ...bundledRootModule,
         ];
 
-        console.log(`Referenced source files:[`);
-        for (const referencedSourceFile of this._referencedSourceFiles) {
-            console.log(`  ${referencedSourceFile.fileName},`);
+        if (this._options.verbose) {
+            console.log(`Referenced source files:[`);
+            for (const referencedSourceFile of this._referencedSourceFiles) {
+                console.log(`  ${referencedSourceFile.fileName},`);
+            }
+            console.log(`]`);
         }
-        console.log(`]`);
 
         const lines: string[] = [];
         const typeReferencePaths: string[] = [];
@@ -153,7 +158,8 @@ class BundleGenerator {
         };
 
         if (!originalSymbol.declarations || originalSymbol.declarations.length === 0) {
-            console.error(`Found symbol with no declarations: ${originalSymbol.name}.`);
+            const aliasStuff = symbol === originalSymbol ? '' : ` (alias of ${originalSymbol.name})`;
+            console.error(`Found symbol with no declarations: ${symbol.name}${aliasStuff}.`);
             return result;
         }
 
@@ -748,7 +754,9 @@ class BundleGenerator {
 
         let inf = this._pass1Result.map.get(originalSymbol) || null;
         if (!inf) {
-            console.warn(`Found symbol ${originalSymbol.name} not exported.`);
+            if (this._options.verbose) {
+                console.debug(`Found symbol ${originalSymbol.name} not exported.`);
+            }
             inf = this._getUnexported(originalSymbol);
         }
         return inf;

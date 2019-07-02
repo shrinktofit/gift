@@ -5,6 +5,7 @@ export interface IOptions {
     rootModule: string;
     exportPrivates?: string;
     shelterName?: string;
+    verbose?: boolean;
 }
 export interface IBundleResult {
     error: GiftErrors;
