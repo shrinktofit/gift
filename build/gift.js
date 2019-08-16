@@ -32,7 +32,7 @@ function bundle(options) {
 exports.bundle = bundle;
 class BundleGenerator {
     constructor(options) {
-        this._pass1Result = {
+        this._exportedSymbols = {
             map: new Map(),
         };
         this._unexportedSymbolsDetail = {
@@ -58,9 +58,9 @@ class BundleGenerator {
         if (!rootModule) {
             return { error: GiftErrors.RootModuleAbsent };
         }
-        const rootModuleSymbolInf = this._bundleSymbolPass1(rootModule, '');
+        const rootModuleSymbolInf = this._collectExportedSymbols(rootModule, '');
         this._completePath(rootModuleSymbolInf);
-        const bundledRootModule = this._bundleSymbolPass2(rootModuleSymbolInf, true);
+        const bundledRootModule = this._emitExportedSymbol(rootModuleSymbolInf, true);
         if (!bundledRootModule) {
             return { error: GiftErrors.Fatal };
         }
@@ -102,7 +102,7 @@ class BundleGenerator {
         const code = lines.join('\n');
         return { error: GiftErrors.Ok, code, typeReferencePaths };
     }
-    _bundleSymbolPass1(symbol, name) {
+    _collectExportedSymbols(symbol, name) {
         let originalSymbol = symbol;
         if (symbol.flags & typescript_1.default.SymbolFlags.Alias) {
             originalSymbol = this._typeChecker.getAliasedSymbol(symbol);
@@ -128,7 +128,7 @@ class BundleGenerator {
                 const exportedSymbols = this._typeChecker.getExportsOfModule(originalSymbol);
                 result.children = result.children || [];
                 for (const exportedSymbol of exportedSymbols) {
-                    const child = this._bundleSymbolPass1(exportedSymbol, exportedSymbol.name);
+                    const child = this._collectExportedSymbols(exportedSymbol, exportedSymbol.name);
                     child.parent = result;
                     result.children.push(child);
                 }
@@ -136,7 +136,7 @@ class BundleGenerator {
         }
         let aliasSymbol = symbol;
         while (true) {
-            this._pass1Result.map.set(aliasSymbol, result);
+            this._exportedSymbols.map.set(aliasSymbol, result);
             if (aliasSymbol.flags & typescript_1.default.SymbolFlags.Alias) {
                 aliasSymbol = this._typeChecker.getAliasedSymbol(aliasSymbol);
             }
@@ -158,7 +158,7 @@ class BundleGenerator {
             }
         }
     }
-    _bundleSymbolPass2(symbolInf, topLevel) {
+    _emitExportedSymbol(symbolInf, topLevel) {
         const symbol = symbolInf.symbol;
         if (!symbol.declarations || symbol.declarations.length === 0) {
             return null;
@@ -166,13 +166,13 @@ class BundleGenerator {
         const result = [];
         for (const declaration of symbol.declarations) {
             if (declaration.kind === typescript_1.default.SyntaxKind.ModuleDeclaration) {
-                const dumpedModuleDeclaration = this._dumpModuleDeclaration(symbolInf, topLevel);
+                const dumpedModuleDeclaration = this._remakeModuleDeclaration(symbolInf, topLevel);
                 if (dumpedModuleDeclaration) {
                     result.push(...dumpedModuleDeclaration);
                 }
             }
             else {
-                const dumpedDeclaration = this._dumpDeclaration(declaration, symbol, symbolInf.name);
+                const dumpedDeclaration = this._remakeDeclaration(declaration, symbol, symbolInf.name);
                 if (dumpedDeclaration) {
                     result.push(dumpedDeclaration);
                 }
@@ -180,7 +180,7 @@ class BundleGenerator {
         }
         return result;
     }
-    _dumpModuleDeclaration(symbolInf, topLevel) {
+    _remakeModuleDeclaration(symbolInf, topLevel) {
         if (!symbolInf.children) {
             return null;
         }
@@ -189,7 +189,7 @@ class BundleGenerator {
             this._scopeStack.push(symbolInf.name);
         }
         for (const child of symbolInf.children) {
-            const statement = this._bundleSymbolPass2(child);
+            const statement = this._emitExportedSymbol(child);
             if (statement) {
                 statements.push(...statement);
             }
@@ -216,8 +216,8 @@ class BundleGenerator {
             return [namespaceDeclaration];
         }
     }
-    _dumpDeclaration(declaration, symbol, newName) {
-        const result = this._dumpDeclarationNoComment(declaration, symbol, newName);
+    _remakeDeclaration(declaration, symbol, newName) {
+        const result = this._remakeDeclarationNoComment(declaration, symbol, newName);
         if (result) {
             this._copyComments(declaration, result);
         }
@@ -242,56 +242,56 @@ class BundleGenerator {
         // ts.setSyntheticTrailingComments(result, ts.getSyntheticTrailingComments(declaration));
         return dst;
     }
-    _dumpDeclarationNoComment(declaration, symbol, newName) {
+    _remakeDeclarationNoComment(declaration, symbol, newName) {
         if (typescript_1.default.isClassDeclaration(declaration)) {
-            return this._dumpClassDeclaration(declaration, symbol, newName);
+            return this._remakeClassDeclaration(declaration, symbol, newName);
         }
         else if (typescript_1.default.isFunctionDeclaration(declaration)) {
-            return this._dumpFunctionDeclaration(declaration, symbol, newName);
+            return this._remakeFunctionDeclaration(declaration, symbol, newName);
         }
         else if (typescript_1.default.isInterfaceDeclaration(declaration)) {
-            return this._dumpInterfaceDeclaration(declaration, symbol, newName);
+            return this._remakeInterfaceDeclaration(declaration, symbol, newName);
         }
         else if (typescript_1.default.isEnumDeclaration(declaration)) {
-            return this._dumpEnumDeclaration(declaration, symbol, newName);
+            return this._remakeEnumDeclaration(declaration, symbol, newName);
         }
         else if (typescript_1.default.isTypeAliasDeclaration(declaration)) {
-            return this._dumpTypeAliasDeclaration(declaration, symbol, newName);
+            return this._remakeTypeAliasDeclaration(declaration, symbol, newName);
         }
         else if (typescript_1.default.isVariableDeclaration(declaration)) {
-            return this._dumpVariableDeclaration(declaration, symbol, newName);
+            return this._remakeVariableDeclaration(declaration, symbol, newName);
         }
         return null;
     }
-    _dumpFunctionDeclaration(functionDeclaration, symbol, newName) {
-        return typescript_1.default.createFunctionDeclaration(undefined, this._dumpModifiers(functionDeclaration), functionDeclaration.asteriskToken, newName, this._dumpTypeParameterArray(functionDeclaration.typeParameters), functionDeclaration.parameters.map((p) => this._dumpParameter(p)), this._dumpType(functionDeclaration.type), undefined);
+    _remakeFunctionDeclaration(functionDeclaration, symbol, newName) {
+        return typescript_1.default.createFunctionDeclaration(undefined, this._remakeModifiers(functionDeclaration), functionDeclaration.asteriskToken, newName, this._remakeTypeParameterArray(functionDeclaration.typeParameters), functionDeclaration.parameters.map((p) => this._remakeParameter(p)), this._remakeType(functionDeclaration.type), undefined);
     }
-    _dumpVariableDeclaration(variableDeclaration, symbol, newName) {
-        return typescript_1.default.createVariableStatement(this._dumpModifiers(variableDeclaration.parent), [typescript_1.default.createVariableDeclaration(newName, this._dumpType(variableDeclaration.type))]);
+    _remakeVariableDeclaration(variableDeclaration, symbol, newName) {
+        return typescript_1.default.createVariableStatement(this._remakeModifiers(variableDeclaration.parent), [typescript_1.default.createVariableDeclaration(newName, this._remakeType(variableDeclaration.type))]);
     }
-    _dumpPropertySignature(propertySignature) {
-        return this._copyComments(propertySignature, typescript_1.default.createPropertySignature(undefined, this._dumpPropertyName(propertySignature.name), this._dumpToken(propertySignature.questionToken), this._dumpType(propertySignature.type), undefined));
+    _remakePropertySignature(propertySignature) {
+        return this._copyComments(propertySignature, typescript_1.default.createPropertySignature(undefined, this._remakePropertyName(propertySignature.name), this._remakeToken(propertySignature.questionToken), this._remakeType(propertySignature.type), undefined));
     }
-    _dumpMethodSignature(methodSignature) {
-        return this._copyComments(methodSignature, typescript_1.default.createMethodSignature(this._dumpTypeParameterArray(methodSignature.typeParameters), methodSignature.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodSignature.type), this._dumpPropertyName(methodSignature.name), this._dumpToken(methodSignature.questionToken)));
+    _remakeMethodSignature(methodSignature) {
+        return this._copyComments(methodSignature, typescript_1.default.createMethodSignature(this._remakeTypeParameterArray(methodSignature.typeParameters), methodSignature.parameters.map((p) => this._remakeParameter(p)), this._remakeType(methodSignature.type), this._remakePropertyName(methodSignature.name), this._remakeToken(methodSignature.questionToken)));
     }
-    _dumpPropertyDeclaration(propertyDeclaration) {
-        return this._copyComments(propertyDeclaration, typescript_1.default.createProperty(undefined, this._dumpModifiers(propertyDeclaration), this._dumpPropertyName(propertyDeclaration.name), this._dumpToken(propertyDeclaration.questionToken), this._dumpType(propertyDeclaration.type), undefined));
+    _remakePropertyDeclaration(propertyDeclaration) {
+        return this._copyComments(propertyDeclaration, typescript_1.default.createProperty(undefined, this._remakeModifiers(propertyDeclaration), this._remakePropertyName(propertyDeclaration.name), this._remakeToken(propertyDeclaration.questionToken), this._remakeType(propertyDeclaration.type), undefined));
     }
-    _dumpMethodDeclaration(methodDeclaration) {
-        return this._copyComments(methodDeclaration, (typescript_1.default.createMethod(undefined, this._dumpModifiers(methodDeclaration), this._dumpToken(methodDeclaration.asteriskToken), this._dumpPropertyName(methodDeclaration.name), this._dumpToken(methodDeclaration.questionToken), this._dumpTypeParameterArray(methodDeclaration.typeParameters), methodDeclaration.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodDeclaration.type), undefined)));
+    _remakeMethodDeclaration(methodDeclaration) {
+        return this._copyComments(methodDeclaration, (typescript_1.default.createMethod(undefined, this._remakeModifiers(methodDeclaration), this._remakeToken(methodDeclaration.asteriskToken), this._remakePropertyName(methodDeclaration.name), this._remakeToken(methodDeclaration.questionToken), this._remakeTypeParameterArray(methodDeclaration.typeParameters), methodDeclaration.parameters.map((p) => this._remakeParameter(p)), this._remakeType(methodDeclaration.type), undefined)));
     }
-    _dumpConstructorDeclaration(constructorDeclaration) {
-        return this._copyComments(constructorDeclaration, (typescript_1.default.createConstructor(undefined, this._dumpModifiers(constructorDeclaration), constructorDeclaration.parameters.map((p) => this._dumpParameter(p)), undefined)));
+    _remakeConstructorDeclaration(constructorDeclaration) {
+        return this._copyComments(constructorDeclaration, (typescript_1.default.createConstructor(undefined, this._remakeModifiers(constructorDeclaration), constructorDeclaration.parameters.map((p) => this._remakeParameter(p)), undefined)));
     }
-    _dumpParameter(parameter) {
-        return typescript_1.default.createParameter(undefined, this._dumpModifiers(parameter), this._dumpToken(parameter.dotDotDotToken), parameter.name.getText(), this._dumpToken(parameter.questionToken), this._dumpType(parameter.type));
+    _remakeParameter(parameter) {
+        return typescript_1.default.createParameter(undefined, this._remakeModifiers(parameter), this._remakeToken(parameter.dotDotDotToken), parameter.name.getText(), this._remakeToken(parameter.questionToken), this._remakeType(parameter.type));
     }
-    _dumpTypeParameter(typeParameter) {
-        return typescript_1.default.createTypeParameterDeclaration(typeParameter.name.getText(), this._dumpType(typeParameter.constraint), this._dumpType(typeParameter.default));
+    _remakeTypeParameter(typeParameter) {
+        return typescript_1.default.createTypeParameterDeclaration(typeParameter.name.getText(), this._remakeType(typeParameter.constraint), this._remakeType(typeParameter.default));
     }
-    _dumpTypeParameterArray(typeParameters) {
-        const lambda = (tp) => this._copyComments(tp, (this._dumpTypeParameter(tp)));
+    _remakeTypeParameterArray(typeParameters) {
+        const lambda = (tp) => this._copyComments(tp, (this._remakeTypeParameter(tp)));
         if (Array.isArray(typeParameters)) {
             return typeParameters.map(lambda);
         }
@@ -302,7 +302,7 @@ class BundleGenerator {
             return undefined;
         }
     }
-    _dumpClassDeclaration(classDeclaration, symbol, newName) {
+    _remakeClassDeclaration(classDeclaration, symbol, newName) {
         const classElements = [];
         // console.log(`Dump class ${newName}`);
         for (const element of classDeclaration.members) {
@@ -313,16 +313,16 @@ class BundleGenerator {
             //     (element.name ? element.name.getText() : '');
             // console.log(`  Dump member ${name}`);
             if (typescript_1.default.isMethodDeclaration(element)) {
-                classElements.push(this._dumpMethodDeclaration(element));
+                classElements.push(this._remakeMethodDeclaration(element));
             }
             else if (typescript_1.default.isConstructorDeclaration(element)) {
-                classElements.push(this._dumpConstructorDeclaration(element));
+                classElements.push(this._remakeConstructorDeclaration(element));
             }
             else if (typescript_1.default.isPropertyDeclaration(element)) {
-                classElements.push(this._dumpPropertyDeclaration(element));
+                classElements.push(this._remakePropertyDeclaration(element));
             }
         }
-        return typescript_1.default.createClassDeclaration(undefined, this._dumpModifiers(classDeclaration), newName, this._dumpTypeParameterArray(classDeclaration.typeParameters), this._dumpHeritageClauses(classDeclaration.heritageClauses), classElements);
+        return typescript_1.default.createClassDeclaration(undefined, this._remakeModifiers(classDeclaration), newName, this._remakeTypeParameterArray(classDeclaration.typeParameters), this._remakeHeritageClauses(classDeclaration.heritageClauses), classElements);
     }
     _isPrivateMember(classElement) {
         if (!classElement.modifiers) {
@@ -330,39 +330,39 @@ class BundleGenerator {
         }
         return classElement.modifiers.some((modifier) => modifier.kind === typescript_1.default.SyntaxKind.PrivateKeyword);
     }
-    _dumpInterfaceDeclaration(interfaceDeclaration, symbol, newName) {
-        return typescript_1.default.createInterfaceDeclaration(undefined, this._dumpModifiers(interfaceDeclaration), newName, this._dumpTypeParameterArray(interfaceDeclaration.typeParameters), this._dumpHeritageClauses(interfaceDeclaration.heritageClauses), this._dumpTypeElements(interfaceDeclaration.members));
+    _remakeInterfaceDeclaration(interfaceDeclaration, symbol, newName) {
+        return typescript_1.default.createInterfaceDeclaration(undefined, this._remakeModifiers(interfaceDeclaration), newName, this._remakeTypeParameterArray(interfaceDeclaration.typeParameters), this._remakeHeritageClauses(interfaceDeclaration.heritageClauses), this._remakeTypeElements(interfaceDeclaration.members));
     }
-    _dumpTypeElement(typeElement) {
+    _remakeTypeElement(typeElement) {
         if (typescript_1.default.isMethodSignature(typeElement)) {
-            return this._dumpMethodSignature(typeElement);
+            return this._remakeMethodSignature(typeElement);
         }
         else if (typescript_1.default.isPropertySignature(typeElement)) {
-            return this._dumpPropertySignature(typeElement);
+            return this._remakePropertySignature(typeElement);
         }
     }
-    _dumpTypeElements(typeElements) {
+    _remakeTypeElements(typeElements) {
         const result = [];
         for (const typeElement of typeElements) {
-            const d = this._dumpTypeElement(typeElement);
+            const d = this._remakeTypeElement(typeElement);
             if (d) {
                 result.push(d);
             }
         }
         return result;
     }
-    _dumpHeritageClause(heritageClause) {
+    _remakeHeritageClause(heritageClause) {
         const validClauses = [];
         for (const type of heritageClause.types) {
-            validClauses.push(typescript_1.default.createExpressionWithTypeArguments(type.typeArguments ? type.typeArguments.map((ta) => this._dumpType(ta)) : undefined, this._dumpExpression(type.expression)));
+            validClauses.push(typescript_1.default.createExpressionWithTypeArguments(type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)) : undefined, this._remakeExpression(type.expression)));
         }
         return typescript_1.default.createHeritageClause(heritageClause.token, validClauses);
     }
-    _dumpHeritageClauses(heritageClauses) {
+    _remakeHeritageClauses(heritageClauses) {
         if (!heritageClauses) {
             return undefined;
         }
-        const lambda = (heritageClause) => this._dumpHeritageClause(heritageClause);
+        const lambda = (heritageClause) => this._remakeHeritageClause(heritageClause);
         if (Array.isArray(heritageClauses)) {
             return heritageClauses.map(lambda);
         }
@@ -370,15 +370,15 @@ class BundleGenerator {
             return heritageClauses.map(lambda);
         }
     }
-    _dumpEnumDeclaration(enumDeclaration, symbol, newName) {
-        return typescript_1.default.createEnumDeclaration(undefined, this._dumpModifiers(enumDeclaration), newName, enumDeclaration.members.map((enumerator) => {
-            return typescript_1.default.createEnumMember(enumerator.name.getText(), this._dumpExpression(enumerator.initializer));
+    _remakeEnumDeclaration(enumDeclaration, symbol, newName) {
+        return typescript_1.default.createEnumDeclaration(undefined, this._remakeModifiers(enumDeclaration), newName, enumDeclaration.members.map((enumerator) => {
+            return typescript_1.default.createEnumMember(enumerator.name.getText(), this._remakeExpression(enumerator.initializer));
         }));
     }
-    _dumpTypeAliasDeclaration(typeAliasDeclaration, symbol, newName) {
-        return typescript_1.default.createTypeAliasDeclaration(undefined, this._dumpModifiers(typeAliasDeclaration), newName, this._dumpTypeParameterArray(typeAliasDeclaration.typeParameters), this._dumpType(typeAliasDeclaration.type));
+    _remakeTypeAliasDeclaration(typeAliasDeclaration, symbol, newName) {
+        return typescript_1.default.createTypeAliasDeclaration(undefined, this._remakeModifiers(typeAliasDeclaration), newName, this._remakeTypeParameterArray(typeAliasDeclaration.typeParameters), this._remakeType(typeAliasDeclaration.type));
     }
-    _dumpModifiers(declaration) {
+    _remakeModifiers(declaration) {
         if (!declaration.modifiers) {
             return undefined;
         }
@@ -390,7 +390,7 @@ class BundleGenerator {
         }
         return result;
     }
-    _dumpType(type) {
+    _remakeType(type) {
         if (!type) {
             return undefined;
         }
@@ -414,32 +414,32 @@ class BundleGenerator {
                 return typescript_1.default.createKeywordTypeNode(type.kind);
         }
         if (typescript_1.default.isTypeReferenceNode(type)) {
-            return typescript_1.default.createTypeReferenceNode(this._dumpEntityName(type.typeName), type.typeArguments ?
-                type.typeArguments.map((ta) => this._dumpType(ta)) : undefined);
+            return typescript_1.default.createTypeReferenceNode(this._remakeEntityName(type.typeName), type.typeArguments ?
+                type.typeArguments.map((ta) => this._remakeType(ta)) : undefined);
         }
         else if (typescript_1.isUnionTypeNode(type)) {
-            return typescript_1.default.createUnionTypeNode(type.types.map((t) => this._dumpType(t)));
+            return typescript_1.default.createUnionTypeNode(type.types.map((t) => this._remakeType(t)));
         }
         else if (typescript_1.default.isTypeLiteralNode(type)) {
-            return typescript_1.default.createTypeLiteralNode(this._dumpTypeElements(type.members));
+            return typescript_1.default.createTypeLiteralNode(this._remakeTypeElements(type.members));
         }
         else if (typescript_1.default.isArrayTypeNode(type)) {
-            return typescript_1.default.createArrayTypeNode(this._dumpType(type.elementType));
+            return typescript_1.default.createArrayTypeNode(this._remakeType(type.elementType));
         }
         else if (typescript_1.default.isParenthesizedTypeNode(type)) {
-            return typescript_1.default.createParenthesizedType(this._dumpType(type.type));
+            return typescript_1.default.createParenthesizedType(this._remakeType(type.type));
         }
         else if (typescript_1.default.isTypeQueryNode(type)) {
-            return typescript_1.default.createTypeQueryNode(this._dumpEntityName(type.exprName));
+            return typescript_1.default.createTypeQueryNode(this._remakeEntityName(type.exprName));
         }
         else if (typescript_1.default.isTypeOperatorNode(type)) {
-            return typescript_1.default.createTypeOperatorNode(this._dumpType(type.type));
+            return typescript_1.default.createTypeOperatorNode(this._remakeType(type.type));
         }
         else if (typescript_1.default.isFunctionTypeNode(type)) {
-            return typescript_1.default.createFunctionTypeNode(this._dumpTypeParameterArray(type.typeParameters), type.parameters.map((p) => this._dumpParameter(p)), this._dumpType(type.type));
+            return typescript_1.default.createFunctionTypeNode(this._remakeTypeParameterArray(type.typeParameters), type.parameters.map((p) => this._remakeParameter(p)), this._remakeType(type.type));
         }
         else if (typescript_1.default.isConstructorTypeNode(type)) {
-            return typescript_1.default.createConstructorTypeNode(this._dumpTypeParameterArray(type.typeParameters), type.parameters.map((p) => this._dumpParameter(p)), this._dumpType(type.type));
+            return typescript_1.default.createConstructorTypeNode(this._remakeTypeParameterArray(type.typeParameters), type.parameters.map((p) => this._remakeParameter(p)), this._remakeType(type.type));
         }
         else if (typescript_1.default.isImportTypeNode(type)) {
             let symbol;
@@ -457,29 +457,29 @@ class BundleGenerator {
                 const inf = this._getInf(symbol);
                 if (inf) {
                     const mainTypeName = this._resolveSymbolPath(inf);
-                    return typescript_1.default.createTypeReferenceNode(mainTypeName, type.typeArguments ? type.typeArguments.map((ta) => this._dumpType(ta)) : undefined);
+                    return typescript_1.default.createTypeReferenceNode(mainTypeName, type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)) : undefined);
                 }
             }
         }
         else if (typescript_1.default.isIntersectionTypeNode(type)) {
-            return typescript_1.default.createIntersectionTypeNode(type.types.map((t) => this._dumpType(t)));
+            return typescript_1.default.createIntersectionTypeNode(type.types.map((t) => this._remakeType(t)));
         }
         else if (typescript_1.default.isIndexedAccessTypeNode(type)) {
-            return typescript_1.default.createIndexedAccessTypeNode(this._dumpType(type.objectType), this._dumpType(type.indexType));
+            return typescript_1.default.createIndexedAccessTypeNode(this._remakeType(type.objectType), this._remakeType(type.indexType));
         }
         else if (typescript_1.default.isThisTypeNode(type)) {
             return typescript_1.default.createThisTypeNode();
         }
         else if (typescript_1.default.isTypePredicateNode(type)) {
             const dumpedParameterName = typescript_1.default.isIdentifier(type.parameterName) ?
-                this._dumpIdentifier(type.parameterName) : typescript_1.default.createThisTypeNode();
-            return typescript_1.default.createTypePredicateNode(dumpedParameterName, this._dumpType(type.type));
+                this._remakeIdentifier(type.parameterName) : typescript_1.default.createThisTypeNode();
+            return typescript_1.default.createTypePredicateNode(dumpedParameterName, this._remakeType(type.type));
         }
         else if (typescript_1.default.isConditionalTypeNode(type)) {
-            return typescript_1.default.createConditionalTypeNode(this._dumpType(type.checkType), this._dumpType(type.extendsType), this._dumpType(type.trueType), this._dumpType(type.falseType));
+            return typescript_1.default.createConditionalTypeNode(this._remakeType(type.checkType), this._remakeType(type.extendsType), this._remakeType(type.trueType), this._remakeType(type.falseType));
         }
         else if (typescript_1.default.isTupleTypeNode(type)) {
-            return typescript_1.default.createTupleTypeNode(type.elementTypes.map((elementType) => this._dumpType(elementType)));
+            return typescript_1.default.createTupleTypeNode(type.elementTypes.map((elementType) => this._remakeType(elementType)));
         }
         else if (typescript_1.default.isLiteralTypeNode(type)) {
             const literal = type.literal;
@@ -506,7 +506,7 @@ class BundleGenerator {
                 dumpedLiteral = typescript_1.default.createNoSubstitutionTemplateLiteral(literal.text);
             }
             else if (typescript_1.default.isPrefixUnaryExpression(literal)) {
-                dumpedLiteral = typescript_1.default.createPrefix(literal.operator, this._dumpExpression(literal.operand));
+                dumpedLiteral = typescript_1.default.createPrefix(literal.operator, this._remakeExpression(literal.operand));
             }
             else {
                 console.warn(`Don't know how to handle literal type ${type.getText()}(${printNode(type)})`);
@@ -520,10 +520,10 @@ class BundleGenerator {
         }
         return type ? typescript_1.default.createTypeReferenceNode(type.getText(), undefined) : undefined;
     }
-    _dumpToken(token) {
+    _remakeToken(token) {
         return token ? typescript_1.default.createToken(token.kind) : undefined;
     }
-    _dumpEntityName(name) {
+    _remakeEntityName(name) {
         const identifiers = [];
         while (typescript_1.default.isQualifiedName(name)) {
             identifiers.unshift(name.right);
@@ -542,7 +542,7 @@ class BundleGenerator {
         }
         return result;
     }
-    _dumpPropertyName(propertyName) {
+    _remakePropertyName(propertyName) {
         if (typescript_1.default.isIdentifier(propertyName)) {
             return typescript_1.default.createIdentifier(propertyName.text);
         }
@@ -553,17 +553,17 @@ class BundleGenerator {
             return typescript_1.default.createNumericLiteral(propertyName.text);
         }
         else {
-            return typescript_1.default.createComputedPropertyName(this._dumpExpression(propertyName.expression));
+            return typescript_1.default.createComputedPropertyName(this._remakeExpression(propertyName.expression));
         }
     }
-    _dumpBooleanLiteral(node) {
+    _remakeBooleanLiteral(node) {
         return typescript_1.default.createToken(node.kind);
     }
-    _dumpStringLiteral(node) {
+    _remakeStringLiteral(node) {
         return typescript_1.default.createStringLiteral(node.text);
     }
     // Only literals are supported
-    _dumpExpression(expression) {
+    _remakeExpression(expression) {
         if (!expression) {
             return undefined;
         }
@@ -583,16 +583,16 @@ class BundleGenerator {
             return typescript_1.default.createNull();
         }
         else if (typescript_1.default.isIdentifier(expression)) {
-            return this._dumpIdentifier(expression);
+            return this._remakeIdentifier(expression);
         }
         else if (typescript_1.default.isPropertyAccessExpression(expression)) {
-            return typescript_1.default.createPropertyAccess(this._dumpExpression(expression.expression), this._dumpIdentifier(expression.name));
+            return typescript_1.default.createPropertyAccess(this._remakeExpression(expression.expression), this._remakeIdentifier(expression.name));
         }
         else {
             return typescript_1.default.createStringLiteral(`Bad expression <${expression.getText()}>`);
         }
     }
-    _dumpIdentifier(id) {
+    _remakeIdentifier(id) {
         return typescript_1.default.createIdentifier(this._getDumpedNameOfSymbolAt(id));
     }
     _getDumpedNameOfSymbolAt(node) {
@@ -627,9 +627,6 @@ class BundleGenerator {
                 (originalSymbol.declarations && originalSymbol.declarations.length > 0 ?
                     originalSymbol.declarations[0] : null);
             if (declaration) {
-                // if (declaration.getSourceFile().fileName.includes('ammo')) {
-                //     debugger;
-                // }
                 this._referencedSourceFiles.add(declaration.getSourceFile());
                 let isTopLevelModuleMember = false;
                 if (typescript_1.default.isModuleDeclaration(declaration.parent) &&
@@ -645,7 +642,7 @@ class BundleGenerator {
                 }
             }
         }
-        let inf = this._pass1Result.map.get(originalSymbol) || null;
+        let inf = this._exportedSymbols.map.get(originalSymbol) || null;
         if (!inf) {
             if (this._options.verbose) {
                 console.debug(`Found symbol ${originalSymbol.name} not exported.`);
@@ -657,11 +654,11 @@ class BundleGenerator {
     _getUnexported(symbol) {
         let inf = this._unexportedSymbolsDetail.map.get(symbol);
         if (inf === undefined) {
-            inf = this._dumpUnexported(symbol);
+            inf = this._remakeUnexported(symbol);
         }
         return inf;
     }
-    _dumpUnexported(symbol) {
+    _remakeUnexported(symbol) {
         if (!symbol.declarations || symbol.declarations.length === 0) {
             return null;
         }
@@ -695,7 +692,7 @@ class BundleGenerator {
                 }
             }
         }
-        const decls = this._bundleSymbolPass2(result);
+        const decls = this._emitExportedSymbol(result);
         this._scopeStack = backupStack;
         if (decls) {
             result.dumpedDeclarations = decls;
