@@ -273,7 +273,7 @@ class BundleGenerator {
         return this._copyComments(propertySignature, typescript_1.default.createPropertySignature(undefined, this._dumpPropertyName(propertySignature.name), this._dumpToken(propertySignature.questionToken), this._dumpType(propertySignature.type), undefined));
     }
     _dumpMethodSignature(methodSignature) {
-        return this._copyComments(methodSignature, typescript_1.default.createMethodSignature(undefined, methodSignature.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodSignature.type), this._dumpPropertyName(methodSignature.name), this._dumpToken(methodSignature.questionToken)));
+        return this._copyComments(methodSignature, typescript_1.default.createMethodSignature(this._dumpTypeParameterArray(methodSignature.typeParameters), methodSignature.parameters.map((p) => this._dumpParameter(p)), this._dumpType(methodSignature.type), this._dumpPropertyName(methodSignature.name), this._dumpToken(methodSignature.questionToken)));
     }
     _dumpPropertyDeclaration(propertyDeclaration) {
         return this._copyComments(propertyDeclaration, typescript_1.default.createProperty(undefined, this._dumpModifiers(propertyDeclaration), this._dumpPropertyName(propertyDeclaration.name), this._dumpToken(propertyDeclaration.questionToken), this._dumpType(propertyDeclaration.type), undefined));
@@ -397,6 +397,22 @@ class BundleGenerator {
         const fallthrough = () => {
             return typescript_1.default.createTypeReferenceNode(type.getText(), undefined);
         };
+        switch (type.kind) {
+            case typescript_1.default.SyntaxKind.NumberKeyword:
+            case typescript_1.default.SyntaxKind.BooleanKeyword:
+            case typescript_1.default.SyntaxKind.StringKeyword:
+            case typescript_1.default.SyntaxKind.VoidKeyword:
+            case typescript_1.default.SyntaxKind.AnyKeyword:
+            case typescript_1.default.SyntaxKind.NullKeyword:
+            case typescript_1.default.SyntaxKind.NeverKeyword:
+            case typescript_1.default.SyntaxKind.ObjectKeyword:
+            case typescript_1.default.SyntaxKind.SymbolKeyword:
+            case typescript_1.default.SyntaxKind.UndefinedKeyword:
+            case typescript_1.default.SyntaxKind.UnknownKeyword:
+            case typescript_1.default.SyntaxKind.BigIntKeyword:
+                // case ts.SyntaxKind.ThisKeyword:
+                return typescript_1.default.createKeywordTypeNode(type.kind);
+        }
         if (typescript_1.default.isTypeReferenceNode(type)) {
             return typescript_1.default.createTypeReferenceNode(this._dumpEntityName(type.typeName), type.typeArguments ?
                 type.typeArguments.map((ta) => this._dumpType(ta)) : undefined);
@@ -426,15 +442,22 @@ class BundleGenerator {
             return typescript_1.default.createConstructorTypeNode(this._dumpTypeParameterArray(type.typeParameters), type.parameters.map((p) => this._dumpParameter(p)), this._dumpType(type.type));
         }
         else if (typescript_1.default.isImportTypeNode(type)) {
+            let symbol;
             const typetype = this._typeChecker.getTypeAtLocation(type);
             if (typetype) {
-                const symbol = typetype.symbol;
-                if (symbol) {
-                    const inf = this._getInf(symbol);
-                    if (inf) {
-                        const mainTypeName = this._resolveSymbolPath(inf);
-                        return typescript_1.default.createTypeReferenceNode(mainTypeName, type.typeArguments ? type.typeArguments.map((ta) => this._dumpType(ta)) : undefined);
-                    }
+                symbol = typetype.symbol;
+            }
+            if (!symbol) {
+                console.warn(`Failed to resolve type ${type.getText()}, There is no symbol info.`);
+                if (this._typeChecker.getSymbolAtLocation(type.argument)) {
+                    console.warn(`BTW`);
+                }
+            }
+            else {
+                const inf = this._getInf(symbol);
+                if (inf) {
+                    const mainTypeName = this._resolveSymbolPath(inf);
+                    return typescript_1.default.createTypeReferenceNode(mainTypeName, type.typeArguments ? type.typeArguments.map((ta) => this._dumpType(ta)) : undefined);
                 }
             }
         }
@@ -443,6 +466,57 @@ class BundleGenerator {
         }
         else if (typescript_1.default.isIndexedAccessTypeNode(type)) {
             return typescript_1.default.createIndexedAccessTypeNode(this._dumpType(type.objectType), this._dumpType(type.indexType));
+        }
+        else if (typescript_1.default.isThisTypeNode(type)) {
+            return typescript_1.default.createThisTypeNode();
+        }
+        else if (typescript_1.default.isTypePredicateNode(type)) {
+            const dumpedParameterName = typescript_1.default.isIdentifier(type.parameterName) ?
+                this._dumpIdentifier(type.parameterName) : typescript_1.default.createThisTypeNode();
+            return typescript_1.default.createTypePredicateNode(dumpedParameterName, this._dumpType(type.type));
+        }
+        else if (typescript_1.default.isConditionalTypeNode(type)) {
+            return typescript_1.default.createConditionalTypeNode(this._dumpType(type.checkType), this._dumpType(type.extendsType), this._dumpType(type.trueType), this._dumpType(type.falseType));
+        }
+        else if (typescript_1.default.isTupleTypeNode(type)) {
+            return typescript_1.default.createTupleTypeNode(type.elementTypes.map((elementType) => this._dumpType(elementType)));
+        }
+        else if (typescript_1.default.isLiteralTypeNode(type)) {
+            const literal = type.literal;
+            let dumpedLiteral;
+            if (typescript_1.default.isStringLiteral(literal)) {
+                dumpedLiteral = typescript_1.default.createStringLiteral(literal.text);
+            }
+            else if (literal.kind === typescript_1.default.SyntaxKind.TrueKeyword) {
+                dumpedLiteral = typescript_1.default.createTrue();
+            }
+            else if (literal.kind === typescript_1.default.SyntaxKind.FalseKeyword) {
+                dumpedLiteral = typescript_1.default.createFalse();
+            }
+            else if (typescript_1.default.isNumericLiteral(literal)) {
+                dumpedLiteral = typescript_1.default.createNumericLiteral(literal.text);
+            }
+            else if (typescript_1.default.isBigIntLiteral(literal)) {
+                dumpedLiteral = typescript_1.default.createBigIntLiteral(literal.text);
+            }
+            else if (typescript_1.default.isRegularExpressionLiteral(literal)) {
+                dumpedLiteral = typescript_1.default.createRegularExpressionLiteral(literal.text);
+            }
+            else if (typescript_1.default.isNoSubstitutionTemplateLiteral(literal)) {
+                dumpedLiteral = typescript_1.default.createNoSubstitutionTemplateLiteral(literal.text);
+            }
+            else if (typescript_1.default.isPrefixUnaryExpression(literal)) {
+                dumpedLiteral = typescript_1.default.createPrefix(literal.operator, this._dumpExpression(literal.operand));
+            }
+            else {
+                console.warn(`Don't know how to handle literal type ${type.getText()}(${printNode(type)})`);
+            }
+            if (dumpedLiteral) {
+                return typescript_1.default.createLiteralTypeNode(dumpedLiteral);
+            }
+        }
+        else {
+            console.warn(`Don't know how to handle type ${type.getText()}(${printNode(type)})`);
         }
         return type ? typescript_1.default.createTypeReferenceNode(type.getText(), undefined) : undefined;
     }
@@ -481,6 +555,12 @@ class BundleGenerator {
         else {
             return typescript_1.default.createComputedPropertyName(this._dumpExpression(propertyName.expression));
         }
+    }
+    _dumpBooleanLiteral(node) {
+        return typescript_1.default.createToken(node.kind);
+    }
+    _dumpStringLiteral(node) {
+        return typescript_1.default.createStringLiteral(node.text);
     }
     // Only literals are supported
     _dumpExpression(expression) {

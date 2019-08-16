@@ -1,7 +1,7 @@
 
 declare module Ammo {
     type Constructor<T = {}> = new(...args: any[]) => T;
-
+    
     export type btScalar = number;
 
     export class btQuadWord {

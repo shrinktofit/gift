@@ -1,9 +1,13 @@
 /// <reference types="./@types/globals"/>
+/// <reference types="./cocos/gfx/webgl/webgl"/>
+/// <reference types="./cocos/gfx/webgl2/webgl2"/>
 declare module "Cocos3D" {
     namespace renderer {
         export function createIA(device: any, data: any): any;
         var addStage: (name: any) => void;
-        export enum RenderQueue {
+        /**
+             * @hidden
+             */ export enum RenderQueue {
             OPAQUE = 0,
             TRANSPARENT = 1,
             OVERLAY = 2
@@ -29,6 +33,7 @@ declare module "Cocos3D" {
                      * @zh
                      * 根据 handle 获取 binding。
                      */ static getBindingFromHandle: (handle: number) => number;
+            static createPasses(effect: EffectAsset, info: __internal.cocos_renderer_core_pass_IEffectInfo): Pass[];
             protected static getIndexFromHandle: (handle: number) => number;
             protected _buffers: Record<number, __internal.cocos_gfx_buffer_GFXBuffer>;
             protected _samplers: Record<number, __internal.cocos_gfx_sampler_GFXSampler>;
@@ -64,12 +69,12 @@ declare module "Cocos3D" {
                      * @zh
                      * 获取指定 uniform 的 handle。
                      * @param name 目标 uniform 名。
-                     */ getHandle(name: string): number;
+                     */ getHandle(name: string): number | undefined;
             /**
                      * @zh
                      * 获取指定 uniform 的 binding。
                      * @param name 目标 uniform 名。
-                     */ getBinding(name: string): number;
+                     */ getBinding(name: string): number | undefined;
             /**
                      * @zh
                      * 设置指定普通向量类 uniform 的值，如果需要频繁更新请尽量使用此接口。
@@ -177,10 +182,10 @@ declare module "Cocos3D" {
             protected _colorTemp: number;
             protected _colorTempRGB: Vec3;
             protected _scene: __internal.cocos_renderer_scene_render_scene_RenderScene;
-            protected _node: Node;
+            protected _node: __internal.cocos_core_utils_interfaces_INode;
             protected _type: __internal.cocos_renderer_scene_light_LightType;
             protected _name: string;
-            constructor(scene: __internal.cocos_renderer_scene_render_scene_RenderScene, name: string, node: Node);
+            constructor(scene: __internal.cocos_renderer_scene_render_scene_RenderScene, name: string, node: __internal.cocos_core_utils_interfaces_INode);
             update(): void;
         }
         export class Camera {
@@ -188,12 +193,12 @@ declare module "Cocos3D" {
             destroy(): void;
             resize(width: number, height: number): void;
             setFixedSize(width: number, height: number): void;
-            update(): void;
+            update(forceUpdate?: boolean): void;
             getSplitFrustum(out: geometry.frustum, nearClip: number, farClip: number): void;
             screenScale: any;
             enabled: any;
             readonly view: __internal.cocos_pipeline_render_view_RenderView;
-            node: Node;
+            node: __internal.cocos_core_utils_interfaces_INode;
             readonly isWindowSize: boolean;
             orthoHeight: any;
             projectionType: any;
@@ -227,16 +232,16 @@ declare module "Cocos3D" {
             readonly isoValue: number;
             ec: number;
             readonly exposure: number;
-            changeTargetDisplay(val: number): void;
+            changeTargetWindow(window?: __internal.cocos_gfx_window_GFXWindow | null): void;
             /**
                      * transform a screen position to a world space ray
                      */ screenPointToRay(out: geometry.ray, x: number, y: number): geometry.ray;
             /**
                      * transform a screen position to world space
-                     */ screenToWorld(out: vmath.vec3, screenPos: vmath.vec3): vmath.vec3;
+                     */ screenToWorld(out: Vec3, screenPos: Vec3): Vec3;
             /**
                      * transform a world space position to screen space
-                     */ worldToScreen(out: vmath.vec3, worldPos: vmath.vec3): vmath.vec3;
+                     */ worldToScreen(out: Vec3, worldPos: Vec3): Vec3;
         }
         /**
              * A representation of a model
@@ -252,8 +257,8 @@ declare module "Cocos3D" {
                      */ /**
                     * Set the hosting node of this model
                     * @param {Node} node the hosting node
-                    */ node: Node;
-            transform: Node;
+                    */ node: __internal.cocos_core_utils_interfaces_INode;
+            transform: __internal.cocos_core_utils_interfaces_INode;
             readonly worldBounds: geometry.aabb | null;
             readonly modelBounds: geometry.aabb | null;
             viewID: number;
@@ -264,11 +269,13 @@ declare module "Cocos3D" {
             readonly uboLocal: __internal.cocos_pipeline_define_UBOLocal;
             readonly localUBO: __internal.cocos_gfx_buffer_GFXBuffer | null;
             readonly localBindings: Map<string, __internal.cocos_pipeline_define_IInternalBindingInst>;
+            castShadow: boolean;
+            readonly UBOUpdated: boolean;
             protected _type: string;
             protected _device: __internal.cocos_gfx_device_GFXDevice;
             protected _scene: __internal.cocos_renderer_scene_render_scene_RenderScene;
-            protected _node: Node;
-            protected _transform: Node;
+            protected _node: __internal.cocos_core_utils_interfaces_INode;
+            protected _transform: __internal.cocos_core_utils_interfaces_INode;
             protected _id: number;
             protected _enabled: boolean;
             protected _viewID: number;
@@ -284,9 +291,10 @@ declare module "Cocos3D" {
             protected _localBindings: Map<string, __internal.cocos_pipeline_define_IInternalBindingInst>;
             protected _inited: boolean;
             protected _uboUpdated: boolean;
+            protected _castShadow: boolean;
             /**
                      * Setup a default empty model
-                     */ constructor(scene: __internal.cocos_renderer_scene_render_scene_RenderScene, node: Node);
+                     */ constructor(scene: __internal.cocos_renderer_scene_render_scene_RenderScene, node: __internal.cocos_core_utils_interfaces_INode);
             destroy(): void;
             getSubModel(idx: number): __internal.cocos_renderer_scene_submodel_SubModel;
             updateTransform(): void;
@@ -319,20 +327,1388 @@ declare module "Cocos3D" {
             destroy(): void;
         }
         export class SkinningModel extends Model {
-            updateJointData: (idx: number, pos: Vec3, rot: Quat, scale: Vec3, first?: boolean) => void;
-            readonly joints: __internal.cocos_renderer_models_skinning_model_Joint[];
-            constructor(scene: __internal.cocos_renderer_scene_render_scene_RenderScene, node: Node);
-            bindSkeleton(skeleton: Skeleton | null): void;
-            commitJointData(): void;
-            updateUBOs(): boolean;
-            resetSkinningTarget(skinningRoot: Node): void;
-            protected updateJointDataLBS(idx: number, pos: Vec3, rot: Quat, scale: Vec3): void;
-            protected updateJointDataDQS(idx: number, pos: Vec3, rot: Quat, scale: Vec3, first?: boolean): void;
+            uploadedAnim: SkeletalAnimationClip | null;
+            readonly worldBounds: import("cocos/3d/geom-utils").aabb | null;
+            constructor(scene: __internal.cocos_renderer_scene_render_scene_RenderScene, node: __internal.cocos_core_utils_interfaces_INode);
+            destroy(): void;
+            bindSkeleton(skeleton: Skeleton | null, skinningRoot: __internal.cocos_core_utils_interfaces_INode | null): void;
+            uploadAnimation(anim: SkeletalAnimationClip): void;
+            setFrameID(val: number): void;
+            getFrameID(): number;
+            protected _applyJointsTexture(texture: IJointsTextureHandle | null): void;
             protected _doCreatePSO(pass: Pass): __internal.cocos_gfx_pipeline_state_GFXPipelineState;
+        }
+        export interface ITextureBuffer {
+            texture: __internal.cocos_gfx_texture_GFXTexture;
+            texView: __internal.cocos_gfx_texture_view_GFXTextureView;
+            size: number;
+            start: number;
+            end: number;
+        }
+        export interface ITextureBufferHandle {
+            chunkIdx: number;
+            start: number;
+            end: number;
+            texture: __internal.cocos_gfx_texture_GFXTexture;
+            texView: __internal.cocos_gfx_texture_view_GFXTextureView;
+        }
+        export interface ITextureBufferPoolInfo {
+            format: GFXFormat;
+            maxChunks: number;
+            inOrderFree?: boolean;
+            roundUpFn?: (size: number) => number;
+        }
+        export class TextureBufferPool {
+            constructor(device: __internal.cocos_gfx_device_GFXDevice);
+            initialize(info: ITextureBufferPoolInfo): boolean;
+            destroy(): void;
+            alloc(size: number): ITextureBufferHandle | null;
+            free(handle: ITextureBufferHandle): void;
+            update(handle: ITextureBufferHandle, buffer: ArrayBuffer): void;
+        }
+        export class HeightField {
+            data: Uint16Array;
+            w: number;
+            h: number;
+            constructor(w: number, h: number);
+            set(i: number, j: number, value: number): void;
+            get(i: number, j: number): number;
+            getClamp(i: number, j: number): number;
+            getAt(x: number, y: number): number;
+        }
+        export class TerrainBrush {
+            material: Material | null;
+            position: Vec3;
+            radius: number;
+            strength: number;
+            getDelta(x: number, z: number): number;
+            update(pos: Vec3): void;
+        }
+        export class TerrainBrushData {
+            bmin: number[];
+            bmax: number[];
+            width(): number;
+            height(): number;
+        }
+        export enum eTerrainCircleBrushType {
+            Linear = 0,
+            Smooth = 1,
+            Spherical = 2,
+            Tip = 3
+        }
+        export class TerrainCircleBrush extends TerrainBrush {
+            protected type: eTerrainCircleBrushType;
+            protected falloff: number;
+            constructor();
+            setType(type: eTerrainCircleBrushType): void;
+            getType(): eTerrainCircleBrushType;
+            _updateMaterial(): void;
+            _getTypeDefine(): __internal.cocos_renderer_core_pass_IDefineMap;
+            _calculateFalloff_Linear(Distance: number, Radius: number, Falloff: number): number;
+            _calculateFalloff_Spherical(Distance: number, Radius: number, Falloff: number): number;
+            _calculateFalloff_Smooth(Distance: number, Radius: number, Falloff: number): number;
+            _calculateFalloff_Tip(Distance: number, Radius: number, Falloff: number): number;
+            getDelta(x: number, z: number): number;
+            update(pos: Vec3): void;
+        }
+        export class TerrainEditorManage extends TerrainEditorMode {
+        }
+        export enum eTerrainEditorMode {
+            MANAGE = 0,
+            SCULPT = 1,
+            PAINT = 2
+        }
+        export class TerrainEditorMode {
+            onUpdate(terrain: Terrain, dtime: number): void;
+        }
+        export class TerrainEditorPaint extends TerrainEditorMode {
+            _brush: TerrainBrush;
+            _undo: TerrainWeightUndoRedo | null;
+            _currentLayer: number;
+            constructor();
+            setCurrentLayer(layer: number): void;
+            getCurrentLayer(): number;
+            onUpdate(terrain: Terrain, dtime: number): void;
+            onUpdateBrushPosition(terrain: Terrain, pos: Vec3): void;
+            onMouseDown(): void;
+            onMouseUp(): void;
+        }
+        export class TerrainEditorSculpt extends TerrainEditorMode {
+            _brush: TerrainBrush;
+            _undo: TerrainHeightUndoRedo | null;
+            onUpdate(terrain: Terrain, dtime: number): void;
+            onUpdateBrushPosition(terrain: Terrain, pos: Vec3): void;
+            onMouseDown(): void;
+            onMouseUp(): void;
+            _updateHeight(terrain: Terrain, dtime: number, shift_pressed: boolean): void;
+        }
+        export class TerrainEditor {
+            static Instance: TerrainEditor;
+            constructor();
+            setEditTerrain(t: Terrain): void;
+            setMode(mode: eTerrainEditorMode): void;
+            getMode(mode: eTerrainEditorMode): TerrainEditorMode;
+            getCurrentMode(): TerrainEditorMode | null;
+            getCurrentModeType(): eTerrainEditorMode;
+            setCurrentLayer(id: number): void;
+            update(dtime: number): void;
+            onMouseDown(id: number, x: number, y: number): void;
+            onMouseUp(id: number, x: number, y: number): void;
+            onMouseMove(camera: Node, x: number, y: number): void;
+        }
+        export class TerrainHeightData {
+            x: number;
+            y: number;
+            value: number;
+        }
+        export class TerrainHeightOperation {
+            static addChangeList(changelist: TerrainBlock[], block: TerrainBlock): void;
+            data: TerrainHeightData[];
+            push(x: number, y: number, value: number): void;
+            apply(terrain: Terrain): void;
+        }
+        export class TerrainHeightUndoRedo extends TerrainHeightOperation {
+        }
+        export class TerrainWeightData {
+            x: number;
+            y: number;
+            value: Vec4;
+        }
+        export class TerrainWeightOperation {
+            static addChangeList(changelist: TerrainBlock[], block: TerrainBlock): void;
+            data: TerrainWeightData[];
+            push(x: number, y: number, value: Vec4): void;
+            apply(terrain: Terrain): void;
+        }
+        export class TerrainBlockLayerData {
+            block: TerrainBlock;
+            layers: number[];
+            constructor(block: TerrainBlock, layers: number[]);
+        }
+        export class TerrainWeightUndoRedo extends TerrainWeightOperation {
+            blockLayers: TerrainBlockLayerData[];
+            pushBlock(block: TerrainBlock, layers: number[]): void;
+            apply(terrain: Terrain): void;
+        }
+        var TERRAIN_MAX_LEVELS;
+        var TERRAIN_MAX_BLEND_LAYERS;
+        var TERRAIN_MAX_LAYER_COUNT;
+        var TERRAIN_BLOCK_TILE_COMPLEXITY;
+        var TERRAIN_BLOCK_VERTEX_COMPLEXITY;
+        var TERRAIN_BLOCK_VERTEX_SIZE;
+        var TERRAIN_NORTH_INDEX;
+        var TERRAIN_SOUTH_INDEX;
+        var TERRAIN_WEST_INDEX;
+        var TERRAIN_EAST_INDEX;
+        /**
+             * 地形信息。
+             */ export class TerrainInfo {
+            tileSize: number;
+            blockCount: number[];
+            weightMapSize: number;
+            lightMapSize: number;
+            protected _tileCount: number[];
+            protected _vertexCount: number[];
+            protected _size: Size;
+            initialize(): void;
+            readonly tileCount: number[];
+            readonly vertexCount: number[];
+            readonly size: Size;
+        }
+        export class TerrainLayer {
+            detailMap: Texture2D | null;
+            tileSize: number;
+        }
+        export class TerrainVertex {
+            position: Vec3;
+            normal: Vec3;
+            uv: Vec2;
+        }
+        export class TerrainRenderable extends RenderableComponent {
+            _model: Model | null;
+            _meshData: __internal.cocos_3d_assets_mesh_IRenderingSubmesh | null;
+            _brushMaterial: Material | null;
+            _currentMaterial: Material | null;
+            _currentMaterialLayers: number;
+            destroy(): void;
+            _invalidMaterial(): void;
+            _updateMaterial(block: TerrainBlock, init: boolean): void;
+            _onMaterialModified(idx: number, mtl: Material | null): void;
+            protected _onRebuildPSO(idx: number, material: Material): void;
+            protected _clearMaterials(): void;
+        }
+        export class TerrainBlockInfo {
+            layers: number[];
+        }
+        export class TerrainBlock {
+            constructor(t: Terrain, i: number, j: number);
+            build(): void;
+            rebuild(): void;
+            destroy(): void;
+            update(): void;
+            setBrushMaterial(mtl: Material | null): void;
+            readonly layers: number[];
+            getTerrain(): Terrain;
+            getIndex(): number[];
+            getRect(): Rect;
+            setLayer(index: number, layerId: number): void;
+            getLayer(index: number): number;
+            getMaxLayer(): 1 | 0 | 2 | 3;
+            _getMaterialDefines(nlayers: number): __internal.cocos_renderer_core_pass_IDefineMap;
+            _invalidMaterial(): void;
+            _updateMaterial(init: boolean): void;
+            _updateHeight(): void;
+            _updateWeightMap(): void;
+        }
+        export class Terrain extends Component {
+            protected _info: TerrainInfo;
+            protected _layers: Array<TerrainLayer | null>;
+            protected _heights: number[];
+            protected _weights: Uint8Array;
+            protected _blockInfos: TerrainBlockInfo[];
+            protected _normals: number[];
+            protected _blocks: TerrainBlock[];
+            protected _sharedIndexBuffer: __internal.cocos_gfx_buffer_GFXBuffer | null;
+            constructor();
+            readonly info: TerrainInfo;
+            build(info: TerrainInfo): boolean | undefined;
+            rebuild(info: TerrainInfo): void;
+            importHeightField(hf: HeightField, heightScale: number): void;
+            exportHeightField(hf: HeightField, heightScale: number): void;
+            onLoad(): void;
+            onEnable(): void;
+            onDisable(): void;
+            onDestroy(): void;
+            update(dtime: number): void;
+            addLayer(layer: TerrainLayer): number;
+            setLayer(i: number, layer: TerrainLayer): void;
+            removeLayer(id: number): void;
+            getLayer(id: number): TerrainLayer | null;
+            getPosition(i: number, j: number): Vec3;
+            setHeight(i: number, j: number, h: number): void;
+            getHeight(i: number, j: number): number;
+            getHeightClamp(i: number, j: number): number;
+            getHeightAt(x: number, y: number): number | null;
+            _setNormal(i: number, j: number, n: Vec3): void;
+            getNormal(i: number, j: number): Vec3;
+            getNormalAt(x: number, y: number): Vec3 | null;
+            setWeight(i: number, j: number, w: Vec4): void;
+            getWeight(i: number, j: number): Vec4;
+            getWeightAt(x: number, y: number): Vec4 | null;
+            getBlockInfo(i: number, j: number): TerrainBlockInfo;
+            getBlock(i: number, j: number): TerrainBlock;
+            getBlocks(): TerrainBlock[];
+            getSharedIndexBuffer(): __internal.cocos_gfx_buffer_GFXBuffer | null;
+            rayCheck(start: Vec3, dir: Vec3, step: number): Vec3 | null;
+            _calcuNormal(x: number, z: number): Vec3;
+            _buildNormals(): void;
+        }
+        export function selectJointsMediumType(device: __internal.cocos_gfx_device_GFXDevice): JointsMediumType.RGBA8 | JointsMediumType.RGBA32F;
+        export function getJointsTextureSampler(device: __internal.cocos_gfx_device_GFXDevice): __internal.cocos_gfx_sampler_GFXSampler;
+        export enum JointsMediumType {
+            NONE = 0,
+            RGBA8 = 1,
+            RGBA32F = 2
+        }
+        export interface IJointsTextureHandle {
+            pixelOffset: number;
+            refCount: number;
+            hash: number;
+            handle: ITextureBufferHandle;
+        }
+        export class JointsTexturePool {
+            constructor(device: __internal.cocos_gfx_device_GFXDevice);
+            initialize(maxChunks?: number): void;
+            destroy(): void;
+            /**
+                     * 获取默认骨骼贴图
+                     */ getDefaultJointsTexture(skeleton?: Skeleton): IJointsTextureHandle | null;
+            /**
+                     * 获取指定动画片段的骨骼贴图
+                     */ getJointsTextureWithAnimation(skeleton: Skeleton, clip: SkeletalAnimationClip): IJointsTextureHandle | null;
+            releaseTexture(texture: IJointsTextureHandle): void;
         }
     }
     var cclegacy: {};
-    namespace vmath {
+    var vmath: {};
+    namespace primitives {
+        /**
+             * @en
+             * This function generates a box with specified extents and centered at origin,
+             * but may be repositioned through `center` option).
+             * @zh
+             * 生成一个立方体，其大小是定义的范围且中心在原点。
+             * @param options 参数选项。
+             */ export function box(options?: __internal.cocos_3d_primitive_box_IBoxOptions): IGeometry;
+        /**
+             * @zh
+             * 生成一个圆锥。
+             * @param radius 圆锥半径。
+             * @param height 圆锥高度。
+             * @param opts 圆锥参数选项。
+             */ export function cone(radius?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cone_IConeOptions>): import("cocos/3d/primitive").IGeometry;
+        /**
+             * @zh
+             * 生成一个圆柱。
+             * @param radiusTop 顶部半径。
+             * @param radiusBottom 底部半径。
+             * @param opts 圆柱参数选项。
+             */ export function cylinder(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cylinder_ICylinderOptions>): IGeometry;
+        /**
+             * @en
+             * This function generates a plane on XOZ plane with positive Y direction.
+             * @zh
+             * 生成一个平面，其位于XOZ平面，方向为Y轴正方向。
+             * @param options 平面参数选项。
+             */ export function plane(options?: __internal.cocos_3d_primitive_plane_IPlaneOptions): IGeometry;
+        /**
+             * @en
+             * Generate a quad with width and height both to 1, centered at origin.
+             * @zh
+             * 生成一个四边形，宽高都为1，中心在原点。
+             * @param options 参数选项。
+             */ export function quad(options?: IGeometryOptions): IGeometry;
+        /**
+             * @zh
+             * 生成一个球。
+             * @param radius 球半径。
+             * @param options 参数选项。
+             */ export function sphere(radius?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_sphere_ISphereOptions>): IGeometry;
+        /**
+             * @zh
+             * 生成一个环面。
+             * @param radius 环面半径。
+             * @param tube 管形大小。
+             * @param opts 参数选项。
+             *
+             */ export function torus(radius?: number, tube?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_torus_ITorusOptions>): {
+            positions: number[];
+            normals: number[];
+            uvs: number[];
+            indices: number[];
+            minPos: Vec3;
+            maxPos: Vec3;
+            boundingRadius: number;
+        };
+        /**
+             * @zh
+             * 生成一个胶囊体。
+             * @param radiusTop 顶部半径。
+             * @param radiusBottom 底部半径。
+             * @param opts 胶囊体参数选项。
+             */ export function capsule(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_capsule_ICapsuteOptions>): {
+            positions: number[];
+            normals: number[];
+            uvs: number[];
+            indices: number[];
+            minPos: Vec3;
+            maxPos: Vec3;
+            boundingRadius: number;
+        };
+        /**
+             * Generate a circle with radius 1, centered at origin.
+             * @zh
+             * 生成一个圆，其半径是单位1，中心点在原点。
+             * @param options 参数选项。
+             */ export function circle(options?: RecursivePartial<__internal.cocos_3d_primitive_circle_ICircleOptions> | __internal.cocos_3d_primitive_circle_ICircleOptions): IGeometry;
+        /**
+             * @zh
+             * 平移几何体。
+             * @param geometry 几何体信息。
+             * @param offset 偏移量。
+             */ export function translate(geometry: IGeometry, offset: {
+            x?: number;
+            y?: number;
+            z?: number;
+        }): IGeometry;
+        /**
+             * @zh
+             * 缩放几何体。
+             * @param geometry 几何体信息。
+             * @param value 缩放量。
+             */ export function scale(geometry: IGeometry, value: {
+            x?: number;
+            y?: number;
+            z?: number;
+        }): IGeometry;
+        /**
+             * @zh
+             * 将几何体转换为线框模式，仅支持三角形拓扑的几何体。
+             * @param geometry 几何体信息。
+             */ export function wireframed(geometry: IGeometry): IGeometry;
+        /**
+             * @deprecated
+             */ export function wireframe(indices: number[]): number[];
+        /**
+             * @deprecated
+             */ export function invWinding(indices: number[]): number[];
+        /**
+             * @deprecated
+             */ export function toWavefrontOBJ(primitive: IGeometry, scale?: number): string;
+        /**
+             * @deprecated
+             */ export function normals(positions: number[], normals: number[], length?: number): any[];
+        /**
+             * @zh
+             * 应用默认的几何参数选项。
+             */ export function applyDefaultGeometryOptions<GeometryOptions = IGeometryOptions>(options?: RecursivePartial<IGeometryOptions>): GeometryOptions;
+        /**
+             * @zh
+             * 几何体参数选项。
+             */ export interface IGeometryOptions {
+            /**
+                     * @en
+                     * Whether to include normal. Default to true.
+                     * @zh
+                     * 是否包含法线。默认为true。
+                     */ includeNormal: boolean;
+            /**
+                     * @en
+                     * Whether to include uv. Default to true.
+                     * @zh
+                     * 是否包含UV。默认为true。
+                     */ includeUV: boolean;
+        }
+        /**
+             * @zh
+             * 几何体信息。
+             */ export interface IGeometry {
+            /**
+                     * @en
+                     * Vertex positions.
+                     * @zh
+                     * 顶点位置。
+                     */ positions: number[];
+            /**
+                     * @en
+                     * Vertex normals.
+                     * @zh
+                     * 顶点法线。
+                     */ normals?: number[];
+            /**
+                     * @en
+                     * Texture coordinates.
+                     * @zh
+                     * 纹理坐标。
+                     */ uvs?: number[];
+            /**
+                     * @en
+                     * Vertex colors.
+                     * @zh
+                     * 顶点颜色。
+                     */ colors?: number[];
+            /**
+                     * @en
+                     * specify vertex attributes, use (positions|normals|uvs|colors) as keys
+                     * @zh
+                     * 顶点属性。
+                     */ attributes?: __internal.cocos_gfx_input_assembler_IGFXAttribute[];
+            customAttributes?: Array<{
+                attr: __internal.cocos_gfx_input_assembler_IGFXAttribute;
+                values: number[];
+            }>;
+            /**
+                     * @en
+                     * Bounding sphere radius.
+                     * @zh
+                     * 包围球半径。
+                     */ boundingRadius?: number;
+            /**
+                     * @en
+                     * Min position.
+                     * @zh
+                     * 最小位置。
+                     */ minPos?: {
+                x: number;
+                y: number;
+                z: number;
+            };
+            /**
+                     * @en
+                     * Max position.
+                     * @zh
+                     * 最大位置。
+                     */ maxPos?: {
+                x: number;
+                y: number;
+                z: number;
+            };
+            /**
+                     * @en
+                     * Geometry indices, if one needs indexed-draw.
+                     * @zh
+                     * 几何索引，当使用索引绘制时。
+                     */ indices?: number[];
+            /**
+                     * @en
+                     * Topology of the geometry vertices. Default is TRIANGLE_LIST.
+                     * @zh
+                     * 几何顶点的拓扑图元。默认值是TRIANGLE_LIST。
+                     */ primitiveMode?: GFXPrimitiveMode;
+            /**
+                     * @en
+                     * whether rays casting from the back face of this geometry could collide with it
+                     * @zh
+                     * 是否是双面，用于判断来自于几何体背面的射线检测。
+                     */ doubleSided?: boolean;
+        }
+    }
+    /**
+         * A base node for CCNode, it will:
+         * - maintain scene hierarchy and active logic
+         * - notifications if some properties changed
+         * - define some interfaces shares between CCNode
+         * - define machanisms for Enity Component Systems
+         * - define prefab and serialize functions
+         *
+         * @class _BaseNode
+         * @extends Object
+         * @uses EventTarget
+         * @method constructor
+         * @param {String} [name]
+         * @protected
+         */ export class BaseNode extends CCObject implements __internal.cocos_core_utils_interfaces_IBaseNode {
+        /**
+                 * Gets all components attached to this node.
+                 */ readonly components: ReadonlyArray<Component>;
+        /**
+                 * If true, the node is an persist node which won't be destroyed during scene transition.
+                 * If false, the node will be destroyed automatically when loading a new scene. Default is false.
+                 * @property _persistNode
+                 * @type {Boolean}
+                 * @default false
+                 * @protected
+                 */ _persistNode: boolean;
+        /**
+                 * @en Name of node.
+                 * @zh 该节点名称。
+                 * @property name
+                 * @type {String}
+                 * @example
+                 * ```
+                 * node.name = "New Node";
+                 * cc.log("Node Name: " + node.name);
+                 * ```
+                 */ name: string;
+        /**
+                 * @en The uuid for editor, will be stripped before building project.
+                 * @zh 主要用于编辑器的 uuid，在编辑器下可用于持久化存储，在项目构建之后将变成自增的 id。
+                 * @property uuid
+                 * @type {String}
+                 * @readOnly
+                 * @example
+                 * ```
+                 * cc.log("Node Uuid: " + node.uuid);
+                 * ```
+                 */ readonly uuid: string;
+        /**
+                 * @en All children nodes.
+                 * @zh 节点的所有子节点。
+                 * @property children
+                 * @type {Node[]}
+                 * @readOnly
+                 * @example
+                 * ```
+                 * var children = node.children;
+                 * for (var i = 0; i < children.length; ++i) {
+                 *     cc.log("Node: " + children[i]);
+                 * }
+                 * ```
+                 */ readonly children: this[];
+        /**
+                 * @en
+                 * The local active state of this node.<br/>
+                 * Note that a Node may be inactive because a parent is not active, even if this returns true.<br/>
+                 * Use {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}
+                 * if you want to check if the Node is actually treated as active in the scene.
+                 * @zh
+                 * 当前节点的自身激活状态。<br/>
+                 * 值得注意的是，一个节点的父节点如果不被激活，那么即使它自身设为激活，它仍然无法激活。<br/>
+                 * 如果你想检查节点在场景中实际的激活状态可以使用 {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}。
+                 * @property active
+                 * @type {Boolean}
+                 * @default true
+                 * @example
+                 * ```
+                 * node.active = false;
+                 * ```
+                 */ active: boolean;
+        /**
+                 * @en Indicates whether this node is active in the scene.
+                 * @zh 表示此节点是否在场景中激活。
+                 * @property activeInHierarchy
+                 * @type {Boolean}
+                 * @example
+                 * ```
+                 * cc.log("activeInHierarchy: " + node.activeInHierarchy);
+                 */ readonly activeInHierarchy: boolean;
+        parent: this | null;
+        /**
+                 * @en which scene this node belongs to.
+                 * @zh 此节点属于哪个场景。
+                 * @type {cc.Scene}}
+                 */ readonly scene: Scene;
+        static _setScene(node: BaseNode): void;
+        protected static idGenerator: js.IDGenerator;
+        protected static _stacks: Array<Array<(BaseNode | null)>>;
+        protected static _stackId: number;
+        protected static _findComponent(node: BaseNode, constructor: Function): Component | null;
+        protected static _findComponents(node: BaseNode, constructor: Function, components: Component[]): void;
+        protected static _findChildComponent(children: BaseNode[], constructor: any): any;
+        protected static _findChildComponents(children: BaseNode[], constructor: any, components: any): void;
+        protected _parent: this | null;
+        protected _children: this[];
+        protected _active: boolean;
+        /**
+                 * @default []
+                 * @readOnly
+                 */ protected _components: Component[];
+        /**
+                 * The PrefabInfo object
+                 * @type {PrefabInfo}
+                 */ protected _prefab: any;
+        /**
+                 * @en which scene this node belongs to.
+                 * @zh 此节点属于哪个场景。
+                 * @type {cc.Scene}}
+                 */ protected _scene: Scene;
+        protected _activeInHierarchy: boolean;
+        protected _id: string;
+        /**
+                 * Register all related EventTargets,
+                 * all event callbacks will be removed in _onPreDestroy
+                 * protected __eventTargets: EventTarget[] = [];
+                 */ protected __eventTargets: any[];
+        protected _siblingIndex: number;
+        /**
+                 * @method constructor
+                 * @param {String} [name]
+                 */ constructor(name?: string);
+        /**
+                 * @en Get parent of the node.
+                 * @zh 获取该节点的父节点。
+                 * @example
+                 * ```
+                 * var parent = this.node.getParent();
+                 * ```
+                 */ getParent(): this | null;
+        /**
+                 * @en Set parent of the node.
+                 * @zh 设置该节点的父节点。
+                 * @example
+                 * ```
+                 * node.setParent(newNode);
+                 * ```
+                 */ setParent(value: this | null, keepWorldTransform?: boolean): any;
+        /**
+                 * @en
+                 * Properties configuration function <br/>
+                 * All properties in attrs will be set to the node, <br/>
+                 * when the setter of the node is available, <br/>
+                 * the property will be set via setter function.<br/>
+                 * @zh 属性配置函数。在 attrs 的所有属性将被设置为节点属性。
+                 * @param attrs - Properties to be set to node
+                 * @example
+                 * ```
+                 * var attrs = { key: 0, num: 100 };
+                 * node.attr(attrs);
+                 * ```
+                 */ attr(attrs: Object): void;
+        /**
+                 * @en Returns a child from the container given its uuid.
+                 * @zh 通过 uuid 获取节点的子节点。
+                 * @param uuid - The uuid to find the child node.
+                 * @return a Node whose uuid equals to the input parameter
+                 * @example
+                 * ```
+                 * var child = node.getChildByUuid(uuid);
+                 * ```
+                 */ getChildByUuid(uuid: string): this | null;
+        /**
+                 * @en Returns a child from the container given its name.
+                 * @zh 通过名称获取节点的子节点。
+                 * @param name - A name to find the child node.
+                 * @return a CCNode object whose name equals to the input parameter
+                 * @example
+                 * ```
+                 * var child = node.getChildByName("Test Node");
+                 * ```
+                 */ getChildByName(name: string): this | null;
+        /**
+                 * @en Returns a child from the container given its path.
+                 * @zh 通过路径获取节点的子节点。
+                 * @param path - A path to find the child node.
+                 * @return a CCNode object whose name equals to the input parameter
+                 * @example
+                 * ```
+                 * var child = node.getChildByPath("Test Node");
+                 * ```
+                 */ getChildByPath(path: string): this | null;
+        addChild(child: this): void;
+        /**
+                 * @en
+                 * Inserts a child to the node at a specified index.
+                 * @zh
+                 * 插入子节点到指定位置
+                 * @param child - the child node to be inserted
+                 * @param siblingIndex - the sibling index to place the child in
+                 * @example
+                 * ```
+                 * node.insertChild(child, 2);
+                 * ```
+                 */ insertChild(child: this, siblingIndex: number): void;
+        /**
+                 * @en Get the sibling index.
+                 * @zh 获取同级索引。
+                 * @example
+                 * ```
+                 * var index = node.getSiblingIndex();
+                 * ```
+                 */ getSiblingIndex(): number;
+        /**
+                 * @en Set the sibling index of this node.
+                 * @zh 设置节点同级索引。
+                 * @example
+                 * ```
+                 * node.setSiblingIndex(1);
+                 * ```
+                 */ setSiblingIndex(index: number): void;
+        protected _updateSiblingIndex(): void;
+        /**
+                 * @en Walk though the sub children tree of the current node.
+                 * Each node, including the current node, in the sub tree will be visited two times,
+                 * before all children and after all children.
+                 * This function call is not recursive, it's based on stack.
+                 * Please don't walk any other node inside the walk process.
+                 * @zh 遍历该节点的子树里的所有节点并按规则执行回调函数。
+                 * 对子树中的所有节点，包含当前节点，会执行两次回调，prefunc 会在访问它的子节点之前调用，postfunc 会在访问所有子节点之后调用。
+                 * 这个函数的实现不是基于递归的，而是基于栈展开递归的方式。
+                 * 请不要在 walk 过程中对任何其他的节点嵌套执行 walk。
+                 * @param prefunc The callback to process node when reach the node for the first time
+                 * @param postfunc The callback to process node when re-visit the node after walked all children in its sub tree
+                 * @example
+                 * ```
+                 * node.walk(function (target) {
+                 *     console.log('Walked through node ' + target.name + ' for the first time');
+                 * }, function (target) {
+                 *     console.log('Walked through node ' + target.name + ' after walked all children in its sub tree');
+                 * });
+                 * ```
+                 */ walk(prefunc: (target: this) => void, postfunc?: (target: this) => void): void;
+        /**
+                 * @en
+                 * Remove itself from its parent node. <br/>
+                 * If the node orphan, then nothing happens.
+                 * @zh
+                 * 从父节点中删除该节点。<br/>
+                 * 如果这个节点是一个孤节点，那么什么都不会发生。
+                 * @see cc.Node#removeFromParentAndCleanup
+                 * @example
+                 * ```
+                 * node.removeFromParent();
+                 * ```
+                 */ removeFromParent(): void;
+        /**
+                 * @en
+                 * Removes a child from the container.
+                 * @zh
+                 * 移除节点中指定的子节点。
+                 * @param child - The child node which will be removed.
+                 * @example
+                 * ```
+                 * node.removeChild(newNode);
+                 * ```
+                 */ removeChild(child: this): void;
+        /**
+                 * @en
+                 * Removes all children from the container.
+                 * @zh
+                 * 移除节点所有的子节点。
+                 * @example
+                 * ```
+                 * node.removeAllChildren();
+                 * ```
+                 */ removeAllChildren(): void;
+        /**
+                 * @en Is this node a child of the given node?
+                 * @zh 是否是指定节点的子节点？
+                 * @return True if this node is a child, deep child or identical to the given node.
+                 * @example
+                 * ```
+                 * node.isChildOf(newNode);
+                 * ```
+                 */ isChildOf(parent: this): boolean;
+        /**
+                 * @en
+                 * Returns the component of supplied type if the node has one attached, null if it doesn't.<br/>
+                 * You can also get component in the node by passing in the name of the script.
+                 * @zh
+                 * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
+                 * 传入参数也可以是脚本的名称。
+                 * @example
+                 * ```
+                 * // get sprite component.
+                 * var sprite = node.getComponent(cc.SpriteComponent);
+                 * ```
+                 */ getComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
+        /**
+                 * @en
+                 * Returns the component of supplied type if the node has one attached, null if it doesn't.<br/>
+                 * You can also get component in the node by passing in the name of the script.
+                 * @zh
+                 * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
+                 * 传入参数也可以是脚本的名称。
+                 * @example
+                 * ```
+                 * // get custom test calss.
+                 * var test = node.getComponent("Test");
+                 * ```
+                 */ getComponent(className: string): Component | null;
+        /**
+                 * @en Returns all components of supplied type in the node.
+                 * @zh 返回节点上指定类型的所有组件。
+                 * @example
+                 * ```
+                 * var sprites = node.getComponents(cc.SpriteComponent);
+                 * ```
+                 */ getComponents<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T[];
+        /**
+                 * @en Returns all components of supplied type in the node.
+                 * @zh 返回节点上指定类型的所有组件。
+                 * @example
+                 * ```
+                 * var tests = node.getComponents("Test");
+                 * ```
+                 */ getComponents(className: string): Component[];
+        /**
+                 * @en Returns the component of supplied type in any of its children using depth first search.
+                 * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
+                 * @example
+                 * ```
+                 * var sprite = node.getComponentInChildren(cc.SpriteComponent);
+                 * ```
+                 */ getComponentInChildren<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
+        /**
+                 * @en Returns the component of supplied type in any of its children using depth first search.
+                 * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
+                 * @example
+                 * ```
+                 * var Test = node.getComponentInChildren("Test");
+                 * ```
+                 */ getComponentInChildren(className: string): Component | null;
+        /**
+                 * @en Returns all components of supplied type in self or any of its children.
+                 * @zh 递归查找自身或所有子节点中指定类型的组件
+                 * @example
+                 * ```
+                 * var sprites = node.getComponentsInChildren(cc.SpriteComponent);
+                 * ```
+                 */ getComponentsInChildren<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T[];
+        /**
+                 * @en Returns all components of supplied type in self or any of its children.
+                 * @zh 递归查找自身或所有子节点中指定类型的组件
+                 * @example
+                 * ```
+                 * var tests = node.getComponentsInChildren("Test");
+                 * ```
+                 */ getComponentsInChildren(className: string): Component[];
+        /**
+                 * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
+                 * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
+                 * @example
+                 * ```
+                 * var sprite = node.addComponent(cc.SpriteComponent);
+                 * ```
+                 */ addComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
+        /**
+                 * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
+                 * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
+                 * @example
+                 * ```
+                 * var test = node.addComponent("Test");
+                 * ```
+                 */ addComponent(className: string): Component | null;
+        /**
+                 * @en
+                 * Removes a component identified by the given name or removes the component object given.
+                 * You can also use component.destroy() if you already have the reference.
+                 * @zh
+                 * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
+                 * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
+                 * @deprecated please destroy the component to remove it.
+                 * @example
+                 * ```
+                 * node.removeComponent(cc.SpriteComponent);
+                 * ```
+                 */ removeComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): void;
+        /**
+                 * @en
+                 * Removes a component identified by the given name or removes the component object given.
+                 * You can also use component.destroy() if you already have the reference.
+                 * @zh
+                 * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
+                 * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
+                 * @deprecated please destroy the component to remove it.
+                 * @example
+                 * ```
+                 * const sprite = node.getComponent(CC.Sprite);
+                 * if (sprite) {
+                 *     node.removeComponent(sprite);
+                 * }
+                 * node.removeComponent('cc.SpriteComponent');
+                 * ```
+                 */ removeComponent(classNameOrInstance: string | Component): void;
+        destroy(): boolean;
+        /**
+                 * @en
+                 * Destroy all children from the node, and release all their own references to other objects.<br/>
+                 * Actual destruct operation will delayed until before rendering.
+                 * @zh
+                 * 销毁所有子节点，并释放所有它们对其它对象的引用。<br/>
+                 * 实际销毁操作会延迟到当前帧渲染前执行。
+                 * @example
+                 * ```
+                 * node.destroyAllChildren();
+                 * ```
+                 */ destroyAllChildren(): void;
+        emit?(type: string, ...args: any[]): void;
+        _removeComponent(component: Component): void;
+        protected _onSetParent(oldParent: this | null, keepWorldTransform?: boolean): void;
+        protected _onPostActivated(active: boolean): void;
+        protected _onBatchRestored(): void;
+        protected _onBatchCreated(): void;
+        protected _onPreDestroy(): void;
+        protected _onHierarchyChanged(oldParent: this | null): void;
+        protected _instantiate(cloned: any): any;
+        protected _onHierarchyChangedBase(oldParent: this | null): void;
+        protected _onPreDestroyBase(): boolean;
+        protected _disableChildComps(): void;
+        protected _onSiblingIndexChanged?(siblingIndex: number): void;
+        protected _registerIfAttached?(attached: boolean): void;
+        protected _checkMultipleComp?(constructor: Function): boolean;
+    }
+    /**
+         * @zh
+         * 场景树中的基本节点，基本特性有：
+         * * 具有层级关系
+         * * 持有各类组件
+         * * 维护空间变换（坐标、旋转、缩放）信息
+         */ export class Node extends BaseNode implements __internal.cocos_core_utils_interfaces_INode {
+        /**
+                 * @zh
+                 * 节点可能发出的事件类型
+                 */ static EventType: typeof SystemEventType;
+        /**
+                 * @zh
+                 * 空间变换操作的坐标系
+                 */ static NodeSpace: typeof __internal.cocos_scene_graph_node_enum_NodeSpace;
+        /**
+                 * @zh
+                 * 节点变换脏更新的具体部分
+                 */ static TransformDirtyBit: typeof __internal.cocos_scene_graph_node_enum_TransformDirtyBit;
+        /**
+                 * @zh
+                 * 指定对象是否是普通的场景节点？
+                 * @param obj 待测试的节点
+                 */ static isNode(obj: object | null): obj is Node;
+        protected _pos: Vec3;
+        protected _rot: Quat;
+        protected _scale: Vec3;
+        protected _mat: Mat4;
+        protected _lpos: Vec3;
+        protected _lrot: Quat;
+        protected _lscale: Vec3;
+        protected _layer: number;
+        protected _euler: Vec3;
+        protected _dirtyFlags: __internal.cocos_scene_graph_node_enum_TransformDirtyBit;
+        protected _hasChangedFlags: __internal.cocos_scene_graph_node_enum_TransformDirtyBit;
+        protected _eulerDirty: boolean;
+        protected _eventProcessor: __internal.cocos_scene_graph_node_event_processor_NodeEventProcessor;
+        protected _eventMask: number;
+        _uiComp: UIComponent | null;
+        /**
+                 * @zh
+                 * 本地坐标
+                 */ position: Readonly<Vec3>;
+        /**
+                 * @zh
+                 * 世界坐标
+                 */ worldPosition: Readonly<Vec3>;
+        /**
+                 * @zh
+                 * 本地旋转
+                 */ rotation: Readonly<Quat>;
+        /**
+                 * @zh
+                 * 以欧拉角表示的本地旋转值
+                 */ eulerAngles: Readonly<Vec3>;
+        /**
+                 * @zh
+                 * 世界旋转
+                 */ worldRotation: Readonly<Quat>;
+        /**
+                 * @zh
+                 * 本地缩放
+                 */ scale: Readonly<Vec3>;
+        /**
+                 * @zh
+                 * 世界缩放
+                 */ worldScale: Readonly<Vec3>;
+        /**
+                 * @zh
+                 * 本地变换矩阵
+                 */ matrix: Readonly<Mat4>;
+        /**
+                 * @zh
+                 * 世界变换矩阵
+                 */ readonly worldMatrix: Readonly<Mat4>;
+        /**
+                 * @zh
+                 * 当前节点面向的前方方向
+                 */ forward: Vec3;
+        /**
+                 * @zh
+                 * 节点所属层，主要影响射线检测、物理碰撞等，参考 [[Layers]]
+                 */ layer: any;
+        /**
+                 * @zh
+                 * 这个节点的空间变换信息在当前帧内是否有变过？
+                 */ readonly hasChangedFlags: __internal.cocos_scene_graph_node_enum_TransformDirtyBit;
+        uiTransfromComp: UITransformComponent | null;
+        width: number;
+        height: number;
+        anchorX: number;
+        anchorY: number;
+        readonly eventProcessor: __internal.cocos_scene_graph_node_event_processor_NodeEventProcessor;
+        /**
+                 * @zh
+                 * 设置父节点
+                 * @param value 父节点
+                 * @param keepWorldTransform 是否保留当前世界变换
+                 */ setParent(value: this | null, keepWorldTransform?: boolean): void;
+        _onSetParent(oldParent: this | null, keepWorldTransform: boolean): void;
+        _onBatchCreated(): void;
+        _onBatchRestored(): void;
+        _onBeforeSerialize(): void;
+        /**
+                 * @zh
+                 * 移动节点
+                 * @param trans 位置增量
+                 * @param ns 操作空间
+                 */ translate(trans: Vec3, ns?: __internal.cocos_scene_graph_node_enum_NodeSpace): void;
+        /**
+                 * @zh
+                 * 旋转节点
+                 * @param trans 旋转增量
+                 * @param ns 操作空间
+                 */ rotate(rot: Quat, ns?: __internal.cocos_scene_graph_node_enum_NodeSpace): void;
+        /**
+                 * @zh
+                 * 设置当前节点旋转为面向目标位置
+                 * @param pos 目标位置
+                 * @param up 坐标系的上方向
+                 */ lookAt(pos: Vec3, up?: Vec3): void;
+        /**
+                 * @en
+                 * Reset the `hasChangedFlags` flag recursively
+                 * @zh
+                 * 递归重置节点的 hasChangedFlags 标记为 false
+                 */ resetHasChangedFlags(): void;
+        /**
+                 * @en
+                 * invalidate the world transform information
+                 * for this node and all its children recursively
+                 * @zh
+                 * 递归标记节点世界变换为 dirty
+                 */ invalidateChildren(dirtyBit: __internal.cocos_scene_graph_node_enum_TransformDirtyBit): void;
+        /**
+                 * @en
+                 * update the world transform information if outdated
+                 * @zh
+                 * 更新节点的世界变换信息
+                 */ updateWorldTransform(): void;
+        /**
+                 * @zh
+                 * 设置本地坐标
+                 * @param position 目标本地坐标
+                 */ setPosition(position: Vec3): void;
+        /**
+                 * @zh
+                 * 设置本地坐标
+                 * @param x 目标本地坐标的 X 分量
+                 * @param y 目标本地坐标的 Y 分量
+                 * @param z 目标本地坐标的 Z 分量
+                 * @param w 目标本地坐标的 W 分量
+                 */ setPosition(x: number, y: number, z: number): void;
+        /**
+                 * @zh
+                 * 获取本地坐标
+                 * @param out 输出到此目标 vector
+                 */ getPosition(out?: Vec3): Vec3;
+        /**
+                 * @zh
+                 * 设置本地旋转
+                 * @param rotation 目标本地旋转
+                 */ setRotation(rotation: Quat): void;
+        /**
+                 * @zh
+                 * 设置本地旋转
+                 * @param x 目标本地旋转的 X 分量
+                 * @param y 目标本地旋转的 Y 分量
+                 * @param z 目标本地旋转的 Z 分量
+                 * @param w 目标本地旋转的 W 分量
+                 */ setRotation(x: number, y: number, z: number, w: number): void;
+        /**
+                 * @zh
+                 * 通过欧拉角设置本地旋转
+                 * @param x - 目标欧拉角的 X 分量
+                 * @param y - 目标欧拉角的 Y 分量
+                 * @param z - 目标欧拉角的 Z 分量
+                 */ setRotationFromEuler(x: number, y: number, z: number): void;
+        /**
+                 * @zh
+                 * 获取本地旋转
+                 * @param out 输出到此目标 quaternion
+                 */ getRotation(out?: Quat): Quat;
+        /**
+                 * @zh
+                 * 设置本地缩放
+                 * @param scale 目标本地缩放
+                 */ setScale(scale: Vec3): void;
+        /**
+                 * @zh
+                 * 设置本地缩放
+                 * @param x 目标本地缩放的 X 分量
+                 * @param y 目标本地缩放的 Y 分量
+                 * @param z 目标本地缩放的 Z 分量
+                 */ setScale(x: number, y: number, z: number): void;
+        /**
+                 * @zh
+                 * 获取本地缩放
+                 * @param out 输出到此目标 vector
+                 */ getScale(out?: Vec3): Vec3;
+        /**
+                 * @zh
+                 * 设置世界坐标
+                 * @param position 目标世界坐标
+                 */ setWorldPosition(position: Vec3): void;
+        /**
+                 * @zh
+                 * 设置世界坐标
+                 * @param x 目标世界坐标的 X 分量
+                 * @param y 目标世界坐标的 Y 分量
+                 * @param z 目标世界坐标的 Z 分量
+                 * @param w 目标世界坐标的 W 分量
+                 */ setWorldPosition(x: number, y: number, z: number): void;
+        /**
+                 * @zh
+                 * 获取世界坐标
+                 * @param out 输出到此目标 vector
+                 */ getWorldPosition(out?: Vec3): Vec3;
+        /**
+                 * @zh
+                 * 设置世界旋转
+                 * @param rotation 目标世界旋转
+                 */ setWorldRotation(rotation: Quat): void;
+        /**
+                 * @zh
+                 * 设置世界旋转
+                 * @param x 目标世界旋转的 X 分量
+                 * @param y 目标世界旋转的 Y 分量
+                 * @param z 目标世界旋转的 Z 分量
+                 * @param w 目标世界旋转的 W 分量
+                 */ setWorldRotation(x: number, y: number, z: number, w: number): void;
+        /**
+                 * @zh
+                 * 通过欧拉角设置世界旋转
+                 * @param x - 目标欧拉角的 X 分量
+                 * @param y - 目标欧拉角的 Y 分量
+                 * @param z - 目标欧拉角的 Z 分量
+                 */ setWorldRotationFromEuler(x: number, y: number, z: number): void;
+        /**
+                 * @zh
+                 * 获取世界旋转
+                 * @param out 输出到此目标 quaternion
+                 */ getWorldRotation(out?: Quat): Quat;
+        /**
+                 * @zh
+                 * 设置世界缩放
+                 * @param scale 目标世界缩放
+                 */ setWorldScale(scale: Vec3): void;
+        /**
+                 * @zh
+                 * 设置世界缩放
+                 * @param x 目标世界缩放的 X 分量
+                 * @param y 目标世界缩放的 Y 分量
+                 * @param z 目标世界缩放的 Z 分量
+                 */ setWorldScale(x: number, y: number, z: number): void;
+        /**
+                 * @zh
+                 * 获取世界缩放
+                 * @param out 输出到此目标 vector
+                 */ getWorldScale(out?: Vec3): Vec3;
+        /**
+                 * @zh
+                 * 获取世界变换矩阵
+                 * @param out 输出到此目标矩阵
+                 */ getWorldMatrix(out?: Mat4): Mat4;
+        /**
+                 * @zh
+                 * 获取只包含旋转和缩放的世界变换矩阵
+                 * @param out 输出到此目标矩阵
+                 */ getWorldRS(out?: Mat4): Mat4;
+        /**
+                 * @zh
+                 * 获取只包含旋转和位移的世界变换矩阵
+                 * @param out 输出到此目标矩阵
+                 */ getWorldRT(out?: Mat4): Mat4;
+        getAnchorPoint(out?: Vec2): Vec2;
+        setAnchorPoint(point: Vec2 | number, y?: number): void;
+        getContentSize(out?: Size): Size;
+        setContentSize(size: Size | number, height?: number): void;
+        on(type: string | SystemEventType, callback: Function, target?: Object, useCapture?: any): void;
+        off(type: string, callback?: Function, target?: Object, useCapture?: any): void;
+        once(type: string, callback: Function, target?: Object, useCapture?: any): void;
+        emit(type: string, ...args: any[]): void;
+        dispatchEvent(event: Event): void;
+        hasEventListener(type: string): boolean;
+        targetOff(target: string | Object): void;
+        pauseSystemEvents(recursive: boolean): void;
+        resumeSystemEvents(recursive: boolean): void;
+        _onPostActivated(active: any): void;
+        _onPreDestroy(): void;
+    }
+    /**
+         * @en
+         * cc.Scene is a subclass of cc.Node that is used only as an abstract concept.<br/>
+         * cc.Scene and cc.Node are almost identical with the difference that users can not modify cc.Scene manually.
+         * @zh
+         * cc.Scene 是 cc.Node 的子类，仅作为一个抽象的概念。<br/>
+         * cc.Scene 和 cc.Node 有点不同，用户不应直接修改 cc.Scene。
+         */ export class Scene extends Node {
+        readonly renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
+        readonly globals: __internal.cocos_scene_graph_scene_globals_SceneGlobals;
+        /**
+                 * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
+                 * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
+                 */ autoReleaseAssets: boolean;
+        /**
+                 * @en Per-scene level rendering info
+                 * @zh 场景级别的渲染信息
+                 */ _globals: __internal.cocos_scene_graph_scene_globals_SceneGlobals;
+        _renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
+        dependAssets: null;
+        protected _inited: boolean;
+        protected _prefabSyncedInLiveReload: boolean;
+        constructor(name: string);
+        destroy(): boolean;
+        _onHierarchyChanged(): void;
+        protected _instantiate(): void;
+        protected _load(): void;
+        protected _activate(active: boolean): void;
+    }
+    /**
+         * @category scene-graph
+         */ /**
+         * 场景节点层管理器，用于射线检测、物理碰撞和用户自定义脚本逻辑。
+         * 每个节点可属于一个或多个层，可通过 “包含式” 或 “排除式” 两种检测器进行层检测。
+         */ export class Layers {
+        /**
+                 * @zh 默认层，所有节点的初始值
+                 */ static Default: number;
+        /**
+                 * @zh 忽略射线检测
+                 */ static IgnoreRaycast: number;
+        static Gizmos: number;
+        static Editor: number;
+        static UI: number;
+        /**
+                 * @zh 接受所有用户创建的节点
+                 */ static All: number;
+        /**
+                 * @zh 接受所有支持射线检测的节点
+                 */ static RaycastMask: number;
+        /**
+                 * @en
+                 * Add a new layer
+                 * @zh
+                 * 添加一个新层
+                 * @param name 层名字
+                 * @return 新层的检测值
+                 */ static addLayer(name: string): number | undefined;
+        /**
+                 * @en
+                 * Make a layer mask accepting nothing but the listed layers
+                 * @zh
+                 * 创建一个包含式层检测器，只接受列表中的层
+                 * @param includes 可接受的层数组
+                 * @return 指定功能的层检测器
+                 */ static makeInclusiveMask(includes: number[]): number;
+        /**
+                 * @en
+                 * Make a layer mask accepting everything but the listed layers
+                 * @zh
+                 * 创建一个排除式层检测器，只拒绝列表中的层
+                 * @param  excludes 将拒绝的层数组
+                 * @return 指定功能的层检测器
+                 */ static makeExclusiveMask(excludes: number[]): number;
+        /**
+                 * @en
+                 * Check a layer is accepted by the mask or not
+                 * @zh
+                 * 检查一个层是否被检测器接受
+                 * @param layer 待检测的层
+                 * @param mask 层检测器
+                 * @return 是否通过检测
+                 */ static check(layer: number, mask: number): boolean;
+    }
+    /**
+         * Finds a node by hierarchy path, the path is case-sensitive.
+         * It will traverse the hierarchy by splitting the path using '/' character.
+         * This function will still returns the node even if it is inactive.
+         * It is recommended to not use this function every frame instead cache the result at startup.
+         */ export function find(path: string, referenceNode?: Node): Node | null;
+    /**
+         * @en
+         * Class of private entities in Cocos Creator scenes.<br/>
+         * The PrivateNode is hidden in editor, and completely transparent to users.<br/>
+         * It's normally used as Node's private content created by components in parent node.<br/>
+         * So in theory private nodes are not children, they are part of the parent node.<br/>
+         * Private node have two important characteristics:<br/>
+         * 1. It has the minimum z index and cannot be modified, because they can't be displayed over real children.<br/>
+         * 2. The positioning of private nodes is also special, they will consider the left bottom corner of the parent node's bounding box as the origin of local coordinates.<br/>
+         *    In this way, they can be easily kept inside the bounding box.<br/>
+         * Currently, it's used by RichText component and TileMap component.
+         * @zh
+         * Cocos Creator 场景中的私有节点类。<br/>
+         * 私有节点在编辑器中不可见，对用户透明。<br/>
+         * 通常私有节点是被一些特殊的组件创建出来作为父节点的一部分而存在的，理论上来说，它们不是子节点，而是父节点的组成部分。<br/>
+         * 私有节点有两个非常重要的特性：<br/>
+         * 1. 它有着最小的渲染排序的 Z 轴深度，并且无法被更改，因为它们不能被显示在其他正常子节点之上。<br/>
+         * 2. 它的定位也是特殊的，对于私有节点来说，父节点包围盒的左下角是它的局部坐标系原点，这个原点相当于父节点的位置减去它锚点的偏移。这样私有节点可以比较容易被控制在包围盒之中。<br/>
+         * 目前在引擎中，RichText 和 TileMap 都有可能生成私有节点。
+         * @class PrivateNode
+         * @param {String} name
+         * @extends Node
+         */ export class PrivateNode extends Node {
+        /**
+                 * @param {String} [name]
+                 */ constructor(name: string);
+    }
+    /**
+         * The class used to perform activating and deactivating operations of node and component.
+         */ export class NodeActivator {
+        resetComp: any;
+        protected _activatingStack: any[];
+        constructor();
+        reset(): void;
+        activateNode(node: any, active: any): void;
+        activateComp(comp: any, preloadInvoker: any, onLoadInvoker: any, onEnableInvoker: any): void;
+        destroyComp(comp: any): void;
+        protected _activateNodeRecursively(node: any, preloadInvoker: any, onLoadInvoker: any, onEnableInvoker: any): void;
+        protected _deactivateNodeRecursively(node: any): void;
+    }
+    namespace math {
         namespace bits {
             /**
                  * @en Returns -1, 0, +1 depending on sign of x.
@@ -354,7 +1730,7 @@ declare module "Cocos3D" {
                  */ export function log2(v: number): number;
             /**
                  * @en Computes log base 10 of v.
-                 */ export function log10(v: number): 1 | 0 | 2 | 4 | 8 | 3 | 9 | 7 | 6 | 5;
+                 */ export function log10(v: number): 1 | 0 | 2 | 3 | 4 | 9 | 8 | 7 | 6 | 5;
             /**
                  * @en Counts number of bits.
                  */ export function popCount(v: number): number;
@@ -394,806 +1770,1315 @@ declare module "Cocos3D" {
             var INT_MIN: number;
         }
         /**
-             * @zh 二维向量
-             */ export class vec2 {
-            static ZERO: Readonly<vec2>;
-            static ONE: Readonly<vec2>;
-            static NEG_ONE: Readonly<vec2>;
-            /**
-                     * @zh 创建新的实例
-                     */ static create(x?: number, y?: number): vec2;
-            /**
-                     * @zh 将目标赋值为零向量
-                     */ static zero<Out extends vec2>(out: Out): Out;
+             * 二维向量。
+             */ export class Vec2 extends ValueType {
+            static ZERO: Readonly<Vec2>;
+            static ONE: Readonly<Vec2>;
+            static NEG_ONE: Readonly<Vec2>;
+            static UP: Readonly<Vec2>;
+            static RIGHT: Readonly<Vec2>;
             /**
                      * @zh 获得指定向量的拷贝
-                     */ static clone(a: vec2): vec2;
+                     */ static clone<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out): Vec2;
             /**
                      * @zh 复制目标向量
-                     */ static copy<Out extends vec2>(out: Out, a: vec2): Out;
+                     */ static copy<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
             /**
                      * @zh 设置向量值
-                     */ static set<Out extends vec2>(out: Out, x: number, y: number): Out;
+                     */ static set<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, x: number, y: number): Out;
             /**
                      * @zh 逐元素向量加法
-                     */ static add<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
+                     */ static add<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量减法
-                     */ static subtract<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
-            /**
-                     * @zh 逐元素向量减法
-                     */ static sub<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
+                     */ static subtract<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量乘法
-                     */ static multiply<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
-            /**
-                     * @zh 逐元素向量乘法
-                     */ static mul<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
+                     */ static multiply<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量除法
-                     */ static divide<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
-            /**
-                     * @zh 逐元素向量除法
-                     */ static div<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
+                     */ static divide<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量向上取整
-                     */ static ceil<Out extends vec2>(out: Out, a: vec2): Out;
+                     */ static ceil<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量向下取整
-                     */ static floor<Out extends vec2>(out: Out, a: vec2): Out;
+                     */ static floor<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量最小值
-                     */ static min<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
+                     */ static min<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量最大值
-                     */ static max<Out extends vec2>(out: Out, a: vec2, b: vec2): Out;
+                     */ static max<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量四舍五入取整
-                     */ static round<Out extends vec2>(out: Out, a: vec2): Out;
+                     */ static round<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
             /**
                      * @zh 向量标量乘法
-                     */ static scale<Out extends vec2>(out: Out, a: vec2, b: number): Out;
+                     */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: number): Out;
             /**
                      * @zh 逐元素向量乘加: A + B * scale
-                     */ static scaleAndAdd<Out extends vec2>(out: Out, a: vec2, b: vec2, scale: number): Out;
+                     */ static scaleAndAdd<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
                      * @zh 求两向量的欧氏距离
-                     */ static distance(a: vec2, b: vec2): number;
-            /**
-                     * @zh 求两向量的欧氏距离
-                     */ static dist(a: vec2, b: vec2): number;
+                     */ static distance<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
             /**
                      * @zh 求两向量的欧氏距离平方
-                     */ static squaredDistance(a: vec2, b: vec2): number;
-            /**
-                     * @zh 求两向量的欧氏距离平方
-                     */ static sqrDist(a: vec2, b: vec2): number;
+                     */ static squaredDistance<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
             /**
                      * @zh 求向量长度
-                     */ static magnitude(a: vec2): number;
-            /**
-                     * @zh 求向量长度
-                     */ static mag(a: vec2): number;
+                     */ static len<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out): number;
             /**
                      * @zh 求向量长度平方
-                     */ static squaredMagnitude(a: vec2): number;
-            /**
-                     * @zh 求向量长度平方
-                     */ static sqrMag(a: vec2): number;
+                     */ static lengthSqr<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out): number;
             /**
                      * @zh 逐元素向量取负
-                     */ static negate<Out extends vec2>(out: Out, a: vec2): Out;
+                     */ static negate<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
-                     */ static inverse<Out extends vec2>(out: Out, a: vec2): Out;
+                     */ static inverse<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量取倒数，接近 0 时返回 0
-                     */ static inverseSafe<Out extends vec2>(out: Out, a: vec2): Out;
+                     */ static inverseSafe<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
             /**
                      * @zh 归一化向量
-                     */ static normalize<Out extends vec2>(out: Out, a: vec2): Out;
+                     */ static normalize<Out extends __internal.cocos_core_math_type_define_IVec2Like, Vec2Like extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Vec2Like): Out;
             /**
                      * @zh 向量点积（数量积）
-                     */ static dot(a: vec2, b: vec2): number;
+                     */ static dot<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
             /**
                      * @zh 向量叉积（向量积），注意二维向量的叉积为与 Z 轴平行的三维向量
-                     */ static cross<Out extends vec3>(out: Out, a: vec2, b: vec2): Out;
+                     */ static cross<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Vec3, a: Out, b: Out): Vec3;
             /**
                      * @zh 逐元素向量线性插值： A + t * (B - A)
-                     */ static lerp<Out extends vec2>(out: Out, a: vec2, b: vec2, t: number): Out;
+                     */ static lerp<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out, t: number): Out;
             /**
                      * @zh 生成一个在单位圆上均匀分布的随机向量
                      * @param scale 生成的向量长度
-                     */ static random<Out extends vec2>(out: Out, scale?: number): Out;
+                     */ static random<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, scale?: number): Out;
             /**
                      * @zh 向量与三维矩阵乘法，默认向量第三位为 1。
-                     */ static transformMat3<Out extends vec2>(out: Out, a: vec2, m: mat3): Out;
+                     */ static transformMat3<Out extends __internal.cocos_core_math_type_define_IVec2Like, MatLike extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, m: __internal.cocos_core_math_type_define_IMat3Like): Out;
             /**
                      * @zh 向量与四维矩阵乘法，默认向量第三位为 0，第四位为 1。
-                     */ static transformMat4<Out extends vec2>(out: Out, a: vec2, m: mat4): Out;
+                     */ static transformMat4<Out extends __internal.cocos_core_math_type_define_IVec2Like, MatLike extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, m: __internal.cocos_core_math_type_define_IMat4Like): Out;
             /**
                      * @zh 返回向量的字符串表示
-                     */ static str(a: vec2): string;
+                     */ static str<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out): string;
             /**
                      * @zh 向量转数组
                      * @param ofs 数组起始偏移量
-                     */ static array(out: IWritableArrayLike<number>, v: vec2, ofs?: number): IWritableArrayLike<number>;
+                     */ static array<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: IWritableArrayLike<number>, v: Out, ofs?: number): IWritableArrayLike<number>;
             /**
                      * @zh 向量等价判断
-                     */ static exactEquals(a: vec2, b: vec2): boolean;
+                     */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): boolean;
             /**
                      * @zh 排除浮点数误差的向量近似等价判断
-                     */ static equals(a: vec2, b: vec2): boolean;
+                     */ static equals<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out, epsilon?: number): boolean;
             /**
                      * @zh 求两向量夹角弧度
-                     */ static angle(a: vec2, b: vec2): number;
-            x: number;
-            y: number;
+                     */ static angle<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+            /**
+                     * x 分量。
+                     */ x: number;
+            /**
+                     * y 分量。
+                     */ y: number;
+            constructor(other: Vec2);
             constructor(x?: number, y?: number);
+            /**
+                     * 克隆当前向量。
+                     */ clone(): Vec2;
+            /**
+                     * 设置当前向量使其与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @returns `this`
+                     */ set(other: Vec2): any;
+            /**
+                     * 设置当前向量的具体分量值。
+                     * @param x 要设置的 x 分量的值
+                     * @param y 要设置的 y 分量的值
+                     * @returns `this`
+                     */ set(x?: number, y?: number): any;
+            /**
+                     * 判断当前向量是否在误差范围内与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                     */ equals(other: Vec2, epsilon?: number): boolean;
+            /**
+                     * 判断当前向量是否在误差范围内与指定分量的向量相等。
+                     * @param x 相比较的向量的 x 分量。
+                     * @param y 相比较的向量的 y 分量。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                     */ equals2f(x: number, y: number, epsilon?: number): boolean;
+            /**
+                     * 判断当前向量是否与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals(other: Vec2): boolean;
+            /**
+                     * 判断当前向量是否与指定分量的向量相等。
+                     * @param x 指定向量的 x 分量。
+                     * @param y 指定向量的 y 分量。
+                     * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals2f(x: number, y: number): boolean;
+            /**
+                     * 返回当前向量的字符串表示。
+                     * @returns 当前向量的字符串表示。
+                     */ toString(): string;
+            /**
+                     * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+                     * @param to 目标向量。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     */ lerp(to: Vec2, ratio: number): this;
+            /**
+                     * 设置当前向量的值，使其各个分量都处于指定的范围内。
+                     * @param minInclusive 每个分量都代表了对应分量允许的最小值。
+                     * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
+                     * @returns `this`
+                     */ clampf(minInclusive: Vec2, maxInclusive: Vec2): this;
+            /**
+                     * 向量加法。将当前向量与指定向量的相加
+                     * @param other 指定的向量。
+                     */ add(other: Vec2): this;
+            /**
+                     * 向量加法。将当前向量与指定分量的向量相加
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     */ add2f(x: number, y: number): this;
+            /**
+                     * 向量减法。将当前向量减去指定向量
+                     * @param other 减数向量。
+                     */ subtract(other: Vec2): this;
+            /**
+                     * 向量减法。将当前向量减去指定分量的向量
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     */ subtract2f(x: number, y: number): this;
+            /**
+                     * 向量数乘。将当前向量数乘指定标量
+                     * @param scalar 标量乘数。
+                     */ multiplyScalar(scalar: number): this;
+            /**
+                     * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
+                     * @param other 指定的向量。
+                     */ multiply(other: Vec2): this;
+            /**
+                     * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     */ multiply2f(x: number, y: number): this;
+            /**
+                     * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                     * @param other 指定的向量
+                     */ divide(other: Vec2): this;
+            /**
+                     * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     */ divide2f(x: number, y: number): this;
+            /**
+                     * 将当前向量的各个分量取反
+                     */ negative(): this;
+            /**
+                     * 向量点乘。
+                     * @param other 指定的向量。
+                     * @returns 当前向量与指定向量点乘的结果。
+                     */ dot(other: Vec2): number;
+            /**
+                     * 向量叉乘。
+                     * @param other 指定的向量。
+                     * @returns `out`
+                     */ cross(other: Vec2): number;
+            /**
+                     * 计算向量的长度（模）。
+                     * @returns 向量的长度（模）。
+                     */ length(): number;
+            /**
+                     * 计算向量长度（模）的平方。
+                     * @returns 向量长度（模）的平方。
+                     */ lengthSqr(): number;
+            /**
+                     * 将当前向量归一化。
+                     */ normalize(): this;
+            /**
+                     * 获取当前向量和指定向量之间的角度。
+                     * @param other 指定的向量。
+                     * @returns 当前向量和指定向量之间的角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
+                     */ angle(other: Vec2): number;
+            /**
+                     * 获取当前向量和指定向量之间的有符号角度。
+                     * 有符号角度的取值范围为 (-180, 180]，当前向量可以通过逆时针旋转有符号角度与指定向量同向。
+                     * @param other 指定的向量。
+                     * @returns 当前向量和指定向量之间的有符号角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
+                     */ signAngle(other: Vec2): number;
+            /**
+                     * 将当前向量的旋转
+                     * @param radians 旋转角度（弧度制）。
+                     */ rotate(radians: number): this;
+            /**
+                     * 计算当前向量在指定向量上的投影向量。
+                     * @param other 指定的向量。
+                     */ project(other: Vec2): this;
+            /**
+                     * 将当前向量视为 z 分量为 0、w 分量为 1 的四维向量，
+                     * 应用四维矩阵变换到当前矩阵
+                     * @param matrix 变换矩阵。
+                     */ transformMat4(matrix: Mat4): this;
         }
         /**
-             * @zh 三维向量
-             */ export class vec3 {
-            static UNIT_X: Readonly<vec3>;
-            static UNIT_Y: Readonly<vec3>;
-            static UNIT_Z: Readonly<vec3>;
-            static ZERO: Readonly<vec3>;
-            static ONE: Readonly<vec3>;
-            static NEG_ONE: Readonly<vec3>;
-            /**
-                     * @zh 创建新的实例
-                     */ static create(x?: number, y?: number, z?: number): vec3;
+             * 三维向量。
+             */ export class Vec3 extends ValueType {
+            static UNIT_X: Readonly<Vec3>;
+            static UNIT_Y: Readonly<Vec3>;
+            static UNIT_Z: Readonly<Vec3>;
+            static ZERO: Readonly<Vec3>;
+            static ONE: Readonly<Vec3>;
+            static NEG_ONE: Readonly<Vec3>;
             /**
                      * @zh 将目标赋值为零向量
-                     */ static zero<Out extends vec3>(out: Out): Out;
+                     */ static zero<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out): Out;
             /**
                      * @zh 获得指定向量的拷贝
-                     */ static clone(a: vec3): vec3;
+                     */ static clone<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out): Vec3;
             /**
                      * @zh 复制目标向量
-                     */ static copy<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static copy<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like): Out;
             /**
                      * @zh 设置向量值
-                     */ static set<Out extends vec3>(out: Out, x: number, y: number, z: number): Out;
+                     */ static set<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, x: number, y: number, z: number): Out;
             /**
                      * @zh 逐元素向量加法
-                     */ static add<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
+                     */ static add<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量减法
-                     */ static subtract<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
-            /**
-                     * @zh 逐元素向量减法
-                     */ static sub<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
+                     */ static subtract<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量乘法
-                     */ static multiply<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
-            /**
-                     * @zh 逐元素向量乘法
-                     */ static mul<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
+                     */ static multiply<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like_1 extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like_2 extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like_1, b: Vec3Like_2): Out;
             /**
                      * @zh 逐元素向量除法
-                     */ static divide<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
-            /**
-                     * @zh 逐元素向量除法
-                     */ static div<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
+                     */ static divide<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量向上取整
-                     */ static ceil<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static ceil<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量向下取整
-                     */ static floor<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static floor<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量最小值
-                     */ static min<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
+                     */ static min<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量最大值
-                     */ static max<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
+                     */ static max<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量四舍五入取整
-                     */ static round<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static round<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 向量标量乘法
-                     */ static scale<Out extends vec3>(out: Out, a: vec3, b: number): Out;
+                     */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like, b: number): Out;
             /**
                      * @zh 逐元素向量乘加: A + B * scale
-                     */ static scaleAndAdd<Out extends vec3>(out: Out, a: vec3, b: vec3, scale: number): Out;
+                     */ static scaleAndAdd<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
                      * @zh 求两向量的欧氏距离
-                     */ static distance(a: vec3, b: vec3): number;
-            /**
-                     * @zh 求两向量的欧氏距离
-                     */ static dist(a: vec3, b: vec3): number;
+                     */ static distance<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): number;
             /**
                      * @zh 求两向量的欧氏距离平方
-                     */ static squaredDistance(a: vec3, b: vec3): number;
-            /**
-                     * @zh 求两向量的欧氏距离平方
-                     */ static sqrDist(a: vec3, b: vec3): number;
+                     */ static squaredDistance<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): number;
             /**
                      * @zh 求向量长度
-                     */ static magnitude(a: vec3): number;
-            /**
-                     * @zh 求向量长度
-                     */ static mag(a: vec3): number;
+                     */ static len<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out): number;
             /**
                      * @zh 求向量长度平方
-                     */ static squaredMagnitude(a: vec3): number;
-            /**
-                     * @zh 求向量长度平方
-                     */ static sqrMag(a: vec3): number;
+                     */ static lengthSqr<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out): number;
             /**
                      * @zh 逐元素向量取负
-                     */ static negate<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static negate<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
-                     */ static invert<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static invert<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量取倒数，接近 0 时返回 0
-                     */ static invertSafe<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static invertSafe<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 归一化向量
-                     */ static normalize<Out extends vec3>(out: Out, a: vec3): Out;
+                     */ static normalize<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like): Out;
             /**
                      * @zh 向量点积（数量积）
-                     */ static dot(a: vec3, b: vec3): number;
+                     */ static dot<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): number;
             /**
                      * @zh 向量叉积（向量积）
-                     */ static cross<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
+                     */ static cross<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like_1 extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like_2 extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like_1, b: Vec3Like_2): Out;
             /**
                      * @zh 逐元素向量线性插值： A + t * (B - A)
-                     */ static lerp<Out extends vec3>(out: Out, a: vec3, b: vec3, t: number): Out;
+                     */ static lerp<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out, t: number): Out;
             /**
                      * @zh 生成一个在单位球体上均匀分布的随机向量
                      * @param scale 生成的向量长度
-                     */ static random<Out extends vec3>(out: Out, scale?: number): Out;
+                     */ static random<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, scale?: number): Out;
             /**
                      * @zh 向量与四维矩阵乘法，默认向量第四位为 1。
-                     */ static transformMat4<Out extends vec3>(out: Out, a: vec3, m: mat4): Out;
+                     */ static transformMat4<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like extends __internal.cocos_core_math_type_define_IVec3Like, MatLike extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Vec3Like, m: MatLike): Out;
             /**
                      * @zh 向量与四维矩阵乘法，默认向量第四位为 0。
-                     */ static transformMat4Normal<Out extends vec3>(out: Out, a: vec3, m: mat4): Out;
+                     */ static transformMat4Normal<Out extends __internal.cocos_core_math_type_define_IVec3Like, MatLike extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, m: MatLike): Out;
             /**
                      * @zh 向量与三维矩阵乘法
-                     */ static transformMat3<Out extends vec3>(out: Out, a: vec3, m: mat3): Out;
+                     */ static transformMat3<Out extends __internal.cocos_core_math_type_define_IVec3Like, MatLike extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, m: MatLike): Out;
             /**
                      * @zh 向量四元数乘法
-                     */ static transformQuat<Out extends vec3>(out: Out, a: vec3, q: quat): Out;
+                     */ static transformQuat<Out extends __internal.cocos_core_math_type_define_IVec3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: VecLike, q: QuatLike): Out;
+            /**
+                     * @zh 缩放 -> 旋转 -> 平移变换向量
+                     */ static transformRTS<Out extends __internal.cocos_core_math_type_define_IVec3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: VecLike, r: QuatLike, t: VecLike, s: VecLike): Out;
             /**
                      * @zh 绕 X 轴旋转向量指定弧度
                      * @param v 待旋转向量
                      * @param o 旋转中心
                      * @param a 旋转弧度
-                     */ static rotateX<Out extends vec3>(out: Out, v: vec3, o: vec3, a: number): Out;
+                     */ static rotateX<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: Out, o: Out, a: number): Out;
             /**
                      * @zh 绕 Y 轴旋转向量指定弧度
                      * @param v 待旋转向量
                      * @param o 旋转中心
                      * @param a 旋转弧度
-                     */ static rotateY<Out extends vec3>(out: Out, v: vec3, o: vec3, a: number): Out;
+                     */ static rotateY<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: Out, o: Out, a: number): Out;
             /**
                      * @zh 绕 Z 轴旋转向量指定弧度
                      * @param v 待旋转向量
                      * @param o 旋转中心
                      * @param a 旋转弧度
-                     */ static rotateZ<Out extends vec3>(out: Out, v: vec3, o: vec3, a: number): Out;
-            /**
-                     * @zh 返回向量的字符串表示
-                     */ static str(a: vec3): string;
+                     */ static rotateZ<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: Out, o: Out, a: number): Out;
             /**
                      * @zh 向量转数组
                      * @param ofs 数组起始偏移量
-                     */ static array(out: IWritableArrayLike<number>, v: vec3, ofs?: number): IWritableArrayLike<number>;
+                     */ static array<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: IWritableArrayLike<number>, v: Out, ofs?: number): IWritableArrayLike<number>;
             /**
                      * @zh 向量等价判断
-                     */ static exactEquals(a: vec3, b: vec3): boolean;
+                     */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): boolean;
             /**
                      * @zh 排除浮点数误差的向量近似等价判断
-                     */ static equals(a: vec3, b: vec3, epsilon?: number): boolean;
+                     */ static equals<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out, epsilon?: number): boolean;
             /**
                      * @zh 求两向量夹角弧度
-                     */ static angle(a: vec3, b: vec3): number;
+                     */ static angle<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): number;
             /**
                      * @zh 计算向量在指定平面上的投影
                      * @param a 待投影向量
                      * @param n 指定平面的法线
-                     */ static projectOnPlane<Out extends vec3>(out: Out, a: vec3, n: vec3): Out;
+                     */ static projectOnPlane<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, n: Out): Out;
             /**
                      * @zh 计算向量在指定向量上的投影
                      * @param a 待投影向量
                      * @param n 目标向量
-                     */ static project<Out extends vec3>(out: Out, a: vec3, b: vec3): Out;
-            x: number;
-            y: number;
-            z: number;
+                     */ static project<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
+            /**
+                     * x 分量。
+                     */ x: number;
+            /**
+                     * y 分量。
+                     */ y: number;
+            /**
+                     * z 分量。
+                     */ z: number;
+            constructor(v: Vec3);
             constructor(x?: number, y?: number, z?: number);
+            /**
+                     * 克隆当前向量。
+                     */ clone(): Vec3;
+            /**
+                     * 设置当前向量使其与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @returns `this`
+                     */ set(other: Vec3): any;
+            /**
+                     * 设置当前向量的具体分量值。
+                     * @param x 要设置的 x 分量的值
+                     * @param y 要设置的 y 分量的值
+                     * @param z 要设置的 z 分量的值
+                     * @returns `this`
+                     */ set(x?: number, y?: number, z?: number): any;
+            /**
+                     * 判断当前向量是否在误差范围内与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                     */ equals(other: Vec3, epsilon?: number): boolean;
+            /**
+                     * 判断当前向量是否在误差范围内与指定分量的向量相等。
+                     * @param x 相比较的向量的 x 分量。
+                     * @param y 相比较的向量的 y 分量。
+                     * @param z 相比较的向量的 z 分量。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                     */ equals3f(x: number, y: number, z: number, epsilon?: number): boolean;
+            /**
+                     * 判断当前向量是否与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals(other: Vec3): boolean;
+            /**
+                     * 判断当前向量是否与指定分量的向量相等。
+                     * @param x 指定向量的 x 分量。
+                     * @param y 指定向量的 y 分量。
+                     * @param z 指定向量的 z 分量。
+                     * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals3f(x: number, y: number, z: number): boolean;
+            /**
+                     * 返回当前向量的字符串表示。
+                     * @returns 当前向量的字符串表示。
+                     */ toString(): string;
+            /**
+                     * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+                     * @param to 目标向量。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     */ lerp(to: Vec3, ratio: number): this;
+            /**
+                     * 向量加法。将当前向量与指定向量的相加
+                     * @param other 指定的向量。
+                     */ add(other: Vec3): this;
+            /**
+                     * 向量加法。将当前向量与指定分量的向量相加
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     * @param z 指定的向量的 z 分量。
+                     */ add3f(x: number, y: number, z: number): this;
+            /**
+                     * 向量减法。将当前向量减去指定向量的结果。
+                     * @param other 减数向量。
+                     */ subtract(other: Vec3): this;
+            /**
+                     * 向量减法。将当前向量减去指定分量的向量
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     * @param z 指定的向量的 z 分量。
+                     */ subtract3f(x: number, y: number, z: number): this;
+            /**
+                     * 向量数乘。将当前向量数乘指定标量
+                     * @param scalar 标量乘数。
+                     */ multiplyScalar(scalar: number): this;
+            /**
+                     * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
+                     * @param other 指定的向量。
+                     */ multiply(other: Vec3): this;
+            /**
+                     * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     * @param z 指定的向量的 z 分量。
+                     */ multiply3f(x: number, y: number, z: number): this;
+            /**
+                     * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                     * @param other 指定的向量
+                     */ divide(other: Vec3): this;
+            /**
+                     * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     * @param z 指定的向量的 z 分量。
+                     */ divide3f(x: number, y: number, z: number): this;
+            /**
+                     * 将当前向量的各个分量取反
+                     */ negative(): this;
+            /**
+                     * 设置当前向量的值，使其各个分量都处于指定的范围内。
+                     * @param minInclusive 每个分量都代表了对应分量允许的最小值。
+                     * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
+                     * @returns `this`
+                     */ clampf(minInclusive: Vec3, maxInclusive: Vec3): this;
+            /**
+                     * 向量点乘。
+                     * @param other 指定的向量。
+                     * @returns 当前向量与指定向量点乘的结果。
+                     */ dot(other: Vec3): number;
+            /**
+                     * 向量叉乘。将当前向量左叉乘指定向量
+                     * @param other 指定的向量。
+                     */ cross(other: Vec3): this;
+            /**
+                     * 计算向量的长度（模）。
+                     * @returns 向量的长度（模）。
+                     */ length(): number;
+            /**
+                     * 计算向量长度（模）的平方。
+                     * @returns 向量长度（模）的平方。
+                     */ lengthSqr(): number;
+            /**
+                     * 将当前向量归一化
+                     */ normalize(): this;
+            /**
+                     * 将当前向量视为 w 分量为 1 的四维向量，
+                     * 应用四维矩阵变换到当前矩阵
+                     * @param matrix 变换矩阵。
+                     */ transformMat4(matrix: Mat4): this;
         }
         /**
-             * @zh 四维向量
-             */ export class vec4 {
-            static ZERO: Readonly<vec4>;
-            static ONE: Readonly<vec4>;
-            static NEG_ONE: Readonly<vec4>;
-            /**
-                     * @zh 创建新的实例
-                     */ static create(x?: number, y?: number, z?: number, w?: number): vec4;
-            /**
-                     * @zh 将目标赋值为零向量
-                     */ static zero<Out extends vec4>(out: Out): Out;
+             * 四维向量。
+             */ export class Vec4 extends ValueType {
+            static ZERO: Readonly<Vec4>;
+            static ONE: Readonly<Vec4>;
+            static NEG_ONE: Readonly<Vec4>;
             /**
                      * @zh 获得指定向量的拷贝
-                     */ static clone(a: vec4): vec4;
+                     */ static clone<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out): Vec4;
             /**
                      * @zh 复制目标向量
-                     */ static copy<Out extends vec4>(out: Out, a: vec4): Out;
+                     */ static copy<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 设置向量值
-                     */ static set<Out extends vec4>(out: Out, x: number, y: number, z: number, w: number): Out;
+                     */ static set<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, x: number, y: number, z: number, w: number): Out;
             /**
                      * @zh 逐元素向量加法
-                     */ static add<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
+                     */ static add<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量减法
-                     */ static subtract<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
-            /**
-                     * @zh 逐元素向量减法
-                     */ static sub<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
+                     */ static subtract<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量乘法
-                     */ static multiply<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
-            /**
-                     * @zh 逐元素向量乘法
-                     */ static mul<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
+                     */ static multiply<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量除法
-                     */ static divide<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
-            /**
-                     * @zh 逐元素向量除法
-                     */ static div<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
+                     */ static divide<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量向上取整
-                     */ static ceil<Out extends vec4>(out: Out, a: vec4): Out;
+                     */ static ceil<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量向下取整
-                     */ static floor<Out extends vec4>(out: Out, a: vec4): Out;
+                     */ static floor<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量最小值
-                     */ static min<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
+                     */ static min<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量最大值
-                     */ static max<Out extends vec4>(out: Out, a: vec4, b: vec4): Out;
+                     */ static max<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素向量四舍五入取整
-                     */ static round<Out extends vec4>(out: Out, a: vec4): Out;
+                     */ static round<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 向量标量乘法
-                     */ static scale<Out extends vec4>(out: Out, a: vec4, b: number): Out;
+                     */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: number): Out;
             /**
                      * @zh 逐元素向量乘加: A + B * scale
-                     */ static scaleAndAdd<Out extends vec4>(out: Out, a: vec4, b: vec4, scale: number): Out;
+                     */ static scaleAndAdd<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
                      * @zh 求两向量的欧氏距离
-                     */ static distance(a: vec4, b: vec4): number;
-            /**
-                     * @zh 求两向量的欧氏距离
-                     */ static dist(a: vec4, b: vec4): number;
+                     */ static distance<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
             /**
                      * @zh 求两向量的欧氏距离平方
-                     */ static squaredDistance(a: vec4, b: vec4): number;
-            /**
-                     * @zh 求两向量的欧氏距离平方
-                     */ static sqrDist(a: vec4, b: vec4): number;
+                     */ static squaredDistance<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
             /**
                      * @zh 求向量长度
-                     */ static magnitude(a: vec4): number;
-            /**
-                     * @zh 求向量长度
-                     */ static mag(a: vec4): number;
+                     */ static len<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out): number;
             /**
                      * @zh 求向量长度平方
-                     */ static squaredMagnitude(a: vec4): number;
-            /**
-                     * @zh 求向量长度平方
-                     */ static sqrMag(a: vec4): number;
+                     */ static lengthSqr<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out): number;
             /**
                      * @zh 逐元素向量取负
-                     */ static negate<Out extends vec4>(out: Out, a: vec4): Out;
+                     */ static negate<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
-                     */ static inverse<Out extends vec4>(out: Out, a: vec4): Out;
+                     */ static inverse<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 逐元素向量取倒数，接近 0 时返回 0
-                     */ static inverseSafe<Out extends vec4>(out: Out, a: vec4): Out;
+                     */ static inverseSafe<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 归一化向量
-                     */ static normalize<Out extends vec4>(out: Out, a: vec4): Out;
+                     */ static normalize<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 向量点积（数量积）
-                     */ static dot(a: vec4, b: vec4): number;
+                     */ static dot<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
             /**
                      * @zh 逐元素向量线性插值： A + t * (B - A)
-                     */ static lerp<Out extends vec4>(out: Out, a: vec4, b: vec4, t: number): Out;
+                     */ static lerp<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out, t: number): Out;
             /**
                      * @zh 生成一个在单位球体上均匀分布的随机向量
                      * @param scale 生成的向量长度
-                     */ static random<Out extends vec4>(out: Out, scale?: number): Out;
+                     */ static random<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, scale?: number): Out;
             /**
                      * @zh 向量矩阵乘法
-                     */ static transformMat4<Out extends vec4>(out: Out, a: vec4, m: mat4): Out;
+                     */ static transformMat4<Out extends __internal.cocos_core_math_type_define_IVec4Like, MatLike extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, m: MatLike): Out;
             /**
                      * @zh 向量四元数乘法
-                     */ static transformQuat<Out extends vec4>(out: Out, a: vec4, q: quat): Out;
-            /**
-                     * @zh 返回向量的字符串表示
-                     */ static str(a: vec4): string;
+                     */ static transformQuat<Out extends __internal.cocos_core_math_type_define_IVec4Like, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, q: QuatLike): Out;
             /**
                      * @zh 向量转数组
                      * @param ofs 数组起始偏移量
-                     */ static array(out: IWritableArrayLike<number>, v: vec4, ofs?: number): IWritableArrayLike<number>;
+                     */ static array<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: IWritableArrayLike<number>, v: Out, ofs?: number): IWritableArrayLike<number>;
             /**
                      * @zh 向量等价判断
-                     */ static exactEquals(a: vec4, b: vec4): boolean;
+                     */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): boolean;
             /**
                      * @zh 排除浮点数误差的向量近似等价判断
-                     */ static equals(a: vec4, b: vec4): boolean;
-            x: number;
-            y: number;
-            z: number;
-            w: number;
+                     */ static equals<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out, epsilon?: number): boolean;
+            /**
+                     * x 分量。
+                     */ x: number;
+            /**
+                     * y 分量。
+                     */ y: number;
+            /**
+                     * z 分量。
+                     */ z: number;
+            /**
+                     * w 分量。
+                     */ w: number;
+            constructor(other: Vec4);
             constructor(x?: number, y?: number, z?: number, w?: number);
+            /**
+                     * 克隆当前向量。
+                     */ clone(): Vec4;
+            /**
+                     * 设置当前向量使其与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @returns `this`
+                     */ set(other: Vec4): any;
+            /**
+                     * 设置当前向量的具体分量值。
+                     * @param x 要设置的 x 分量的值
+                     * @param y 要设置的 y 分量的值
+                     * @param z 要设置的 z 分量的值
+                     * @param w 要设置的 w 分量的值
+                     * @returns `this`
+                     */ set(x?: number, y?: number, z?: number, w?: number): any;
+            /**
+                     * 判断当前向量是否在误差范围内与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                     */ equals(other: Vec4, epsilon?: number): boolean;
+            /**
+                     * 判断当前向量是否在误差范围内与指定分量的向量相等。
+                     * @param x 相比较的向量的 x 分量。
+                     * @param y 相比较的向量的 y 分量。
+                     * @param z 相比较的向量的 z 分量。
+                     * @param w 相比较的向量的 w 分量。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                     */ equals4f(x: number, y: number, z: number, w: number, epsilon?: number): boolean;
+            /**
+                     * 判断当前向量是否与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals(other: Vec4): boolean;
+            /**
+                     * 判断当前向量是否与指定分量的向量相等。
+                     * @param x 指定向量的 x 分量。
+                     * @param y 指定向量的 y 分量。
+                     * @param z 指定向量的 z 分量。
+                     * @param w 指定向量的 w 分量。
+                     * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals4f(x: number, y: number, z: number, w: number): boolean;
+            /**
+                     * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+                     * @param to 目标向量。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     */ lerp(to: Vec4, ratio: number): this;
+            /**
+                     * 返回当前向量的字符串表示。
+                     * @returns 当前向量的字符串表示。
+                     */ toString(): string;
+            /**
+                     * 设置当前向量的值，使其各个分量都处于指定的范围内。
+                     * @param minInclusive 每个分量都代表了对应分量允许的最小值。
+                     * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
+                     * @returns `this`
+                     */ clampf(minInclusive: Vec4, maxInclusive: Vec4): this;
+            /**
+                     * 向量加法。将当前向量与指定向量的相加
+                     * @param other 指定的向量。
+                     */ add(other: Vec4): this;
+            /**
+                     * 向量加法。将当前向量与指定分量的向量相加
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     * @param z 指定的向量的 z 分量。
+                     * @param w 指定的向量的 w 分量。
+                     */ add4f(x: number, y: number, z: number, w: number): this;
+            /**
+                     * 向量减法。将当前向量减去指定向量
+                     * @param other 减数向量。
+                     */ subtract(other: Vec4): this;
+            /**
+                     * 向量减法。将当前向量减去指定分量的向量
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     * @param z 指定的向量的 z 分量。
+                     * @param w 指定的向量的 w 分量。
+                     */ subtract4f(x: number, y: number, z: number, w: number): this;
+            /**
+                     * 向量数乘。将当前向量数乘指定标量
+                     * @param scalar 标量乘数。
+                     */ multiplyScalar(scalar: number): this;
+            /**
+                     * 向量乘法。将当前向量乘以指定向量
+                     * @param other 指定的向量。
+                     */ multiply(other: Vec4): this;
+            /**
+                     * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     * @param z 指定的向量的 z 分量。
+                     * @param w 指定的向量的 w 分量。
+                     */ multiply4f(x: number, y: number, z: number, w: number): this;
+            /**
+                     * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                     * @param other 指定的向量
+                     */ divide(other: Vec4): this;
+            /**
+                     * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                     * @param x 指定的向量的 x 分量。
+                     * @param y 指定的向量的 y 分量。
+                     * @param z 指定的向量的 z 分量。
+                     * @param w 指定的向量的 w 分量。
+                     */ divide4f(x: number, y: number, z: number, w: number): this;
+            /**
+                     * 将当前向量的各个分量取反
+                     */ negative(): this;
+            /**
+                     * 向量点乘。
+                     * @param other 指定的向量。
+                     * @returns 当前向量与指定向量点乘的结果。
+                     */ dot(vector: Vec4): number;
+            /**
+                     * 向量叉乘。视当前向量和指定向量为三维向量（舍弃 w 分量），将当前向量左叉乘指定向量
+                     * @param other 指定的向量。
+                     */ cross(vector: Vec4): this;
+            /**
+                     * 计算向量的长度（模）。
+                     * @returns 向量的长度（模）。
+                     */ length(): number;
+            /**
+                     * 计算向量长度（模）的平方。
+                     * @returns 向量长度（模）的平方。
+                     */ lengthSqr(): number;
+            /**
+                     * 将当前向量归一化
+                     */ normalize(): this;
+            /**
+                     * 应用四维矩阵变换到当前矩阵
+                     * @param matrix 变换矩阵。
+                     */ transformMat4(matrix: Mat4): this;
         }
         /**
-             * @zh 四元数
-             */ export class quat {
-            static IDENTITY: Readonly<quat>;
-            /**
-                     * @zh 创建新的实例
-                     */ static create(x?: number, y?: number, z?: number, w?: number): quat;
+             * 四元数。
+             */ export class Quat extends ValueType {
+            static IDENTITY: Readonly<Quat>;
             /**
                      * @zh 获得指定四元数的拷贝
-                     */ static clone(a: quat): quat;
+                     */ static clone<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out): Quat;
             /**
                      * @zh 复制目标四元数
-                     */ static copy<Out extends quat>(out: Out, a: quat): Out;
+                     */ static copy<Out extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike): Out;
             /**
                      * @zh 设置四元数值
-                     */ static set<Out extends quat>(out: Out, x: number, y: number, z: number, w: number): Out;
+                     */ static set<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, x: number, y: number, z: number, w: number): Out;
             /**
                      * @zh 将目标赋值为单位四元数
-                     */ static identity<Out extends quat>(out: Out): Out;
+                     */ static identity<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out): Out;
             /**
                      * @zh 设置四元数为两向量间的最短路径旋转，默认两向量都已归一化
-                     */ static rotationTo<Out extends quat>(out: Out, a: vec3, b: vec3): Out;
+                     */ static rotationTo<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: VecLike, b: VecLike): Out;
             /**
                      * @zh 获取四元数的旋转轴和旋转弧度
                      * @param outAxis 旋转轴输出
                      * @param q 源四元数
                      * @return 旋转弧度
-                     */ static getAxisAngle(outAxis: vec3, q: quat): number;
+                     */ static getAxisAngle<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(outAxis: VecLike, q: Out): number;
             /**
                      * @zh 四元数乘法
-                     */ static multiply<Out extends quat>(out: Out, a: quat, b: quat): Out;
-            /**
-                     * @zh 四元数乘法
-                     */ static mul<Out extends quat>(out: Out, a: quat, b: quat): Out;
+                     */ static multiply<Out extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike_1 extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike_2 extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike_1, b: QuatLike_2): Out;
             /**
                      * @zh 四元数标量乘法
-                     */ static scale<Out extends quat>(out: Out, a: quat, b: number): Out;
+                     */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: number): Out;
             /**
                      * @zh 四元数乘加：A + B * scale
-                     */ static scaleAndAdd<Out extends quat>(out: Out, a: quat, b: quat, scale: number): Out;
+                     */ static scaleAndAdd<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
                      * @zh 绕 X 轴旋转指定四元数
                      * @param rad 旋转弧度
-                     */ static rotateX<Out extends quat>(out: Out, a: quat, rad: number): Out;
+                     */ static rotateX<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
             /**
                      * @zh 绕 Y 轴旋转指定四元数
                      * @param rad 旋转弧度
-                     */ static rotateY<Out extends quat>(out: Out, a: quat, rad: number): Out;
+                     */ static rotateY<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
             /**
                      * @zh 绕 Z 轴旋转指定四元数
                      * @param rad 旋转弧度
-                     */ static rotateZ<Out extends quat>(out: Out, a: quat, rad: number): Out;
+                     */ static rotateZ<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
             /**
                      * @zh 绕世界空间下指定轴旋转四元数
                      * @param axis 旋转轴
                      * @param rad 旋转弧度
-                     */ static rotateAround<Out extends quat>(out: Out, rot: quat, axis: vec3, rad: number): Out;
+                     */ static rotateAround<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, rot: Out, axis: VecLike, rad: number): Out;
             /**
                      * @zh 绕本地空间下指定轴旋转四元数
                      * @param axis 旋转轴
                      * @param rad 旋转弧度
-                     */ static rotateAroundLocal<Out extends quat>(out: Out, rot: quat, axis: vec3, rad: number): Out;
+                     */ static rotateAroundLocal<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, rot: Out, axis: VecLike, rad: number): Out;
             /**
                      * @zh 根据 xyz 分量计算 w 分量，默认已归一化
-                     */ static calculateW<Out extends quat>(out: Out, a: quat): Out;
+                     */ static calculateW<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
             /**
                      * @zh 四元数点积（数量积）
-                     */ static dot(a: quat, b: quat): number;
+                     */ static dot<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out): number;
             /**
                      * @zh 逐元素线性插值： A + t * (B - A)
-                     */ static lerp<Out extends quat>(out: Out, a: quat, b: quat, t: number): Out;
+                     */ static lerp<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, t: number): Out;
             /**
                      * @zh 四元数球面插值
-                     */ static slerp<Out extends quat>(out: Out, a: quat, b: quat, t: number): Out;
+                     */ static slerp<Out extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike_1 extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike_2 extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike_1, b: QuatLike_2, t: number): Out;
             /**
                      * @zh 带两个控制点的四元数球面插值
-                     */ static sqlerp<Out extends quat>(out: Out, a: quat, b: quat, c: quat, d: quat, t: number): Out;
+                     */ static sqlerp<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, c: Out, d: Out, t: number): Out;
             /**
                      * @zh 四元数求逆
-                     */ static invert<Out extends quat>(out: Out, a: quat): Out;
+                     */ static invert<Out extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike): Out;
             /**
                      * @zh 求共轭四元数，对单位四元数与求逆等价，但更高效
-                     */ static conjugate<Out extends quat>(out: Out, a: quat): Out;
+                     */ static conjugate<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
             /**
                      * @zh 求四元数长度
-                     */ static magnitude(a: quat): number;
-            /**
-                     * @zh 求四元数长度
-                     */ static mag(a: quat): number;
+                     */ static len<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out): number;
             /**
                      * @zh 求四元数长度平方
-                     */ static squaredMagnitude(a: quat): number;
-            /**
-                     * @zh 求四元数长度平方
-                     */ static sqrMag(a: quat): number;
+                     */ static lengthSqr<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out): number;
             /**
                      * @zh 归一化四元数
-                     */ static normalize<Out extends quat>(out: Out, a: quat): Out;
+                     */ static normalize<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
             /**
                      * @zh 根据本地坐标轴朝向计算四元数，默认三向量都已归一化且相互垂直
-                     */ static fromAxes<Out extends quat>(out: Out, xAxis: vec3, yAxis: vec3, zAxis: vec3): Out;
+                     */ static fromAxes<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, xAxis: VecLike, yAxis: VecLike, zAxis: VecLike): Out;
             /**
                      * @zh 根据视口的前方向和上方向计算四元数
                      * @param view 视口面向的前方向，必须归一化
                      * @param up 视口的上方向，必须归一化，默认为 (0, 1, 0)
-                     */ static fromViewUp<Out extends quat>(out: Out, view: vec3, up?: vec3): Out;
+                     */ static fromViewUp<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, view: VecLike, up?: Vec3): Out;
             /**
                      * @zh 根据旋转轴和旋转弧度计算四元数
-                     */ static fromAxisAngle<Out extends quat>(out: Out, axis: vec3, rad: number): Out;
+                     */ static fromAxisAngle<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, axis: VecLike, rad: number): Out;
             /**
-                     * @zh 根据三维矩阵信息计算四元数，注意输出四元数并未归一化
-                     */ static fromMat3<Out extends quat>(out: Out, m: mat3): Out;
+                     * @zh 根据三维矩阵信息计算四元数，默认输入矩阵不含有缩放信息
+                     */ static fromMat3<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, m: Mat3): Out;
             /**
                      * @zh 根据欧拉角信息计算四元数
-                     */ static fromEuler<Out extends quat>(out: Out, x: number, y: number, z: number): Out;
+                     */ static fromEuler<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, x: number, y: number, z: number): Out;
             /**
                      * @zh 返回定义此四元数的坐标系 X 轴向量
-                     */ static toAxisX<Out extends vec3>(out: Out, q: quat): void;
+                     */ static toAxisX<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
             /**
                      * @zh 返回定义此四元数的坐标系 Y 轴向量
-                     */ static toAxisY<Out extends vec3>(out: Out, q: quat): void;
+                     */ static toAxisY<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
             /**
                      * @zh 返回定义此四元数的坐标系 Z 轴向量
-                     */ static toAxisZ<Out extends vec3>(out: Out, q: quat): void;
+                     */ static toAxisZ<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
             /**
                      * @zh 根据四元数计算欧拉角，返回角度在 [-180, 180] 区间内
-                     */ static toEuler<Out extends vec3>(out: Out, q: quat): Out;
-            /**
-                     * @zh 返回四元数的字符串表示
-                     */ static str(a: quat): string;
+                     */ static toEuler<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
             /**
                      * @zh 四元数转数组
                      * @param ofs 数组内的起始偏移量
-                     */ static array(out: IWritableArrayLike<number>, q: quat, ofs?: number): IWritableArrayLike<number>;
+                     */ static array<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: IWritableArrayLike<number>, q: Out, ofs?: number): IWritableArrayLike<number>;
             /**
                      * @zh 四元数等价判断
-                     */ static exactEquals(a: quat, b: quat): boolean;
+                     */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out): boolean;
             /**
                      * @zh 排除浮点数误差的四元数近似等价判断
-                     */ static equals(a: quat, b: quat): boolean;
-            x: number;
-            y: number;
-            z: number;
-            w: number;
+                     */ static equals<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out, epsilon?: number): boolean;
+            /**
+                     * x 分量。
+                     */ x: number;
+            /**
+                     * y 分量。
+                     */ y: number;
+            /**
+                     * z 分量。
+                     */ z: number;
+            /**
+                     * w 分量。
+                     */ w: number;
+            constructor(other: Quat);
             constructor(x?: number, y?: number, z?: number, w?: number);
+            /**
+                     * 克隆当前四元数。
+                     */ clone(): Quat;
+            /**
+                     * 设置当前四元数使其与指定四元数相等。
+                     * @param other 相比较的四元数。
+                     * @returns `this`
+                     */ set(other: Quat): any;
+            /**
+                     * 设置当前四元数指定元素值。
+                     * @param x 四元数 x 元素值
+                     * @param y 四元数 y 元素值
+                     * @param z 四元数 z 元素值
+                     * @param w 四元数 w 元素值
+                     * @returns `this`
+                     */ set(x?: number, y?: number, z?: number, w?: number): any;
+            /**
+                     * 判断当前向量是否在误差范围内与指定向量相等。
+                     * @param other 相比较的向量。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                     */ equals(other: Quat, epsilon?: number): boolean;
+            /**
+                     * 判断当前四元数是否与指定四元数相等。
+                     * @param other 相比较的四元数。
+                     * @returns 两四元数的各分量都相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals(other: Quat): boolean;
+            /**
+                     * 将当前四元数转化为欧拉角（x-y-z）并赋值给出口向量。
+                     * @param out 出口向量。
+                     */ getEulerAngles(out: Vec3): Vec3;
+            /**
+                     * 根据指定的插值比率，从当前四元数到目标四元数之间做插值。
+                     * @param to 目标四元数。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     */ lerp(to: Quat, ratio: number): this;
+            /**
+                     * @zh 求四元数长度
+                     */ length(): number;
+            /**
+                     * @zh 求四元数长度平方
+                     */ lengthSqr(): number;
         }
         /**
-             * @zh 三维矩阵
-             */ export class mat3 {
-            /**
-                     * @zh 创建新的实例
-                     */ static create(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number): mat3;
+             * 表示三维（3x3）矩阵。
+             */ export class Mat3 extends ValueType {
             /**
                      * @zh 获得指定矩阵的拷贝
-                     */ static clone(a: mat3): mat3;
+                     */ static clone<Out extends __internal.cocos_core_math_type_define_IMat3Like>(a: Out): Mat3;
             /**
                      * @zh 复制目标矩阵
-                     */ static copy<Out extends mat3>(out: Out, a: mat3): Out;
+                     */ static copy<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 设置矩阵值
-                     */ static set(out: mat3, m00: number, m01: number, m02: number, m10: number, m11: number, m12: number, m20: number, m21: number, m22: number): mat3;
+                     */ static set<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, m00: number, m01: number, m02: number, m10: number, m11: number, m12: number, m20: number, m21: number, m22: number): Out;
             /**
                      * @zh 将目标赋值为单位矩阵
-                     */ static identity<Out extends mat3>(out: Out): Out;
+                     */ static identity<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out): Out;
             /**
                      * @zh 转置矩阵
-                     */ static transpose<Out extends mat3>(out: Out, a: mat3): Out;
+                     */ static transpose<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 矩阵求逆
-                     */ static invert<Out extends mat3>(out: Out, a: mat3): Out | null;
+                     */ static invert<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
             /**
                      * @zh 矩阵行列式
-                     */ static determinant(a: mat3): number;
+                     */ static determinant<Out extends __internal.cocos_core_math_type_define_IMat3Like>(a: Out): number;
             /**
                      * @zh 矩阵乘法
-                     */ static multiply<Out extends mat3>(out: Out, a: mat3, b: mat3): Out;
+                     */ static multiply<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
             /**
-                     * @zh 矩阵乘法
-                     */ static mul(out: any, a: any, b: any): any;
+                     * 三阶与四阶矩阵乘法
+                     */ static multiplyMat4<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: __internal.cocos_core_math_type_define_IMat4Like): Out;
             /**
-                     * @zh 在给定矩阵变换基础上加入新位移变换
-                     */ static translate<Out extends mat3>(out: Out, a: mat3, v: vec3): Out;
+                     * @zh 在给定矩阵变换基础上加入变换
+                     */ static transfrom<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
                      * @zh 在给定矩阵变换基础上加入新缩放变换
-                     */ static scale<Out extends mat3>(out: Out, a: mat3, v: vec3): Out;
+                     */ static scale<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
                      * @zh 在给定矩阵变换基础上加入新旋转变换
                      * @param rad 旋转弧度
-                     */ static rotate<Out extends mat3>(out: Out, a: mat3, rad: number): Out;
+                     */ static rotate<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, rad: number): Out;
             /**
                      * @zh 根据指定四维矩阵计算三维矩阵
-                     */ static fromMat4<Out extends mat3>(out: Out, a: mat4): Out;
+                     */ static fromMat4<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: __internal.cocos_core_math_type_define_IMat4Like): Out;
             /**
                      * @zh 根据视口前方向和上方向计算矩阵
                      * @param view 视口面向的前方向，必须归一化
                      * @param up 视口的上方向，必须归一化，默认为 (0, 1, 0)
-                     */ static fromViewUp<Out extends mat3>(out: Out, view: vec3, up?: vec3): Out;
+                     */ static fromViewUp<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, view: VecLike, up?: Vec3): Out;
             /**
                      * @zh 计算位移矩阵
-                     */ static fromTranslation<Out extends mat3>(out: Out, v: vec3): Out;
+                     */ static fromTranslation<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
             /**
                      * @zh 计算缩放矩阵
-                     */ static fromScaling<Out extends mat3>(out: Out, v: vec3): Out;
+                     */ static fromScaling<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
             /**
                      * @zh 计算旋转矩阵
-                     */ static fromRotation<Out extends mat3>(out: Out, rad: number): Out;
+                     */ static fromRotation<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, rad: number): Out;
             /**
                      * @zh 根据四元数旋转信息计算矩阵
-                     */ static fromQuat<Out extends mat3>(out: Out, q: quat): Out;
+                     */ static fromQuat<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, q: __internal.cocos_core_math_type_define_IQuatLike): Out;
             /**
                      * @zh 计算指定四维矩阵的逆转置三维矩阵
-                     */ static inverseTransposeMat4<Out extends mat3>(out: Out, a: mat4): Out | null;
-            /**
-                     * @zh 返回矩阵的字符串表示
-                     */ static str(a: any): string;
+                     */ static inverseTransposeMat4<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: __internal.cocos_core_math_type_define_IMat4Like): Out | null;
             /**
                      * @zh 矩阵转数组
                      * @param ofs 数组内的起始偏移量
-                     */ static array(out: IWritableArrayLike<number>, m: mat4, ofs?: number): IWritableArrayLike<number>;
+                     */ static array(out: IWritableArrayLike<number>, m: Mat3, ofs?: number): IWritableArrayLike<number>;
             /**
                      * @zh 逐元素矩阵加法
-                     */ static add<Out extends mat3>(out: Out, a: mat3, b: mat3): Out;
+                     */ static add<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素矩阵减法
-                     */ static subtract<Out extends mat3>(out: Out, a: mat3, b: mat3): Out;
-            /**
-                     * @zh 逐元素矩阵减法
-                     */ static sub<Out extends mat3>(out: Out, a: mat3, b: mat3): Out;
+                     */ static subtract<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 矩阵标量乘法
-                     */ static multiplyScalar<Out extends mat3>(out: Out, a: mat3, b: number): Out;
+                     */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: number): Out;
             /**
                      * @zh 逐元素矩阵标量乘加: A + B * scale
-                     */ static multiplyScalarAndAdd<Out extends mat3>(out: Out, a: mat3, b: mat3, scale: number): Out;
+                     */ static multiplyScalarAndAdd<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
                      * @zh 矩阵等价判断
-                     */ static exactEquals(a: mat3, b: mat3): boolean;
+                     */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IMat3Like>(a: Out, b: Out): boolean;
             /**
                      * @zh 排除浮点数误差的矩阵近似等价判断
-                     */ static equals(a: mat3, b: mat3): boolean;
-            m00: number;
-            m01: number;
-            m02: number;
-            m03: number;
-            m04: number;
-            m05: number;
-            m06: number;
-            m07: number;
-            m08: number;
+                     */ static equals<Out extends __internal.cocos_core_math_type_define_IMat3Like>(a: Out, b: Out, epsilon?: number): boolean;
+            /**
+                     * 矩阵第 0 列第 0 行的元素。
+                     */ m00: number;
+            /**
+                     * 矩阵第 0 列第 1 行的元素。
+                     */ m01: number;
+            /**
+                     * 矩阵第 0 列第 2 行的元素。
+                     */ m02: number;
+            /**
+                     * 矩阵第 1 列第 0 行的元素。
+                     */ m03: number;
+            /**
+                     * 矩阵第 1 列第 1 行的元素。
+                     */ m04: number;
+            /**
+                     * 矩阵第 1 列第 2 行的元素。
+                     */ m05: number;
+            /**
+                     * 矩阵第 2 列第 0 行的元素。
+                     */ m06: number;
+            /**
+                     * 矩阵第 2 列第 1 行的元素。
+                     */ m07: number;
+            /**
+                     * 矩阵第 2 列第 2 行的元素。
+                     */ m08: number;
+            constructor(other: Mat3);
             constructor(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number);
+            /**
+                     * 克隆当前矩阵。
+                     */ clone(): Mat3;
+            /**
+                     * 设置当前矩阵使其与指定矩阵相等。
+                     * @param other 相比较的矩阵。
+                     * @returns `this`
+                     */ set(other: Mat3): any;
+            /**
+                     * 设置当前矩阵指定元素值。
+                     * @returns `this`
+                     */ set(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number): any;
+            /**
+                     * 判断当前矩阵是否在误差范围内与指定矩阵相等。
+                     * @param other 相比较的矩阵。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+                     */ equals(other: Mat3, epsilon?: number): boolean;
+            /**
+                     * 判断当前矩阵是否与指定矩阵相等。
+                     * @param other 相比较的矩阵。
+                     * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals(other: Mat3): boolean;
+            /**
+                     * 返回当前矩阵的字符串表示。
+                     * @returns 当前矩阵的字符串表示。
+                     */ toString(): string;
+            /**
+                     * 将当前矩阵设为单位矩阵。
+                     * @returns `this`
+                     */ identity(): this;
+            /**
+                     * 计算当前矩阵的转置矩阵。
+                     */ transpose(): this;
+            /**
+                     * 计算当前矩阵的逆矩阵。
+                     */ invert(): this | null;
+            /**
+                     * 计算当前矩阵的行列式。
+                     * @returns 当前矩阵的行列式。
+                     */ determinant(): number;
+            /**
+                     * 矩阵加法。将当前矩阵与指定矩阵的相加，结果返回给当前矩阵。
+                     * @param mat 相加的矩阵
+                     */ add(mat: Mat3): this;
+            /**
+                     * 计算矩阵减法。将当前矩阵减去指定矩阵的结果赋值给当前矩阵。
+                     * @param mat 减数矩阵。
+                     */ subtract(mat: Mat3): this;
+            /**
+                     * 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给当前矩阵。
+                     * @param mat 指定的矩阵。
+                     */ multiply(mat: Mat3): this;
+            /**
+                     * 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给当前矩阵。
+                     * @param scalar 指定的标量。
+                     */ multiplyScalar(scalar: number): this;
+            /**
+                     * 将当前矩阵左乘缩放矩阵的结果赋值给当前矩阵，缩放矩阵由各个轴的缩放给出。
+                     * @param vec 各个轴的缩放。
+                     */ scale(vec: Vec3): this;
+            /**
+                     * 将当前矩阵左乘旋转矩阵的结果赋值给当前矩阵，旋转矩阵由旋转轴和旋转角度给出。
+                     * @param mat 矩阵
+                     * @param rad 旋转角度（弧度制）
+                     */ rotate(rad: number): this;
+            /**
+                     * 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
+                     * @param q 四元数表示的旋转变换。
+                     * @returns `this`
+                     */ fromQuat(q: Quat): this;
         }
         /**
-             * @zh 四维矩阵
-             */ export class mat4 {
+             * 表示四维（4x4）矩阵。
+             */ export class Mat4 extends ValueType {
             /**
-                     * @zh 创建新的实例
-                     */ static create(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number): mat4;
+                     * 矩阵第 0 列第 0 行的元素。
+                     */ m00: number;
+            /**
+                     * 矩阵第 0 列第 1 行的元素。
+                     */ m01: number;
+            /**
+                     * 矩阵第 0 列第 2 行的元素。
+                     */ m02: number;
+            /**
+                     * 矩阵第 0 列第 3 行的元素。
+                     */ m03: number;
+            /**
+                     * 矩阵第 1 列第 0 行的元素。
+                     */ m04: number;
+            /**
+                     * 矩阵第 1 列第 1 行的元素。
+                     */ m05: number;
+            /**
+                     * 矩阵第 1 列第 2 行的元素。
+                     */ m06: number;
+            /**
+                     * 矩阵第 1 列第 3 行的元素。
+                     */ m07: number;
+            /**
+                     * 矩阵第 2 列第 0 行的元素。
+                     */ m08: number;
+            /**
+                     * 矩阵第 2 列第 1 行的元素。
+                     */ m09: number;
+            /**
+                     * 矩阵第 2 列第 2 行的元素。
+                     */ m10: number;
+            /**
+                     * 矩阵第 2 列第 3 行的元素。
+                     */ m11: number;
+            /**
+                     * 矩阵第 3 列第 0 行的元素。
+                     */ m12: number;
+            /**
+                     * 矩阵第 3 列第 1 行的元素。
+                     */ m13: number;
+            /**
+                     * 矩阵第 3 列第 2 行的元素。
+                     */ m14: number;
+            /**
+                     * 矩阵第 3 列第 3 行的元素。
+                     */ m15: number;
+            constructor(other: Mat4);
+            constructor(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number);
             /**
                      * @zh 获得指定矩阵的拷贝
-                     */ static clone(a: mat4): mat4;
+                     */ static clone<Out extends __internal.cocos_core_math_type_define_IMat4Like>(a: Out): Mat4;
             /**
                      * @zh 复制目标矩阵
-                     */ static copy<Out extends mat4>(out: Out, a: mat4): Out;
+                     */ static copy<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 设置矩阵值
-                     */ static set(out: mat4, m00: number, m01: number, m02: number, m03: number, m10: number, m11: number, m12: number, m13: number, m20: number, m21: number, m22: number, m23: number, m30: number, m31: number, m32: number, m33: number): mat4;
+                     */ static set<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, m00: number, m01: number, m02: number, m03: number, m10: number, m11: number, m12: number, m13: number, m20: number, m21: number, m22: number, m23: number, m30: number, m31: number, m32: number, m33: number): Out;
             /**
                      * @zh 将目标赋值为单位矩阵
-                     */ static identity<Out extends mat4>(out: Out): Out;
+                     */ static identity<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out): Out;
             /**
                      * @zh 转置矩阵
-                     */ static transpose<Out extends mat4>(out: Out, a: mat4): Out;
+                     */ static transpose<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out;
             /**
                      * @zh 矩阵求逆
-                     */ static invert<Out extends mat4>(out: Out, a: mat4): Out | null;
+                     */ static invert<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out | null;
             /**
                      * @zh 矩阵行列式
-                     */ static determinant(a: mat4): number;
+                     */ static determinant<Out extends __internal.cocos_core_math_type_define_IMat4Like>(a: Out): number;
             /**
                      * @zh 矩阵乘法
-                     */ static multiply<Out extends mat4>(out: Out, a: mat4, b: mat4): Out;
+                     */ static multiply<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
             /**
-                     * @zh 矩阵乘法
-                     */ static mul<Out extends mat4>(out: Out, a: mat4, b: mat4): Out;
+                     * @zh 在给定矩阵变换基础上加入变换
+                     */ static transform<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
                      * @zh 在给定矩阵变换基础上加入新位移变换
-                     */ static translate<Out extends mat4>(out: Out, a: mat4, v: vec3): Out;
+                     */ static translate<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
                      * @zh 在给定矩阵变换基础上加入新缩放变换
-                     */ static scale<Out extends mat4>(out: Out, a: mat4, v: vec3): Out;
+                     */ static scale<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
                      * @zh 在给定矩阵变换基础上加入新旋转变换
                      * @param rad 旋转角度
                      * @param axis 旋转轴
-                     */ static rotate<Out extends mat4>(out: Out, a: mat4, rad: number, axis: vec3): Out | null;
+                     */ static rotate<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, rad: number, axis: VecLike): Out | null;
             /**
                      * @zh 在给定矩阵变换基础上加入绕 X 轴的旋转变换
                      * @param rad 旋转角度
-                     */ static rotateX<Out extends mat4>(out: Out, a: mat4, rad: number): Out;
+                     */ static rotateX<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
             /**
                      * @zh 在给定矩阵变换基础上加入绕 Y 轴的旋转变换
                      * @param rad 旋转角度
-                     */ static rotateY<Out extends mat4>(out: Out, a: mat4, rad: number): Out;
+                     */ static rotateY<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
             /**
                      * @zh 在给定矩阵变换基础上加入绕 Z 轴的旋转变换
                      * @param rad 旋转角度
-                     */ static rotateZ<Out extends mat4>(out: Out, a: mat4, rad: number): Out;
+                     */ static rotateZ<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
             /**
                      * @zh 计算位移矩阵
-                     */ static fromTranslation<Out extends mat4>(out: Out, v: vec3): Out;
+                     */ static fromTranslation<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
             /**
                      * @zh 计算缩放矩阵
-                     */ static fromScaling<Out extends mat4>(out: Out, v: vec3): Out;
+                     */ static fromScaling<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
             /**
                      * @zh 计算旋转矩阵
-                     */ static fromRotation<Out extends mat4>(out: Out, rad: number, axis: vec3): Out | null;
+                     */ static fromRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, rad: number, axis: VecLike): Out | null;
             /**
                      * @zh 计算绕 X 轴的旋转矩阵
-                     */ static fromXRotation<Out extends mat4>(out: Out, rad: number): Out;
+                     */ static fromXRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
             /**
                      * @zh 计算绕 Y 轴的旋转矩阵
-                     */ static fromYRotation<Out extends mat4>(out: Out, rad: number): Out;
+                     */ static fromYRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
             /**
                      * @zh 计算绕 Z 轴的旋转矩阵
-                     */ static fromZRotation<Out extends mat4>(out: Out, rad: number): Out;
+                     */ static fromZRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
             /**
                      * @zh 根据旋转和位移信息计算矩阵
-                     */ static fromRT<Out extends mat4>(out: Out, q: quat, v: vec3): Out;
+                     */ static fromRT<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike): Out;
             /**
                      * @zh 提取矩阵的位移信息, 默认矩阵中的变换以 S->R->T 的顺序应用
-                     */ static getTranslation<Out extends vec3>(out: Out, mat: mat4): Out;
+                     */ static getTranslation<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, mat: Out): VecLike;
             /**
                      * @zh 提取矩阵的缩放信息, 默认矩阵中的变换以 S->R->T 的顺序应用
-                     */ static getScaling<Out extends vec3>(out: Out, mat: mat4): Out;
+                     */ static getScaling<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, mat: Out): VecLike;
             /**
-                     * @zh 提取矩阵的旋转信息, 默认矩阵中的变换以 S->R->T 的顺序应用
-                     */ static getRotation<Out extends quat>(out: Out, mat: mat4): Out;
+                     * @zh 提取矩阵的旋转信息, 默认输入矩阵不含有缩放信息，如考虑缩放应使用 `toRTS` 函数。
+                     */ static getRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Quat, mat: Out): Quat;
             /**
                      * @zh 提取旋转、位移、缩放信息， 默认矩阵中的变换以 S->R->T 的顺序应用
-                     */ static toRTS(m: mat4, q: quat, v: vec3, s: vec3): void;
+                     */ static toRTS<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(m: Out, q: Quat, v: VecLike, s: VecLike): void;
             /**
                      * @zh 根据旋转、位移、缩放信息计算矩阵，以 S->R->T 的顺序应用
-                     */ static fromRTS<Out extends mat4>(out: Out, q: quat, v: vec3, s: vec3): Out;
+                     */ static fromRTS<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike, s: VecLike): Out;
             /**
                      * @zh 根据指定的旋转、位移、缩放及变换中心信息计算矩阵，以 S->R->T 的顺序应用
                      * @param q 旋转值
                      * @param v 位移值
                      * @param s 缩放值
                      * @param o 指定变换中心
-                     */ static fromRTSOrigin<Out extends mat4>(out: Out, q: quat, v: vec3, s: vec3, o: vec3): Out;
+                     */ static fromRTSOrigin<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike, s: VecLike, o: VecLike): Out;
             /**
                      * @zh 根据指定的旋转信息计算矩阵
-                     */ static fromQuat<Out extends mat4>(out: Out, q: quat): Out;
+                     */ static fromQuat<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, q: Quat): Out;
             /**
                      * @zh 根据指定的视锥体信息计算矩阵
                      * @param left 左平面距离
@@ -1202,14 +3087,14 @@ declare module "Cocos3D" {
                      * @param top 上平面距离
                      * @param near 近平面距离
                      * @param far 远平面距离
-                     */ static frustum<Out extends mat4>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
+                     */ static frustum<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
             /**
                      * @zh 计算透视投影矩阵
                      * @param fovy 纵向视角高度
                      * @param aspect 长宽比
                      * @param near 近平面距离
                      * @param far 远平面距离
-                     */ static perspective<Out extends mat4>(out: Out, fovy: number, aspect: number, near: number, far: number): Out;
+                     */ static perspective<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, fovy: number, aspect: number, near: number, far: number): Out;
             /**
                      * @zh 计算正交投影矩阵
                      * @param left 左平面距离
@@ -1218,128 +3103,608 @@ declare module "Cocos3D" {
                      * @param top 上平面距离
                      * @param near 近平面距离
                      * @param far 远平面距离
-                     */ static ortho<Out extends mat4>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
+                     */ static ortho<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
             /**
                      * @zh 根据视点计算矩阵，注意 `eye - center` 不能为零向量或与 `up` 向量平行
                      * @param eye 当前位置
                      * @param center 目标视点
                      * @param up 视口上方向
-                     */ static lookAt<Out extends mat4>(out: Out, eye: vec3, center: vec3, up: vec3): Out;
-            /**
-                     * @zh 返回矩阵的字符串表示
-                     */ static str(a: mat4): string;
+                     */ static lookAt<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, eye: VecLike, center: VecLike, up: VecLike): Out;
             /**
                      * @zh 计算逆转置矩阵
-                     */ static inverseTranspose<Out extends mat4>(out: Out, a: mat4): Out | null;
+                     */ static inverseTranspose<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out | null;
             /**
                      * @zh 矩阵转数组
                      * @param ofs 数组内的起始偏移量
-                     */ static array(out: IWritableArrayLike<number>, m: mat4, ofs?: number): IWritableArrayLike<number>;
+                     */ static array<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: IWritableArrayLike<number>, m: Out, ofs?: number): IWritableArrayLike<number>;
             /**
                      * @zh 逐元素矩阵加法
-                     */ static add<Out extends mat4>(out: Out, a: mat4, b: mat4): Out;
+                     */ static add<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐元素矩阵减法
-                     */ static subtract<Out extends mat4>(out: Out, a: mat4, b: mat4): Out;
-            /**
-                     * @zh 逐元素矩阵减法
-                     */ static sub<Out extends mat4>(out: Out, a: mat4, b: mat4): Out;
+                     */ static subtract<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 矩阵标量乘法
-                     */ static multiplyScalar<Out extends mat4>(out: Out, a: mat4, b: number): Out;
+                     */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: number): Out;
             /**
                      * @zh 逐元素矩阵标量乘加: A + B * scale
-                     */ static multiplyScalarAndAdd<Out extends mat4>(out: Out, a: mat4, b: mat4, scale: number): Out;
+                     */ static multiplyScalarAndAdd<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
                      * @zh 矩阵等价判断
-                     */ static exactEquals(a: mat4, b: mat4): boolean;
+                     */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IMat4Like>(a: Out, b: Out): boolean;
             /**
                      * @zh 排除浮点数误差的矩阵近似等价判断
-                     */ static equals(a: mat4, b: mat4, epsilon?: number): boolean;
-            m00: number;
-            m01: number;
-            m02: number;
-            m03: number;
-            m04: number;
-            m05: number;
-            m06: number;
-            m07: number;
-            m08: number;
-            m09: number;
-            m10: number;
-            m11: number;
-            m12: number;
-            m13: number;
-            m14: number;
-            m15: number;
-            constructor(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number);
+                     */ static equals<Out extends __internal.cocos_core_math_type_define_IMat4Like>(a: Out, b: Out, epsilon?: number): boolean;
+            /**
+                     * 克隆当前矩阵。
+                     */ clone(): Mat4;
+            /**
+                     * 设置当前矩阵使其与指定矩阵相等。
+                     * @param other 相比较的矩阵。
+                     * @returns `this`
+                     */ set(other: Mat4): any;
+            /**
+                     * 设置当前矩阵指定元素值。
+                     * @returns `this`
+                     */ set(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number): any;
+            /**
+                     * 判断当前矩阵是否在误差范围内与指定矩阵相等。
+                     * @param other 相比较的矩阵。
+                     * @param epsilon 允许的误差，应为非负数。
+                     * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+                     */ equals(other: Mat4, epsilon?: number): boolean;
+            /**
+                     * 判断当前矩阵是否与指定矩阵相等。
+                     * @param other 相比较的矩阵。
+                     * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+                     */ strictEquals(other: Mat4): boolean;
+            /**
+                     * 返回当前矩阵的字符串表示。
+                     * @returns 当前矩阵的字符串表示。
+                     */ toString(): string;
+            /**
+                     * 将当前矩阵设为单位矩阵。
+                     * @returns `this`
+                     */ identity(): this;
+            /**
+                     * 计算当前矩阵的转置矩阵。
+                     */ transpose(): this;
+            /**
+                     * 计算当前矩阵的逆矩阵。
+                     */ invert(): this | null;
+            /**
+                     * 计算当前矩阵的行列式。
+                     * @returns 当前矩阵的行列式。
+                     */ determinant(): number;
+            /**
+                     * 矩阵加法。将当前矩阵与指定矩阵的相加，结果返回给当前矩阵。
+                     * @param mat 相加的矩阵
+                     */ add(mat: Mat4): this;
+            /**
+                     * 计算矩阵减法。将当前矩阵减去指定矩阵的结果赋值给当前矩阵。
+                     * @param mat 减数矩阵。
+                     */ subtract(mat: Mat4): this;
+            /**
+                     * 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给当前矩阵。
+                     * @param mat 指定的矩阵。
+                     */ multiply(mat: Mat4): this;
+            /**
+                     * 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给当前矩阵。
+                     * @param scalar 指定的标量。
+                     */ multiplyScalar(scalar: number): this;
+            /**
+                     * 将当前矩阵左乘位移矩阵的结果赋值给当前矩阵，位移矩阵由各个轴的位移给出。
+                     * @param vec 位移向量。
+                     */ translate(vec: Vec3): this;
+            /**
+                     * 将当前矩阵左乘缩放矩阵的结果赋值给当前矩阵，缩放矩阵由各个轴的缩放给出。
+                     * @param vec 各个轴的缩放。
+                     */ scale(vec: Vec3): this;
+            /**
+                     * 将当前矩阵左乘旋转矩阵的结果赋值给当前矩阵，旋转矩阵由旋转轴和旋转角度给出。
+                     * @param mat 矩阵
+                     * @param rad 旋转角度（弧度制）
+                     * @param axis 旋转轴
+                     */ rotate(rad: number, axis: Vec3): this | null;
+            /**
+                     * 从当前矩阵中计算出位移变换的部分，并以各个轴上位移的形式赋值给出口向量。
+                     * @param out 返回向量，当未指定时将创建为新的向量。
+                     */ getTranslation(out: Vec3): Vec3;
+            /**
+                     * 从当前矩阵中计算出缩放变换的部分，并以各个轴上缩放的形式赋值给出口向量。
+                     * @param out 返回值，当未指定时将创建为新的向量。
+                     */ getScale(out: Vec3): Vec3;
+            /**
+                     * 从当前矩阵中计算出旋转变换的部分，并以四元数的形式赋值给出口四元数。
+                     * @param out 返回值，当未指定时将创建为新的四元数。
+                     */ getRotation(out: Quat): Quat;
+            /**
+                     * 重置当前矩阵的值，使其表示指定的旋转、缩放、位移依次组合的变换。
+                     * @param q 四元数表示的旋转变换。
+                     * @param v 位移变换，表示为各个轴的位移。
+                     * @param s 缩放变换，表示为各个轴的缩放。
+                     * @returns `this`
+                     */ fromRTS(q: Quat, v: Vec3, s: Vec3): this;
+            /**
+                     * 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
+                     * @param q 四元数表示的旋转变换。
+                     * @returns `this`
+                     */ fromQuat(q: Quat): this;
         }
         /**
-             * @zh RGBA 格式的颜色，每个通道取值范围 [0, 1]
-             */ export class color4 {
+             * 二维仿射变换矩阵，描述了平移、缩放和缩放。
+             */ export class AffineTransform {
             /**
-                     * @zh 创建新的实例
-                     */ static create(r?: number, g?: number, b?: number, a?: number): color4;
+                     * 创建单位二维仿射变换矩阵，它不进行任何变换。
+                     */ static identity(): AffineTransform;
+            /**
+                     * 克隆指定的二维仿射变换矩阵。
+                     * @param affineTransform 指定的二维仿射变换矩阵。
+                     */ static clone(affineTransform: AffineTransform): AffineTransform;
+            /**
+                     * 将两个矩阵相乘的结果赋值给出口矩阵。
+                     * @param out 出口矩阵。
+                     * @param t1 左矩阵。
+                     * @param t2 右矩阵。
+                     */ static concat(out: AffineTransform, t1: AffineTransform, t2: AffineTransform): void;
+            /**
+                     * 将矩阵求逆的结果赋值给出口矩阵。
+                     * @param out 出口矩阵。
+                     * @param t 求逆的矩阵。
+                     */ static invert(out: AffineTransform, t: AffineTransform): void;
+            /**
+                     * 将四维矩阵转换为二维仿射变换矩阵并赋值给出口矩阵。
+                     * @param out 出口矩阵。
+                     * @param mat 四维矩阵。
+                     */ static fromMat4(out: AffineTransform, mat: Mat4): void;
+            /**
+                     * 应用二维仿射变换矩阵到二维向量上，并将结果赋值给出口向量。
+                     * @param out 出口向量。
+                     * @param point 应用变换的向量。
+                     * @param t 二维仿射变换矩阵。
+                     */ static transformVec2(out: Vec2, point: Vec2, t: AffineTransform): any;
+            /**
+                     * 应用二维仿射变换矩阵到二维向量上，并将结果赋值给出口向量。
+                     * @param out 出口向量。
+                     * @param x 应用变换的向量的 x 分量。
+                     * @param y 应用变换的向量的 y 分量。
+                     * @param t 二维仿射变换矩阵。
+                     */ static transformVec2(out: Vec2, x: number, y: number, t: AffineTransform): any;
+            /**
+                     * 应用二维仿射变换矩阵到二维尺寸上，并将结果赋值给出口尺寸。
+                     * @param out 出口尺寸。
+                     * @param size 应用变换的尺寸。
+                     * @param t 二维仿射变换矩阵。
+                     */ static transformSize(out: Size, size: Size, t: AffineTransform): void;
+            /**
+                     * 应用二维仿射变换矩阵到矩形上，并将结果赋值给出口矩形。
+                     * @param out 出口矩形。
+                     * @param rect 应用变换的矩形。
+                     * @param t 二维仿射变换矩阵。
+                     */ static transformRect(out: Rect, rect: Rect, t: AffineTransform): void;
+            /**
+                     * 应用二维仿射变换矩阵到矩形上, 并转换为有向包围盒。
+                     * 这个函数不创建任何内存，你需要先创建包围盒的四个 Vector 对象用来存储结果，并作为前四个参数传入函数。
+                     */ static transformObb(out_bl: Vec2, out_tl: Vec2, out_tr: Vec2, out_br: Vec2, rect: Rect, anAffineTransform: AffineTransform): void;
+            a: number;
+            b: number;
+            c: number;
+            d: number;
+            tx: number;
+            ty: number;
+            /**
+                     * 构造二维放射变换矩阵。
+                     * @param a a 元素。
+                     * @param b b 元素。
+                     * @param c c 元素。
+                     * @param d d 元素。
+                     * @param tx tx 元素。
+                     * @param ty ty 元素。
+                     */ constructor(a?: number, b?: number, c?: number, d?: number, tx?: number, ty?: number);
+        }
+        /**
+             * 二维尺寸。
+             */ export class Size extends ValueType {
+            /**
+                     * 创建宽和高都为 0 的尺寸并返回。
+                     */ static readonly ZERO: Size;
+            /**
+                     * 根据指定的插值比率，从当前尺寸到目标尺寸之间做插值。
+                     * @param out 本方法将插值结果赋值给此参数
+                     * @param from 起始尺寸。
+                     * @param to 目标尺寸。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     * @returns 当前尺寸的宽和高到目标尺寸的宽和高分别按指定插值比率进行线性插值构成的向量。
+                     */ static lerp<Out extends __internal.cocos_core_math_type_define_ISizeLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+            /**
+                     * 宽度。
+                     */ width: number;
+            /**
+                     * 高度。
+                     */ height: number;
+            /**
+                     * 构造与指定尺寸相等的尺寸。
+                     * @param other 相比较的尺寸。
+                     */ constructor(other: Size);
+            /**
+                     * 构造具有指定宽度和高度的尺寸。
+                     * @param [width=0] 指定的宽度。
+                     * @param [height=0] 指定的高度。
+                     */ constructor(width?: number, height?: number);
+            /**
+                     * 克隆当前尺寸。
+                     */ clone(): Size;
+            /**
+                     * 设置当前尺寸使其与指定的尺寸相等。
+                     * @param other 相比较的尺寸。
+                     * @returns `this`
+                     */ set(other: Size): any;
+            /**
+                     * 设置当前尺寸的具体参数。
+                     * @param width 要设置的 width 值
+                     * @param height 要设置的 height 值
+                     * @returns `this`
+                     */ set(width?: number, height?: number): any;
+            /**
+                     * 判断当前尺寸是否与指定尺寸的相等。
+                     * @param other 相比较的尺寸。
+                     * @returns 两尺寸的宽和高都分别相等时返回 `true`；否则返回 `false`。
+                     */ equals(other: Size): boolean;
+            /**
+                     * 根据指定的插值比率，从当前尺寸到目标尺寸之间做插值。
+                     * @param to 目标尺寸。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     */ lerp(to: Size, ratio: number): this;
+            /**
+                     * 返回当前尺寸的字符串表示。
+                     * @returns 当前尺寸的字符串表示。
+                     */ toString(): string;
+        }
+        /**
+             * 轴对齐矩形。
+             * 矩形内的所有点都大于等于矩形的最小点 (xMin, yMin) 并且小于等于矩形的最大点 (xMax, yMax)。
+             * 矩形的宽度定义为 xMax - xMin；高度定义为 yMax - yMin。
+             */ export class Rect extends ValueType {
+            /**
+                     * 获取或设置矩形在 x 轴上的最小值。
+                     */ xMin: number;
+            /**
+                     * 获取或设置矩形在 y 轴上的最小值。
+                     */ yMin: number;
+            /**
+                     * 获取或设置矩形在 x 轴上的最大值。
+                     */ xMax: number;
+            /**
+                     * 获取或设置矩形在 y 轴上的最大值。
+                     */ yMax: number;
+            /**
+                     * 获取或设置矩形中心点的坐标。
+                     */ center: Vec2;
+            /**
+                     * 获取或设置矩形最小点的坐标。
+                     */ origin: any;
+            /**
+                     * 获取或设置矩形的尺寸。
+                     */ size: Size;
+            /**
+                     * 由任意两个点创建一个矩形，目标矩形即是这两个点各向 x、y 轴作线所得到的矩形。
+                     * @param v1 指定的点。
+                     * @param v2 指定的点。
+                     * @returns 目标矩形。
+                     */ static fromMinMax<Out extends __internal.cocos_core_math_type_define_IRectLike, VecLike extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, v1: VecLike, v2: VecLike): Out;
+            /**
+                     * 根据指定的插值比率，从当前矩形到目标矩形之间做插值。
+                     * @param out 本方法将插值结果赋值给此参数
+                     * @param from 起始矩形。
+                     * @param to 目标矩形。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     */ static lerp<Out extends __internal.cocos_core_math_type_define_IRectLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+            /**
+                     * 计算当前矩形与指定矩形重叠部分的矩形，将其赋值给出口矩形。
+                     * @param out 出口矩形。
+                     * @param one 指定的一个矩形。
+                     * @param other 指定的另一个矩形。
+                     */ static intersection<Out extends __internal.cocos_core_math_type_define_IRectLike>(out: Out, one: Out, other: Out): Out;
+            /**
+                     * 创建同时包含当前矩形和指定矩形的最小矩形，将其赋值给出口矩形。
+                     * @param out 出口矩形。
+                     * @param one 指定的一个矩形。
+                     * @param other 指定的另一个矩形。
+                     */ static union<Out extends __internal.cocos_core_math_type_define_IRectLike>(out: Out, one: Out, other: Out): Out;
+            /**
+                     * 获取或设置矩形最小点的 x 坐标。
+                     */ x: number;
+            /**
+                     * 获取或设置矩形最小点的 y 坐标。
+                     */ y: number;
+            /**
+                     * 获取或设置矩形的宽度。
+                     */ width: number;
+            /**
+                     * 获取或设置矩形的高度。
+                     */ height: number;
+            /**
+                     * 构造与指定矩形相等的矩形。
+                     * @param other 相比较的矩形。
+                     */ constructor(other: Rect);
+            /**
+                     * 构造具有指定的最小值和尺寸的矩形。
+                     * @param x 矩形在 x 轴上的最小值。
+                     * @param y 矩形在 y 轴上的最小值。
+                     * @param width 矩形的宽度。
+                     * @param height 矩形的高度。
+                     */ constructor(x?: number, y?: number, width?: number, height?: number);
+            /**
+                     * 克隆当前矩形。
+                     */ clone(): Rect;
+            /**
+                     * 设置当前矩形使其与指定矩形相等。
+                     * @param other 相比较的矩形。
+                     * @returns `this`
+                     */ set(other: Rect): any;
+            /**
+                     * 设置当前矩形使其与指定参数的矩形相等。
+                     * @param x 指定矩形的 x 参数
+                     * @param y 指定矩形的 y 参数
+                     * @param width 指定矩形的 width 参数
+                     * @param height 指定矩形的 height 参数
+                     * @returns `this`
+                     */ set(x?: number, y?: number, width?: number, height?: number): any;
+            /**
+                     * 判断当前矩形是否与指定矩形相等。
+                     * @param other 相比较的矩形。
+                     * @returns 两矩阵的最小值和最大值都分别相等时返回 `true`；否则返回 `false`。
+                     */ equals(other: Rect): boolean;
+            /**
+                     * 根据指定的插值比率，从当前矩形到目标矩形之间做插值。
+                     * @param to 目标矩形。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     */ lerp(to: Rect, ratio: number): this;
+            /**
+                     * 返回当前矩形的字符串表示。
+                     * @returns 当前矩形的字符串表示。
+                     */ toString(): string;
+            /**
+                     * 判断当前矩形是否与指定矩形相交。
+                     * @param other 相比较的矩形。
+                     * @returns 相交则返回 `true`，否则返回 `false`。
+                     */ intersects(other: Rect): boolean;
+            /**
+                     * 判断当前矩形是否包含指定的点。
+                     * @param point 指定的点。
+                     * @returns 指定的点包含在矩形内则返回 `true`，否则返回 `false`。
+                     */ contains(point: Vec2): boolean;
+            /**
+                     * 判断当前矩形是否包含指定矩形。
+                     * @param other 指定的矩形。
+                     * @returns 指定矩形所有的点都包含在当前矩形内则返回 `true`，否则返回 `false`。
+                     */ containsRect(other: Rect): boolean;
+            /**
+                     * 应用矩阵变换到当前矩形：
+                     * 应用矩阵变换到当前矩形的最小点得到新的最小点，
+                     * 将当前矩形的尺寸视为二维向量应用矩阵变换得到新的尺寸；
+                     * 并将如此构成的新矩形。
+                     * @param matrix 变换矩阵。
+                     */ transformMat4(mat: Mat4): this;
+        }
+        /**
+             * 通过 Red、Green、Blue 颜色通道表示颜色，并通过 Alpha 通道表示不透明度。
+             * 每个通道都为取值范围 [0, 255] 的整数。
+             */ export class Color extends ValueType {
             /**
                      * @zh 获得指定颜色的拷贝
-                     */ static clone(a: color4): color4;
+                     */ static clone<Out extends __internal.cocos_core_math_type_define_IColorLike>(a: Out): Color;
             /**
                      * @zh 复制目标颜色
-                     */ static copy<Out extends color4>(out: Out, a: color4): Out;
+                     */ static copy<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out): Out;
             /**
                      * @zh 设置颜色值
-                     */ static set<Out extends color4>(out: Out, r: number, g: number, b: number, a: number): Out;
+                     */ static set<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, r: number, g: number, b: number, a: number): Out;
             /**
                      * @zh 根据指定整型数据设置颜色
-                     */ static fromHex<Out extends color4>(out: Out, hex: number): Out;
+                     */ static fromHex<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, hex: number): Out;
             /**
                      * @zh 逐通道颜色加法
-                     */ static add<Out extends color4>(out: Out, a: color4, b: color4): Out;
+                     */ static add<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐通道颜色减法
-                     */ static subtract<Out extends color4>(out: Out, a: color4, b: color4): Out;
-            /**
-                     * @zh 逐通道颜色减法
-                     */ static sub<Out extends color4>(out: Out, a: color4, b: color4): Out;
+                     */ static subtract<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐通道颜色乘法
-                     */ static multiply<Out extends color4>(out: Out, a: color4, b: color4): Out;
-            /**
-                     * @zh 逐通道颜色乘法
-                     */ static mul<Out extends color4>(out: Out, a: color4, b: color4): Out;
+                     */ static multiply<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 逐通道颜色除法
-                     */ static divide<Out extends color4>(out: Out, a: color4, b: color4): Out;
-            /**
-                     * @zh 逐通道颜色除法
-                     */ static div<Out extends color4>(out: Out, a: color4, b: color4): Out;
+                     */ static divide<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
             /**
                      * @zh 全通道统一缩放颜色
-                     */ static scale<Out extends color4>(out: Out, a: color4, b: number): Out;
+                     */ static scale<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: number): Out;
             /**
                      * @zh 逐通道颜色线性插值：A + t * (B - A)
-                     */ static lerp<Out extends color4>(out: Out, a: color4, b: color4, t: number): Out;
-            /**
-                     * @zh 返回颜色的字符串表示
-                     */ static str(a: color4): string;
+                     */ static lerp<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, from: Out, to: Out, ratio: number): Out;
             /**
                      * @zh 颜色转数组
                      * @param ofs 数组起始偏移量
-                     */ static array<Out extends IWritableArrayLike<number>>(out: Out, a: color4, ofs?: number): Out;
+                     */ static array<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: IWritableArrayLike<number>, a: Out, ofs?: number): IWritableArrayLike<number>;
             /**
                      * @zh 颜色等价判断
-                     */ static exactEquals(a: color4, b: color4): boolean;
+                     */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IColorLike>(a: Out, b: Out): boolean;
             /**
                      * @zh 排除浮点数误差的颜色近似等价判断
-                     */ static equals(a: color4, b: color4): boolean;
+                     */ static equals<Out extends __internal.cocos_core_math_type_define_IColorLike>(a: Out, b: Out, epsilon?: number): boolean;
             /**
                      * @zh 获取指定颜色的整型数据表示
-                     */ static hex(a: color4): number;
-            r: number;
-            g: number;
-            b: number;
-            a: number;
-            constructor(r?: number, g?: number, b?: number, a?: number);
+                     */ static hex<Out extends __internal.cocos_core_math_type_define_IColorLike>(a: Out): number;
+            /**
+                     * 创建并获取（不透明的）纯白色，各通道值依次为 (255, 255, 255, 255)。
+                     */ static readonly WHITE: Color;
+            /**
+                     * 创建并获取（不透明的）纯黑色，各通道值依次为 (0, 0, 0, 255)。
+                     */ static readonly BLACK: Color;
+            /**
+                     * 创建并获取全透明的纯黑色，各通道值依次为 (0, 0, 0, 0)。
+                     */ static readonly TRANSPARENT: Color;
+            /**
+                     * 创建并获取（不透明的）灰色，各通道值依次为 (127.5, 127.5, 127.5, 255)。
+                     */ static readonly GRAY: Color;
+            /**
+                     * 创建并获取（不透明的）纯红色，各通道值依次为 (255, 0, 0, 255)。
+                     */ static readonly RED: Color;
+            /**
+                     * 创建并获取（不透明的）纯绿色，各通道值依次为 (0, 255, 0, 255)。
+                     */ static readonly GREEN: Color;
+            /**
+                     * 创建并获取（不透明的）纯蓝色，各通道值依次为 (0, 0, 255, 255)。
+                     */ static readonly BLUE: Color;
+            /**
+                     * 创建并获取（不透明的）黄色，各通道值依次为 (255, 235, 4, 255)。
+                     */ static readonly YELLOW: Color;
+            /**
+                     * 创建并获取（不透明的）橙色，各通道值依次为 (255, 127, 0, 255)。
+                     */ static readonly ORANGE: Color;
+            /**
+                     * 创建并获取（不透明的）青色，各通道值依次为 (0, 255, 255, 255)。
+                     */ static readonly CYAN: Color;
+            /**
+                     * 创建并获取（不透明的）洋红色（品红色），各通道值依次为 (255, 0, 255, 255)。
+                     */ static readonly MAGENTA: Color;
+            /**
+                     * 获取或设置当前颜色的 Red 通道。
+                     */ r: number;
+            /**
+                     * 获取或设置当前颜色的 Green 通道。
+                     */ g: number;
+            /**
+                     * 获取或设置当前颜色的 Blue 通道。
+                     */ b: number;
+            /**
+                     * 获取或设置当前颜色的 Alpha 通道。
+                     */ a: number;
+            /**
+                     * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Red 通道的值。
+                     */ x: number;
+            /**
+                     * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Green 通道的值。
+                     */ y: number;
+            /**
+                     * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Blue 通道的值。
+                     */ z: number;
+            /**
+                     * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Alpha 通道的值。
+                     */ w: number;
+            _val: number;
+            /**
+                     * 构造与指定颜色相等的颜色。
+                     * @param other 指定的颜色。
+                     */ constructor(other: Color);
+            /**
+                     * 用十六进制颜色字符串中构造颜色。
+                     * @param hexString 十六进制颜色字符串。
+                     */ constructor(hexString: string);
+            /**
+                     * 构造具有指定通道的颜色。
+                     * @param [r=0] 指定的 Red 通道。
+                     * @param [g=0] 指定的 Green 通道。
+                     * @param [b=0] 指定的 Blue 通道。
+                     * @param [a=255] 指定的 Alpha 通道。
+                     */ constructor(r?: number, g?: number, b?: number, a?: number);
+            /**
+                     * 克隆当前颜色。
+                     */ clone(): Color;
+            /**
+                     * 判断当前颜色是否与指定颜色相等。
+                     * @param other 相比较的颜色。
+                     * @returns 两颜色的各通道都相等时返回 `true`；否则返回 `false`。
+                     */ equals(other: Color): boolean;
+            /**
+                     * 根据指定的插值比率，从当前颜色到目标颜色之间做插值。
+                     * @param to 目标颜色。
+                     * @param ratio 插值比率，范围为 [0,1]。
+                     */ lerp(to: Color, ratio: number): this;
+            /**
+                     * 返回当前颜色的字符串表示。
+                     * @returns 当前颜色的字符串表示。
+                     */ toString(): string;
+            /**
+                     * 将当前颜色转换为 CSS 格式。
+                     * @param opt 格式选项。
+                     * @returns 当前颜色的 CSS 格式。
+                     */ toCSS(opt: "rgba" | "rgb" | "#rrggbb" | "#rrggbbaa"): string;
+            /**
+                     * 从十六进制颜色字符串中读入当前颜色。
+                     * 十六进制颜色字符串应该以可选的 "#" 开头，紧跟最多 8 个代表十六进制数字的字符；
+                     * 每两个连续字符代表的数值依次作为 Red、Green、Blue 和 Alpha 通道；
+                     * 缺省的颜色通道将视为 0；缺省的透明通道将视为 255。
+                     * @param hexString 十六进制颜色字符串。
+                     * @returns `this`
+                     */ fromHEX(hexString: string): this;
+            /**
+                     * 转换当前颜色为十六进制颜色字符串。
+                     * @param fmt 格式选项。
+                     * - `'#rrggbbaa'` 获取Red、Green、Blue、Alpha通道的十六进制值（**两位**，高位补 0）并依次连接；
+                     * - `'#rrggbb` 与 `'#rrggbbaa'` 类似但不包括 Alpha 通道。
+                     * @returns 十六进制颜色字符串。
+                     * @example
+                     * ```
+                     * const color = new Color(255, 14, 0, 255);
+                     * color.toHex("rrggbbaa"); // "FF0E00FF"
+                     * color.toHex("rrggbb"); // "FF0E00"
+                     * ```
+                     */ toHEX(fmt: "#rrggbb" | "#rrggbbaa"): string;
+            /**
+                     * 将当前颜色转换为 RGB 整数值。
+                     * @returns RGB 整数值。从最低有效位开始，每8位分别是 Red、Green、Blue 通道的值。
+                     * @example
+                     * ```
+                     * const color = Color.YELLOW;
+                     * color.toRGBValue();
+                     * ```
+                     */ toRGBValue(): number;
+            /**
+                     * 从 HSV 颜色中读入当前颜色。
+                     * @param h H 通道。
+                     * @param s S 通道。
+                     * @param v V 通道。
+                     * @returns `this`
+                     * @example
+                     * ```
+                     * const color = Color.YELLOW;
+                     * color.fromHSV(0, 0, 1); // Color {r: 255, g: 255, b: 255, a: 255};
+                     * ```
+                     */ fromHSV(h: number, s: number, v: number): this;
+            /**
+                     * 转换当前颜色为 HSV 颜色。
+                     * @returns HSV 颜色。成员 `h`、`s`、`v` 分别代表 HSV 颜色的 H、S、V 通道。
+                     * @example
+                     * ```
+                     * const color = cc.Color.YELLOW;
+                     * color.toHSV(); // {h: 0.1533864541832669, s: 0.9843137254901961, v: 1}
+                     * ```
+                     */ toHSV(): {
+                h: number;
+                s: number;
+                v: number;
+            };
+            /**
+                     * 设置当前颜色使其与指定颜色相等。
+                     * @param other 相比较的颜色。
+                     * @returns 当前颜色。
+                     */ set(other: Color): any;
+            /**
+                     * 设置当前颜色使其与指定通道值相等。
+                     * @param [r=0] 指定的 Red 通道。
+                     * @param [g=0] 指定的 Green 通道。
+                     * @param [b=0] 指定的 Blue 通道。
+                     * @param [a=255] 指定的 Alpha 通道。
+                     * @returns 当前颜色。
+                     */ set(r?: number, g?: number, b?: number, a?: number): any;
+            /**
+                     * 将当前颜色乘以与指定颜色
+                     * @param other 指定的颜色。
+                     */ multiply(other: Color): this;
+            _set_r_unsafe(red: any): this;
+            _set_g_unsafe(green: any): this;
+            _set_b_unsafe(blue: any): this;
+            _set_a_unsafe(alpha: any): this;
         }
         /**
              * Tests whether or not the arguments have approximately the same value, within an absolute
@@ -1453,6 +3818,1987 @@ declare module "Cocos3D" {
         var EPSILON;
         var random: () => number;
     }
+    /**
+         * 二维仿射变换矩阵，描述了平移、缩放和缩放。
+         */ export class AffineTransform {
+        /**
+                 * 创建单位二维仿射变换矩阵，它不进行任何变换。
+                 */ static identity(): AffineTransform;
+        /**
+                 * 克隆指定的二维仿射变换矩阵。
+                 * @param affineTransform 指定的二维仿射变换矩阵。
+                 */ static clone(affineTransform: AffineTransform): AffineTransform;
+        /**
+                 * 将两个矩阵相乘的结果赋值给出口矩阵。
+                 * @param out 出口矩阵。
+                 * @param t1 左矩阵。
+                 * @param t2 右矩阵。
+                 */ static concat(out: AffineTransform, t1: AffineTransform, t2: AffineTransform): void;
+        /**
+                 * 将矩阵求逆的结果赋值给出口矩阵。
+                 * @param out 出口矩阵。
+                 * @param t 求逆的矩阵。
+                 */ static invert(out: AffineTransform, t: AffineTransform): void;
+        /**
+                 * 将四维矩阵转换为二维仿射变换矩阵并赋值给出口矩阵。
+                 * @param out 出口矩阵。
+                 * @param mat 四维矩阵。
+                 */ static fromMat4(out: AffineTransform, mat: Mat4): void;
+        /**
+                 * 应用二维仿射变换矩阵到二维向量上，并将结果赋值给出口向量。
+                 * @param out 出口向量。
+                 * @param point 应用变换的向量。
+                 * @param t 二维仿射变换矩阵。
+                 */ static transformVec2(out: Vec2, point: Vec2, t: AffineTransform): any;
+        /**
+                 * 应用二维仿射变换矩阵到二维向量上，并将结果赋值给出口向量。
+                 * @param out 出口向量。
+                 * @param x 应用变换的向量的 x 分量。
+                 * @param y 应用变换的向量的 y 分量。
+                 * @param t 二维仿射变换矩阵。
+                 */ static transformVec2(out: Vec2, x: number, y: number, t: AffineTransform): any;
+        /**
+                 * 应用二维仿射变换矩阵到二维尺寸上，并将结果赋值给出口尺寸。
+                 * @param out 出口尺寸。
+                 * @param size 应用变换的尺寸。
+                 * @param t 二维仿射变换矩阵。
+                 */ static transformSize(out: Size, size: Size, t: AffineTransform): void;
+        /**
+                 * 应用二维仿射变换矩阵到矩形上，并将结果赋值给出口矩形。
+                 * @param out 出口矩形。
+                 * @param rect 应用变换的矩形。
+                 * @param t 二维仿射变换矩阵。
+                 */ static transformRect(out: Rect, rect: Rect, t: AffineTransform): void;
+        /**
+                 * 应用二维仿射变换矩阵到矩形上, 并转换为有向包围盒。
+                 * 这个函数不创建任何内存，你需要先创建包围盒的四个 Vector 对象用来存储结果，并作为前四个参数传入函数。
+                 */ static transformObb(out_bl: Vec2, out_tl: Vec2, out_tr: Vec2, out_br: Vec2, rect: Rect, anAffineTransform: AffineTransform): void;
+        a: number;
+        b: number;
+        c: number;
+        d: number;
+        tx: number;
+        ty: number;
+        /**
+                 * 构造二维放射变换矩阵。
+                 * @param a a 元素。
+                 * @param b b 元素。
+                 * @param c c 元素。
+                 * @param d d 元素。
+                 * @param tx tx 元素。
+                 * @param ty ty 元素。
+                 */ constructor(a?: number, b?: number, c?: number, d?: number, tx?: number, ty?: number);
+    }
+    /**
+         * 通过 Red、Green、Blue 颜色通道表示颜色，并通过 Alpha 通道表示不透明度。
+         * 每个通道都为取值范围 [0, 255] 的整数。
+         */ export class Color extends ValueType {
+        /**
+                 * @zh 获得指定颜色的拷贝
+                 */ static clone<Out extends __internal.cocos_core_math_type_define_IColorLike>(a: Out): Color;
+        /**
+                 * @zh 复制目标颜色
+                 */ static copy<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out): Out;
+        /**
+                 * @zh 设置颜色值
+                 */ static set<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, r: number, g: number, b: number, a: number): Out;
+        /**
+                 * @zh 根据指定整型数据设置颜色
+                 */ static fromHex<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, hex: number): Out;
+        /**
+                 * @zh 逐通道颜色加法
+                 */ static add<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐通道颜色减法
+                 */ static subtract<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐通道颜色乘法
+                 */ static multiply<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐通道颜色除法
+                 */ static divide<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 全通道统一缩放颜色
+                 */ static scale<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: number): Out;
+        /**
+                 * @zh 逐通道颜色线性插值：A + t * (B - A)
+                 */ static lerp<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+        /**
+                 * @zh 颜色转数组
+                 * @param ofs 数组起始偏移量
+                 */ static array<Out extends __internal.cocos_core_math_type_define_IColorLike>(out: IWritableArrayLike<number>, a: Out, ofs?: number): IWritableArrayLike<number>;
+        /**
+                 * @zh 颜色等价判断
+                 */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IColorLike>(a: Out, b: Out): boolean;
+        /**
+                 * @zh 排除浮点数误差的颜色近似等价判断
+                 */ static equals<Out extends __internal.cocos_core_math_type_define_IColorLike>(a: Out, b: Out, epsilon?: number): boolean;
+        /**
+                 * @zh 获取指定颜色的整型数据表示
+                 */ static hex<Out extends __internal.cocos_core_math_type_define_IColorLike>(a: Out): number;
+        /**
+                 * 创建并获取（不透明的）纯白色，各通道值依次为 (255, 255, 255, 255)。
+                 */ static readonly WHITE: Color;
+        /**
+                 * 创建并获取（不透明的）纯黑色，各通道值依次为 (0, 0, 0, 255)。
+                 */ static readonly BLACK: Color;
+        /**
+                 * 创建并获取全透明的纯黑色，各通道值依次为 (0, 0, 0, 0)。
+                 */ static readonly TRANSPARENT: Color;
+        /**
+                 * 创建并获取（不透明的）灰色，各通道值依次为 (127.5, 127.5, 127.5, 255)。
+                 */ static readonly GRAY: Color;
+        /**
+                 * 创建并获取（不透明的）纯红色，各通道值依次为 (255, 0, 0, 255)。
+                 */ static readonly RED: Color;
+        /**
+                 * 创建并获取（不透明的）纯绿色，各通道值依次为 (0, 255, 0, 255)。
+                 */ static readonly GREEN: Color;
+        /**
+                 * 创建并获取（不透明的）纯蓝色，各通道值依次为 (0, 0, 255, 255)。
+                 */ static readonly BLUE: Color;
+        /**
+                 * 创建并获取（不透明的）黄色，各通道值依次为 (255, 235, 4, 255)。
+                 */ static readonly YELLOW: Color;
+        /**
+                 * 创建并获取（不透明的）橙色，各通道值依次为 (255, 127, 0, 255)。
+                 */ static readonly ORANGE: Color;
+        /**
+                 * 创建并获取（不透明的）青色，各通道值依次为 (0, 255, 255, 255)。
+                 */ static readonly CYAN: Color;
+        /**
+                 * 创建并获取（不透明的）洋红色（品红色），各通道值依次为 (255, 0, 255, 255)。
+                 */ static readonly MAGENTA: Color;
+        /**
+                 * 获取或设置当前颜色的 Red 通道。
+                 */ r: number;
+        /**
+                 * 获取或设置当前颜色的 Green 通道。
+                 */ g: number;
+        /**
+                 * 获取或设置当前颜色的 Blue 通道。
+                 */ b: number;
+        /**
+                 * 获取或设置当前颜色的 Alpha 通道。
+                 */ a: number;
+        /**
+                 * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Red 通道的值。
+                 */ x: number;
+        /**
+                 * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Green 通道的值。
+                 */ y: number;
+        /**
+                 * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Blue 通道的值。
+                 */ z: number;
+        /**
+                 * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Alpha 通道的值。
+                 */ w: number;
+        _val: number;
+        /**
+                 * 构造与指定颜色相等的颜色。
+                 * @param other 指定的颜色。
+                 */ constructor(other: Color);
+        /**
+                 * 用十六进制颜色字符串中构造颜色。
+                 * @param hexString 十六进制颜色字符串。
+                 */ constructor(hexString: string);
+        /**
+                 * 构造具有指定通道的颜色。
+                 * @param [r=0] 指定的 Red 通道。
+                 * @param [g=0] 指定的 Green 通道。
+                 * @param [b=0] 指定的 Blue 通道。
+                 * @param [a=255] 指定的 Alpha 通道。
+                 */ constructor(r?: number, g?: number, b?: number, a?: number);
+        /**
+                 * 克隆当前颜色。
+                 */ clone(): Color;
+        /**
+                 * 判断当前颜色是否与指定颜色相等。
+                 * @param other 相比较的颜色。
+                 * @returns 两颜色的各通道都相等时返回 `true`；否则返回 `false`。
+                 */ equals(other: Color): boolean;
+        /**
+                 * 根据指定的插值比率，从当前颜色到目标颜色之间做插值。
+                 * @param to 目标颜色。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 */ lerp(to: Color, ratio: number): this;
+        /**
+                 * 返回当前颜色的字符串表示。
+                 * @returns 当前颜色的字符串表示。
+                 */ toString(): string;
+        /**
+                 * 将当前颜色转换为 CSS 格式。
+                 * @param opt 格式选项。
+                 * @returns 当前颜色的 CSS 格式。
+                 */ toCSS(opt: "rgba" | "rgb" | "#rrggbb" | "#rrggbbaa"): string;
+        /**
+                 * 从十六进制颜色字符串中读入当前颜色。
+                 * 十六进制颜色字符串应该以可选的 "#" 开头，紧跟最多 8 个代表十六进制数字的字符；
+                 * 每两个连续字符代表的数值依次作为 Red、Green、Blue 和 Alpha 通道；
+                 * 缺省的颜色通道将视为 0；缺省的透明通道将视为 255。
+                 * @param hexString 十六进制颜色字符串。
+                 * @returns `this`
+                 */ fromHEX(hexString: string): this;
+        /**
+                 * 转换当前颜色为十六进制颜色字符串。
+                 * @param fmt 格式选项。
+                 * - `'#rrggbbaa'` 获取Red、Green、Blue、Alpha通道的十六进制值（**两位**，高位补 0）并依次连接；
+                 * - `'#rrggbb` 与 `'#rrggbbaa'` 类似但不包括 Alpha 通道。
+                 * @returns 十六进制颜色字符串。
+                 * @example
+                 * ```
+                 * const color = new Color(255, 14, 0, 255);
+                 * color.toHex("rrggbbaa"); // "FF0E00FF"
+                 * color.toHex("rrggbb"); // "FF0E00"
+                 * ```
+                 */ toHEX(fmt: "#rrggbb" | "#rrggbbaa"): string;
+        /**
+                 * 将当前颜色转换为 RGB 整数值。
+                 * @returns RGB 整数值。从最低有效位开始，每8位分别是 Red、Green、Blue 通道的值。
+                 * @example
+                 * ```
+                 * const color = Color.YELLOW;
+                 * color.toRGBValue();
+                 * ```
+                 */ toRGBValue(): number;
+        /**
+                 * 从 HSV 颜色中读入当前颜色。
+                 * @param h H 通道。
+                 * @param s S 通道。
+                 * @param v V 通道。
+                 * @returns `this`
+                 * @example
+                 * ```
+                 * const color = Color.YELLOW;
+                 * color.fromHSV(0, 0, 1); // Color {r: 255, g: 255, b: 255, a: 255};
+                 * ```
+                 */ fromHSV(h: number, s: number, v: number): this;
+        /**
+                 * 转换当前颜色为 HSV 颜色。
+                 * @returns HSV 颜色。成员 `h`、`s`、`v` 分别代表 HSV 颜色的 H、S、V 通道。
+                 * @example
+                 * ```
+                 * const color = cc.Color.YELLOW;
+                 * color.toHSV(); // {h: 0.1533864541832669, s: 0.9843137254901961, v: 1}
+                 * ```
+                 */ toHSV(): {
+            h: number;
+            s: number;
+            v: number;
+        };
+        /**
+                 * 设置当前颜色使其与指定颜色相等。
+                 * @param other 相比较的颜色。
+                 * @returns 当前颜色。
+                 */ set(other: Color): any;
+        /**
+                 * 设置当前颜色使其与指定通道值相等。
+                 * @param [r=0] 指定的 Red 通道。
+                 * @param [g=0] 指定的 Green 通道。
+                 * @param [b=0] 指定的 Blue 通道。
+                 * @param [a=255] 指定的 Alpha 通道。
+                 * @returns 当前颜色。
+                 */ set(r?: number, g?: number, b?: number, a?: number): any;
+        /**
+                 * 将当前颜色乘以与指定颜色
+                 * @param other 指定的颜色。
+                 */ multiply(other: Color): this;
+        _set_r_unsafe(red: any): this;
+        _set_g_unsafe(green: any): this;
+        _set_b_unsafe(blue: any): this;
+        _set_a_unsafe(alpha: any): this;
+    }
+    /**
+         * 表示三维（3x3）矩阵。
+         */ export class Mat3 extends ValueType {
+        /**
+                 * @zh 获得指定矩阵的拷贝
+                 */ static clone<Out extends __internal.cocos_core_math_type_define_IMat3Like>(a: Out): Mat3;
+        /**
+                 * @zh 复制目标矩阵
+                 */ static copy<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 设置矩阵值
+                 */ static set<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, m00: number, m01: number, m02: number, m10: number, m11: number, m12: number, m20: number, m21: number, m22: number): Out;
+        /**
+                 * @zh 将目标赋值为单位矩阵
+                 */ static identity<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out): Out;
+        /**
+                 * @zh 转置矩阵
+                 */ static transpose<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 矩阵求逆
+                 */ static invert<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 矩阵行列式
+                 */ static determinant<Out extends __internal.cocos_core_math_type_define_IMat3Like>(a: Out): number;
+        /**
+                 * @zh 矩阵乘法
+                 */ static multiply<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * 三阶与四阶矩阵乘法
+                 */ static multiplyMat4<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: __internal.cocos_core_math_type_define_IMat4Like): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入变换
+                 */ static transfrom<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入新缩放变换
+                 */ static scale<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入新旋转变换
+                 * @param rad 旋转弧度
+                 */ static rotate<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, rad: number): Out;
+        /**
+                 * @zh 根据指定四维矩阵计算三维矩阵
+                 */ static fromMat4<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: __internal.cocos_core_math_type_define_IMat4Like): Out;
+        /**
+                 * @zh 根据视口前方向和上方向计算矩阵
+                 * @param view 视口面向的前方向，必须归一化
+                 * @param up 视口的上方向，必须归一化，默认为 (0, 1, 0)
+                 */ static fromViewUp<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, view: VecLike, up?: Vec3): Out;
+        /**
+                 * @zh 计算位移矩阵
+                 */ static fromTranslation<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
+        /**
+                 * @zh 计算缩放矩阵
+                 */ static fromScaling<Out extends __internal.cocos_core_math_type_define_IMat3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
+        /**
+                 * @zh 计算旋转矩阵
+                 */ static fromRotation<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, rad: number): Out;
+        /**
+                 * @zh 根据四元数旋转信息计算矩阵
+                 */ static fromQuat<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, q: __internal.cocos_core_math_type_define_IQuatLike): Out;
+        /**
+                 * @zh 计算指定四维矩阵的逆转置三维矩阵
+                 */ static inverseTransposeMat4<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: __internal.cocos_core_math_type_define_IMat4Like): Out | null;
+        /**
+                 * @zh 矩阵转数组
+                 * @param ofs 数组内的起始偏移量
+                 */ static array(out: IWritableArrayLike<number>, m: Mat3, ofs?: number): IWritableArrayLike<number>;
+        /**
+                 * @zh 逐元素矩阵加法
+                 */ static add<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素矩阵减法
+                 */ static subtract<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 矩阵标量乘法
+                 */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: number): Out;
+        /**
+                 * @zh 逐元素矩阵标量乘加: A + B * scale
+                 */ static multiplyScalarAndAdd<Out extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out, scale: number): Out;
+        /**
+                 * @zh 矩阵等价判断
+                 */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IMat3Like>(a: Out, b: Out): boolean;
+        /**
+                 * @zh 排除浮点数误差的矩阵近似等价判断
+                 */ static equals<Out extends __internal.cocos_core_math_type_define_IMat3Like>(a: Out, b: Out, epsilon?: number): boolean;
+        /**
+                 * 矩阵第 0 列第 0 行的元素。
+                 */ m00: number;
+        /**
+                 * 矩阵第 0 列第 1 行的元素。
+                 */ m01: number;
+        /**
+                 * 矩阵第 0 列第 2 行的元素。
+                 */ m02: number;
+        /**
+                 * 矩阵第 1 列第 0 行的元素。
+                 */ m03: number;
+        /**
+                 * 矩阵第 1 列第 1 行的元素。
+                 */ m04: number;
+        /**
+                 * 矩阵第 1 列第 2 行的元素。
+                 */ m05: number;
+        /**
+                 * 矩阵第 2 列第 0 行的元素。
+                 */ m06: number;
+        /**
+                 * 矩阵第 2 列第 1 行的元素。
+                 */ m07: number;
+        /**
+                 * 矩阵第 2 列第 2 行的元素。
+                 */ m08: number;
+        constructor(other: Mat3);
+        constructor(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number);
+        /**
+                 * 克隆当前矩阵。
+                 */ clone(): Mat3;
+        /**
+                 * 设置当前矩阵使其与指定矩阵相等。
+                 * @param other 相比较的矩阵。
+                 * @returns `this`
+                 */ set(other: Mat3): any;
+        /**
+                 * 设置当前矩阵指定元素值。
+                 * @returns `this`
+                 */ set(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number): any;
+        /**
+                 * 判断当前矩阵是否在误差范围内与指定矩阵相等。
+                 * @param other 相比较的矩阵。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+                 */ equals(other: Mat3, epsilon?: number): boolean;
+        /**
+                 * 判断当前矩阵是否与指定矩阵相等。
+                 * @param other 相比较的矩阵。
+                 * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals(other: Mat3): boolean;
+        /**
+                 * 返回当前矩阵的字符串表示。
+                 * @returns 当前矩阵的字符串表示。
+                 */ toString(): string;
+        /**
+                 * 将当前矩阵设为单位矩阵。
+                 * @returns `this`
+                 */ identity(): this;
+        /**
+                 * 计算当前矩阵的转置矩阵。
+                 */ transpose(): this;
+        /**
+                 * 计算当前矩阵的逆矩阵。
+                 */ invert(): this | null;
+        /**
+                 * 计算当前矩阵的行列式。
+                 * @returns 当前矩阵的行列式。
+                 */ determinant(): number;
+        /**
+                 * 矩阵加法。将当前矩阵与指定矩阵的相加，结果返回给当前矩阵。
+                 * @param mat 相加的矩阵
+                 */ add(mat: Mat3): this;
+        /**
+                 * 计算矩阵减法。将当前矩阵减去指定矩阵的结果赋值给当前矩阵。
+                 * @param mat 减数矩阵。
+                 */ subtract(mat: Mat3): this;
+        /**
+                 * 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给当前矩阵。
+                 * @param mat 指定的矩阵。
+                 */ multiply(mat: Mat3): this;
+        /**
+                 * 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给当前矩阵。
+                 * @param scalar 指定的标量。
+                 */ multiplyScalar(scalar: number): this;
+        /**
+                 * 将当前矩阵左乘缩放矩阵的结果赋值给当前矩阵，缩放矩阵由各个轴的缩放给出。
+                 * @param vec 各个轴的缩放。
+                 */ scale(vec: Vec3): this;
+        /**
+                 * 将当前矩阵左乘旋转矩阵的结果赋值给当前矩阵，旋转矩阵由旋转轴和旋转角度给出。
+                 * @param mat 矩阵
+                 * @param rad 旋转角度（弧度制）
+                 */ rotate(rad: number): this;
+        /**
+                 * 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
+                 * @param q 四元数表示的旋转变换。
+                 * @returns `this`
+                 */ fromQuat(q: Quat): this;
+    }
+    /**
+         * 表示四维（4x4）矩阵。
+         */ export class Mat4 extends ValueType {
+        /**
+                 * 矩阵第 0 列第 0 行的元素。
+                 */ m00: number;
+        /**
+                 * 矩阵第 0 列第 1 行的元素。
+                 */ m01: number;
+        /**
+                 * 矩阵第 0 列第 2 行的元素。
+                 */ m02: number;
+        /**
+                 * 矩阵第 0 列第 3 行的元素。
+                 */ m03: number;
+        /**
+                 * 矩阵第 1 列第 0 行的元素。
+                 */ m04: number;
+        /**
+                 * 矩阵第 1 列第 1 行的元素。
+                 */ m05: number;
+        /**
+                 * 矩阵第 1 列第 2 行的元素。
+                 */ m06: number;
+        /**
+                 * 矩阵第 1 列第 3 行的元素。
+                 */ m07: number;
+        /**
+                 * 矩阵第 2 列第 0 行的元素。
+                 */ m08: number;
+        /**
+                 * 矩阵第 2 列第 1 行的元素。
+                 */ m09: number;
+        /**
+                 * 矩阵第 2 列第 2 行的元素。
+                 */ m10: number;
+        /**
+                 * 矩阵第 2 列第 3 行的元素。
+                 */ m11: number;
+        /**
+                 * 矩阵第 3 列第 0 行的元素。
+                 */ m12: number;
+        /**
+                 * 矩阵第 3 列第 1 行的元素。
+                 */ m13: number;
+        /**
+                 * 矩阵第 3 列第 2 行的元素。
+                 */ m14: number;
+        /**
+                 * 矩阵第 3 列第 3 行的元素。
+                 */ m15: number;
+        constructor(other: Mat4);
+        constructor(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number);
+        /**
+                 * @zh 获得指定矩阵的拷贝
+                 */ static clone<Out extends __internal.cocos_core_math_type_define_IMat4Like>(a: Out): Mat4;
+        /**
+                 * @zh 复制目标矩阵
+                 */ static copy<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 设置矩阵值
+                 */ static set<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, m00: number, m01: number, m02: number, m03: number, m10: number, m11: number, m12: number, m13: number, m20: number, m21: number, m22: number, m23: number, m30: number, m31: number, m32: number, m33: number): Out;
+        /**
+                 * @zh 将目标赋值为单位矩阵
+                 */ static identity<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out): Out;
+        /**
+                 * @zh 转置矩阵
+                 */ static transpose<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 矩阵求逆
+                 */ static invert<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out | null;
+        /**
+                 * @zh 矩阵行列式
+                 */ static determinant<Out extends __internal.cocos_core_math_type_define_IMat4Like>(a: Out): number;
+        /**
+                 * @zh 矩阵乘法
+                 */ static multiply<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入变换
+                 */ static transform<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入新位移变换
+                 */ static translate<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入新缩放变换
+                 */ static scale<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入新旋转变换
+                 * @param rad 旋转角度
+                 * @param axis 旋转轴
+                 */ static rotate<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, rad: number, axis: VecLike): Out | null;
+        /**
+                 * @zh 在给定矩阵变换基础上加入绕 X 轴的旋转变换
+                 * @param rad 旋转角度
+                 */ static rotateX<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入绕 Y 轴的旋转变换
+                 * @param rad 旋转角度
+                 */ static rotateY<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
+        /**
+                 * @zh 在给定矩阵变换基础上加入绕 Z 轴的旋转变换
+                 * @param rad 旋转角度
+                 */ static rotateZ<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
+        /**
+                 * @zh 计算位移矩阵
+                 */ static fromTranslation<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
+        /**
+                 * @zh 计算缩放矩阵
+                 */ static fromScaling<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
+        /**
+                 * @zh 计算旋转矩阵
+                 */ static fromRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, rad: number, axis: VecLike): Out | null;
+        /**
+                 * @zh 计算绕 X 轴的旋转矩阵
+                 */ static fromXRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
+        /**
+                 * @zh 计算绕 Y 轴的旋转矩阵
+                 */ static fromYRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
+        /**
+                 * @zh 计算绕 Z 轴的旋转矩阵
+                 */ static fromZRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
+        /**
+                 * @zh 根据旋转和位移信息计算矩阵
+                 */ static fromRT<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike): Out;
+        /**
+                 * @zh 提取矩阵的位移信息, 默认矩阵中的变换以 S->R->T 的顺序应用
+                 */ static getTranslation<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, mat: Out): VecLike;
+        /**
+                 * @zh 提取矩阵的缩放信息, 默认矩阵中的变换以 S->R->T 的顺序应用
+                 */ static getScaling<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, mat: Out): VecLike;
+        /**
+                 * @zh 提取矩阵的旋转信息, 默认输入矩阵不含有缩放信息，如考虑缩放应使用 `toRTS` 函数。
+                 */ static getRotation<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Quat, mat: Out): Quat;
+        /**
+                 * @zh 提取旋转、位移、缩放信息， 默认矩阵中的变换以 S->R->T 的顺序应用
+                 */ static toRTS<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(m: Out, q: Quat, v: VecLike, s: VecLike): void;
+        /**
+                 * @zh 根据旋转、位移、缩放信息计算矩阵，以 S->R->T 的顺序应用
+                 */ static fromRTS<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike, s: VecLike): Out;
+        /**
+                 * @zh 根据指定的旋转、位移、缩放及变换中心信息计算矩阵，以 S->R->T 的顺序应用
+                 * @param q 旋转值
+                 * @param v 位移值
+                 * @param s 缩放值
+                 * @param o 指定变换中心
+                 */ static fromRTSOrigin<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike, s: VecLike, o: VecLike): Out;
+        /**
+                 * @zh 根据指定的旋转信息计算矩阵
+                 */ static fromQuat<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, q: Quat): Out;
+        /**
+                 * @zh 根据指定的视锥体信息计算矩阵
+                 * @param left 左平面距离
+                 * @param right 右平面距离
+                 * @param bottom 下平面距离
+                 * @param top 上平面距离
+                 * @param near 近平面距离
+                 * @param far 远平面距离
+                 */ static frustum<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
+        /**
+                 * @zh 计算透视投影矩阵
+                 * @param fovy 纵向视角高度
+                 * @param aspect 长宽比
+                 * @param near 近平面距离
+                 * @param far 远平面距离
+                 */ static perspective<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, fovy: number, aspect: number, near: number, far: number): Out;
+        /**
+                 * @zh 计算正交投影矩阵
+                 * @param left 左平面距离
+                 * @param right 右平面距离
+                 * @param bottom 下平面距离
+                 * @param top 上平面距离
+                 * @param near 近平面距离
+                 * @param far 远平面距离
+                 */ static ortho<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
+        /**
+                 * @zh 根据视点计算矩阵，注意 `eye - center` 不能为零向量或与 `up` 向量平行
+                 * @param eye 当前位置
+                 * @param center 目标视点
+                 * @param up 视口上方向
+                 */ static lookAt<Out extends __internal.cocos_core_math_type_define_IMat4Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, eye: VecLike, center: VecLike, up: VecLike): Out;
+        /**
+                 * @zh 计算逆转置矩阵
+                 */ static inverseTranspose<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out | null;
+        /**
+                 * @zh 矩阵转数组
+                 * @param ofs 数组内的起始偏移量
+                 */ static array<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: IWritableArrayLike<number>, m: Out, ofs?: number): IWritableArrayLike<number>;
+        /**
+                 * @zh 逐元素矩阵加法
+                 */ static add<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素矩阵减法
+                 */ static subtract<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 矩阵标量乘法
+                 */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: number): Out;
+        /**
+                 * @zh 逐元素矩阵标量乘加: A + B * scale
+                 */ static multiplyScalarAndAdd<Out extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out, scale: number): Out;
+        /**
+                 * @zh 矩阵等价判断
+                 */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IMat4Like>(a: Out, b: Out): boolean;
+        /**
+                 * @zh 排除浮点数误差的矩阵近似等价判断
+                 */ static equals<Out extends __internal.cocos_core_math_type_define_IMat4Like>(a: Out, b: Out, epsilon?: number): boolean;
+        /**
+                 * 克隆当前矩阵。
+                 */ clone(): Mat4;
+        /**
+                 * 设置当前矩阵使其与指定矩阵相等。
+                 * @param other 相比较的矩阵。
+                 * @returns `this`
+                 */ set(other: Mat4): any;
+        /**
+                 * 设置当前矩阵指定元素值。
+                 * @returns `this`
+                 */ set(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number): any;
+        /**
+                 * 判断当前矩阵是否在误差范围内与指定矩阵相等。
+                 * @param other 相比较的矩阵。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+                 */ equals(other: Mat4, epsilon?: number): boolean;
+        /**
+                 * 判断当前矩阵是否与指定矩阵相等。
+                 * @param other 相比较的矩阵。
+                 * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals(other: Mat4): boolean;
+        /**
+                 * 返回当前矩阵的字符串表示。
+                 * @returns 当前矩阵的字符串表示。
+                 */ toString(): string;
+        /**
+                 * 将当前矩阵设为单位矩阵。
+                 * @returns `this`
+                 */ identity(): this;
+        /**
+                 * 计算当前矩阵的转置矩阵。
+                 */ transpose(): this;
+        /**
+                 * 计算当前矩阵的逆矩阵。
+                 */ invert(): this | null;
+        /**
+                 * 计算当前矩阵的行列式。
+                 * @returns 当前矩阵的行列式。
+                 */ determinant(): number;
+        /**
+                 * 矩阵加法。将当前矩阵与指定矩阵的相加，结果返回给当前矩阵。
+                 * @param mat 相加的矩阵
+                 */ add(mat: Mat4): this;
+        /**
+                 * 计算矩阵减法。将当前矩阵减去指定矩阵的结果赋值给当前矩阵。
+                 * @param mat 减数矩阵。
+                 */ subtract(mat: Mat4): this;
+        /**
+                 * 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给当前矩阵。
+                 * @param mat 指定的矩阵。
+                 */ multiply(mat: Mat4): this;
+        /**
+                 * 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给当前矩阵。
+                 * @param scalar 指定的标量。
+                 */ multiplyScalar(scalar: number): this;
+        /**
+                 * 将当前矩阵左乘位移矩阵的结果赋值给当前矩阵，位移矩阵由各个轴的位移给出。
+                 * @param vec 位移向量。
+                 */ translate(vec: Vec3): this;
+        /**
+                 * 将当前矩阵左乘缩放矩阵的结果赋值给当前矩阵，缩放矩阵由各个轴的缩放给出。
+                 * @param vec 各个轴的缩放。
+                 */ scale(vec: Vec3): this;
+        /**
+                 * 将当前矩阵左乘旋转矩阵的结果赋值给当前矩阵，旋转矩阵由旋转轴和旋转角度给出。
+                 * @param mat 矩阵
+                 * @param rad 旋转角度（弧度制）
+                 * @param axis 旋转轴
+                 */ rotate(rad: number, axis: Vec3): this | null;
+        /**
+                 * 从当前矩阵中计算出位移变换的部分，并以各个轴上位移的形式赋值给出口向量。
+                 * @param out 返回向量，当未指定时将创建为新的向量。
+                 */ getTranslation(out: Vec3): Vec3;
+        /**
+                 * 从当前矩阵中计算出缩放变换的部分，并以各个轴上缩放的形式赋值给出口向量。
+                 * @param out 返回值，当未指定时将创建为新的向量。
+                 */ getScale(out: Vec3): Vec3;
+        /**
+                 * 从当前矩阵中计算出旋转变换的部分，并以四元数的形式赋值给出口四元数。
+                 * @param out 返回值，当未指定时将创建为新的四元数。
+                 */ getRotation(out: Quat): Quat;
+        /**
+                 * 重置当前矩阵的值，使其表示指定的旋转、缩放、位移依次组合的变换。
+                 * @param q 四元数表示的旋转变换。
+                 * @param v 位移变换，表示为各个轴的位移。
+                 * @param s 缩放变换，表示为各个轴的缩放。
+                 * @returns `this`
+                 */ fromRTS(q: Quat, v: Vec3, s: Vec3): this;
+        /**
+                 * 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
+                 * @param q 四元数表示的旋转变换。
+                 * @returns `this`
+                 */ fromQuat(q: Quat): this;
+    }
+    /**
+         * 四元数。
+         */ export class Quat extends ValueType {
+        static IDENTITY: Readonly<Quat>;
+        /**
+                 * @zh 获得指定四元数的拷贝
+                 */ static clone<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out): Quat;
+        /**
+                 * @zh 复制目标四元数
+                 */ static copy<Out extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike): Out;
+        /**
+                 * @zh 设置四元数值
+                 */ static set<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, x: number, y: number, z: number, w: number): Out;
+        /**
+                 * @zh 将目标赋值为单位四元数
+                 */ static identity<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out): Out;
+        /**
+                 * @zh 设置四元数为两向量间的最短路径旋转，默认两向量都已归一化
+                 */ static rotationTo<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: VecLike, b: VecLike): Out;
+        /**
+                 * @zh 获取四元数的旋转轴和旋转弧度
+                 * @param outAxis 旋转轴输出
+                 * @param q 源四元数
+                 * @return 旋转弧度
+                 */ static getAxisAngle<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(outAxis: VecLike, q: Out): number;
+        /**
+                 * @zh 四元数乘法
+                 */ static multiply<Out extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike_1 extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike_2 extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike_1, b: QuatLike_2): Out;
+        /**
+                 * @zh 四元数标量乘法
+                 */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: number): Out;
+        /**
+                 * @zh 四元数乘加：A + B * scale
+                 */ static scaleAndAdd<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, scale: number): Out;
+        /**
+                 * @zh 绕 X 轴旋转指定四元数
+                 * @param rad 旋转弧度
+                 */ static rotateX<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
+        /**
+                 * @zh 绕 Y 轴旋转指定四元数
+                 * @param rad 旋转弧度
+                 */ static rotateY<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
+        /**
+                 * @zh 绕 Z 轴旋转指定四元数
+                 * @param rad 旋转弧度
+                 */ static rotateZ<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
+        /**
+                 * @zh 绕世界空间下指定轴旋转四元数
+                 * @param axis 旋转轴
+                 * @param rad 旋转弧度
+                 */ static rotateAround<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, rot: Out, axis: VecLike, rad: number): Out;
+        /**
+                 * @zh 绕本地空间下指定轴旋转四元数
+                 * @param axis 旋转轴
+                 * @param rad 旋转弧度
+                 */ static rotateAroundLocal<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, rot: Out, axis: VecLike, rad: number): Out;
+        /**
+                 * @zh 根据 xyz 分量计算 w 分量，默认已归一化
+                 */ static calculateW<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
+        /**
+                 * @zh 四元数点积（数量积）
+                 */ static dot<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out): number;
+        /**
+                 * @zh 逐元素线性插值： A + t * (B - A)
+                 */ static lerp<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, t: number): Out;
+        /**
+                 * @zh 四元数球面插值
+                 */ static slerp<Out extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike_1 extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike_2 extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike_1, b: QuatLike_2, t: number): Out;
+        /**
+                 * @zh 带两个控制点的四元数球面插值
+                 */ static sqlerp<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, c: Out, d: Out, t: number): Out;
+        /**
+                 * @zh 四元数求逆
+                 */ static invert<Out extends __internal.cocos_core_math_type_define_IQuatLike, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike): Out;
+        /**
+                 * @zh 求共轭四元数，对单位四元数与求逆等价，但更高效
+                 */ static conjugate<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
+        /**
+                 * @zh 求四元数长度
+                 */ static len<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out): number;
+        /**
+                 * @zh 求四元数长度平方
+                 */ static lengthSqr<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out): number;
+        /**
+                 * @zh 归一化四元数
+                 */ static normalize<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
+        /**
+                 * @zh 根据本地坐标轴朝向计算四元数，默认三向量都已归一化且相互垂直
+                 */ static fromAxes<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, xAxis: VecLike, yAxis: VecLike, zAxis: VecLike): Out;
+        /**
+                 * @zh 根据视口的前方向和上方向计算四元数
+                 * @param view 视口面向的前方向，必须归一化
+                 * @param up 视口的上方向，必须归一化，默认为 (0, 1, 0)
+                 */ static fromViewUp<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, view: VecLike, up?: Vec3): Out;
+        /**
+                 * @zh 根据旋转轴和旋转弧度计算四元数
+                 */ static fromAxisAngle<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, axis: VecLike, rad: number): Out;
+        /**
+                 * @zh 根据三维矩阵信息计算四元数，默认输入矩阵不含有缩放信息
+                 */ static fromMat3<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, m: Mat3): Out;
+        /**
+                 * @zh 根据欧拉角信息计算四元数
+                 */ static fromEuler<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, x: number, y: number, z: number): Out;
+        /**
+                 * @zh 返回定义此四元数的坐标系 X 轴向量
+                 */ static toAxisX<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
+        /**
+                 * @zh 返回定义此四元数的坐标系 Y 轴向量
+                 */ static toAxisY<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
+        /**
+                 * @zh 返回定义此四元数的坐标系 Z 轴向量
+                 */ static toAxisZ<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
+        /**
+                 * @zh 根据四元数计算欧拉角，返回角度在 [-180, 180] 区间内
+                 */ static toEuler<Out extends __internal.cocos_core_math_type_define_IQuatLike, VecLike extends __internal.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
+        /**
+                 * @zh 四元数转数组
+                 * @param ofs 数组内的起始偏移量
+                 */ static array<Out extends __internal.cocos_core_math_type_define_IQuatLike>(out: IWritableArrayLike<number>, q: Out, ofs?: number): IWritableArrayLike<number>;
+        /**
+                 * @zh 四元数等价判断
+                 */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out): boolean;
+        /**
+                 * @zh 排除浮点数误差的四元数近似等价判断
+                 */ static equals<Out extends __internal.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out, epsilon?: number): boolean;
+        /**
+                 * x 分量。
+                 */ x: number;
+        /**
+                 * y 分量。
+                 */ y: number;
+        /**
+                 * z 分量。
+                 */ z: number;
+        /**
+                 * w 分量。
+                 */ w: number;
+        constructor(other: Quat);
+        constructor(x?: number, y?: number, z?: number, w?: number);
+        /**
+                 * 克隆当前四元数。
+                 */ clone(): Quat;
+        /**
+                 * 设置当前四元数使其与指定四元数相等。
+                 * @param other 相比较的四元数。
+                 * @returns `this`
+                 */ set(other: Quat): any;
+        /**
+                 * 设置当前四元数指定元素值。
+                 * @param x 四元数 x 元素值
+                 * @param y 四元数 y 元素值
+                 * @param z 四元数 z 元素值
+                 * @param w 四元数 w 元素值
+                 * @returns `this`
+                 */ set(x?: number, y?: number, z?: number, w?: number): any;
+        /**
+                 * 判断当前向量是否在误差范围内与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                 */ equals(other: Quat, epsilon?: number): boolean;
+        /**
+                 * 判断当前四元数是否与指定四元数相等。
+                 * @param other 相比较的四元数。
+                 * @returns 两四元数的各分量都相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals(other: Quat): boolean;
+        /**
+                 * 将当前四元数转化为欧拉角（x-y-z）并赋值给出口向量。
+                 * @param out 出口向量。
+                 */ getEulerAngles(out: Vec3): Vec3;
+        /**
+                 * 根据指定的插值比率，从当前四元数到目标四元数之间做插值。
+                 * @param to 目标四元数。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 */ lerp(to: Quat, ratio: number): this;
+        /**
+                 * @zh 求四元数长度
+                 */ length(): number;
+        /**
+                 * @zh 求四元数长度平方
+                 */ lengthSqr(): number;
+    }
+    /**
+         * 轴对齐矩形。
+         * 矩形内的所有点都大于等于矩形的最小点 (xMin, yMin) 并且小于等于矩形的最大点 (xMax, yMax)。
+         * 矩形的宽度定义为 xMax - xMin；高度定义为 yMax - yMin。
+         */ export class Rect extends ValueType {
+        /**
+                 * 获取或设置矩形在 x 轴上的最小值。
+                 */ xMin: number;
+        /**
+                 * 获取或设置矩形在 y 轴上的最小值。
+                 */ yMin: number;
+        /**
+                 * 获取或设置矩形在 x 轴上的最大值。
+                 */ xMax: number;
+        /**
+                 * 获取或设置矩形在 y 轴上的最大值。
+                 */ yMax: number;
+        /**
+                 * 获取或设置矩形中心点的坐标。
+                 */ center: Vec2;
+        /**
+                 * 获取或设置矩形最小点的坐标。
+                 */ origin: any;
+        /**
+                 * 获取或设置矩形的尺寸。
+                 */ size: Size;
+        /**
+                 * 由任意两个点创建一个矩形，目标矩形即是这两个点各向 x、y 轴作线所得到的矩形。
+                 * @param v1 指定的点。
+                 * @param v2 指定的点。
+                 * @returns 目标矩形。
+                 */ static fromMinMax<Out extends __internal.cocos_core_math_type_define_IRectLike, VecLike extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, v1: VecLike, v2: VecLike): Out;
+        /**
+                 * 根据指定的插值比率，从当前矩形到目标矩形之间做插值。
+                 * @param out 本方法将插值结果赋值给此参数
+                 * @param from 起始矩形。
+                 * @param to 目标矩形。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 */ static lerp<Out extends __internal.cocos_core_math_type_define_IRectLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+        /**
+                 * 计算当前矩形与指定矩形重叠部分的矩形，将其赋值给出口矩形。
+                 * @param out 出口矩形。
+                 * @param one 指定的一个矩形。
+                 * @param other 指定的另一个矩形。
+                 */ static intersection<Out extends __internal.cocos_core_math_type_define_IRectLike>(out: Out, one: Out, other: Out): Out;
+        /**
+                 * 创建同时包含当前矩形和指定矩形的最小矩形，将其赋值给出口矩形。
+                 * @param out 出口矩形。
+                 * @param one 指定的一个矩形。
+                 * @param other 指定的另一个矩形。
+                 */ static union<Out extends __internal.cocos_core_math_type_define_IRectLike>(out: Out, one: Out, other: Out): Out;
+        /**
+                 * 获取或设置矩形最小点的 x 坐标。
+                 */ x: number;
+        /**
+                 * 获取或设置矩形最小点的 y 坐标。
+                 */ y: number;
+        /**
+                 * 获取或设置矩形的宽度。
+                 */ width: number;
+        /**
+                 * 获取或设置矩形的高度。
+                 */ height: number;
+        /**
+                 * 构造与指定矩形相等的矩形。
+                 * @param other 相比较的矩形。
+                 */ constructor(other: Rect);
+        /**
+                 * 构造具有指定的最小值和尺寸的矩形。
+                 * @param x 矩形在 x 轴上的最小值。
+                 * @param y 矩形在 y 轴上的最小值。
+                 * @param width 矩形的宽度。
+                 * @param height 矩形的高度。
+                 */ constructor(x?: number, y?: number, width?: number, height?: number);
+        /**
+                 * 克隆当前矩形。
+                 */ clone(): Rect;
+        /**
+                 * 设置当前矩形使其与指定矩形相等。
+                 * @param other 相比较的矩形。
+                 * @returns `this`
+                 */ set(other: Rect): any;
+        /**
+                 * 设置当前矩形使其与指定参数的矩形相等。
+                 * @param x 指定矩形的 x 参数
+                 * @param y 指定矩形的 y 参数
+                 * @param width 指定矩形的 width 参数
+                 * @param height 指定矩形的 height 参数
+                 * @returns `this`
+                 */ set(x?: number, y?: number, width?: number, height?: number): any;
+        /**
+                 * 判断当前矩形是否与指定矩形相等。
+                 * @param other 相比较的矩形。
+                 * @returns 两矩阵的最小值和最大值都分别相等时返回 `true`；否则返回 `false`。
+                 */ equals(other: Rect): boolean;
+        /**
+                 * 根据指定的插值比率，从当前矩形到目标矩形之间做插值。
+                 * @param to 目标矩形。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 */ lerp(to: Rect, ratio: number): this;
+        /**
+                 * 返回当前矩形的字符串表示。
+                 * @returns 当前矩形的字符串表示。
+                 */ toString(): string;
+        /**
+                 * 判断当前矩形是否与指定矩形相交。
+                 * @param other 相比较的矩形。
+                 * @returns 相交则返回 `true`，否则返回 `false`。
+                 */ intersects(other: Rect): boolean;
+        /**
+                 * 判断当前矩形是否包含指定的点。
+                 * @param point 指定的点。
+                 * @returns 指定的点包含在矩形内则返回 `true`，否则返回 `false`。
+                 */ contains(point: Vec2): boolean;
+        /**
+                 * 判断当前矩形是否包含指定矩形。
+                 * @param other 指定的矩形。
+                 * @returns 指定矩形所有的点都包含在当前矩形内则返回 `true`，否则返回 `false`。
+                 */ containsRect(other: Rect): boolean;
+        /**
+                 * 应用矩阵变换到当前矩形：
+                 * 应用矩阵变换到当前矩形的最小点得到新的最小点，
+                 * 将当前矩形的尺寸视为二维向量应用矩阵变换得到新的尺寸；
+                 * 并将如此构成的新矩形。
+                 * @param matrix 变换矩阵。
+                 */ transformMat4(mat: Mat4): this;
+    }
+    /**
+         * 二维尺寸。
+         */ export class Size extends ValueType {
+        /**
+                 * 创建宽和高都为 0 的尺寸并返回。
+                 */ static readonly ZERO: Size;
+        /**
+                 * 根据指定的插值比率，从当前尺寸到目标尺寸之间做插值。
+                 * @param out 本方法将插值结果赋值给此参数
+                 * @param from 起始尺寸。
+                 * @param to 目标尺寸。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 * @returns 当前尺寸的宽和高到目标尺寸的宽和高分别按指定插值比率进行线性插值构成的向量。
+                 */ static lerp<Out extends __internal.cocos_core_math_type_define_ISizeLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+        /**
+                 * 宽度。
+                 */ width: number;
+        /**
+                 * 高度。
+                 */ height: number;
+        /**
+                 * 构造与指定尺寸相等的尺寸。
+                 * @param other 相比较的尺寸。
+                 */ constructor(other: Size);
+        /**
+                 * 构造具有指定宽度和高度的尺寸。
+                 * @param [width=0] 指定的宽度。
+                 * @param [height=0] 指定的高度。
+                 */ constructor(width?: number, height?: number);
+        /**
+                 * 克隆当前尺寸。
+                 */ clone(): Size;
+        /**
+                 * 设置当前尺寸使其与指定的尺寸相等。
+                 * @param other 相比较的尺寸。
+                 * @returns `this`
+                 */ set(other: Size): any;
+        /**
+                 * 设置当前尺寸的具体参数。
+                 * @param width 要设置的 width 值
+                 * @param height 要设置的 height 值
+                 * @returns `this`
+                 */ set(width?: number, height?: number): any;
+        /**
+                 * 判断当前尺寸是否与指定尺寸的相等。
+                 * @param other 相比较的尺寸。
+                 * @returns 两尺寸的宽和高都分别相等时返回 `true`；否则返回 `false`。
+                 */ equals(other: Size): boolean;
+        /**
+                 * 根据指定的插值比率，从当前尺寸到目标尺寸之间做插值。
+                 * @param to 目标尺寸。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 */ lerp(to: Size, ratio: number): this;
+        /**
+                 * 返回当前尺寸的字符串表示。
+                 * @returns 当前尺寸的字符串表示。
+                 */ toString(): string;
+    }
+    /**
+         * 二维向量。
+         */ export class Vec2 extends ValueType {
+        static ZERO: Readonly<Vec2>;
+        static ONE: Readonly<Vec2>;
+        static NEG_ONE: Readonly<Vec2>;
+        static UP: Readonly<Vec2>;
+        static RIGHT: Readonly<Vec2>;
+        /**
+                 * @zh 获得指定向量的拷贝
+                 */ static clone<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out): Vec2;
+        /**
+                 * @zh 复制目标向量
+                 */ static copy<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 设置向量值
+                 */ static set<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, x: number, y: number): Out;
+        /**
+                 * @zh 逐元素向量加法
+                 */ static add<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量减法
+                 */ static subtract<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量乘法
+                 */ static multiply<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量除法
+                 */ static divide<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量向上取整
+                 */ static ceil<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量向下取整
+                 */ static floor<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量最小值
+                 */ static min<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量最大值
+                 */ static max<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量四舍五入取整
+                 */ static round<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 向量标量乘法
+                 */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: number): Out;
+        /**
+                 * @zh 逐元素向量乘加: A + B * scale
+                 */ static scaleAndAdd<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out, scale: number): Out;
+        /**
+                 * @zh 求两向量的欧氏距离
+                 */ static distance<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 求两向量的欧氏距离平方
+                 */ static squaredDistance<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 求向量长度
+                 */ static len<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out): number;
+        /**
+                 * @zh 求向量长度平方
+                 */ static lengthSqr<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out): number;
+        /**
+                 * @zh 逐元素向量取负
+                 */ static negate<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
+                 */ static inverse<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量取倒数，接近 0 时返回 0
+                 */ static inverseSafe<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 归一化向量
+                 */ static normalize<Out extends __internal.cocos_core_math_type_define_IVec2Like, Vec2Like extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Vec2Like): Out;
+        /**
+                 * @zh 向量点积（数量积）
+                 */ static dot<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 向量叉积（向量积），注意二维向量的叉积为与 Z 轴平行的三维向量
+                 */ static cross<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Vec3, a: Out, b: Out): Vec3;
+        /**
+                 * @zh 逐元素向量线性插值： A + t * (B - A)
+                 */ static lerp<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out, t: number): Out;
+        /**
+                 * @zh 生成一个在单位圆上均匀分布的随机向量
+                 * @param scale 生成的向量长度
+                 */ static random<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: Out, scale?: number): Out;
+        /**
+                 * @zh 向量与三维矩阵乘法，默认向量第三位为 1。
+                 */ static transformMat3<Out extends __internal.cocos_core_math_type_define_IVec2Like, MatLike extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, m: __internal.cocos_core_math_type_define_IMat3Like): Out;
+        /**
+                 * @zh 向量与四维矩阵乘法，默认向量第三位为 0，第四位为 1。
+                 */ static transformMat4<Out extends __internal.cocos_core_math_type_define_IVec2Like, MatLike extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, m: __internal.cocos_core_math_type_define_IMat4Like): Out;
+        /**
+                 * @zh 返回向量的字符串表示
+                 */ static str<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out): string;
+        /**
+                 * @zh 向量转数组
+                 * @param ofs 数组起始偏移量
+                 */ static array<Out extends __internal.cocos_core_math_type_define_IVec2Like>(out: IWritableArrayLike<number>, v: Out, ofs?: number): IWritableArrayLike<number>;
+        /**
+                 * @zh 向量等价判断
+                 */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): boolean;
+        /**
+                 * @zh 排除浮点数误差的向量近似等价判断
+                 */ static equals<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out, epsilon?: number): boolean;
+        /**
+                 * @zh 求两向量夹角弧度
+                 */ static angle<Out extends __internal.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+        /**
+                 * x 分量。
+                 */ x: number;
+        /**
+                 * y 分量。
+                 */ y: number;
+        constructor(other: Vec2);
+        constructor(x?: number, y?: number);
+        /**
+                 * 克隆当前向量。
+                 */ clone(): Vec2;
+        /**
+                 * 设置当前向量使其与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @returns `this`
+                 */ set(other: Vec2): any;
+        /**
+                 * 设置当前向量的具体分量值。
+                 * @param x 要设置的 x 分量的值
+                 * @param y 要设置的 y 分量的值
+                 * @returns `this`
+                 */ set(x?: number, y?: number): any;
+        /**
+                 * 判断当前向量是否在误差范围内与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                 */ equals(other: Vec2, epsilon?: number): boolean;
+        /**
+                 * 判断当前向量是否在误差范围内与指定分量的向量相等。
+                 * @param x 相比较的向量的 x 分量。
+                 * @param y 相比较的向量的 y 分量。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                 */ equals2f(x: number, y: number, epsilon?: number): boolean;
+        /**
+                 * 判断当前向量是否与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals(other: Vec2): boolean;
+        /**
+                 * 判断当前向量是否与指定分量的向量相等。
+                 * @param x 指定向量的 x 分量。
+                 * @param y 指定向量的 y 分量。
+                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals2f(x: number, y: number): boolean;
+        /**
+                 * 返回当前向量的字符串表示。
+                 * @returns 当前向量的字符串表示。
+                 */ toString(): string;
+        /**
+                 * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+                 * @param to 目标向量。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 */ lerp(to: Vec2, ratio: number): this;
+        /**
+                 * 设置当前向量的值，使其各个分量都处于指定的范围内。
+                 * @param minInclusive 每个分量都代表了对应分量允许的最小值。
+                 * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
+                 * @returns `this`
+                 */ clampf(minInclusive: Vec2, maxInclusive: Vec2): this;
+        /**
+                 * 向量加法。将当前向量与指定向量的相加
+                 * @param other 指定的向量。
+                 */ add(other: Vec2): this;
+        /**
+                 * 向量加法。将当前向量与指定分量的向量相加
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 */ add2f(x: number, y: number): this;
+        /**
+                 * 向量减法。将当前向量减去指定向量
+                 * @param other 减数向量。
+                 */ subtract(other: Vec2): this;
+        /**
+                 * 向量减法。将当前向量减去指定分量的向量
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 */ subtract2f(x: number, y: number): this;
+        /**
+                 * 向量数乘。将当前向量数乘指定标量
+                 * @param scalar 标量乘数。
+                 */ multiplyScalar(scalar: number): this;
+        /**
+                 * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
+                 * @param other 指定的向量。
+                 */ multiply(other: Vec2): this;
+        /**
+                 * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 */ multiply2f(x: number, y: number): this;
+        /**
+                 * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                 * @param other 指定的向量
+                 */ divide(other: Vec2): this;
+        /**
+                 * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 */ divide2f(x: number, y: number): this;
+        /**
+                 * 将当前向量的各个分量取反
+                 */ negative(): this;
+        /**
+                 * 向量点乘。
+                 * @param other 指定的向量。
+                 * @returns 当前向量与指定向量点乘的结果。
+                 */ dot(other: Vec2): number;
+        /**
+                 * 向量叉乘。
+                 * @param other 指定的向量。
+                 * @returns `out`
+                 */ cross(other: Vec2): number;
+        /**
+                 * 计算向量的长度（模）。
+                 * @returns 向量的长度（模）。
+                 */ length(): number;
+        /**
+                 * 计算向量长度（模）的平方。
+                 * @returns 向量长度（模）的平方。
+                 */ lengthSqr(): number;
+        /**
+                 * 将当前向量归一化。
+                 */ normalize(): this;
+        /**
+                 * 获取当前向量和指定向量之间的角度。
+                 * @param other 指定的向量。
+                 * @returns 当前向量和指定向量之间的角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
+                 */ angle(other: Vec2): number;
+        /**
+                 * 获取当前向量和指定向量之间的有符号角度。
+                 * 有符号角度的取值范围为 (-180, 180]，当前向量可以通过逆时针旋转有符号角度与指定向量同向。
+                 * @param other 指定的向量。
+                 * @returns 当前向量和指定向量之间的有符号角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
+                 */ signAngle(other: Vec2): number;
+        /**
+                 * 将当前向量的旋转
+                 * @param radians 旋转角度（弧度制）。
+                 */ rotate(radians: number): this;
+        /**
+                 * 计算当前向量在指定向量上的投影向量。
+                 * @param other 指定的向量。
+                 */ project(other: Vec2): this;
+        /**
+                 * 将当前向量视为 z 分量为 0、w 分量为 1 的四维向量，
+                 * 应用四维矩阵变换到当前矩阵
+                 * @param matrix 变换矩阵。
+                 */ transformMat4(matrix: Mat4): this;
+    }
+    /**
+         * 三维向量。
+         */ export class Vec3 extends ValueType {
+        static UNIT_X: Readonly<Vec3>;
+        static UNIT_Y: Readonly<Vec3>;
+        static UNIT_Z: Readonly<Vec3>;
+        static ZERO: Readonly<Vec3>;
+        static ONE: Readonly<Vec3>;
+        static NEG_ONE: Readonly<Vec3>;
+        /**
+                 * @zh 将目标赋值为零向量
+                 */ static zero<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out): Out;
+        /**
+                 * @zh 获得指定向量的拷贝
+                 */ static clone<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out): Vec3;
+        /**
+                 * @zh 复制目标向量
+                 */ static copy<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like): Out;
+        /**
+                 * @zh 设置向量值
+                 */ static set<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, x: number, y: number, z: number): Out;
+        /**
+                 * @zh 逐元素向量加法
+                 */ static add<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量减法
+                 */ static subtract<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量乘法
+                 */ static multiply<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like_1 extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like_2 extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like_1, b: Vec3Like_2): Out;
+        /**
+                 * @zh 逐元素向量除法
+                 */ static divide<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量向上取整
+                 */ static ceil<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量向下取整
+                 */ static floor<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量最小值
+                 */ static min<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量最大值
+                 */ static max<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量四舍五入取整
+                 */ static round<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 向量标量乘法
+                 */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like, b: number): Out;
+        /**
+                 * @zh 逐元素向量乘加: A + B * scale
+                 */ static scaleAndAdd<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out, scale: number): Out;
+        /**
+                 * @zh 求两向量的欧氏距离
+                 */ static distance<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 求两向量的欧氏距离平方
+                 */ static squaredDistance<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 求向量长度
+                 */ static len<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out): number;
+        /**
+                 * @zh 求向量长度平方
+                 */ static lengthSqr<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out): number;
+        /**
+                 * @zh 逐元素向量取负
+                 */ static negate<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
+                 */ static invert<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量取倒数，接近 0 时返回 0
+                 */ static invertSafe<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 归一化向量
+                 */ static normalize<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like): Out;
+        /**
+                 * @zh 向量点积（数量积）
+                 */ static dot<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 向量叉积（向量积）
+                 */ static cross<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like_1 extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like_2 extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like_1, b: Vec3Like_2): Out;
+        /**
+                 * @zh 逐元素向量线性插值： A + t * (B - A)
+                 */ static lerp<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out, t: number): Out;
+        /**
+                 * @zh 生成一个在单位球体上均匀分布的随机向量
+                 * @param scale 生成的向量长度
+                 */ static random<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, scale?: number): Out;
+        /**
+                 * @zh 向量与四维矩阵乘法，默认向量第四位为 1。
+                 */ static transformMat4<Out extends __internal.cocos_core_math_type_define_IVec3Like, Vec3Like extends __internal.cocos_core_math_type_define_IVec3Like, MatLike extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Vec3Like, m: MatLike): Out;
+        /**
+                 * @zh 向量与四维矩阵乘法，默认向量第四位为 0。
+                 */ static transformMat4Normal<Out extends __internal.cocos_core_math_type_define_IVec3Like, MatLike extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, m: MatLike): Out;
+        /**
+                 * @zh 向量与三维矩阵乘法
+                 */ static transformMat3<Out extends __internal.cocos_core_math_type_define_IVec3Like, MatLike extends __internal.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, m: MatLike): Out;
+        /**
+                 * @zh 向量四元数乘法
+                 */ static transformQuat<Out extends __internal.cocos_core_math_type_define_IVec3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: VecLike, q: QuatLike): Out;
+        /**
+                 * @zh 缩放 -> 旋转 -> 平移变换向量
+                 */ static transformRTS<Out extends __internal.cocos_core_math_type_define_IVec3Like, VecLike extends __internal.cocos_core_math_type_define_IVec3Like, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: VecLike, r: QuatLike, t: VecLike, s: VecLike): Out;
+        /**
+                 * @zh 绕 X 轴旋转向量指定弧度
+                 * @param v 待旋转向量
+                 * @param o 旋转中心
+                 * @param a 旋转弧度
+                 */ static rotateX<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: Out, o: Out, a: number): Out;
+        /**
+                 * @zh 绕 Y 轴旋转向量指定弧度
+                 * @param v 待旋转向量
+                 * @param o 旋转中心
+                 * @param a 旋转弧度
+                 */ static rotateY<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: Out, o: Out, a: number): Out;
+        /**
+                 * @zh 绕 Z 轴旋转向量指定弧度
+                 * @param v 待旋转向量
+                 * @param o 旋转中心
+                 * @param a 旋转弧度
+                 */ static rotateZ<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, v: Out, o: Out, a: number): Out;
+        /**
+                 * @zh 向量转数组
+                 * @param ofs 数组起始偏移量
+                 */ static array<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: IWritableArrayLike<number>, v: Out, ofs?: number): IWritableArrayLike<number>;
+        /**
+                 * @zh 向量等价判断
+                 */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): boolean;
+        /**
+                 * @zh 排除浮点数误差的向量近似等价判断
+                 */ static equals<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out, epsilon?: number): boolean;
+        /**
+                 * @zh 求两向量夹角弧度
+                 */ static angle<Out extends __internal.cocos_core_math_type_define_IVec3Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 计算向量在指定平面上的投影
+                 * @param a 待投影向量
+                 * @param n 指定平面的法线
+                 */ static projectOnPlane<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, n: Out): Out;
+        /**
+                 * @zh 计算向量在指定向量上的投影
+                 * @param a 待投影向量
+                 * @param n 目标向量
+                 */ static project<Out extends __internal.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * x 分量。
+                 */ x: number;
+        /**
+                 * y 分量。
+                 */ y: number;
+        /**
+                 * z 分量。
+                 */ z: number;
+        constructor(v: Vec3);
+        constructor(x?: number, y?: number, z?: number);
+        /**
+                 * 克隆当前向量。
+                 */ clone(): Vec3;
+        /**
+                 * 设置当前向量使其与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @returns `this`
+                 */ set(other: Vec3): any;
+        /**
+                 * 设置当前向量的具体分量值。
+                 * @param x 要设置的 x 分量的值
+                 * @param y 要设置的 y 分量的值
+                 * @param z 要设置的 z 分量的值
+                 * @returns `this`
+                 */ set(x?: number, y?: number, z?: number): any;
+        /**
+                 * 判断当前向量是否在误差范围内与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                 */ equals(other: Vec3, epsilon?: number): boolean;
+        /**
+                 * 判断当前向量是否在误差范围内与指定分量的向量相等。
+                 * @param x 相比较的向量的 x 分量。
+                 * @param y 相比较的向量的 y 分量。
+                 * @param z 相比较的向量的 z 分量。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                 */ equals3f(x: number, y: number, z: number, epsilon?: number): boolean;
+        /**
+                 * 判断当前向量是否与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals(other: Vec3): boolean;
+        /**
+                 * 判断当前向量是否与指定分量的向量相等。
+                 * @param x 指定向量的 x 分量。
+                 * @param y 指定向量的 y 分量。
+                 * @param z 指定向量的 z 分量。
+                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals3f(x: number, y: number, z: number): boolean;
+        /**
+                 * 返回当前向量的字符串表示。
+                 * @returns 当前向量的字符串表示。
+                 */ toString(): string;
+        /**
+                 * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+                 * @param to 目标向量。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 */ lerp(to: Vec3, ratio: number): this;
+        /**
+                 * 向量加法。将当前向量与指定向量的相加
+                 * @param other 指定的向量。
+                 */ add(other: Vec3): this;
+        /**
+                 * 向量加法。将当前向量与指定分量的向量相加
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 * @param z 指定的向量的 z 分量。
+                 */ add3f(x: number, y: number, z: number): this;
+        /**
+                 * 向量减法。将当前向量减去指定向量的结果。
+                 * @param other 减数向量。
+                 */ subtract(other: Vec3): this;
+        /**
+                 * 向量减法。将当前向量减去指定分量的向量
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 * @param z 指定的向量的 z 分量。
+                 */ subtract3f(x: number, y: number, z: number): this;
+        /**
+                 * 向量数乘。将当前向量数乘指定标量
+                 * @param scalar 标量乘数。
+                 */ multiplyScalar(scalar: number): this;
+        /**
+                 * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
+                 * @param other 指定的向量。
+                 */ multiply(other: Vec3): this;
+        /**
+                 * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 * @param z 指定的向量的 z 分量。
+                 */ multiply3f(x: number, y: number, z: number): this;
+        /**
+                 * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                 * @param other 指定的向量
+                 */ divide(other: Vec3): this;
+        /**
+                 * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 * @param z 指定的向量的 z 分量。
+                 */ divide3f(x: number, y: number, z: number): this;
+        /**
+                 * 将当前向量的各个分量取反
+                 */ negative(): this;
+        /**
+                 * 设置当前向量的值，使其各个分量都处于指定的范围内。
+                 * @param minInclusive 每个分量都代表了对应分量允许的最小值。
+                 * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
+                 * @returns `this`
+                 */ clampf(minInclusive: Vec3, maxInclusive: Vec3): this;
+        /**
+                 * 向量点乘。
+                 * @param other 指定的向量。
+                 * @returns 当前向量与指定向量点乘的结果。
+                 */ dot(other: Vec3): number;
+        /**
+                 * 向量叉乘。将当前向量左叉乘指定向量
+                 * @param other 指定的向量。
+                 */ cross(other: Vec3): this;
+        /**
+                 * 计算向量的长度（模）。
+                 * @returns 向量的长度（模）。
+                 */ length(): number;
+        /**
+                 * 计算向量长度（模）的平方。
+                 * @returns 向量长度（模）的平方。
+                 */ lengthSqr(): number;
+        /**
+                 * 将当前向量归一化
+                 */ normalize(): this;
+        /**
+                 * 将当前向量视为 w 分量为 1 的四维向量，
+                 * 应用四维矩阵变换到当前矩阵
+                 * @param matrix 变换矩阵。
+                 */ transformMat4(matrix: Mat4): this;
+    }
+    /**
+         * 四维向量。
+         */ export class Vec4 extends ValueType {
+        static ZERO: Readonly<Vec4>;
+        static ONE: Readonly<Vec4>;
+        static NEG_ONE: Readonly<Vec4>;
+        /**
+                 * @zh 获得指定向量的拷贝
+                 */ static clone<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out): Vec4;
+        /**
+                 * @zh 复制目标向量
+                 */ static copy<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 设置向量值
+                 */ static set<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, x: number, y: number, z: number, w: number): Out;
+        /**
+                 * @zh 逐元素向量加法
+                 */ static add<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量减法
+                 */ static subtract<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量乘法
+                 */ static multiply<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量除法
+                 */ static divide<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量向上取整
+                 */ static ceil<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量向下取整
+                 */ static floor<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量最小值
+                 */ static min<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量最大值
+                 */ static max<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+        /**
+                 * @zh 逐元素向量四舍五入取整
+                 */ static round<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 向量标量乘法
+                 */ static multiplyScalar<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: number): Out;
+        /**
+                 * @zh 逐元素向量乘加: A + B * scale
+                 */ static scaleAndAdd<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out, scale: number): Out;
+        /**
+                 * @zh 求两向量的欧氏距离
+                 */ static distance<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 求两向量的欧氏距离平方
+                 */ static squaredDistance<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 求向量长度
+                 */ static len<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out): number;
+        /**
+                 * @zh 求向量长度平方
+                 */ static lengthSqr<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out): number;
+        /**
+                 * @zh 逐元素向量取负
+                 */ static negate<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
+                 */ static inverse<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 逐元素向量取倒数，接近 0 时返回 0
+                 */ static inverseSafe<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 归一化向量
+                 */ static normalize<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+        /**
+                 * @zh 向量点积（数量积）
+                 */ static dot<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
+        /**
+                 * @zh 逐元素向量线性插值： A + t * (B - A)
+                 */ static lerp<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out, t: number): Out;
+        /**
+                 * @zh 生成一个在单位球体上均匀分布的随机向量
+                 * @param scale 生成的向量长度
+                 */ static random<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: Out, scale?: number): Out;
+        /**
+                 * @zh 向量矩阵乘法
+                 */ static transformMat4<Out extends __internal.cocos_core_math_type_define_IVec4Like, MatLike extends __internal.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, m: MatLike): Out;
+        /**
+                 * @zh 向量四元数乘法
+                 */ static transformQuat<Out extends __internal.cocos_core_math_type_define_IVec4Like, QuatLike extends __internal.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, q: QuatLike): Out;
+        /**
+                 * @zh 向量转数组
+                 * @param ofs 数组起始偏移量
+                 */ static array<Out extends __internal.cocos_core_math_type_define_IVec4Like>(out: IWritableArrayLike<number>, v: Out, ofs?: number): IWritableArrayLike<number>;
+        /**
+                 * @zh 向量等价判断
+                 */ static strictEquals<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): boolean;
+        /**
+                 * @zh 排除浮点数误差的向量近似等价判断
+                 */ static equals<Out extends __internal.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out, epsilon?: number): boolean;
+        /**
+                 * x 分量。
+                 */ x: number;
+        /**
+                 * y 分量。
+                 */ y: number;
+        /**
+                 * z 分量。
+                 */ z: number;
+        /**
+                 * w 分量。
+                 */ w: number;
+        constructor(other: Vec4);
+        constructor(x?: number, y?: number, z?: number, w?: number);
+        /**
+                 * 克隆当前向量。
+                 */ clone(): Vec4;
+        /**
+                 * 设置当前向量使其与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @returns `this`
+                 */ set(other: Vec4): any;
+        /**
+                 * 设置当前向量的具体分量值。
+                 * @param x 要设置的 x 分量的值
+                 * @param y 要设置的 y 分量的值
+                 * @param z 要设置的 z 分量的值
+                 * @param w 要设置的 w 分量的值
+                 * @returns `this`
+                 */ set(x?: number, y?: number, z?: number, w?: number): any;
+        /**
+                 * 判断当前向量是否在误差范围内与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                 */ equals(other: Vec4, epsilon?: number): boolean;
+        /**
+                 * 判断当前向量是否在误差范围内与指定分量的向量相等。
+                 * @param x 相比较的向量的 x 分量。
+                 * @param y 相比较的向量的 y 分量。
+                 * @param z 相比较的向量的 z 分量。
+                 * @param w 相比较的向量的 w 分量。
+                 * @param epsilon 允许的误差，应为非负数。
+                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+                 */ equals4f(x: number, y: number, z: number, w: number, epsilon?: number): boolean;
+        /**
+                 * 判断当前向量是否与指定向量相等。
+                 * @param other 相比较的向量。
+                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals(other: Vec4): boolean;
+        /**
+                 * 判断当前向量是否与指定分量的向量相等。
+                 * @param x 指定向量的 x 分量。
+                 * @param y 指定向量的 y 分量。
+                 * @param z 指定向量的 z 分量。
+                 * @param w 指定向量的 w 分量。
+                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+                 */ strictEquals4f(x: number, y: number, z: number, w: number): boolean;
+        /**
+                 * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+                 * @param to 目标向量。
+                 * @param ratio 插值比率，范围为 [0,1]。
+                 */ lerp(to: Vec4, ratio: number): this;
+        /**
+                 * 返回当前向量的字符串表示。
+                 * @returns 当前向量的字符串表示。
+                 */ toString(): string;
+        /**
+                 * 设置当前向量的值，使其各个分量都处于指定的范围内。
+                 * @param minInclusive 每个分量都代表了对应分量允许的最小值。
+                 * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
+                 * @returns `this`
+                 */ clampf(minInclusive: Vec4, maxInclusive: Vec4): this;
+        /**
+                 * 向量加法。将当前向量与指定向量的相加
+                 * @param other 指定的向量。
+                 */ add(other: Vec4): this;
+        /**
+                 * 向量加法。将当前向量与指定分量的向量相加
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 * @param z 指定的向量的 z 分量。
+                 * @param w 指定的向量的 w 分量。
+                 */ add4f(x: number, y: number, z: number, w: number): this;
+        /**
+                 * 向量减法。将当前向量减去指定向量
+                 * @param other 减数向量。
+                 */ subtract(other: Vec4): this;
+        /**
+                 * 向量减法。将当前向量减去指定分量的向量
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 * @param z 指定的向量的 z 分量。
+                 * @param w 指定的向量的 w 分量。
+                 */ subtract4f(x: number, y: number, z: number, w: number): this;
+        /**
+                 * 向量数乘。将当前向量数乘指定标量
+                 * @param scalar 标量乘数。
+                 */ multiplyScalar(scalar: number): this;
+        /**
+                 * 向量乘法。将当前向量乘以指定向量
+                 * @param other 指定的向量。
+                 */ multiply(other: Vec4): this;
+        /**
+                 * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 * @param z 指定的向量的 z 分量。
+                 * @param w 指定的向量的 w 分量。
+                 */ multiply4f(x: number, y: number, z: number, w: number): this;
+        /**
+                 * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                 * @param other 指定的向量
+                 */ divide(other: Vec4): this;
+        /**
+                 * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+                 * @param x 指定的向量的 x 分量。
+                 * @param y 指定的向量的 y 分量。
+                 * @param z 指定的向量的 z 分量。
+                 * @param w 指定的向量的 w 分量。
+                 */ divide4f(x: number, y: number, z: number, w: number): this;
+        /**
+                 * 将当前向量的各个分量取反
+                 */ negative(): this;
+        /**
+                 * 向量点乘。
+                 * @param other 指定的向量。
+                 * @returns 当前向量与指定向量点乘的结果。
+                 */ dot(vector: Vec4): number;
+        /**
+                 * 向量叉乘。视当前向量和指定向量为三维向量（舍弃 w 分量），将当前向量左叉乘指定向量
+                 * @param other 指定的向量。
+                 */ cross(vector: Vec4): this;
+        /**
+                 * 计算向量的长度（模）。
+                 * @returns 向量的长度（模）。
+                 */ length(): number;
+        /**
+                 * 计算向量长度（模）的平方。
+                 * @returns 向量长度（模）的平方。
+                 */ lengthSqr(): number;
+        /**
+                 * 将当前向量归一化
+                 */ normalize(): this;
+        /**
+                 * 应用四维矩阵变换到当前矩阵
+                 * @param matrix 变换矩阵。
+                 */ transformMat4(matrix: Mat4): this;
+    }
+    /**
+         * @en
+         * Define an enum type. <br/>
+         * If a enum item has a value of -1, it will be given an Integer number according to it's order in the list.<br/>
+         * Otherwise it will use the value specified by user who writes the enum definition.
+         *
+         * @zh
+         * 定义一个枚举类型。<br/>
+         * 用户可以把枚举值设为任意的整数，如果设为 -1，系统将会分配为上一个枚举值 + 1。
+         *
+         * @param obj - a JavaScript literal object containing enum names and values, or a TypeScript enum type
+         * @return the defined enum type
+         */ export function Enum<T>(obj: T): T;
+    namespace Enum {
+        var isEnum: (enumType: any) => any;
+        var getList: (enumDef: any) => any;
+    }
+    /**
+         * 所有值类型的基类。
+         */ export class ValueType {
+        /**
+                 * 克隆当前值。克隆的结果值应与当前值相等，即满足 `this.equals(this, value.clone())`。
+                 *
+                 * 本方法的基类版本简单地返回 `this`；
+                 * 派生类**必须**重写本方法，并且返回的对象不应当为 `this`，即满足 `this !== this.clone()`。
+                 * @returns 克隆结果值。
+                 */ clone(): ValueType;
+        /**
+                 * 判断当前值是否与指定值相等。此判断应当具有交换性，即满足 `this.equals(other) === other.equals(this)`。
+                 * 本方法的基类版本简单地返回 `false`。
+                 * @param other 相比较的值。
+                 * @returns 相等则返回 `true`，否则返回 `false`。
+                 */ equals(other: this): boolean;
+        /**
+                 * 赋值当前值使其与指定值相等，即在 `this.set(other)` 之后应有 `this.equals(other)`。
+                 * 本方法的基类版本简单地返回 `this`，派生类**必须**重写本方法。
+                 * @param other 相比较的值。
+                 */ set(other: this): void;
+        /**
+                 * 返回当前值的字符串表示。
+                 * 本方法的基类版本返回空字符串。
+                 * @returns 当前值的字符串表示。
+                 */ toString(): string;
+    }
     namespace js {
         /**
              * ID generator for runtime.
@@ -1475,6 +5821,7 @@ declare module "Cocos3D" {
              * 这个对象池的实现非常精简，它可以帮助您提高游戏性能，适用于优化对象的反复创建和销毁。
              * @class js.Pool
              * @example
+             * ```
              *
              * Example 1:
              *
@@ -1514,6 +5861,7 @@ declare module "Cocos3D" {
              *
              * var detail = Details.pool.get( [] );
              * ...
+             * ```
              */ export class Pool<T> {
             /**
                      * @en
@@ -1531,10 +5879,6 @@ declare module "Cocos3D" {
                      * @param args - parameters to used to initialize the object
                      */ get(): T | null;
             /**
-                     * @en
-                     * Constructor for creating an object pool for the specific object type.
-                     * You can pass a callback argument for process the cleanup logic when the object is recycled.
-                     * @zh
                      * 使用构造函数来创建一个指定对象类型的对象池，您可以传递一个回调函数，用于处理对象回收时的清理逻辑。
                      * @method constructor
                      * @param {Function} [cleanupFunc] - the callback method used to process the cleanup logic when the object is recycled.
@@ -1542,10 +5886,6 @@ declare module "Cocos3D" {
                      * @param {Number} size - initializes the length of the array
                      */ constructor(cleanup: __internal.cocos_core_utils_pool_CleanUpFunction<T>, size: number);
             /**
-                     * @en
-                     * Constructor for creating an object pool for the specific object type.
-                     * You can pass a callback argument for process the cleanup logic when the object is recycled.
-                     * @zh
                      * 使用构造函数来创建一个指定对象类型的对象池，您可以传递一个回调函数，用于处理对象回收时的清理逻辑。
                      * @method constructor
                      * @param {Function} [cleanupFunc] - the callback method used to process the cleanup logic when the object is recycled.
@@ -1568,6 +5908,36 @@ declare module "Cocos3D" {
                      */ resize(length: number): void;
         }
         var array: typeof jsarray;
+        var js: {
+            IDGenerator: typeof IDGenerator;
+            Pool: typeof Pool;
+            array: typeof jsarray;
+            isNumber: typeof isNumber;
+            isString: typeof isString;
+            getPropertyDescriptor: typeof getPropertyDescriptor;
+            addon: typeof addon;
+            mixin: typeof mixin;
+            extend: typeof extend;
+            getSuper: typeof getSuper;
+            isChildClassOf: typeof isChildClassOf;
+            clear: typeof clear;
+            value: (object: Object, propertyName: string, value_: any, writable?: boolean | undefined, enumerable?: boolean | undefined) => void;
+            getset: (object: {}, propertyName: string, getter: Getter, setter?: boolean | Setter | undefined, enumerable?: boolean, configurable?: boolean) => void;
+            get: (object: Object, propertyName: string, getter: Getter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
+            set: (object: Object, propertyName: string, setter: Setter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
+            unregisterClass: typeof unregisterClass;
+            getClassName: typeof getClassName;
+            setClassName: typeof setClassName;
+            getClassByName: typeof getClassByName;
+            _getClassId: typeof _getClassId;
+            _setClassId: typeof _setClassId;
+            _getClassById: typeof _getClassById;
+            obsolete: typeof obsolete;
+            obsoletes: typeof obsoletes;
+            formatStr: typeof formatStr;
+            shiftArguments: typeof shiftArguments;
+            createMap: typeof createMap;
+        };
         /**
              * Check the object whether is number or not
              * If a number is created by using 'new Number(10086)', the typeof it will be "object"...
@@ -1579,11 +5949,11 @@ declare module "Cocos3D" {
              * Then you can use this function if you care about this case.
              */ export function isString(object: any): boolean;
         /**
-             * !#en
+             * @en
              * A simple wrapper of `Object.create(null)` which ensures the return object have no prototype (and thus no inherited members).
              * So we can skip `hasOwnProperty` calls on property lookups.
              * It is a worthwhile optimization than the `{}` literal when `hasOwnProperty` calls are necessary.
-             * !#zh
+             * @zh
              * 该方法是对 `Object.create(null)` 的简单封装。
              * `Object.create(null)` 用于创建无 prototype （也就无继承）的空对象。
              * 这样我们在该对象上查找属性时，就不用进行 `hasOwnProperty` 判断。
@@ -1619,8 +5989,10 @@ declare module "Cocos3D" {
              * @param subst - JavaScript objects with which to replace substitution strings within msg.
              * This gives you additional control over the format of the output.
              * @example
+             * ```
              * cc.js.formatStr("a: %s, b: %s", a, b);
              * cc.js.formatStr(a, b, c);
+             * ```
              */ export function formatStr(msg: string | any, ...subst: any[]): any;
         export function shiftArguments(): any[];
         /**
@@ -1696,25 +6068,49 @@ declare module "Cocos3D" {
              * @return {String}
              * @private
              */ export function _getClassId(obj: any, allowTempId?: Boolean): any;
-        type Getter = () => any;
-        type Setter = (value: any) => void;
         var value: (object: Object, propertyName: string, value_: any, writable?: boolean | undefined, enumerable?: boolean | undefined) => void;
-        var getset: (object: Object, propertyName: string, getter: Getter, setter?: Setter | undefined, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
+        var getset: (object: {}, propertyName: string, getter: Getter, setter?: boolean | Setter | undefined, enumerable?: boolean, configurable?: boolean) => void;
         var get: (object: Object, propertyName: string, getter: Getter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
         var set: (object: Object, propertyName: string, setter: Setter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
         var _idToClass: {};
         var _nameToClass: {};
     }
+    namespace misc {
+        /**
+             * misc utilities
+             * @class misc
+             * @static
+             */ /**
+             * @method propertyDefine
+             * @param {Function} ctor
+             * @param {Array} sameNameGetSets
+             * @param {Object} diffNameGetSets
+             */ export function propertyDefine(ctor: any, sameNameGetSets: any, diffNameGetSets: any): void;
+        /**
+             * @method nextPOT
+             * @param {Number} x
+             * @return {Number}
+             */ export function nextPOT(x: any): any;
+        export function pushToMap(map: any, key: any, value: any, pushFront: any): void;
+        export function contains(refNode: any, otherNode: any): any;
+        export function isDomNode(obj: any): boolean;
+        export function callInNextTick(callback: any, p1?: any, p2?: any): void;
+        export function tryCatchFunctor_EDITOR(funcName: any, forwardArgs?: any, afterCall?: any, bindArg?: any): any;
+        export function isPlainEmptyObj_DEV(obj: any): boolean;
+        export function cloneable_DEV(obj: any): any;
+        var BUILTIN_CLASSID_RE: RegExp;
+        var BASE64_VALUES: any[];
+    }
     namespace path {
         /**
              * @en Join strings to be a path.
              * @zh 拼接字符串为路径。
-             * @example {@link cocos2d/core/utils/CCPath/join.js}
+             * @example {@link cocos/core/utils/CCPath/join.js}
              */ export function join(...segments: string[]): string;
         /**
              * @en Get the ext name of a path including '.', like '.png'.
              * @zh 返回 Path 的扩展名，包括 '.'，例如 '.png'。
-             * @example {@link cocos2d/core/utils/CCPath/extname.js}
+             * @example {@link cocos/core/utils/CCPath/extname.js}
              */ export function extname(path: string): string;
         /**
              * @en Get the main name of a file name.
@@ -1724,112 +6120,27 @@ declare module "Cocos3D" {
         /**
              * @en Get the file name of a file path.
              * @zh 获取文件路径的文件名。
-             * @example {@link cocos2d/core/utils/CCPath/basename.js}
+             * @example {@link cocos/core/utils/CCPath/basename.js}
              */ export function basename(path: string, extName?: string): string;
         /**
              * @en Get dirname of a file path.
              * @zh 获取文件路径的目录名。
-             * @example {@link cocos2d/core/utils/CCPath/dirname.js}
+             * @example {@link cocos/core/utils/CCPath/dirname.js}
              */ export function dirname(path: string): string;
         /**
              * @en Change extname of a file path.
              * @zh 更改文件路径的扩展名。
-             * @example {@link cocos2d/core/utils/CCPath/changeExtname.js}
+             * @example {@link cocos/core/utils/CCPath/changeExtname.js}
              */ export function changeExtname(path: string, extName?: string): string;
         /**
              * @en Change file name of a file path.
              * @zh 更改文件路径的文件名。
-             * @example {@link cocos2d/core/utils/CCPath/changeBasename.js}
+             * @example {@link cocos/core/utils/CCPath/changeBasename.js}
              */ export function changeBasename(path: string, baseName: string, isSameExt?: boolean): string;
         export function _normalize(url: any): any;
         export function stripSep(path: string): string;
         export function getSeperator(): "/" | "\\";
     }
-    var profiler: {
-        isShowingStats(): boolean;
-        hideStats(): void;
-        showStats(): void;
-    };
-    /**
-         * misc utilities
-         * @class misc
-         * @static
-         */ /**
-         * @method propertyDefine
-         * @param {Function} ctor
-         * @param {Array} sameNameGetSets
-         * @param {Object} diffNameGetSets
-         */ export function propertyDefine(ctor: any, sameNameGetSets: any, diffNameGetSets: any): void;
-    /**
-         * @method nextPOT
-         * @param {Number} x
-         * @return {Number}
-         */ export function nextPOT(x: any): any;
-    export function pushToMap(map: any, key: any, value: any, pushFront: any): void;
-    /**
-         * @zh
-         * 限定浮点数的最大最小值。
-         * 数值大于 max_inclusive 则返回 max_inclusive。
-         * 数值小于 min_inclusive 则返回 min_inclusive。
-         * 否则返回自身。
-         *
-         * @param value
-         * @param min_inclusive
-         * @param max_inclusive
-         * @return
-         * @example
-         * var v1 = cc.misc.clampf(20, 0, 20); // 20;
-         * var v2 = cc.misc.clampf(-1, 0, 20); //  0;
-         * var v3 = cc.misc.clampf(10, 0, 20); // 10;
-         */ export function clampf(value: number, min_inclusive: number, max_inclusive: number): number;
-    /**
-         * @zh
-         * 限定浮点数的取值范围为 0 ~ 1 之间。
-         *
-         * @param value
-         * @example
-         * ```typescript
-         * let v1 = cc.misc.clamp01(20);  // 1;
-         * let v2 = cc.misc.clamp01(-1);  // 0;
-         * let v3 = cc.misc.clamp01(0.5); // 0.5;
-         * ```
-         */ export function clamp01(value: number): number;
-    /**
-         * @zh
-         * 两个数字之间的线性插值，比率决定了它对两端的偏向程度。
-         *
-         * @param a number A
-         * @param b number B
-         * @param r ratio between 0 and 1
-         * @return
-         * @example
-         * ```
-         * let v1 = cc.misc.lerp(2,10,0.5); // 6;
-         * let v2 = cc.misc.lerp(2,10,0.2); // 3.6;
-         * ```
-         */ export function lerp(a: number, b: number, r: number): number;
-    /**
-         * @zh
-         * 角度转弧度
-         *
-         * @param angle
-         * @return
-         */ export function degreesToRadians(angle: number): number;
-    /**
-         * @zh
-         * 弧度转角度
-         *
-         * @param angle
-         * @return
-         */ export function radiansToDegrees(angle: number): number;
-    export function contains(refNode: any, otherNode: any): any;
-    export function isDomNode(obj: any): boolean;
-    export function callInNextTick(callback: any, p1?: any, p2?: any): void;
-    export function tryCatchFunctor_EDITOR(funcName: any, forwardArgs?: any, afterCall?: any, bindArg?: any): any;
-    export function isPlainEmptyObj_DEV(obj: any): boolean;
-    export function cloneable_DEV(obj: any): any;
-    var BUILTIN_CLASSID_RE: RegExp;
-    var BASE64_VALUES: any[];
     export function isUnicodeCJK(ch: string): boolean;
     export function isUnicodeSpace(ch: string): boolean;
     export function safeMeasureText(ctx: CanvasRenderingContext2D, string: string): number;
@@ -1924,8 +6235,8 @@ declare module "Cocos3D" {
              *     constructor () { ... }
              * });
              *
-             * &#64;ccclass
-             * &#64;mixins(cc.EventTarget, Fly)
+             *  @ccclass
+             *  @mixins(cc.EventTarget, Fly)
              * class Bird extends Animal {
              *     constructor () {
              *         super();
@@ -1939,7 +6250,7 @@ declare module "Cocos3D" {
              * ```
              */ export function mixins(...constructors: Function[]): (ctor: any) => void;
         var ccclass: (target: any) => any;
-        export type SimplePropertyType = Function | string;
+        export type SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
         export type PropertyType = SimplePropertyType | SimplePropertyType[];
         /**
              * cc 属性选项。
@@ -2049,12 +6360,12 @@ declare module "Cocos3D" {
     namespace CCClass {
         var _isCCClass: (constructor: any) => any;
         var fastDefine: (className: any, constructor: any, serializableFields: any) => void;
-        var Attr: typeof Attr;
-        var attr: typeof Attr.attr;
-        var getInheritanceChain: typeof getInheritanceChain;
+        var Attr: typeof attributeUtils;
+        var attr: typeof attributeUtils.__internal.cocos_core_data_utils_attribute_attr;
+        var getInheritanceChain: (constructor: any) => any[];
         var isArray: (defaultVal: any) => boolean;
-        var getDefault: typeof getDefault;
-        var escapeForJS: typeof escapeForJS;
+        var getDefault: (defaultVal: any) => any;
+        var escapeForJS: (s: any) => string;
         var IDENTIFIER_RE: RegExp;
         var getNewValueTypeCode: (value: any) => string;
     }
@@ -2078,7 +6389,9 @@ declare module "Cocos3D" {
                  * @property {String} name
                  * @default ""
                  * @example
+                 * ```
                  * obj.name = "New Obj";
+                 * ```
                  */ name: string;
         /**
                  * @en
@@ -2098,12 +6411,14 @@ declare module "Cocos3D" {
                  * @default true
                  * @readOnly
                  * @example
+                 * ```typescript
                  * var node = new cc.Node();
                  * cc.log(node.isValid);    // true
                  * node.destroy();
                  * cc.log(node.isValid);    // true, still valid in this frame
                  * // after a frame...
                  * cc.log(node.isValid);    // false, destroyed in the end of last frame
+                 * ```
                  */ readonly isValid: boolean;
         /**
                  * @en
@@ -2115,10 +6430,11 @@ declare module "Cocos3D" {
                  * 销毁该对象，并释放所有它对其它对象的引用。<br/>
                  * 实际销毁操作会延迟到当前帧渲染前执行。从下一帧开始，该对象将不再可用。
                  * 您可以在访问对象之前使用 cc.isValid(obj) 来检查对象是否已被销毁。
-                 * @method destroy
                  * @return {Boolean} whether it is the first time the destroy being called
                  * @example
+                 * ```
                  * obj.destroy();
+                 * ```
                  */ destroy(): boolean;
         /**
                  * Clear all references in the instance.
@@ -2157,7 +6473,10 @@ declare module "Cocos3D" {
          * @param {Details} [details] - additional loading result
          * @param {Object} [options]
          * @return {object} the main data(asset)
-         */ export function deserialize(data: any, details: any, options: any): any;
+         */ declare function deserialize(data: any, details: any, options: any): any;
+    namespace deserialize {
+        var reportMissingClass: (id: any) => void;
+    }
     /**
          * @en Clones the object `original` and returns the clone, or instantiate a node from the Prefab.
          * @zh 克隆指定的任意类型的对象，或者从 Prefab 实例化出新节点。
@@ -2178,17 +6497,24 @@ declare module "Cocos3D" {
          * var node = cc.instantiate(targetNode);
          * node.parent = scene;
          * ```
-         */ export function instantiate(original: any, internal_force?: any): any;
-    var CCInteger;
-    var CCFloat;
-    var CCBoolean;
-    var CCString;
+         */ declare function instantiate(original: any, internal_force?: any): any;
+    namespace instantiate {
+        var _clone: typeof __internal.cocos_core_data_instantiate_doInstantiate;
+    }
+    var CCInteger: __internal.cocos_core_data_utils_attribute_PrimitiveType<number>;
+    var CCFloat: __internal.cocos_core_data_utils_attribute_PrimitiveType<number>;
+    var CCBoolean: __internal.cocos_core_data_utils_attribute_PrimitiveType<boolean>;
+    var CCString: __internal.cocos_core_data_utils_attribute_PrimitiveType<string>;
     /**
+         * 事件相关
+         * @category event
+         */ /**
          * @en
          * Base class of all kinds of events.
          *
          * @zh
          * 包含事件相关信息的对象。
+         * 可通过 cc.Event 获得该事件信息。
          */ export class Event {
         /**
                  * @en
@@ -2362,6 +6688,7 @@ declare module "Cocos3D" {
          * @zh
          * 事件目标是事件触发时，分派的事件对象，Node 是最常见的事件目标，
          * 但是其他对象也可以是事件目标。
+         * 可通过 cc.EventTarget 获得该对象。
          */ export class EventTarget extends __internal.cocos_core_event_callbacks_invoker_CallbacksInvoker {
         /**
                  * @zh
@@ -2378,7 +6705,7 @@ declare module "Cocos3D" {
                  * @return - 返回监听回调函数自身。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * eventTarget.on('fire', function () {
                  *     cc.log("fire in the hole");
                  * }, node);
@@ -2393,7 +6720,7 @@ declare module "Cocos3D" {
                  * @param target - 调用回调的目标。如果为空, 只有没有目标的事件会被移除。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // register fire eventListener
                  * var callback = eventTarget.on('fire', function () {
                  *     cc.log("fire in the hole");
@@ -2426,7 +6753,7 @@ declare module "Cocos3D" {
                  * @param target - 调用回调的目标。可以为空。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * eventTarget.once('fire', function () {
                  *     cc.log("this is the callback and will be invoked only once");
                  * }, node);
@@ -3956,2030 +8283,667 @@ declare module "Cocos3D" {
         CHILD_REMOVED = "child-removed"
     }
     /**
-         * @en
-         * Define an enum type. <br/>
-         * If a enum item has a value of -1, it will be given an Integer number according to it's order in the list.<br/>
-         * Otherwise it will use the value specified by user who writes the enum definition.
-         *
-         * @zh
-         * 定义一个枚举类型。<br/>
-         * 用户可以把枚举值设为任意的整数，如果设为 -1，系统将会分配为上一个枚举值 + 1。
-         *
-         * @param obj - a JavaScript literal object containing enum names and values, or a TypeScript enum type
-         * @return the defined enum type
-         * @example {@link cocos2d/core/platform/CCEnum/Enum.js}
-         * @typescript Enum<T>(obj: T): T
-         */ export function Enum<T>(obj: T): T;
-    /**
-         * 所有值类型的基类。
-         */ export class ValueType {
-        /**
-                 * 克隆当前值。克隆的结果值应与当前值相等，即满足 `this.equals(this, value.clone())`。
-                 *
-                 * 本方法的基类版本简单地返回 `this`；
-                 * 派生类**必须**重写本方法，并且返回的对象不应当为 `this`，即满足 `this !== this.clone()`。
-                 * @returns 克隆结果值。
-                 */ clone(): ValueType;
-        /**
-                 * 判断当前值是否与指定值相等。此判断应当具有交换性，即满足 `this.equals(other) === other.equals(this)`。
-                 * 本方法的基类版本简单地返回 `false`。
-                 * @param other 相比较的值。
-                 * @returns 相等则返回 `true`，否则返回 `false`。
-                 */ equals(other: this): boolean;
-        /**
-                 * 根据指定的插值比率，从当前值到目标值之间做插值。
-                 * 当插值比率为 `0` 时，此方法的返回值应和当前值相等，即满足 `this.lerp(other, 0, out).equals(this)`；
-                 * 当插值比率为 `1` 时，此方法的返回值应和目标值相等，即满足 `this.lerp(other, 1, out).equals(other)`。
-                 * 本方法的基类版本在插值比率为 `1` 时将目标值的克隆作为插值结果，在其它情况下将当前值的克隆作为插值结果。
-                 * @param to 目标值。
-                 * @param ratio 插值比率，范围为 [0,1]。
-                 * @param out 当此参数定义时，本方法允许将插值结果赋值给此参数并返回此参数。
-                 * @returns 插值结果。
-                 */ lerp(to: this, ratio: number, out?: this): ValueType;
-        /**
-                 * 赋值当前值使其与指定值相等，即在 `this.set(other)` 之后应有 `this.equals(other)`。
-                 * 本方法的基类版本简单地返回 `this`，派生类**必须**重写本方法。
-                 * @param other 相比较的值。
-                 */ set(other: this): void;
-        /**
-                 * 返回当前值的字符串表示。
-                 * 本方法的基类版本返回空字符串。
-                 * @returns 当前值的字符串表示。
-                 */ toString(): string;
-    }
-    /**
-         * 二维向量。
-         */ export class Vec2 extends ValueType {
-        /**
-                 * x 分量。
-                 */ x: number;
-        /**
-                 * y 分量。
-                 */ y: number;
-        /**
-                 * 构造与指定向量相等的向量。
-                 * @param other 相比较的向量。
-                 */ constructor(other: Vec2);
-        /**
-                 * 构造具有指定分量的向量。
-                 * @param [x=0] 指定的 x 分量。
-                 * @param [y=0] 指定的 y 分量。
-                 */ constructor(x?: number, y?: number);
-        /**
-                 * 克隆当前向量。
-                 */ clone(): Vec2;
-        /**
-                 * 设置当前向量使其与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @returns `this`
-                 */ set(other: Vec2): this;
-        /**
-                 * 判断当前向量是否与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
-                 */ equals(other: Vec2): boolean;
-        /**
-                 * 判断当前向量是否在误差范围 [-variance, variance] 内与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @param variance 允许的误差，应为非负数。
-                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
-                 */ fuzzyEquals(other: Vec2, variance: number): boolean;
-        /**
-                 * 返回当前向量的字符串表示。
-                 * @returns 当前向量的字符串表示。
-                 */ toString(): string;
-        /**
-                 * 根据指定的插值比率，从当前向量到目标向量之间做插值。
-                 * @param to 目标向量。
-                 * @param ratio 插值比率，范围为 [0,1]。
-                 * @param out 当此参数定义时，本方法将插值结果赋值给此参数并返回此参数。
-                 * @returns 当前向量各个分量到目标向量对应的各个分量之间按指定插值比率进行线性插值构成的向量。
-                 */ lerp(to: Vec2, ratio: number, out?: Vec2): Vec2;
-        /**
-                 * 设置当前向量的值，使其各个分量都处于指定的范围内。
-                 * @param minInclusive 每个分量都代表了对应分量允许的最小值。
-                 * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
-                 * @returns `this`
-                 */ clampf(minInclusive: Vec2, maxInclusive: Vec2): this;
-        /**
-                 * 向量加法。将当前向量加上指定向量。
-                 * @param other 指定的向量。
-                 * @returns `this`
-                 */ addSelf(other: Vec2): this;
-        /**
-                 * 向量加法。将当前向量与指定向量的相加结果赋值给出口向量。
-                 * @param other 指定的向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ add(other: Vec2, out?: Vec2): Vec2;
-        /**
-                 * 向量减法。将当前向量减去指定向量。
-                 * @param other 减数向量。
-                 * @returns `this`
-                 */ subSelf(other: Vec2): this;
-        /**
-                 * 向量减法。将当前向量减去指定向量的结果赋值给出口向量。
-                 * @param other 减数向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ sub(other: Vec2, out?: Vec2): Vec2;
-        /**
-                 * 向量数乘。将当前向量数乘指定标量。
-                 * @param scalar 标量乘数。
-                 * @returns `this`
-                 */ mulSelf(scalar: number): this;
-        /**
-                 * 向量数乘。将当前向量数乘指定标量的结果赋值给出口向量。
-                 * @param scalar 标量乘数。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ mul(scalar: number, out?: Vec2): Vec2;
-        /**
-                 * 向量乘法。将当前向量乘以与指定向量。
-                 * @param other 指定的向量。
-                 * @returns `this`
-                 */ scaleSelf(other: Vec2): this;
-        /**
-                 * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
-                 * @param other 指定的向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ scale(other: Vec2, out?: Vec2): Vec2;
-        /**
-                 * 将当前向量的各个分量除以指定标量。相当于 `this.mulSelf(1 / scalar)`。
-                 * @param scalar 标量除数。
-                 * @returns `this`
-                 */ divSelf(scalar: number): this;
-        /**
-                 * 将当前向量的各个分量除以指定标量的结果赋值给出口向量。相当于 `this.mul(1 / scalar, out)`。
-                 * @param scalar 标量除数。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ div(scalar: number, out?: Vec2): Vec2;
-        /**
-                 * 将当前向量的各个分量取反。
-                 * @returns `this`
-                 */ negSelf(): this;
-        /**
-                 * 将当前向量的各个分量取反的结果赋值给出口向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ neg(out?: Vec2): Vec2;
-        /**
-                 * 向量点乘。
-                 * @param other 指定的向量。
-                 * @returns 当前向量与指定向量点乘的结果。
-                 */ dot(other: Vec2): number;
-        /**
-                 * 向量叉乘。
-                 * @param other 指定的向量。
-                 * @returns `out`
-                 */ cross(other: Vec2): number;
-        /**
-                 * 计算向量的长度（模）。
-                 * @returns 向量的长度（模）。
-                 */ mag(): number;
-        /**
-                 * 计算向量长度（模）的平方。
-                 * @returns 向量长度（模）的平方。
-                 */ magSqr(): number;
-        /**
-                 * 归一化当前向量，以使其长度（模）为 1。
-                 */ normalizeSelf(): this;
-        /**
-                 * 将当前向量归一化的结果赋值给出口向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ normalize(out?: Vec2): Vec2;
-        /**
-                 * 获取当前向量和指定向量之间的角度。
-                 * @param other 指定的向量。
-                 * @returns 当前向量和指定向量之间的角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
-                 */ angle(other: Vec2): number;
-        /**
-                 * 获取当前向量和指定向量之间的有符号角度。
-                 * 有符号角度的取值范围为 (-180, 180]，当前向量可以通过逆时针旋转有符号角度与指定向量同向。
-                 * @param other 指定的向量。
-                 * @returns 当前向量和指定向量之间的有符号角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
-                 */ signAngle(other: Vec2): number;
-        /**
-                 * 旋转当前向量。
-                 * @param radians 旋转角度（弧度制）。
-                 * @returns `this`
-                 */ rotateSelf(radians: number): this;
-        /**
-                 * 将当前向量的旋转结果赋值给出口向量。
-                 * @param radians 旋转角度（弧度制）。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ rotate(radians: number, out?: Vec2): Vec2;
-        /**
-                 * 计算当前向量在指定向量上的投影向量。
-                 * @param other 指定的向量。
-                 * @returns 计算出的投影向量。
-                 */ project(other: Vec2): Vec2;
-        /**
-                 * 将当前向量视为 z 分量为 0、w 分量为 1 的四维向量，
-                 * 应用四维矩阵变换到当前矩阵，结果的 x、y 分量赋值给出口向量。
-                 * @param matrix 变换矩阵。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 */ transformMat4(matrix: Mat4, out?: Vec2): void;
-        /**
-                 * 创建分量都为 1 的向量并返回。
-                 */ static readonly ONE: Vec2;
-        /**
-                 * 创建零向量并返回。
-                 */ static readonly ZERO: Vec2;
-        /**
-                 * 创建与 y 轴同向的单位向量并返回。
-                 */ static readonly UP: Vec2;
-        /**
-                 * 创建与 x 轴同向的单位向量并返回。
-                 */ static readonly RIGHT: Vec2;
-    }
-    /**
-         * 三维向量。
-         */ export class Vec3 extends ValueType {
-        /**
-                 * x 分量。
-                 */ x: number;
-        /**
-                 * y 分量。
-                 */ y: number;
-        /**
-                 * z 分量。
-                 */ z: number;
-        /**
-                 * 构造与指定向量相等的向量。
-                 * @param v 相比较的向量。
-                 */ constructor(v: Vec3);
-        /**
-                 * 构造具有指定分量的向量。
-                 * @param [x=0] 指定的 x 分量。
-                 * @param [y=0] 指定的 y 分量。
-                 * @param [z=0] 指定的 z 分量。
-                 */ constructor(x?: number, y?: number, z?: number);
-        /**
-                 * 克隆当前向量。
-                 */ clone(): Vec3;
-        /**
-                 * 设置当前向量使其与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @returns `this`
-                 */ set(other: Vec3): this;
-        /**
-                 * 判断当前向量是否与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
-                 */ equals(other: Vec3): boolean;
-        /**
-                 * 判断当前向量是否在误差范围 [-variance, variance] 内与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @param variance 允许的误差，应为非负数。
-                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
-                 */ fuzzyEquals(other: Vec3, variance: number): boolean;
-        /**
-                 * 返回当前向量的字符串表示。
-                 * @returns 当前向量的字符串表示。
-                 */ toString(): string;
-        /**
-                 * 根据指定的插值比率，从当前向量到目标向量之间做插值。
-                 * @param to 目标向量。
-                 * @param ratio 插值比率，范围为 [0,1]。
-                 * @param out 当此参数定义时，本方法将插值结果赋值给此参数并返回此参数。
-                 * @returns 当前向量各个分量到目标向量对应的各个分量之间按指定插值比率进行线性插值构成的向量。
-                 */ lerp(to: Vec3, ratio: number, out?: Vec3): Vec3;
-        /**
-                 * 设置当前向量的值，使其各个分量都处于指定的范围内。
-                 * @param minInclusive 每个分量都代表了对应分量允许的最小值。
-                 * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
-                 * @returns `this`
-                 */ clampf(minInclusive: Vec3, maxInclusive: Vec3): this;
-        /**
-                 * 向量加法。将当前向量加上指定向量。
-                 * @param other 指定的向量。
-                 * @returns `this`
-                 */ addSelf(other: Vec3): this;
-        /**
-                 * 向量加法。将当前向量与指定向量的相加结果赋值给出口向量。
-                 * @param other 指定的向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ add(other: Vec3, out?: Vec3): Vec3;
-        /**
-                 * 向量减法。将当前向量减去指定向量。
-                 * @param other 减数向量。
-                 * @returns `this`
-                 */ subSelf(other: Vec3): this;
-        /**
-                 * 向量减法。将当前向量减去指定向量的结果赋值给出口向量。
-                 * @param other 减数向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ sub(other: Vec3, out?: Vec3): Vec3;
-        /**
-                 * 向量数乘。将当前向量数乘指定标量。
-                 * @param scalar 标量乘数。
-                 * @returns `this`
-                 */ mulSelf(scalar: number): this;
-        /**
-                 * 向量数乘。将当前向量数乘指定标量的结果赋值给出口向量。
-                 * @param scalar 标量乘数。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ mul(scalar: number, out?: Vec3): Vec3;
-        /**
-                 * 向量乘法。将当前向量乘以与指定向量。
-                 * @param other 指定的向量。
-                 * @returns `this`
-                 */ scaleSelf(other: Vec3): this;
-        /**
-                 * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
-                 * @param other 指定的向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ scale(other: Vec3, out?: Vec3): Vec3;
-        /**
-                 * 将当前向量的各个分量除以指定标量。相当于 `this.mulSelf(1 / scalar)`。
-                 * @param scalar 标量除数。
-                 * @returns `this`
-                 */ divSelf(scalar: number): this;
-        /**
-                 * 将当前向量的各个分量除以指定标量的结果赋值给出口向量。相当于 `this.mul(1 / scalar, out)`。
-                 * @param scalar 标量除数。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ div(scalar: number, out?: Vec3): Vec3;
-        /**
-                 * 将当前向量的各个分量取反。
-                 * @returns `this`
-                 */ negSelf(): this;
-        /**
-                 * 将当前向量的各个分量取反的结果赋值给出口向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ neg(out?: Vec3): Vec3;
-        /**
-                 * 向量点乘。
-                 * @param other 指定的向量。
-                 * @returns 当前向量与指定向量点乘的结果。
-                 */ dot(other: Vec3): number;
-        /**
-                 * 向量叉乘。将当前向量左叉乘指定向量的结果赋值给出口向量。
-                 * @param other 指定的向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns 当前向量左叉乘指定向量的结果。
-                 */ cross(other: Vec3, out?: Vec3): Vec3;
-        /**
-                 * 计算向量的长度（模）。
-                 * @returns 向量的长度（模）。
-                 */ mag(): number;
-        /**
-                 * 计算向量长度（模）的平方。
-                 * @returns 向量长度（模）的平方。
-                 */ magSqr(): number;
-        /**
-                 * 归一化当前向量，以使其长度（模）为 1。
-                 */ normalizeSelf(): this;
-        /**
-                 * 将当前向量归一化的结果赋值给出口向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ normalize(out?: Vec3): Vec3;
-        /**
-                 * 将当前向量视为 w 分量为 1 的四维向量，
-                 * 应用四维矩阵变换到当前矩阵，结果的 x、y、z 分量赋值给出口向量。
-                 * @param matrix 变换矩阵。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 */ transformMat4(matrix: Mat4, out?: Vec3): Vec3;
-    }
-    /**
-         * @category Core/Math
-         */ /**
-         * 四维向量。
-         */ export class Vec4 extends ValueType {
-        /**
-                 * x 分量。
-                 */ x: number;
-        /**
-                 * y 分量。
-                 */ y: number;
-        /**
-                 * z 分量。
-                 */ z: number;
-        /**
-                 * w 分量。
-                 */ w: number;
-        /**
-                 * 构造与指定向量相等的向量。
-                 * @param other 相比较的向量。
-                 */ constructor(other: Vec4);
-        /**
-                 * 构造具有指定分量的向量。
-                 * @param [x=0] 指定的 x 分量。
-                 * @param [y=0] 指定的 y 分量。
-                 * @param [z=0] 指定的 z 分量。
-                 * @param [w=0] 指定的 w 分量。
-                 */ constructor(x?: number, y?: number, z?: number, w?: number);
-        /**
-                 * 克隆当前向量。
-                 */ clone(): Vec4;
-        /**
-                 * 设置当前向量使其与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @returns `this`
-                 */ set(other: Vec4): this;
-        /**
-                 * 判断当前向量是否与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
-                 */ equals(other: Vec4): boolean;
-        /**
-                 * 判断当前向量是否在误差范围 [-variance, variance] 内与指定向量相等。
-                 * @param other 相比较的向量。
-                 * @param variance 允许的误差，应为非负数。
-                 * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
-                 */ fuzzyEquals(other: Vec4, variance: number): boolean;
-        /**
-                 * 根据指定的插值比率，从当前向量到目标向量之间做插值。
-                 * @param to 目标向量。
-                 * @param ratio 插值比率，范围为 [0,1]。
-                 * @param out 当此参数定义时，本方法将插值结果赋值给此参数并返回此参数。
-                 * @returns 当前向量各个分量到目标向量对应的各个分量之间按指定插值比率进行线性插值构成的向量。
-                 */ lerp(to: Vec4, ratio: number, out?: Vec4): Vec4;
-        /**
-                 * 返回当前向量的字符串表示。
-                 * @returns 当前向量的字符串表示。
-                 */ toString(): string;
-        /**
-                 * 设置当前向量的值，使其各个分量都处于指定的范围内。
-                 * @param minInclusive 每个分量都代表了对应分量允许的最小值。
-                 * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
-                 * @returns `this`
-                 */ clampf(minInclusive: Vec4, maxInclusive: Vec4): this;
-        /**
-                 * 向量加法。将当前向量加上指定向量。
-                 * @param other 指定的向量。
-                 * @returns `this`
-                 */ addSelf(vector: Vec4): this;
-        /**
-                 * 向量加法。将当前向量与指定向量的相加结果赋值给出口向量。
-                 * @param other 指定的向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ add(vector: Vec4, out?: Vec4): Vec4;
-        /**
-                 * 向量减法。将当前向量减去指定向量。
-                 * @param other 减数向量。
-                 * @returns `this`
-                 */ subSelf(vector: Vec4): this;
-        /**
-                 * 向量减法。将当前向量减去指定向量的结果赋值给出口向量。
-                 * @param other 减数向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ sub(vector: Vec4, out?: Vec4): Vec4;
-        /**
-                 * 向量数乘。将当前向量数乘指定标量。
-                 * @param scalar 标量乘数。
-                 * @returns `this`
-                 */ mulSelf(num: number): this;
-        /**
-                 * 向量数乘。将当前向量数乘指定标量的结果赋值给出口向量。
-                 * @param scalar 标量乘数。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ mul(num: number, out?: Vec4): Vec4;
-        /**
-                 * 向量乘法。将当前向量乘以与指定向量。
-                 * @param other 指定的向量。
-                 * @returns `this`
-                 */ scaleSelf(vector: Vec4): this;
-        /**
-                 * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
-                 * @param other 指定的向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ scale(vector: Vec4, out?: Vec4): Vec4;
-        /**
-                 * 将当前向量的各个分量除以指定标量。相当于 `this.mulSelf(1 / scalar)`。
-                 * @param scalar 标量除数。
-                 * @returns `this`
-                 */ divSelf(num: number): this;
-        /**
-                 * 将当前向量的各个分量除以指定标量的结果赋值给出口向量。相当于 `this.mul(1 / scalar, out)`。
-                 * @param scalar 标量除数。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ div(num: number, out?: Vec4): Vec4;
-        /**
-                 * 将当前向量的各个分量取反。
-                 * @returns `this`
-                 */ negSelf(): this;
-        /**
-                 * 将当前向量的各个分量取反的结果赋值给出口向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ neg(out?: Vec4): Vec4;
-        /**
-                 * 向量点乘。
-                 * @param other 指定的向量。
-                 * @returns 当前向量与指定向量点乘的结果。
-                 */ dot(vector: Vec4): number;
-        /**
-                 * 向量叉乘。视当前向量和指定向量为三维向量（舍弃 w 分量），将当前向量左叉乘指定向量的结果赋值给出口向量。
-                 * @param other 指定的向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ cross(vector: Vec4, out?: Vec4): Vec4;
-        /**
-                 * 计算向量的长度（模）。
-                 * @returns 向量的长度（模）。
-                 */ mag(): number;
-        /**
-                 * 计算向量长度（模）的平方。
-                 * @returns 向量长度（模）的平方。
-                 */ magSqr(): number;
-        /**
-                 * 归一化当前向量，以使其长度（模）为 1。
-                 */ normalizeSelf(): this;
-        /**
-                 * 将当前向量归一化的结果赋值给出口向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ normalize(out?: Vec4): Vec4;
-        /**
-                 * 应用四维矩阵变换到当前矩阵，结果将赋值给出口向量。
-                 * @param matrix 变换矩阵。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 */ transformMat4(m: Mat4, out?: Vec4): Vec4;
-    }
-    /**
-         * 四元数。
-         */ export class Quat extends ValueType {
-        /**
-                 * x 分量。
-                 */ x: number;
-        /**
-                 * y 分量。
-                 */ y: number;
-        /**
-                 * z 分量。
-                 */ z: number;
-        /**
-                 * w 分量。
-                 */ w: number;
-        /**
-                 * 构造与指定四元数相等的四元数。
-                 * @param other 相比较的四元数。
-                 */ constructor(other: Quat);
-        /**
-                 * 构造具有指定分量的四元数。
-                 * @param [x=0] 指定的 x 分量。
-                 * @param [y=0] 指定的 y 分量。
-                 * @param [z=0] 指定的 z 分量。
-                 * @param [w=1] 指定的 w 分量。
-                 */ constructor(x?: number, y?: number, z?: number, w?: number);
-        /**
-                 * 克隆当前四元数。
-                 */ clone(): Quat;
-        /**
-                 * 设置当前四元数使其与指定四元数相等。
-                 * @param other 相比较的四元数。
-                 * @returns `this`
-                 */ set(other: Quat): this;
-        /**
-                 * 判断当前四元数是否与指定四元数相等。
-                 * @param other 相比较的四元数。
-                 * @returns 两四元数的各分量都相等时返回 `true`；否则返回 `false`。
-                 */ equals(other: Quat): boolean;
-        /**
-                 * 将当前四元数转化为欧拉角（x-y-z）并赋值给出口向量。
-                 * @param out [out] 出口向量，当未指定时将创建为新的向量。
-                 * @returns `out`
-                 */ getEulerAngles(out?: Vec3): Vec3;
-        /**
-                 * 根据指定的插值比率，从当前四元数到目标四元数之间做插值。
-                 * @param to 目标四元数。
-                 * @param ratio 插值比率，范围为 [0,1]。
-                 * @param out 当此参数定义时，本方法将插值结果赋值给此参数并返回此参数。
-                 * @returns 当前四元数到目标四元数之间的**球形插值**结果。
-                 */ lerp(to: Quat, ratio: number, out?: Quat): Quat;
-    }
-    /**
-         * 表示四维（4x4）矩阵。
-         */ export class Mat4 extends ValueType {
-        /**
-                 * 矩阵第 0 列第 0 行的元素。
-                 */ m00: number;
-        /**
-                 * 矩阵第 0 列第 1 行的元素。
-                 */ m01: number;
-        /**
-                 * 矩阵第 0 列第 2 行的元素。
-                 */ m02: number;
-        /**
-                 * 矩阵第 0 列第 3 行的元素。
-                 */ m03: number;
-        /**
-                 * 矩阵第 1 列第 0 行的元素。
-                 */ m04: number;
-        /**
-                 * 矩阵第 1 列第 1 行的元素。
-                 */ m05: number;
-        /**
-                 * 矩阵第 1 列第 2 行的元素。
-                 */ m06: number;
-        /**
-                 * 矩阵第 1 列第 3 行的元素。
-                 */ m07: number;
-        /**
-                 * 矩阵第 2 列第 0 行的元素。
-                 */ m08: number;
-        /**
-                 * 矩阵第 2 列第 1 行的元素。
-                 */ m09: number;
-        /**
-                 * 矩阵第 2 列第 2 行的元素。
-                 */ m10: number;
-        /**
-                 * 矩阵第 2 列第 3 行的元素。
-                 */ m11: number;
-        /**
-                 * 矩阵第 3 列第 0 行的元素。
-                 */ m12: number;
-        /**
-                 * 矩阵第 3 列第 1 行的元素。
-                 */ m13: number;
-        /**
-                 * 矩阵第 3 列第 2 行的元素。
-                 */ m14: number;
-        /**
-                 * 矩阵第 3 列第 3 行的元素。
-                 */ m15: number;
-        /**
-                 * 构造与指定矩阵相等的矩阵。
-                 * @param other 相比较的矩阵。
-                 */ constructor(other: Mat4);
-        /**
-                 * 构造具有指定元素的矩阵。
-                 * @param m00 矩阵第 0 列第 0 行的元素。
-                 * @param m01 矩阵第 0 列第 1 行的元素。
-                 * @param m02 矩阵第 0 列第 2 行的元素。
-                 * @param m03 矩阵第 0 列第 3 行的元素。
-                 * @param m04 矩阵第 1 列第 0 行的元素。
-                 * @param m05 矩阵第 1 列第 1 行的元素。
-                 * @param m06 矩阵第 1 列第 2 行的元素。
-                 * @param m07 矩阵第 1 列第 3 行的元素。
-                 * @param m08 矩阵第 2 列第 0 行的元素。
-                 * @param m09 矩阵第 2 列第 1 行的元素。
-                 * @param m10 矩阵第 2 列第 2 行的元素。
-                 * @param m11 矩阵第 2 列第 3 行的元素。
-                 * @param m12 矩阵第 3 列第 0 行的元素。
-                 * @param m13 矩阵第 3 列第 1 行的元素。
-                 * @param m14 矩阵第 3 列第 2 行的元素。
-                 * @param m15 矩阵第 3 列第 3 行的元素。
-                 */ constructor(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number);
-        /**
-                 * 克隆当前矩阵。
-                 */ clone(): Mat4;
-        /**
-                 * 设置当前矩阵使其与指定矩阵相等。
-                 * @param other 相比较的矩阵。
-                 * @returns `this`
-                 */ set(other: Mat4): this;
-        /**
-                 * 判断当前矩阵是否与指定矩阵相等。
-                 * @param other 相比较的矩阵。
-                 * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
-                 */ equals(other: Mat4): boolean;
-        /**
-                 * 判断当前矩阵是否与指定矩阵相等。
-                 * @param other 相比较的矩阵。
-                 * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
-                 */ fuzzyEquals(other: Mat4): boolean;
-        /**
-                 * 返回当前矩阵的字符串表示。
-                 * @returns 当前矩阵的字符串表示。
-                 */ toString(): string;
-        /**
-                 * 将当前矩阵设为单位矩阵。
-                 * @returns `this`
-                 */ identity(): this;
-        /**
-                 * 将当前矩阵的转置矩阵赋值给出口矩阵。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ transpose(out?: Mat4): any;
-        /**
-                 * 将当前矩阵的逆矩阵赋值给出口矩阵。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ invert(out?: Mat4): any;
-        /**
-                 * 将当前矩阵的伴随矩阵赋值给出口矩阵。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ adjoint(out?: Mat4): any;
-        /**
-                 * 计算当前矩阵的行列式。
-                 * @returns 当前矩阵的行列式。
-                 */ determinant(): number;
-        /**
-                 * 矩阵加法。将当前矩阵与指定矩阵的相加结果赋值给出口矩阵。
-                 * @param other 指定的矩阵。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ add(other: Mat4, out?: Mat4): any;
-        /**
-                 * 矩阵减法。将当前矩阵减去指定矩阵的结果赋值给出口矩阵。
-                 * @param other 减数矩阵。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ sub(other: Mat4, out?: Mat4): any;
-        /**
-                 * 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给出口矩阵。
-                 * @param other 指定的矩阵。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ mul(other: Mat4, out?: Mat4): any;
-        /**
-                 * 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给出口矩阵。
-                 * @param scalar 指定的标量。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ mulScalar(scalar: number, out?: Mat4): any;
-        /**
-                 * 将当前矩阵左乘位移矩阵的结果赋值给出口矩阵，位移矩阵由各个轴的位移给出。
-                 * @param v 各个轴的位移。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ translate(v: Vec3, out?: Mat4): any;
-        /**
-                 * 将当前矩阵左乘缩放矩阵的结果赋值给出口矩阵，缩放矩阵由各个轴的缩放给出。
-                 * @param v 各个轴的缩放。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ scale(v: Vec3, out?: Mat4): any;
-        /**
-                 * 将当前矩阵左乘旋转矩阵的结果赋值给出口矩阵，旋转矩阵由旋转轴和旋转角度给出。
-                 * @param 旋转角度（弧度制）。
-                 * @param 旋转轴。
-                 * @param [out] 出口矩阵，当未指定时将创建为新的矩阵。
-                 * @returns `out`
-                 */ rotate(rad: number, axis: Vec3, out?: Mat4): any;
-        /**
-                 * 从当前矩阵中计算出位移变换的部分，并以各个轴上位移的形式赋值给出口向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 */ getTranslation(out?: Mat4): any;
-        /**
-                 * 从当前矩阵中计算出缩放变换的部分，并以各个轴上缩放的形式赋值给出口向量。
-                 * @param [out] 出口向量，当未指定时将创建为新的向量。
-                 */ getScale(out: Vec3): Vec3;
-        /**
-                 * 从当前矩阵中计算出旋转变换的部分，并以四元数的形式赋值给出口四元数。
-                 * @param [out] 出口四元数，当未指定时将创建为新的四元数。
-                 */ getRotation(out: Quat): Quat;
-        /**
-                 * 重置当前矩阵的值，使其表示指定的旋转、缩放、位移依次组合的变换。
-                 * @param q 四元数表示的旋转变换。
-                 * @param v 位移变换，表示为各个轴的位移。
-                 * @param s 缩放变换，表示为各个轴的缩放。
-                 * @returns `this`
-                 */ fromRTS(q: Quat, v: Vec3, s: Vec3): this;
-        /**
-                 * 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
-                 * @param q 四元数表示的旋转变换。
-                 * @param v 位移变换，表示为各个轴的位移。
-                 * @param s 缩放变换，表示为各个轴的缩放。
-                 * @returns `this`
-                 */ fromQuat(quat: Quat): this;
-    }
-    /**
-         * 二维仿射变换矩阵，描述了平移、缩放和缩放。
-         */ export class AffineTransform {
-        /**
-                 * 创建二维放射变换矩阵。
-                 * @param a a 元素。
-                 * @param b b 元素。
-                 * @param c c 元素。
-                 * @param d d 元素。
-                 * @param tx tx 元素。
-                 * @param ty ty 元素。
-                 * @returns `new AffineTransform(a, b, c, d, tx, ty)`
-                 */ static create(a: number, b: number, c: number, d: number, tx: number, ty: number): AffineTransform;
-        /**
-                 * 创建单位二维仿射变换矩阵，它不进行任何变换。
-                 */ static identity(): AffineTransform;
-        /**
-                 * 克隆指定的二维仿射变换矩阵。
-                 * @param affineTransform 指定的二维仿射变换矩阵。
-                 */ static clone(affineTransform: AffineTransform): AffineTransform;
-        /**
-                 * 将两个矩阵相乘的结果赋值给出口矩阵。
-                 * @param out 出口矩阵。
-                 * @param t1 左矩阵。
-                 * @param t2 右矩阵。
-                 * @returns `out`
-                 */ static concat(out: AffineTransform, t1: AffineTransform, t2: AffineTransform): AffineTransform;
-        /**
-                 * 将矩阵求逆的结果赋值给出口矩阵。
-                 * @param out 出口矩阵。
-                 * @param t 求逆的矩阵。
-                 * @returns `out`
-                 */ static invert(out: AffineTransform, t: AffineTransform): AffineTransform;
-        /**
-                 * 将四维矩阵转换为二维仿射变换矩阵并赋值给出口矩阵。
-                 * @param out 出口矩阵。
-                 * @param mat 四维矩阵。
-                 * @returns `out`
-                 */ static fromMat4(out: AffineTransform, mat: Mat4): AffineTransform;
-        /**
-                 * 应用二维仿射变换矩阵到二维向量上，并将结果赋值给出口向量。
-                 * @param out 出口向量。
-                 * @param point 应用变换的向量。
-                 * @param t 二维仿射变换矩阵。
-                 * @returns `out`
-                 */ static transformVec2(out: Vec2, point: Vec2, t: AffineTransform): Vec2;
-        /**
-                 * 应用二维仿射变换矩阵到二维向量上，并将结果赋值给出口向量。
-                 * @param out 出口向量。
-                 * @param x 应用变换的向量的 x 分量。
-                 * @param y 应用变换的向量的 y 分量。
-                 * @param t 二维仿射变换矩阵。
-                 * @returns `out`
-                 */ static transformVec2(out: Vec2, x: number, y: number, t: AffineTransform): Vec2;
-        /**
-                 * 应用二维仿射变换矩阵到二维尺寸上，并将结果赋值给出口尺寸。
-                 * @param out 出口尺寸。
-                 * @param size 应用变换的尺寸。
-                 * @param t 二维仿射变换矩阵。
-                 * @returns `out`
-                 */ static transformSize(out: Size, size: Size, t: AffineTransform): Size;
-        /**
-                 * 应用二维仿射变换矩阵到矩形上，并将结果赋值给出口矩形。
-                 * @param out 出口矩形。
-                 * @param rect 应用变换的矩形。
-                 * @param t 二维仿射变换矩阵。
-                 * @returns `out`
-                 */ static transformRect(out: Rect, rect: Rect, t: AffineTransform): Rect;
-        /**
-                 * 应用二维仿射变换矩阵到矩形上, 并转换为有向包围盒。
-                 * 这个函数不创建任何内存，你需要先创建包围盒的四个 Vector 对象用来存储结果，并作为前四个参数传入函数。
-                 */ static transformObb(out_bl: Vec2, out_tl: Vec2, out_tr: Vec2, out_br: Vec2, rect: Rect, anAffineTransform: AffineTransform): void;
-        a: number;
-        b: number;
-        c: number;
-        d: number;
-        tx: number;
-        ty: number;
-        /**
-                 * 构造二维放射变换矩阵。
-                 * @param a a 元素。
-                 * @param b b 元素。
-                 * @param c c 元素。
-                 * @param d d 元素。
-                 * @param tx tx 元素。
-                 * @param ty ty 元素。
-                 */ constructor(a?: number, b?: number, c?: number, d?: number, tx?: number, ty?: number);
-    }
-    /**
-         * 二维尺寸。
-         */ export class Size extends ValueType {
-        /**
-                 * 宽度。
-                 */ width: number;
-        /**
-                 * 高度。
-                 */ height: number;
-        /**
-                 * 构造与指定尺寸相等的尺寸。
-                 * @param other 相比较的尺寸。
-                 */ constructor(other: Size);
-        /**
-                 * 构造具有指定宽度和高度的尺寸。
-                 * @param [width=0] 指定的宽度。
-                 * @param [height=0] 指定的高度。
-                 */ constructor(width?: number, height?: number);
-        /**
-                 * 克隆当前尺寸。
-                 */ clone(): Size;
-        /**
-                 * 设置当前尺寸使其与指定的尺寸相等。
-                 * @param other 相比较的尺寸。
-                 * @returns `this`
-                 */ set(other: Size): void;
-        /**
-                 * 判断当前尺寸是否与指定尺寸的相等。
-                 * @param other 相比较的尺寸。
-                 * @returns 两尺寸的宽和高都分别相等时返回 `true`；否则返回 `false`。
-                 */ equals(other: Size): boolean;
-        /**
-                 * 根据指定的插值比率，从当前尺寸到目标尺寸之间做插值。
-                 * @param to 目标尺寸。
-                 * @param ratio 插值比率，范围为 [0,1]。
-                 * @param out 当此参数定义时，本方法将插值结果赋值给此参数并返回此参数。
-                 * @returns 当前尺寸的宽和高到目标尺寸的宽和高分别按指定插值比率进行线性插值构成的向量。
-                 */ lerp(to: Size, ratio: number, out?: Size): Size;
-        /**
-                 * 返回当前尺寸的字符串表示。
-                 * @returns 当前尺寸的字符串表示。
-                 */ toString(): string;
-        /**
-                 * 创建宽和高都为 0 的尺寸并返回。
-                 */ static readonly ZERO: Size;
-    }
-    /**
-         * 轴对齐矩形。
-         * 矩形内的所有点都大于等于矩形的最小点 (xMin, yMin) 并且小于等于矩形的最大点 (xMax, yMax)。
-         * 矩形的宽度定义为 xMax - xMin；高度定义为 yMax - yMin。
-         */ export class Rect extends ValueType {
-        /**
-                 * 获取或设置矩形在 x 轴上的最小值。
-                 */ xMin: number;
-        /**
-                 * 获取或设置矩形在 y 轴上的最小值。
-                 */ yMin: number;
-        /**
-                 * 获取或设置矩形在 x 轴上的最大值。
-                 */ xMax: number;
-        /**
-                 * 获取或设置矩形在 y 轴上的最大值。
-                 */ yMax: number;
-        /**
-                 * 获取或设置矩形中心点的坐标。
-                 */ center: Vec2;
-        /**
-                 * 获取或设置矩形最小点的坐标。
-                 */ origin: any;
-        /**
-                 * 获取或设置矩形的尺寸。
-                 */ size: Size;
-        /**
-                 * 由任意两个点创建一个矩形，目标矩形即是这两个点各向 x、y 轴作线所得到的矩形。
-                 * @param v1 指定的点。
-                 * @param v2 指定的点。
-                 * @returns 目标矩形。
-                 */ static fromMinMax(v1: Vec2, v2: Vec2): Rect;
-        /**
-                 * 获取或设置矩形最小点的 x 坐标。
-                 */ x: number;
-        /**
-                 * 获取或设置矩形最小点的 y 坐标。
-                 */ y: number;
-        /**
-                 * 获取或设置矩形的宽度。
-                 */ width: number;
-        /**
-                 * 获取或设置矩形的高度。
-                 */ height: number;
-        /**
-                 * 构造与指定矩形相等的矩形。
-                 * @param other 相比较的矩形。
-                 */ constructor(other: Rect);
-        /**
-                 * 构造具有指定的最小值和尺寸的矩形。
-                 * @param x 矩形在 x 轴上的最小值。
-                 * @param y 矩形在 y 轴上的最小值。
-                 * @param width 矩形的宽度。
-                 * @param height 矩形的高度。
-                 */ constructor(x?: number, y?: number, width?: number, height?: number);
-        /**
-                 * 克隆当前矩形。
-                 */ clone(): Rect;
-        /**
-                 * 设置当前矩形使其与指定矩形相等。
-                 * @param other 相比较的矩形。
-                 * @returns `this`
-                 */ set(other: Rect): void;
-        /**
-                 * 判断当前矩形是否与指定矩形相等。
-                 * @param other 相比较的矩形。
-                 * @returns 两矩阵的最小值和最大值都分别相等时返回 `true`；否则返回 `false`。
-                 */ equals(other: Rect): boolean;
-        /**
-                 * 根据指定的插值比率，从当前矩形到目标矩形之间做插值。
-                 * @param to 目标矩形。
-                 * @param ratio 插值比率，范围为 [0,1]。
-                 * @param out 当此参数定义时，本方法将插值结果赋值给此参数并返回此参数。
-                 * @returns 当前矩形最小值到目标矩形最小值之间，以及当前矩阵尺寸到目标矩形尺寸之间，按指定插值比率进行线性插值构成的矩形。
-                 */ lerp(to: Rect, ratio: number, out?: Rect): Rect;
-        /**
-                 * 返回当前矩形的字符串表示。
-                 * @returns 当前矩形的字符串表示。
-                 */ toString(): string;
-        /**
-                 * 判断当前矩形是否与指定矩形相交。
-                 * @param other 相比较的矩形。
-                 * @returns 相交则返回 `true`，否则返回 `false`。
-                 */ intersects(other: Rect): boolean;
-        /**
-                 * 计算当前矩形与指定矩形重叠部分的矩形，将其赋值给出口矩形。
-                 * @param out 出口矩形。
-                 * @param other 指定的矩形。
-                 * @returns `out`
-                 */ intersection(out: Rect, other: Rect): Rect;
-        /**
-                 * 判断当前矩形是否包含指定的点。
-                 * @param point 指定的点。
-                 * @returns 指定的点包含在矩形内则返回 `true`，否则返回 `false`。
-                 */ contains(point: Vec2): boolean;
-        /**
-                 * 判断当前矩形是否包含指定矩形。
-                 * @param other 指定的矩形。
-                 * @returns 指定矩形所有的点都包含在当前矩形内则返回 `true`，否则返回 `false`。
-                 */ containsRect(other: Rect): boolean;
-        /**
-                 * 创建同时包含当前矩形和指定矩形的最小矩形，将其赋值给出口矩形。
-                 * @param out 出口矩形。
-                 * @param other 指定的矩形。
-                 * @returns `out`
-                 */ union(out: Rect, other: Rect): Rect;
-        /**
-                 * 应用矩阵变换到当前矩形：
-                 * 应用矩阵变换到当前矩形的最小点得到新的最小点，
-                 * 将当前矩形的尺寸视为二维向量应用矩阵变换得到新的尺寸；
-                 * 并将如此构成的新矩形赋值给出口矩形。
-                 * @param out 出口矩形。
-                 * @param matrix 变换矩阵。
-                 * @returns `out`
-                 */ transformMat4(out: Rect, mat: Mat4): Rect;
-    }
-    /**
-         * 通过 Red、Green、Blue 颜色通道表示颜色，并通过 Alpha 通道表示不透明度。
-         * 每个通道都为取值范围 [0, 255] 的整数。
-         */ export class Color extends ValueType {
-        /**
-                 * 构造与指定颜色相等的颜色。
-                 * @param other 相比较的颜色。
-                 */ constructor(other: Color);
-        /**
-                 * 构造具有指定通道的颜色。
-                 * @param [r=0] 指定的 Red 通道。
-                 * @param [g=0] 指定的 Green 通道。
-                 * @param [b=0] 指定的 Blue 通道。
-                 * @param [a=255] 指定的 Alpha 通道。
-                 */ constructor(r?: number, g?: number, b?: number, a?: number);
-        /**
-                 * 创建并获取（不透明的）纯白色，各通道值依次为 (255, 255, 255, 255)。
-                 */ static readonly WHITE: Color;
-        /**
-                 * 创建并获取（不透明的）纯黑色，各通道值依次为 (0, 0, 0, 255)。
-                 */ static readonly BLACK: Color;
-        /**
-                 * 创建并获取全透明的纯黑色，各通道值依次为 (0, 0, 0, 0)。
-                 */ static readonly TRANSPARENT: Color;
-        /**
-                 * 创建并获取（不透明的）灰色，各通道值依次为 (127.5, 127.5, 127.5, 255)。
-                 */ static readonly GRAY: Color;
-        /**
-                 * 创建并获取（不透明的）纯红色，各通道值依次为 (255, 0, 0, 255)。
-                 */ static readonly RED: Color;
-        /**
-                 * 创建并获取（不透明的）纯绿色，各通道值依次为 (0, 255, 0, 255)。
-                 */ static readonly GREEN: Color;
-        /**
-                 * 创建并获取（不透明的）纯蓝色，各通道值依次为 (0, 0, 255, 255)。
-                 */ static readonly BLUE: Color;
-        /**
-                 * 创建并获取（不透明的）黄色，各通道值依次为 (255, 235, 4, 255)。
-                 */ static readonly YELLOW: Color;
-        /**
-                 * 创建并获取（不透明的）橙色，各通道值依次为 (255, 127, 0, 255)。
-                 */ static readonly ORANGE: Color;
-        /**
-                 * 创建并获取（不透明的）青色，各通道值依次为 (0, 255, 255, 255)。
-                 */ static readonly CYAN: Color;
-        /**
-                 * 创建并获取（不透明的）洋红色（品红色），各通道值依次为 (255, 0, 255, 255)。
-                 */ static readonly MAGENTA: Color;
-        /**
-                 * 获取或设置当前颜色的 Red 通道。
-                 */ r: number;
-        /**
-                 * 获取或设置当前颜色的 Green 通道。
-                 */ g: number;
-        /**
-                 * 获取或设置当前颜色的 Blue 通道。
-                 */ b: number;
-        /**
-                 * 获取或设置当前颜色的 Alpha 通道。
-                 */ a: number;
-        /**
-                 * 克隆当前颜色。
-                 */ clone(): Color;
-        /**
-                 * 判断当前颜色是否与指定颜色相等。
-                 * @param other 相比较的颜色。
-                 * @returns 两颜色的各通道都相等时返回 `true`；否则返回 `false`。
-                 */ equals(other: Color): boolean;
-        /**
-                 * 根据指定的插值比率，从当前颜色到目标颜色之间做插值。
-                 * @param to 目标颜色。
-                 * @param ratio 插值比率，范围为 [0,1]。
-                 * @param out 当此参数定义时，本方法将插值结果赋值给此参数并返回此参数。
-                 * @returns 当前颜色各个通道到目标颜色对应的各个通道之间按指定插值比率进行线性插值构成的颜色。
-                 */ lerp(to: Color, ratio: number, out?: Color): Color;
-        /**
-                 * 返回当前颜色的字符串表示。
-                 * @returns 当前颜色的字符串表示。
-                 */ toString(): string;
-        /**
-                 * 将当前颜色转换为 CSS 格式。
-                 * @param opt 格式选项。
-                 * @returns 当前颜色的 CSS 格式。
-                 */ toCSS(opt: 'rgba' | 'rgb' | '#rrggbb'): string;
-        /**
-                 * 从十六进制颜色字符串中读入当前颜色。
-                 * 十六进制颜色字符串应该以可选的 "#" 开头，紧跟最多 8 个代表十六进制数字的字符；
-                 * 每两个连续字符代表的数值依次作为 Red、Green、Blue 和 Alpha 通道；
-                 * 缺省的颜色通道将视为 0；缺省的透明通道将视为 255。
-                 * @param hexString 十六进制颜色字符串。
-                 * @returns `this`
-                 */ fromHEX(hexString: string): this;
-        /**
-                 * 转换当前颜色为十六进制颜色字符串。
-                 * @param fmt 格式选项。
-                 * - `'#rrggbbaa'` 获取Red、Green、Blue、Alpha通道的十六进制值（**两位**，高位补 0）并依次连接；
-                 * - `'#rrggbb` 与 `'#rrggbbaa'` 类似但不包括 Alpha 通道。
-                 * @returns 十六进制颜色字符串。
+         * @en An object to boot the game.
+         * @zh 包含游戏主体信息并负责驱动游戏的游戏对象。
+         * @class game
+         * @static
+         */ class Game extends EventTarget {
+        /**
+                 * @en Event triggered when game hide to background.<br>
+                 * Please note that this event is not 100% guaranteed to be fired on Web platform,<br>
+                 * on native platforms, it corresponds to enter background event, os status bar or notification center may not trigger this event.
+                 * @zh 游戏进入后台时触发的事件。<br>
+                 * 请注意，在 WEB 平台，这个事件不一定会 100% 触发，这完全取决于浏览器的回调行为。<br>
+                 * 在原生平台，它对应的是应用被切换到后台事件，下拉菜单和上拉状态栏等不一定会触发这个事件，这取决于系统行为。
+                 * @property EVENT_HIDE
                  * @example
-                 * const color = new Color(255, 14, 0, 255);
-                 * color.toHex("rrggbbaa"); // "FF0E00FF"
-                 * color.toHex("rrggbb"); // "FF0E00"
-                 */ toHEX(fmt: '#rrggbb' | '#rrggbbaa'): string;
-        /**
-                 * 将当前颜色转换为 RGB 整数值。
-                 * @returns RGB 整数值。从最低有效位开始，每8位分别是 Red、Green、Blue 通道的值。
-                 * @example
-                 * const color = Color.YELLOW;
-                 * color.toRGBValue();
-                 */ toRGBValue(): number;
-        /**
-                 * 从 HSV 颜色中读入当前颜色。
-                 * @param h H 通道。
-                 * @param s S 通道。
-                 * @param v V 通道。
-                 * @returns `this`
-                 * @example
-                 * const color = Color.YELLOW;
-                 * color.fromHSV(0, 0, 1); // Color {r: 255, g: 255, b: 255, a: 255};
-                 */ fromHSV(h: number, s: number, v: number): this;
-        /**
-                 * 转换当前颜色为 HSV 颜色。
-                 * @returns HSV 颜色。成员 `h`、`s`、`v` 分别代表 HSV 颜色的 H、S、V 通道。
-                 * @example
-                 * const color = cc.Color.YELLOW;
-                 * color.toHSV(); // {h: 0.1533864541832669, s: 0.9843137254901961, v: 1}
-                 */ toHSV(): {
-            h: number;
-            s: number;
-            v: number;
-        };
-        /**
-                 * 设置当前颜色使其与指定颜色相等。
-                 * @param other 相比较的颜色。
-                 * @returns 当前颜色。
-                 */ set(other: Color): void;
-        /**
-                 * 将当前颜色乘以与指定颜色：当前颜色的每个通道都乘以指定颜色对应的通道。
-                 * @param other 指定的颜色。
-                 * @returns `this`
-                 */ mulSelf(other: Color): this;
-        /**
-                 * 将当前颜色乘以与指定颜色的结果赋值给出口颜色。
-                 * @param other 指定的颜色。
-                 * @param [out] 出口颜色，当未指定时将创建为新的颜色。
-                 */ mul(other: Color, out?: Color): Color;
-        /**
-                 * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Red 通道的值。
-                 */ x: number;
-        /**
-                 * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Green 通道的值。
-                 */ y: number;
-        /**
-                 * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Blue 通道的值。
-                 */ z: number;
-        /**
-                 * 通过除以 255，将当前颜色的各个通道都视为范围 [0, 1] 内，设置 Alpha 通道的值。
-                 */ w: number;
-    }
-    /**
-         * A base node for CCNode, it will:
-         * - maintain scene hierarchy and active logic
-         * - notifications if some properties changed
-         * - define some interfaces shares between CCNode
-         * - define machanisms for Enity Component Systems
-         * - define prefab and serialize functions
-         *
-         * @class _BaseNode
-         * @extends Object
-         * @uses EventTarget
-         * @method constructor
-         * @param {String} [name]
-         * @protected
-         */ export class BaseNode extends CCObject {
-        /**
-                 * Gets all components attached to this node.
-                 */ readonly components: ReadonlyArray<Component>;
-        /**
-                 * If true, the node is an persist node which won't be destroyed during scene transition.
-                 * If false, the node will be destroyed automatically when loading a new scene. Default is false.
-                 * @property _persistNode
-                 * @type {Boolean}
-                 * @default false
-                 * @protected
-                 */ _persistNode: boolean;
-        /**
-                 * !#en Name of node.
-                 * !#zh 该节点名称。
-                 * @property name
-                 * @type {String}
-                 * @example
-                 * node.name = "New Node";
-                 * cc.log("Node Name: " + node.name);
-                 */ name: string;
-        /**
-                 * !#en The uuid for editor, will be stripped before building project.
-                 * !#zh 主要用于编辑器的 uuid，在编辑器下可用于持久化存储，在项目构建之后将变成自增的 id。
-                 * @property uuid
-                 * @type {String}
-                 * @readOnly
-                 * @example
-                 * cc.log("Node Uuid: " + node.uuid);
-                 */ readonly uuid: string;
-        /**
-                 * !#en All children nodes.
-                 * !#zh 节点的所有子节点。
-                 * @property children
-                 * @type {Node[]}
-                 * @readOnly
-                 * @example
-                 * var children = node.children;
-                 * for (var i = 0; i < children.length; ++i) {
-                 *     cc.log("Node: " + children[i]);
-                 * }
-                 */ readonly children: this[];
-        /**
-                 * !#en All children nodes.
-                 * !#zh 节点的子节点数量。
-                 * @property childrenCount
-                 * @type {Number}
-                 * @readOnly
-                 * @example
-                 * var count = node.childrenCount;
-                 * cc.log("Node Children Count: " + count);
-                 */ readonly childrenCount: number;
-        /**
-                 * !#en
-                 * The local active state of this node.<br/>
-                 * Note that a Node may be inactive because a parent is not active, even if this returns true.<br/>
-                 * Use {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}
-                 * if you want to check if the Node is actually treated as active in the scene.
-                 * !#zh
-                 * 当前节点的自身激活状态。<br/>
-                 * 值得注意的是，一个节点的父节点如果不被激活，那么即使它自身设为激活，它仍然无法激活。<br/>
-                 * 如果你想检查节点在场景中实际的激活状态可以使用 {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}。
-                 * @property active
-                 * @type {Boolean}
-                 * @default true
-                 * @example
-                 * node.active = false;
-                 */ active: boolean;
-        /**
-                 * !#en Indicates whether this node is active in the scene.
-                 * !#zh 表示此节点是否在场景中激活。
-                 * @property activeInHierarchy
-                 * @type {Boolean}
-                 * @example
-                 * cc.log("activeInHierarchy: " + node.activeInHierarchy);
-                 */ readonly activeInHierarchy: boolean;
-        parent: this | null;
-        readonly scene: Scene;
-        static _setScene(node: BaseNode): void;
-        protected static idGenerator: js.IDGenerator;
-        protected static _stacks: Array<Array<(BaseNode | null)>>;
-        protected static _stackId: number;
-        protected static _findComponent(node: BaseNode, constructor: Function): Component | null;
-        protected static _findComponents(node: BaseNode, constructor: Function, components: Component[]): void;
-        protected static _findChildComponent(children: BaseNode[], constructor: any): any;
-        protected static _findChildComponents(children: BaseNode[], constructor: any, components: any): void;
-        protected _parent: this | null;
-        protected _children: this[];
-        protected _active: boolean;
-        /**
-                 * @default 0
-                 */ protected _level: number;
-        /**
-                 * @default []
-                 * @readOnly
-                 */ protected _components: Component[];
-        /**
-                 * The PrefabInfo object
-                 * @type {PrefabInfo}
-                 */ protected _prefab: any;
-        /**
-                 * !#en which scene this node belongs to.
-                 * !#zh 此节点属于哪个场景。
-                 * @type {cc.Scene}}
-                 */ protected _scene: Scene;
-        protected _activeInHierarchy: boolean;
-        protected _id: string;
-        /**
-                 * Register all related EventTargets,
-                 * all event callbacks will be removed in _onPreDestroy
-                 * protected __eventTargets: EventTarget[] = [];
-                 */ protected __eventTargets: any[];
-        /**
-                 * @method constructor
-                 * @param {String} [name]
-                 */ constructor(name?: string);
-        /**
-                 * !#en Get parent of the node.
-                 * !#zh 获取该节点的父节点。
-                 * @example
-                 * var parent = this.node.getParent();
-                 */ getParent(): this | null;
-        /**
-                 * !#en Set parent of the node.
-                 * !#zh 设置该节点的父节点。
-                 * @example
-                 * node.setParent(newNode);
-                 */ setParent(value: this | null, keepWorldTransform?: boolean): any;
-        /**
-                 * !#en
-                 * Properties configuration function <br/>
-                 * All properties in attrs will be set to the node, <br/>
-                 * when the setter of the node is available, <br/>
-                 * the property will be set via setter function.<br/>
-                 * !#zh 属性配置函数。在 attrs 的所有属性将被设置为节点属性。
-                 * @param attrs - Properties to be set to node
-                 * @example
-                 * var attrs = { key: 0, num: 100 };
-                 * node.attr(attrs);
-                 */ attr(attrs: Object): void;
-        /**
-                 * !#en Returns a child from the container given its uuid.
-                 * !#zh 通过 uuid 获取节点的子节点。
-                 * @param uuid - The uuid to find the child node.
-                 * @return a Node whose uuid equals to the input parameter
-                 * @example
-                 * var child = node.getChildByUuid(uuid);
-                 */ getChildByUuid(uuid: string): this | null;
-        /**
-                 * !#en Returns a child from the container given its name.
-                 * !#zh 通过名称获取节点的子节点。
-                 * @param name - A name to find the child node.
-                 * @return a CCNode object whose name equals to the input parameter
-                 * @example
-                 * var child = node.getChildByName("Test Node");
-                 */ getChildByName(name: string): this | null;
-        /**
-                 * !#en Returns a child from the container given its path.
-                 * !#zh 通过路径获取节点的子节点。
-                 * @param path - A path to find the child node.
-                 * @return a CCNode object whose name equals to the input parameter
-                 * @example
-                 * var child = node.getChildByPath("Test Node");
-                 */ getChildByPath(path: string): this | null;
-        addChild(child: this): void;
-        /**
-                 * !#en
-                 * Inserts a child to the node at a specified index.
-                 * !#zh
-                 * 插入子节点到指定位置
-                 * @param child - the child node to be inserted
-                 * @param siblingIndex - the sibling index to place the child in
-                 * @example
-                 * node.insertChild(child, 2);
-                 */ insertChild(child: this, siblingIndex: number): void;
-        /**
-                 * !#en Get the sibling index.
-                 * !#zh 获取同级索引。
-                 * @example
-                 * var index = node.getSiblingIndex();
-                 */ getSiblingIndex(): number;
-        /**
-                 * !#en Set the sibling index of this node.
-                 * !#zh 设置节点同级索引。
-                 * @example
-                 * node.setSiblingIndex(1);
-                 */ setSiblingIndex(index: number): void;
-        /**
-                 * !#en Walk though the sub children tree of the current node.
-                 * Each node, including the current node, in the sub tree will be visited two times,
-                 * before all children and after all children.
-                 * This function call is not recursive, it's based on stack.
-                 * Please don't walk any other node inside the walk process.
-                 * !#zh 遍历该节点的子树里的所有节点并按规则执行回调函数。
-                 * 对子树中的所有节点，包含当前节点，会执行两次回调，prefunc 会在访问它的子节点之前调用，postfunc 会在访问所有子节点之后调用。
-                 * 这个函数的实现不是基于递归的，而是基于栈展开递归的方式。
-                 * 请不要在 walk 过程中对任何其他的节点嵌套执行 walk。
-                 * @param prefunc The callback to process node when reach the node for the first time
-                 * @param postfunc The callback to process node when re-visit the node after walked all children in its sub tree
-                 * @example
-                 * node.walk(function (target) {
-                 *     console.log('Walked through node ' + target.name + ' for the first time');
-                 * }, function (target) {
-                 *     console.log('Walked through node ' + target.name + ' after walked all children in its sub tree');
+                 * ```typescript
+                 * cc.game.on(Game.EVENT_HIDE, function () {
+                 *     cc.audioEngine.pauseMusic();
+                 *     cc.audioEngine.pauseAllEffects();
                  * });
-                 */ walk(prefunc: (target: this) => void, postfunc?: (target: this) => void): void;
+                 * ```
+                 */ static EVENT_HIDE: string;
         /**
-                 * !#en
-                 * Remove itself from its parent node. If cleanup is `true`, then also remove all events and actions. <br/>
-                 * If the cleanup parameter is not passed, it will force a cleanup,
-                 * so it is recommended that you always pass in the `false` parameter when calling this API.<br/>
-                 * If the node orphan, then nothing happens.
-                 * !#zh
-                 * 从父节点中删除该节点。如果不传入 cleanup 参数或者传入 `true`，那么这个节点上所有绑定的事件、action 都会被删除。<br/>
-                 * 因此建议调用这个 API 时总是传入 `false` 参数。<br/>
-                 * 如果这个节点是一个孤节点，那么什么都不会发生。
-                 * @param [cleanup=true] - true if all actions and callbacks on this node should be removed, false otherwise.
-                 * @see cc.Node#removeFromParentAndCleanup
-                 * @example
-                 * node.removeFromParent();
-                 * node.removeFromParent(false);
-                 */ removeFromParent(cleanup?: boolean): void;
+                 * @en Event triggered when game back to foreground<br>
+                 * Please note that this event is not 100% guaranteed to be fired on Web platform,<br>
+                 * on native platforms, it corresponds to enter foreground event.
+                 * @zh 游戏进入前台运行时触发的事件。<br>
+                 * 请注意，在 WEB 平台，这个事件不一定会 100% 触发，这完全取决于浏览器的回调行为。<br>
+                 * 在原生平台，它对应的是应用被切换到前台事件。
+                 * @property EVENT_SHOW
+                 * @constant
+                 */ static EVENT_SHOW: string;
         /**
-                 * !#en
-                 * Removes a child from the container.
-                 * It will also cleanup all running actions depending on the cleanup parameter. </p>
-                 * If the cleanup parameter is not passed, it will force a cleanup. <br/>
-                 * "remove" logic MUST only be on this method  <br/>
-                 * If a class wants to extend the 'removeChild' behavior it only needs <br/>
-                 * to override this method.
-                 * !#zh
-                 * 移除节点中指定的子节点，是否需要清理所有正在运行的行为取决于 cleanup 参数。<br/>
-                 * 如果 cleanup 参数不传入，默认为 true 表示清理。<br/>
-                 * @param child - The child node which will be removed.
-                 * @param [cleanup=true] - true if all running actions and callbacks on the child node
-                 * will be cleanup, false otherwise.
-                 * @example
-                 * node.removeChild(newNode);
-                 * node.removeChild(newNode, false);
-                 */ removeChild(child: this, cleanup?: boolean): void;
+                 * @en Event triggered after game inited, at this point all engine objects and game scripts are loaded
+                 * @zh 游戏启动后的触发事件，此时加载所有的引擎对象和游戏脚本。
+                 * @property EVENT_GAME_INITED
+                 * @constant
+                 */ static EVENT_GAME_INITED: string;
         /**
-                 * !#en
-                 * Removes all children from the container and
-                 * do a cleanup all running actions depending on the cleanup parameter. <br/>
-                 * If the cleanup parameter is not passed, it will force a cleanup.
-                 * !#zh
-                 * 移除节点所有的子节点，是否需要清理所有正在运行的行为取决于 cleanup 参数。<br/>
-                 * 如果 cleanup 参数不传入，默认为 true 表示清理。
-                 * @param [cleanup=true] - true if all running actions on all children nodes
-                 * should be cleanup, false otherwise.
-                 * @example
-                 * node.removeAllChildren();
-                 * node.removeAllChildren(false);
-                 */ removeAllChildren(cleanup?: boolean): void;
+                 * @en Event triggered after engine inited, at this point you will be able to use all engine classes.<br>
+                 * It was defined as EVENT_RENDERER_INITED in cocos creator v1.x and renamed in v2.0
+                 * @zh 在引擎初始化之后触发的事件，此时您能够使用引擎所有的类。<br>
+                 * 它在 cocos creator v1.x 版本中名字为 EVENT_RENDERER_INITED ,在 v2.0 版本中更名为 EVENT_ENGINE_INITED
+                 * @property EVENT_ENGINE_INITED
+                 * @constant
+                 */ static EVENT_ENGINE_INITED: string;
+        static EVENT_RENDERER_INITED: string;
         /**
-                 * !#en Is this node a child of the given node?
-                 * !#zh 是否是指定节点的子节点？
-                 * @return True if this node is a child, deep child or identical to the given node.
-                 * @example
-                 * node.isChildOf(newNode);
-                 */ isChildOf(parent: this): boolean;
+                 * @en Web Canvas 2d API as renderer backend.
+                 * @zh 使用 Web Canvas 2d API 作为渲染器后端。
+                 * @property RENDER_TYPE_CANVAS
+                 * @constant
+                 */ static RENDER_TYPE_CANVAS: number;
         /**
-                 * !#en
-                 * Returns the component of supplied type if the node has one attached, null if it doesn't.<br/>
-                 * You can also get component in the node by passing in the name of the script.
-                 * !#zh
-                 * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
-                 * 传入参数也可以是脚本的名称。
-                 * @example
-                 * // get sprite component.
-                 * var sprite = node.getComponent(cc.Sprite);
-                 */ getComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
+                 * @en WebGL API as renderer backend.
+                 * @zh 使用 WebGL API 作为渲染器后端。
+                 * @property RENDER_TYPE_WEBGL
+                 * @constant
+                 */ static RENDER_TYPE_WEBGL: number;
         /**
-                 * !#en
-                 * Returns the component of supplied type if the node has one attached, null if it doesn't.<br/>
-                 * You can also get component in the node by passing in the name of the script.
-                 * !#zh
-                 * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
-                 * 传入参数也可以是脚本的名称。
-                 * @example
-                 * // get custom test calss.
-                 * var test = node.getComponent("Test");
-                 */ getComponent(className: string): Component | null;
+                 * @en OpenGL API as renderer backend.
+                 * @zh 使用 OpenGL API 作为渲染器后端。
+                 * @property RENDER_TYPE_OPENGL
+                 * @constant
+                 */ static RENDER_TYPE_OPENGL: number;
         /**
-                 * !#en Returns all components of supplied type in the node.
-                 * !#zh 返回节点上指定类型的所有组件。
-                 * @example
-                 * var sprites = node.getComponents(cc.Sprite);
-                 */ getComponents<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T[];
+                 * @en The outer frame of the game canvas; parent of game container.
+                 * @zh 游戏画布的外框，container 的父容器。
+                 * @property frame
+                 */ frame: Object | null;
         /**
-                 * !#en Returns all components of supplied type in the node.
-                 * !#zh 返回节点上指定类型的所有组件。
-                 * @example
-                 * var tests = node.getComponents("Test");
-                 */ getComponents(className: string): Component[];
+                 * @en The container of game canvas.
+                 * @zh 游戏画布的容器。
+                 * @property container
+                 */ container: HTMLDivElement | null;
         /**
-                 * !#en Returns the component of supplied type in any of its children using depth first search.
-                 * !#zh 递归查找所有子节点中第一个匹配指定类型的组件。
-                 * @example
-                 * var sprite = node.getComponentInChildren(cc.Sprite);
-                 */ getComponentInChildren<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
+                 * @en The canvas of the game.
+                 * @zh 游戏的画布。
+                 * @property canvas
+                 */ canvas: HTMLElement | HTMLCanvasElement | null;
         /**
-                 * !#en Returns the component of supplied type in any of its children using depth first search.
-                 * !#zh 递归查找所有子节点中第一个匹配指定类型的组件。
-                 * @example
-                 * var Test = node.getComponentInChildren("Test");
-                 */ getComponentInChildren(className: string): Component | null;
+                 * @en The renderer backend of the game.
+                 * @zh 游戏的渲染器类型。
+                 * @property renderType
+                 */ renderType: number;
+        eventTargetOn: (type: string, callback: Function, target?: Object | undefined) => Function | undefined;
+        eventTargetOnce: (type: string, callback: Function, target?: Object | undefined) => Function | undefined;
         /**
-                 * !#en Returns all components of supplied type in self or any of its children.
-                 * !#zh 递归查找自身或所有子节点中指定类型的组件
-                 * @example
-                 * var sprites = node.getComponentsInChildren(cc.Sprite);
-                 */ getComponentsInChildren<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T[];
+                 * @en
+                 * The current game configuration, including:<br/>
+                 * 1. debugMode<br/>
+                 *      "debugMode" possible values :<br/>
+                 *      0 - No message will be printed.                                                      <br/>
+                 *      1 - cc.error, cc.assert, cc.warn, cc.log will print in console.                      <br/>
+                 *      2 - cc.error, cc.assert, cc.warn will print in console.                              <br/>
+                 *      3 - cc.error, cc.assert will print in console.                                       <br/>
+                 *      4 - cc.error, cc.assert, cc.warn, cc.log will print on canvas, available only on web.<br/>
+                 *      5 - cc.error, cc.assert, cc.warn will print on canvas, available only on web.        <br/>
+                 *      6 - cc.error, cc.assert will print on canvas, available only on web.                 <br/>
+                 * 2. showFPS<br/>
+                 *      Left bottom corner fps information will show when "showFPS" equals true, otherwise it will be hide.<br/>
+                 * 3. exposeClassName<br/>
+                 *      Expose class name to chrome debug tools, the class intantiate performance is a little bit slower when exposed.<br/>
+                 * 4. frameRate<br/>
+                 *      "frameRate" set the wanted frame rate for your game, but the real fps depends on your game implementation and the running environment.<br/>
+                 * 5. id<br/>
+                 *      "gameCanvas" sets the id of your canvas element on the web page, it's useful only on web.<br/>
+                 * 6. renderMode<br/>
+                 *      "renderMode" sets the renderer type, only useful on web :<br/>
+                 *      0 - Automatically chosen by engine<br/>
+                 *      1 - Forced to use canvas renderer<br/>
+                 *      2 - Forced to use WebGL renderer, but this will be ignored on mobile browsers<br/>
+                 * 7. scenes<br/>
+                 *      "scenes" include available scenes in the current bundle.<br/>
+                 * <br/>
+                 * Please DO NOT modify this object directly, it won't have any effect.<br/>
+                 * @zh
+                 * 当前的游戏配置，包括：                                                                  <br/>
+                 * 1. debugMode（debug 模式，但是在浏览器中这个选项会被忽略）                                <br/>
+                 *      "debugMode" 各种设置选项的意义。                                                   <br/>
+                 *          0 - 没有消息被打印出来。
+                 *          1 - cc.error，cc.assert，cc.warn，cc.log 将打印在 console 中。
+                 *          2 - cc.error，cc.assert，cc.warn 将打印在 console 中。
+                 *          3 - cc.error，cc.assert 将打印在 console 中。
+                 *          4 - cc.error，cc.assert，cc.warn，cc.log 将打印在 canvas 中（仅适用于 web 端）。
+                 *          5 - cc.error，cc.assert，cc.warn 将打印在 canvas 中（仅适用于 web 端）。
+                 *          6 - cc.error，cc.assert 将打印在 canvas 中（仅适用于 web 端）。
+                 * 2. showFPS（显示 FPS）                                                            <br/>
+                 *      当 showFPS 为 true 的时候界面的左下角将显示 fps 的信息，否则被隐藏。              <br/>
+                 * 3. exposeClassName                                                           <br/>
+                 *      暴露类名让 Chrome DevTools 可以识别，如果开启会稍稍降低类的创建过程的性能，但对对象构造没有影响。 <br/>
+                 * 4. frameRate (帧率)                                                              <br/>
+                 *      “frameRate” 设置想要的帧率你的游戏，但真正的FPS取决于你的游戏实现和运行环境。      <br/>
+                 * 5. id                                                                            <br/>
+                 *      "gameCanvas" Web 页面上的 Canvas Element ID，仅适用于 web 端。                         <br/>
+                 * 6. renderMode（渲染模式）                                                         <br/>
+                 *      “renderMode” 设置渲染器类型，仅适用于 web 端：                              <br/>
+                 *          0 - 通过引擎自动选择。
+                 *          1 - 强制使用 canvas 渲染。
+                 *          2 - 强制使用 WebGL 渲染，但是在部分 Android 浏览器中这个选项会被忽略。
+                 * 7. scenes                                                                         <br/>
+                 *      “scenes” 当前包中可用场景。                                                   <br/>
+                 * <br/>
+                 * 注意：请不要直接修改这个对象，它不会有任何效果。
+                 * @property config
+                 */ config: any;
         /**
-                 * !#en Returns all components of supplied type in self or any of its children.
-                 * !#zh 递归查找自身或所有子节点中指定类型的组件
-                 * @example
-                 * var tests = node.getComponentsInChildren("Test");
-                 */ getComponentsInChildren(className: string): Component[];
+                 * @en Callback when the scripts of engine have been load.
+                 * @zh 当引擎完成启动后的回调函数。
+                 * @method onStart
+                 */ onStart: Function | null;
+        _persistRootNodes: {};
+        _paused: boolean;
+        _configLoaded: boolean;
+        _isCloning: boolean;
+        _prepared: boolean;
+        _rendererInitialized: boolean;
+        _gfxDevice: __internal.cocos_gfx_webgl2_webgl2_device_WebGL2GFXDevice | __internal.cocos_gfx_webgl_webgl_device_WebGLGFXDevice | null;
+        _intervalId: number | null;
+        _lastTime: Date | null;
+        _frameTime: number | null;
+        _sceneInfos: never[];
+        collisionMatrix: never[];
+        groupList: never[];
         /**
-                 * !#en Adds a component class to the node. You can also add component to node by passing in the name of the script.
-                 * !#zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
-                 * @example
-                 * var sprite = node.addComponent(cc.Sprite);
-                 */ addComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): T | null;
+                 * @en Set frame rate of game.
+                 * @zh 设置游戏帧率。
+                 * @param {Number} frameRate
+                 */ setFrameRate(frameRate: number): void;
         /**
-                 * !#en Adds a component class to the node. You can also add component to node by passing in the name of the script.
-                 * !#zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
-                 * @example
-                 * var test = node.addComponent("Test");
-                 */ addComponent(className: string): Component | null;
+                 * @en Get frame rate set for the game, it doesn't represent the real frame rate.
+                 * @zh 获取设置的游戏帧率（不等同于实际帧率）。
+                 * @return {Number} frame rate
+                 */ getFrameRate(): number;
         /**
-                 * !#en
-                 * Removes a component identified by the given name or removes the component object given.
-                 * You can also use component.destroy() if you already have the reference.
-                 * !#zh
-                 * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
-                 * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
-                 * @deprecated please destroy the component to remove it.
-                 * @example
-                 * node.removeComponent(cc.Sprite);
-                 */ removeComponent<T extends Component>(classConstructor: __internal.cocos_scene_graph_base_node_Constructor<T>): void;
+                 * @en Run the game frame by frame.
+                 * @zh 执行一帧游戏循环。
+                 */ step(): void;
         /**
-                 * !#en
-                 * Removes a component identified by the given name or removes the component object given.
-                 * You can also use component.destroy() if you already have the reference.
-                 * !#zh
-                 * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
-                 * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
-                 * @deprecated please destroy the component to remove it.
-                 * @example
-                 * const sprite = node.getComponent(CC.Sprite);
-                 * if (sprite) {
-                 *     node.removeComponent(sprite);
-                 * }
-                 * node.removeComponent('cc.Sprite');
-                 */ removeComponent(classNameOrInstance: string | Component): void;
-        destroy(): boolean;
+                 * @en Pause the game main loop. This will pause:<br>
+                 * game logic execution, rendering process, event manager, background music and all audio effects.<br>
+                 * This is different with cc.director.pause which only pause the game logic execution.<br>
+                 * @zh 暂停游戏主循环。包含：游戏逻辑，渲染，事件处理，背景音乐和所有音效。这点和只暂停游戏逻辑的 cc.director.pause 不同。
+                 */ pause(): void;
         /**
-                 * !#en
-                 * Destroy all children from the node, and release all their own references to other objects.<br/>
-                 * Actual destruct operation will delayed until before rendering.
-                 * !#zh
-                 * 销毁所有子节点，并释放所有它们对其它对象的引用。<br/>
-                 * 实际销毁操作会延迟到当前帧渲染前执行。
-                 * @example
-                 * node.destroyAllChildren();
-                 */ destroyAllChildren(): void;
-        cleanup(): void;
-        emit?(type: string, ...args: any[]): void;
-        _removeComponent(component: Component): void;
-        protected _onSetParent(oldParent: this | null, keepWorldTransform?: boolean): void;
-        protected _onPostActivated(): void;
-        protected _onBatchRestored(): void;
-        protected _onBatchCreated(): void;
-        protected _onPreDestroy(): void;
-        protected _onHierarchyChanged(oldParent: this | null): void;
-        protected _instantiate(cloned: any): any;
-        protected _onHierarchyChangedBase(oldParent: this | null): void;
-        protected _onPreDestroyBase(): boolean;
-        protected _disableChildComps(): void;
-        protected _onSiblingIndexChanged?(siblingIndex: number): void;
-        protected _registerIfAttached?(attached: boolean): void;
-        protected _checkMultipleComp?(constructor: Function): boolean;
+                 * @en Resume the game from pause. This will resume:<br>
+                 * game logic execution, rendering process, event manager, background music and all audio effects.<br>
+                 * @zh 恢复游戏主循环。包含：游戏逻辑，渲染，事件处理，背景音乐和所有音效。
+                 */ resume(): void;
+        /**
+                 * @en Check whether the game is paused.
+                 * @zh 判断游戏是否暂停。
+                 * @return {Boolean}
+                 */ isPaused(): boolean;
+        /**
+                 * @en Restart game.
+                 * @zh 重新开始游戏
+                 */ restart(): void;
+        /**
+                 * @en End game, it will close the game window
+                 * @zh 退出游戏
+                 */ end(): void;
+        /**
+                 * @en
+                 * Register an callback of a specific event type on the game object.<br>
+                 * This type of event should be triggered via `emit`.<br>
+                 * @zh
+                 * 注册 game 的特定事件类型回调。这种类型的事件应该被 `emit` 触发。<br>
+                 *
+                 * @param {String} type - A string representing the event type to listen for.
+                 * @param {Function} callback - The callback that will be invoked when the event is dispatched.<br>
+                 *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+                 * @param {any} [callback.arg1] arg1
+                 * @param {any} [callback.arg2] arg2
+                 * @param {any} [callback.arg3] arg3
+                 * @param {any} [callback.arg4] arg4
+                 * @param {any} [callback.arg5] arg5
+                 * @param {Object} [target] - The target (this object) to invoke the callback, can be null
+                 * @return {Function} - Just returns the incoming callback so you can save the anonymous function easier.
+                 */ on(type: string, callback: Function, target?: object): any;
+        /**
+                 * @en
+                 * Register an callback of a specific event type on the game object,<br>
+                 * the callback will remove itself after the first time it is triggered.<br>
+                 * @zh
+                 * 注册 game 的特定事件类型回调，回调会在第一时间被触发后删除自身。
+                 *
+                 * @param {String} type - A string representing the event type to listen for.
+                 * @param {Function} callback - The callback that will be invoked when the event is dispatched.<br>
+                 *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+                 * @param {any} [callback.arg1] arg1
+                 * @param {any} [callback.arg2] arg2
+                 * @param {any} [callback.arg3] arg3
+                 * @param {any} [callback.arg4] arg4
+                 * @param {any} [callback.arg5] arg5
+                 * @param {Object} [target] - The target (this object) to invoke the callback, can be null
+                 */ once(type: string, callback: Function, target: object): void;
+        /**
+                 * @en Run game with configuration object and onStart function.
+                 * @zh 运行游戏，并且指定引擎配置和 onStart 的回调。
+                 * @param {Object} config - Pass configuration object or onStart function
+                 * @param {Function} onStart - function to be executed after game initialized
+                 */ run(config: any, onStart: Function | null): void;
+        /**
+                 * @en
+                 * Add a persistent root node to the game, the persistent node won't be destroyed during scene transition.<br>
+                 * The target node must be placed in the root level of hierarchy, otherwise this API won't have any effect.
+                 * @zh
+                 * 声明常驻根节点，该节点不会被在场景切换中被销毁。<br>
+                 * 目标节点必须位于为层级的根节点，否则无效。
+                 * @param {Node} node - The node to be made persistent
+                 */ addPersistRootNode(node: {
+            uuid: any;
+            parent: any;
+            _persistNode: boolean;
+        }): void;
+        /**
+                 * @en Remove a persistent root node.
+                 * @zh 取消常驻根节点。
+                 * @param {Node} node - The node to be removed from persistent node list
+                 */ removePersistRootNode(node: {
+            uuid: string;
+            _persistNode: boolean;
+        }): void;
+        /**
+                 * @en Check whether the node is a persistent root node.
+                 * @zh 检查节点是否是常驻根节点。
+                 * @param {Node} node - The node to be checked
+                 * @return {Boolean}
+                 */ isPersistRootNode(node: {
+            _persistNode: any;
+        }): any;
+        /**
+                 * @en Prepare game.
+                 * @zh 准备引擎，请不要直接调用这个函数。
+                 * @param {Function} cb
+                 */ protected prepare(cb: Function | null): void;
     }
-    /**
-         * @zh
-         * 场景树中的基本节点，基本特性有：
-         * * 具有层级关系
-         * * 持有各类组件
-         * * 维护空间变换（坐标、旋转、缩放）信息
-         */ export class Node extends BaseNode {
-        /**
-                 * @zh
-                 * 节点可能发出的事件类型
-                 */ static EventType: typeof SystemEventType;
-        /**
-                 * @zh
-                 * 空间变换操作的坐标系
-                 */ static NodeSpace: typeof __internal.cocos_scene_graph_node_NodeSpace;
-        /**
-                 * @zh
-                 * 指定对象是否是普通的场景节点？
-                 * @param obj 待测试的节点
-                 */ static isNode(obj: object | null): obj is Node;
-        protected _pos: Vec3;
-        protected _rot: Quat;
-        protected _scale: Vec3;
-        protected _mat: Mat4;
-        protected _lpos: Vec3;
-        protected _lrot: Quat;
-        protected _lscale: Vec3;
-        protected _layer: number;
-        protected _euler: Vec3;
-        protected _dirty: boolean;
-        protected _hasChanged: boolean;
-        protected _matDirty: boolean;
-        protected _eulerDirty: boolean;
-        protected _eventProcessor: any;
-        protected _eventMask: number;
-        /**
-                 * @zh
-                 * 以欧拉角表示的本地旋转值
-                 */ eulerAngles: Readonly<Vec3>;
-        /**
-                 * @zh
-                 * 节点所属层，主要影响射线检测、物理碰撞等，参考 [[Layers]]
-                 */ layer: any;
-        /**
-                 * @zh
-                 * 这个节点的空间变换信息在当前帧内是否有变过？
-                 */ readonly hasChanged: boolean;
-        /**
-                 * @zh
-                 * 设置父节点
-                 * @param value 父节点
-                 * @param keepWorldTransform 是否保留当前世界变换
-                 */ setParent(value: this | null, keepWorldTransform?: boolean): void;
-        _onSetParent(oldParent: this | null, keepWorldTransform: boolean): void;
-        _onBatchCreated(): void;
-        _onBatchRestored(): void;
-        _onBeforeSerialize(): void;
-        /**
-                 * @zh
-                 * 移动节点
-                 * @param trans 位置增量
-                 * @param ns 操作空间
-                 */ translate(trans: Vec3, ns?: __internal.cocos_scene_graph_node_NodeSpace): void;
-        /**
-                 * @zh
-                 * 旋转节点
-                 * @param trans 旋转增量
-                 * @param ns 操作空间
-                 */ rotate(rot: Quat, ns?: __internal.cocos_scene_graph_node_NodeSpace): void;
-        /**
-                 * @zh
-                 * 当前节点面向的前方方向
-                 */ forward: Vec3;
-        /**
-                 * @zh
-                 * 设置当前节点旋转为面向目标位置
-                 * @param pos 目标位置
-                 * @param up 坐标系的上方向
-                 */ lookAt(pos: Vec3, up?: Vec3): void;
-        /**
-                 * @en
-                 * Reset the `hasChanged` flag recursively
-                 * @zh
-                 * 递归重置节点的 hasChanged 标记为 false
-                 */ resetHasChanged(): void;
-        /**
-                 * @en
-                 * invalidate the world transform information
-                 * for this node and all its children recursively
-                 * @zh
-                 * 递归标记节点世界变换为 dirty
-                 */ invalidateChildren(): void;
-        /**
-                 * @en
-                 * update the world transform information if outdated
-                 * here we assume all nodes are children of a scene node,
-                 * which is always not dirty, has an identity transform and no parent.
-                 * @zh
-                 * 更新节点的世界变换信息
-                 */ updateWorldTransform(): void;
-        /**
-                 * @zh
-                 * 更新节点的完整世界变换信息
-                 */ updateWorldTransformFull(): void;
-        /**
-                 * @zh
-                 * 设置本地坐标
-                 * @param position 目标本地坐标
-                 */ setPosition(position: Vec3): void;
-        /**
-                 * @zh
-                 * 设置本地坐标
-                 * @param x 目标本地坐标的 X 分量
-                 * @param y 目标本地坐标的 Y 分量
-                 * @param z 目标本地坐标的 Z 分量
-                 * @param w 目标本地坐标的 W 分量
-                 */ setPosition(x: number, y: number, z: number): void;
-        /**
-                 * @zh
-                 * 获取本地坐标
-                 * @param out 输出到此目标 vector
-                 */ getPosition(out?: Vec3): Vec3;
-        /**
-                 * @zh
-                 * 本地坐标
-                 */ position: Readonly<Vec3>;
-        /**
-                 * @zh
-                 * 设置本地旋转
-                 * @param rotation 目标本地旋转
-                 */ setRotation(rotation: Quat): void;
-        /**
-                 * @zh
-                 * 设置本地旋转
-                 * @param x 目标本地旋转的 X 分量
-                 * @param y 目标本地旋转的 Y 分量
-                 * @param z 目标本地旋转的 Z 分量
-                 * @param w 目标本地旋转的 W 分量
-                 */ setRotation(x: number, y: number, z: number, w: number): void;
-        /**
-                 * @zh
-                 * 通过欧拉角设置本地旋转
-                 * @param x - 目标欧拉角的 X 分量
-                 * @param y - 目标欧拉角的 Y 分量
-                 * @param z - 目标欧拉角的 Z 分量
-                 */ setRotationFromEuler(x: number, y: number, z: number): void;
-        /**
-                 * @zh
-                 * 获取本地旋转
-                 * @param out 输出到此目标 quaternion
-                 */ getRotation(out?: Quat): Quat;
-        /**
-                 * @zh
-                 * 本地旋转
-                 */ rotation: Readonly<Quat>;
-        /**
-                 * @zh
-                 * 设置本地缩放
-                 * @param scale 目标本地缩放
-                 */ setScale(scale: Vec3): void;
-        /**
-                 * @zh
-                 * 设置本地缩放
-                 * @param x 目标本地缩放的 X 分量
-                 * @param y 目标本地缩放的 Y 分量
-                 * @param z 目标本地缩放的 Z 分量
-                 */ setScale(x: number, y: number, z: number): void;
-        /**
-                 * @zh
-                 * 获取本地缩放
-                 * @param out 输出到此目标 vector
-                 */ getScale(out?: Vec3): Vec3;
-        /**
-                 * @zh
-                 * 本地缩放
-                 */ scale: Readonly<Vec3>;
-        /**
-                 * @zh
-                 * 设置世界坐标
-                 * @param position 目标世界坐标
-                 */ setWorldPosition(position: Vec3): void;
-        /**
-                 * @zh
-                 * 设置世界坐标
-                 * @param x 目标世界坐标的 X 分量
-                 * @param y 目标世界坐标的 Y 分量
-                 * @param z 目标世界坐标的 Z 分量
-                 * @param w 目标世界坐标的 W 分量
-                 */ setWorldPosition(x: number, y: number, z: number): void;
-        /**
-                 * @zh
-                 * 获取世界坐标
-                 * @param out 输出到此目标 vector
-                 */ getWorldPosition(out?: Vec3): Vec3;
-        /**
-                 * @zh
-                 * 世界坐标
-                 */ worldPosition: Readonly<Vec3>;
-        /**
-                 * @zh
-                 * 设置世界旋转
-                 * @param rotation 目标世界旋转
-                 */ setWorldRotation(rotation: Quat): void;
-        /**
-                 * @zh
-                 * 设置世界旋转
-                 * @param x 目标世界旋转的 X 分量
-                 * @param y 目标世界旋转的 Y 分量
-                 * @param z 目标世界旋转的 Z 分量
-                 * @param w 目标世界旋转的 W 分量
-                 */ setWorldRotation(x: number, y: number, z: number, w: number): void;
-        /**
-                 * @zh
-                 * 通过欧拉角设置世界旋转
-                 * @param x - 目标欧拉角的 X 分量
-                 * @param y - 目标欧拉角的 Y 分量
-                 * @param z - 目标欧拉角的 Z 分量
-                 */ setWorldRotationFromEuler(x: number, y: number, z: number): void;
-        /**
-                 * @zh
-                 * 获取世界旋转
-                 * @param out 输出到此目标 quaternion
-                 */ getWorldRotation(out?: Quat): Quat;
-        /**
-                 * @zh
-                 * 世界旋转
-                 */ worldRotation: Readonly<Quat>;
-        /**
-                 * @zh
-                 * 设置世界缩放
-                 * @param scale 目标世界缩放
-                 */ setWorldScale(scale: Vec3): void;
-        /**
-                 * @zh
-                 * 设置世界缩放
-                 * @param x 目标世界缩放的 X 分量
-                 * @param y 目标世界缩放的 Y 分量
-                 * @param z 目标世界缩放的 Z 分量
-                 */ setWorldScale(x: number, y: number, z: number): void;
-        /**
-                 * @zh
-                 * 获取世界缩放
-                 * @param out 输出到此目标 vector
-                 */ getWorldScale(out?: Vec3): Vec3;
-        /**
-                 * @zh
-                 * 世界缩放
-                 */ worldScale: Readonly<Vec3>;
-        /**
-                 * @zh
-                 * 获取世界变换矩阵
-                 * @param out 输出到此目标矩阵
-                 */ getWorldMatrix(out?: Mat4): Mat4;
-        /**
-                 * @zh
-                 * 世界变换矩阵
-                 */ readonly worldMatrix: Readonly<Mat4>;
-        /**
-                 * @zh
-                 * 获取只包含旋转和缩放的世界变换矩阵
-                 * @param out 输出到此目标矩阵
-                 */ getWorldRS(out?: Mat4): Mat4;
-        /**
-                 * @zh
-                 * 获取只包含坐标和旋转的世界变换矩阵
-                 * @param out 输出到此目标矩阵
-                 */ getWorldRT(out?: Mat4): Mat4;
-        uiTransfromComp: UITransformComponent | null;
-        width: number;
-        height: number;
-        anchorX: number;
-        anchorY: number;
-        readonly eventProcessor: any;
-        getAnchorPoint(out?: Vec2): Vec2;
-        setAnchorPoint(point: Vec2 | number, y?: number): void;
-        getContentSize(out?: Size): Size;
-        setContentSize(size: Size | number, height?: number): void;
-        on(type: string | SystemEventType, callback: Function, target?: Object, useCapture?: any): void;
-        off(type: string, callback?: Function, target?: Object, useCapture?: any): void;
-        once(type: string, callback: Function, target?: Object, useCapture?: any): void;
-        emit(type: string, ...args: any[]): void;
-        dispatchEvent(event: Event): void;
-        hasEventListener(type: string): any;
-        targetOff(target: string | Object): void;
-        pauseSystemEvents(recursive: boolean): void;
-        resumeSystemEvents(recursive: boolean): void;
-    }
+    var game: Game;
+    var director: Director;
     /**
          * @en
-         * cc.Scene is a subclass of cc.Node that is used only as an abstract concept.<br/>
-         * cc.Scene and cc.Node are almost identical with the difference that users can not modify cc.Scene manually.
+         * <p>
+         *    ATTENTION: USE cc.director INSTEAD OF cc.Director.<br/>
+         *    cc.director is a singleton object which manage your game's logic flow.<br/>
+         *    Since the cc.director is a singleton, you don't need to call any constructor or create functions,<br/>
+         *    the standard way to use it is by calling:<br/>
+         *      - cc.director.methodName(); <br/>
+         *
+         *    It creates and handle the main Window and manages how and when to execute the Scenes.<br/>
+         *    <br/>
+         *    The cc.director is also responsible for:<br/>
+         *      - initializing the OpenGL context<br/>
+         *      - setting the OpenGL pixel format (default on is RGB565)<br/>
+         *      - setting the OpenGL buffer depth (default on is 0-bit)<br/>
+         *      - setting the color for clear screen (default one is BLACK)<br/>
+         *      - setting the projection (default one is 3D)<br/>
+         *      - setting the orientation (default one is Portrait)<br/>
+         *      <br/>
+         *    <br/>
+         *    The cc.director also sets the default OpenGL context:<br/>
+         *      - GL_TEXTURE_2D is enabled<br/>
+         *      - GL_VERTEX_ARRAY is enabled<br/>
+         *      - GL_COLOR_ARRAY is enabled<br/>
+         *      - GL_TEXTURE_COORD_ARRAY is enabled<br/>
+         * </p>
+         * <p>
+         *   cc.director also synchronizes timers with the refresh rate of the display.<br/>
+         *   Features and Limitations:<br/>
+         *      - Scheduled timers & drawing are synchronizes with the refresh rate of the display<br/>
+         *      - Only supports animation intervals of 1/60 1/30 & 1/15<br/>
+         * </p>
+         *
          * @zh
-         * cc.Scene 是 cc.Node 的子类，仅作为一个抽象的概念。<br/>
-         * cc.Scene 和 cc.Node 有点不同，用户不应直接修改 cc.Scene。
-         */ export class Scene extends Node {
-        readonly renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
-        readonly globals: __internal.cocos_scene_graph_scene_globals_SceneGlobals;
+         * <p>
+         *     注意：用 cc.director 代替 cc.Director。<br/>
+         *     cc.director 一个管理你的游戏的逻辑流程的单例对象。<br/>
+         *     由于 cc.director 是一个单例，你不需要调用任何构造函数或创建函数，<br/>
+         *     使用它的标准方法是通过调用：<br/>
+         *       - cc.director.methodName();
+         *     <br/>
+         *     它创建和处理主窗口并且管理什么时候执行场景。<br/>
+         *     <br/>
+         *     cc.director 还负责：<br/>
+         *      - 初始化 OpenGL 环境。<br/>
+         *      - 设置OpenGL像素格式。(默认是 RGB565)<br/>
+         *      - 设置OpenGL缓冲区深度 (默认是 0-bit)<br/>
+         *      - 设置空白场景的颜色 (默认是 黑色)<br/>
+         *      - 设置投影 (默认是 3D)<br/>
+         *      - 设置方向 (默认是 Portrait)<br/>
+         *    <br/>
+         *    cc.director 设置了 OpenGL 默认环境 <br/>
+         *      - GL_TEXTURE_2D   启用。<br/>
+         *      - GL_VERTEX_ARRAY 启用。<br/>
+         *      - GL_COLOR_ARRAY  启用。<br/>
+         *      - GL_TEXTURE_COORD_ARRAY 启用。<br/>
+         * </p>
+         * <p>
+         *   cc.director 也同步定时器与显示器的刷新速率。
+         *   <br/>
+         *   特点和局限性: <br/>
+         *      - 将计时器 & 渲染与显示器的刷新频率同步。<br/>
+         *      - 只支持动画的间隔 1/60 1/30 & 1/15。<br/>
+         * </p>
+         *
+         * @class Director
+         * @extends EventTarget
+         */ class Director extends EventTarget {
         /**
-                 * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
-                 * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
-                 */ autoReleaseAssets: boolean;
+                 * @en The event which will be triggered before loading a new scene.
+                 * @zh 加载新场景之前所触发的事件。
+                 * @event cc.Director.EVENT_BEFORE_SCENE_LOADING
+                 * @param {String} sceneName - The loading scene name
+                 */ /**
+                 * @en The event which will be triggered before loading a new scene.
+                 * @zh 加载新场景之前所触发的事件。
+                 * @property {String} EVENT_BEFORE_SCENE_LOADING
+                 * @readonly
+                 */ static readonly EVENT_BEFORE_SCENE_LOADING;
         /**
-                 * @en Per-scene level rendering info
-                 * @zh 场景级别的渲染信息
-                 */ _globals: __internal.cocos_scene_graph_scene_globals_SceneGlobals;
-        _renderScene: __internal.cocos_renderer_scene_render_scene_RenderScene | null;
-        dependAssets: null;
-        protected _inited: boolean;
-        protected _prefabSyncedInLiveReload: boolean;
-        constructor(name: string);
-        destroy(): boolean;
-        _onHierarchyChanged(): void;
-        protected _instantiate(): void;
-        protected _load(): void;
-        protected _activate(active: boolean): void;
-    }
-    /**
-         * 场景节点层管理器，用于射线检测、物理碰撞和用户自定义脚本逻辑。
-         * 每个节点可属于一个或多个层，可通过 “包含式” 或 “排除式” 两种检测器进行层检测。
-         */ export class Layers {
+                 * @en The event which will be triggered before launching a new scene.
+                 * @zh 运行新场景之前所触发的事件。
+                 * @property {String} EVENT_BEFORE_SCENE_LAUNCH
+                 * @readonly
+                 */ static readonly EVENT_BEFORE_SCENE_LAUNCH;
         /**
-                 * @zh 默认层，所有节点的初始值
-                 */ static Default: number;
+                 * @en The event which will be triggered after launching a new scene.
+                 * @zh 运行新场景之后所触发的事件。
+                 * @event cc.Director.EVENT_AFTER_SCENE_LAUNCH
+                 * @param {String} sceneName - New scene which is launched
+                 */ /**
+                 * @en The event which will be triggered after launching a new scene.
+                 * @zh 运行新场景之后所触发的事件。
+                 * @property {String} EVENT_AFTER_SCENE_LAUNCH
+                 * @readonly
+                 */ static readonly EVENT_AFTER_SCENE_LAUNCH;
         /**
-                 * @zh 忽略射线检测
-                 */ static IgnoreRaycast: number;
-        static Gizmos: number;
-        static Editor: number;
-        static UI: number;
+                 * @en The event which will be triggered at the beginning of every frame.
+                 * @zh 每个帧的开始时所触发的事件。
+                 * @event cc.Director.EVENT_BEFORE_UPDATE
+                 */ /**
+                 * @en The event which will be triggered at the beginning of every frame.
+                 * @zh 每个帧的开始时所触发的事件。
+                 * @property {String} EVENT_BEFORE_UPDATE
+                 * @readonly
+                 */ static readonly EVENT_BEFORE_UPDATE;
         /**
-                 * @zh 接受所有用户创建的节点
-                 */ static All: number;
+                 * @en The event which will be triggered after engine and components update logic.
+                 * @zh 将在引擎和组件 “update” 逻辑之后所触发的事件。
+                 * @event cc.Director.EVENT_AFTER_UPDATE
+                 */ /**
+                 * @en The event which will be triggered after engine and components update logic.
+                 * @zh 将在引擎和组件 “update” 逻辑之后所触发的事件。
+                 * @property {String} EVENT_AFTER_UPDATE
+                 * @readonly
+                 */ static readonly EVENT_AFTER_UPDATE;
         /**
-                 * @zh 接受所有支持射线检测的节点
-                 */ static RaycastMask: number;
+                 * @en The event which will be triggered before the rendering process.
+                 * @zh 渲染过程之前所触发的事件。
+                 * @event cc.Director.EVENT_BEFORE_DRAW
+                 */ /**
+                 * @en The event which will be triggered before the rendering process.
+                 * @zh 渲染过程之前所触发的事件。
+                 * @property {String} EVENT_BEFORE_DRAW
+                 * @readonly
+                 */ static readonly EVENT_BEFORE_DRAW;
         /**
-                 * @en
-                 * Add a new layer
-                 * @zh
-                 * 添加一个新层
-                 * @param name 层名字
-                 * @return 新层的检测值
-                 */ static addLayer(name: string): number | undefined;
+                 * @en The event which will be triggered after the rendering process.
+                 * @zh 渲染过程之后所触发的事件。
+                 * @event cc.Director.EVENT_AFTER_DRAW
+                 */ /**
+                 * @en The event which will be triggered after the rendering process.
+                 * @zh 渲染过程之后所触发的事件。
+                 * @property {String} EVENT_AFTER_DRAW
+                 * @readonly
+                 */ static readonly EVENT_AFTER_DRAW;
         /**
-                 * @en
-                 * Make a layer mask accepting nothing but the listed layers
-                 * @zh
-                 * 创建一个包含式层检测器，只接受列表中的层
-                 * @param includes 可接受的层数组
-                 * @return 指定功能的层检测器
-                 */ static makeInclusiveMask(includes: number[]): number;
+                 * @en The event which will be triggered before the physics process.
+                 * @zh 物理过程之前所触发的事件。
+                 * @event cc.Director.EVENT_BEFORE_PHYSICS
+                 * @readonly
+                 */ static readonly EVENT_BEFORE_PHYSICS;
         /**
-                 * @en
-                 * Make a layer mask accepting everything but the listed layers
-                 * @zh
-                 * 创建一个排除式层检测器，只拒绝列表中的层
-                 * @param  excludes 将拒绝的层数组
-                 * @return 指定功能的层检测器
-                 */ static makeExclusiveMask(excludes: number[]): number;
-        /**
-                 * @en
-                 * Check a layer is accepted by the mask or not
-                 * @zh
-                 * 检查一个层是否被检测器接受
-                 * @param layer 待检测的层
-                 * @param mask 层检测器
-                 * @return 是否通过检测
-                 */ static check(layer: number, mask: number): boolean;
-    }
-    /**
-         * Finds a node by hierarchy path, the path is case-sensitive.
-         * It will traverse the hierarchy by splitting the path using '/' character.
-         * This function will still returns the node even if it is inactive.
-         * It is recommended to not use this function every frame instead cache the result at startup.
-         */ export function find(path: string, referenceNode?: Node): Node | null;
-    /**
-         * !#en
-         * Class of private entities in Cocos Creator scenes.<br/>
-         * The PrivateNode is hidden in editor, and completely transparent to users.<br/>
-         * It's normally used as Node's private content created by components in parent node.<br/>
-         * So in theory private nodes are not children, they are part of the parent node.<br/>
-         * Private node have two important characteristics:<br/>
-         * 1. It has the minimum z index and cannot be modified, because they can't be displayed over real children.<br/>
-         * 2. The positioning of private nodes is also special, they will consider the left bottom corner of the parent node's bounding box as the origin of local coordinates.<br/>
-         *    In this way, they can be easily kept inside the bounding box.<br/>
-         * Currently, it's used by RichText component and TileMap component.
-         * !#zh
-         * Cocos Creator 场景中的私有节点类。<br/>
-         * 私有节点在编辑器中不可见，对用户透明。<br/>
-         * 通常私有节点是被一些特殊的组件创建出来作为父节点的一部分而存在的，理论上来说，它们不是子节点，而是父节点的组成部分。<br/>
-         * 私有节点有两个非常重要的特性：<br/>
-         * 1. 它有着最小的渲染排序的 Z 轴深度，并且无法被更改，因为它们不能被显示在其他正常子节点之上。<br/>
-         * 2. 它的定位也是特殊的，对于私有节点来说，父节点包围盒的左下角是它的局部坐标系原点，这个原点相当于父节点的位置减去它锚点的偏移。这样私有节点可以比较容易被控制在包围盒之中。<br/>
-         * 目前在引擎中，RichText 和 TileMap 都有可能生成私有节点。
-         * @class PrivateNode
-         * @method constructor
-         * @param {String} name
-         * @extends Node
-         */ export class PrivateNode extends Node {
-        /**
-                 * @method constructor
-                 * @param {String} [name]
-                 */ constructor(name: string);
-    }
-    /**
-         * The class used to perform activating and deactivating operations of node and component.
-         */ export class NodeActivator {
-        resetComp: any;
-        protected _activatingStack: any[];
+                 * @en The event which will be triggered after the physics process.
+                 * @zh 物理过程之后所触发的事件。
+                 * @event cc.Director.EVENT_AFTER_PHYSICS
+                 * @readonly
+                 */ static readonly EVENT_AFTER_PHYSICS;
         constructor();
-        reset(): void;
-        activateNode(node: any, active: any): void;
-        activateComp(comp: any, preloadInvoker: any, onLoadInvoker: any, onEnableInvoker: any): void;
-        destroyComp(comp: any): void;
-        protected _activateNodeRecursively(node: any, preloadInvoker: any, onLoadInvoker: any, onEnableInvoker: any): void;
-        protected _deactivateNodeRecursively(node: any): void;
+        init(): boolean;
+        sharedInit(): void;
+        /**
+                 * calculates delta time since last time it was called
+                 */ calculateDeltaTime(): void;
+        /**
+                 * @en
+                 * Converts a view coordinate to an WebGL coordinate<br/>
+                 * Useful to convert (multi) touches coordinates to the current layout (portrait or landscape)<br/>
+                 * Implementation can be found in directorWebGL.
+                 * @zh 将触摸点的屏幕坐标转换为 WebGL View 下的坐标。
+                 * @param {Vec2} uiPoint
+                 * @return {Vec2}
+                 * @deprecated since v2.0
+                 */ convertToGL(uiPoint: any): any;
+        /**
+                 * @en
+                 * Converts an OpenGL coordinate to a view coordinate<br/>
+                 * Useful to convert node points to window points for calls such as glScissor<br/>
+                 * Implementation can be found in directorWebGL.
+                 * @zh 将触摸点的 WebGL View 坐标转换为屏幕坐标。
+                 * @param {Vec2} glPoint
+                 * @return {Vec2}
+                 * @deprecated since v2.0
+                 */ convertToUI(glPoint: any): any;
+        /**
+                 * End the life of director in the next frame
+                 */ end(): void;
+        /**
+                 * @en
+                 * Returns the size of the WebGL view in points.<br/>
+                 * It takes into account any possible rotation (device orientation) of the window.
+                 * @zh 获取视图的大小，以点为单位。
+                 * @return {Size}
+                 * @deprecated since v2.0
+                 */ getWinSize(): any;
+        /**
+                 * @en
+                 * Returns the size of the OpenGL view in pixels.<br/>
+                 * It takes into account any possible rotation (device orientation) of the window.<br/>
+                 * On Mac winSize and winSizeInPixels return the same value.
+                 * (The pixel here refers to the resource resolution. If you want to get the physics resolution of device, you need to use cc.view.getFrameSize())
+                 * @zh
+                 * 获取视图大小，以像素为单位（这里的像素指的是资源分辨率。
+                 * 如果要获取屏幕物理分辨率，需要用 cc.view.getFrameSize()）
+                 * @return {Size}
+                 * @deprecated since v2.0
+                 */ getWinSizeInPixels(): any;
+        /**
+                 * @en Pause the director's ticker, only involve the game logic execution.<br>
+                 * It won't pause the rendering process nor the event manager.<br>
+                 * If you want to pause the entier game including rendering, audio and event,<br>
+                 * please use cc.game.pause
+                 * @zh 暂停正在运行的场景，该暂停只会停止游戏逻辑执行，但是不会停止渲染和 UI 响应。<br>
+                 * 如果想要更彻底得暂停游戏，包含渲染，音频和事件，请使用 cc.game.pause 。
+                 */ pause(): void;
+        /**
+                 * @en Removes cached all cocos2d cached data.
+                 * @zh 删除cocos2d所有的缓存数据
+                 * @deprecated since v2.0
+                 */ purgeCachedData(): void;
+        /**
+                 * @en Purge the cc.director itself, including unschedule all schedule,<br>
+                 * remove all event listeners, clean up and exit the running scene, stops all animations, clear cached data.
+                 * @zh 清除 cc.director 本身，包括停止所有的计时器，<br>
+                 * 移除所有的事件监听器，清理并退出当前运行的场景，停止所有动画，清理缓存数据。
+                 */ purgeDirector(): void;
+        /**
+                 * @en Reset the cc.director, can be used to restart the director after purge
+                 * @zh 重置 cc.director，可用于在清除后重启 director
+                 */ reset(): void;
+        /**
+                 * @en
+                 * Run a scene. Replaces the running scene with a new one or enter the first scene.<br>
+                 * The new scene will be launched immediately.
+                 * @zh 立刻切换指定场景。
+                 * @param {Scene} scene - The need run scene.
+                 * @param {Function} [onBeforeLoadScene] - The function invoked at the scene before loading.
+                 * @param {Function} [onLaunched] - The function invoked at the scene after launch.
+                 */ runSceneImmediate(scene: any, onBeforeLoadScene: any, onLaunched: any): void;
+        /**
+                 * @en
+                 * Run a scene. Replaces the running scene with a new one or enter the first scene.<br>
+                 * The new scene will be launched at the end of the current frame.<br>
+                 * @zh 运行指定场景。
+                 * @param {Scene} scene - The need run scene.
+                 * @param {Function} [onBeforeLoadScene] - The function invoked at the scene before loading.
+                 * @param {Function} [onLaunched] - The function invoked at the scene after launch.
+                 * @private
+                 */ runScene(scene: any, onBeforeLoadScene: any, onLaunched: any): void;
+        _getSceneUuid(key: any): any;
+        /**
+                 * @en Loads the scene by its name.
+                 * @zh 通过场景名称进行加载场景。
+                 *
+                 * @param {String} sceneName - The name of the scene to load.
+                 * @param {Function} [onLaunched] - callback, will be called after scene launched.
+                 * @return {Boolean} if error, return false
+                 */ loadScene(sceneName: any, onLaunched: any, _onUnloaded: any): boolean;
+        /**
+                 * @en
+                 * Preloads the scene to reduces loading time. You can call this method at any time you want.<br>
+                 * After calling this method, you still need to launch the scene by `cc.director.loadScene`.<br>
+                 * It will be totally fine to call `cc.director.loadScene` at any time even if the preloading is not<br>
+                 * yet finished, the scene will be launched after loaded automatically.
+                 * @zh 预加载场景，你可以在任何时候调用这个方法。
+                 * 调用完后，你仍然需要通过 `cc.director.loadScene` 来启动场景，因为这个方法不会执行场景加载操作。<br>
+                 * 就算预加载还没完成，你也可以直接调用 `cc.director.loadScene`，加载完成后场景就会启动。
+                 * <br>
+                 * @param {String} sceneName - The name of the scene to preload.
+                 * @param {Function} [onProgress] - callback, will be called when the load progression change.
+                 * @param {Number} onProgress.completedCount - The number of the items that are already completed
+                 * @param {Number} onProgress.totalCount - The total number of the items
+                 * @param {Object} onProgress.item - The latest item which flow out the pipeline
+                 * @param {Function} [onLoaded] - callback, will be called after scene loaded.
+                 * @param {Error} onLoaded.error - null or the error object.
+                 */ preloadScene(sceneName: any, onProgress: any, onLoaded: any): void;
+        /**
+                 * @en Loads the scene by its uuid.
+                 * @zh 通过uuid加载场景
+                 * @param {String} uuid - the uuid of the scene asset to load
+                 * @param {Function} [onLaunched]
+                 * @param {Function} [onUnloaded]
+                 * @param {Boolean} [dontRunScene] - Just download and initialize the scene but will not launch it,
+                 *                                   only take effect in the Editor.
+                 */ _loadSceneByUuid(uuid: String, onLaunched?: Function | null, onUnloaded?: Function | null, dontRunScene?: Boolean): void;
+        /**
+                 * @en Resume game logic execution after pause, if the current scene is not paused, nothing will happen.
+                 * @zh 恢复暂停场景的游戏逻辑，如果当前场景没有暂停将没任何事情发生。
+                 */ resume(): void;
+        /**
+                 * @en
+                 * Enables or disables WebGL depth test.<br>
+                 * Implementation can be found in directorCanvas.js/directorWebGL.js
+                 * @zh 启用/禁用深度测试（在 Canvas 渲染模式下不会生效）。
+                 * @param {Boolean} on
+                 * @deprecated since v2.0
+                 */ setDepthTest(value: any): void;
+        /**
+                 * @en
+                 * Set color for clear screen.<br>
+                 * (Implementation can be found in directorCanvas.js/directorWebGL.js)
+                 * @zh
+                 * 设置场景的默认擦除颜色。<br>
+                 * 支持全透明，但不支持透明度为中间值。要支持全透明需手工开启 cc.macro.ENABLE_TRANSPARENT_CANVAS。
+                 * @param {Color} clearColor
+                 * @deprecated since v2.0
+                 */ setClearColor(clearColor: any): void;
+        readonly root: __internal.cocos_core_root_Root | null;
+        /**
+                 * @en Returns current logic Scene.
+                 * @zh 获取当前逻辑场景。
+                 * @return {Scene}
+                 * @deprecated since v2.0
+                 */ getRunningScene(): Scene | null;
+        /**
+                 * @en Returns current logic Scene.
+                 * @zh 获取当前逻辑场景。
+                 * @return {Scene}
+                 * @example
+                 * ```
+                 *  // This will help you to get the Canvas node in scene
+                 *  cc.director.getScene().getChildByName('Canvas');
+                 * ```
+                 */ getScene(): Scene | null;
+        /**
+                 * @en Returns the FPS value. Please use {{#crossLink "Game.setFrameRate"}}cc.game.setFrameRate{{/crossLink}} to control animation interval.
+                 * @zh 获取单位帧执行时间。请使用 {{#crossLink "Game.setFrameRate"}}cc.game.setFrameRate{{/crossLink}} 来控制游戏帧率。
+                 * @deprecated since v2.0
+                 * @return {Number}
+                 */ getAnimationInterval(): number;
+        /**
+                 * @en Sets animation interval, this doesn't control the main loop.<br>
+                 * To control the game's frame rate overall, please use cc.game.setFrameRate
+                 * @zh 设置动画间隔，这不控制主循环。<br>
+                 * 要控制游戏的帧速率，请使用 cc.game.setFrameRate
+                 * @deprecated since v2.0
+                 * @param {Number} value - The animation interval desired.
+                 */ setAnimationInterval(value: any): void;
+        /**
+                 * @en Returns the delta time since last frame.
+                 * @zh 获取上一帧的增量时间。
+                 */ getDeltaTime(): number;
+        /**
+                 * @en Returns the current time.
+                 * @zh 获取当前帧的时间。
+                 */ getCurrentTime(): number;
+        /**
+                 * @en Returns how many frames were called since the director started.
+                 * @zh 获取 director 启动以来游戏运行的总帧数。
+                 */ getTotalFrames(): number;
+        /**
+                 * @en Returns whether or not the Director is paused.
+                 * @zh 是否处于暂停状态。
+                 */ isPaused(): boolean;
+        /**
+                 * @en Returns the cc.Scheduler associated with this director.
+                 * @zh 获取和 director 相关联的 cc.Scheduler。
+                 */ getScheduler(): __internal.cocos_core_scheduler_Scheduler;
+        /**
+                 * @en Sets the cc.Scheduler associated with this director.
+                 * @zh 设置和 director 相关联的 cc.Scheduler。
+                 */ setScheduler(scheduler: __internal.cocos_core_scheduler_Scheduler): void;
+        /**
+                 * @en register a system.
+                 * @zh 注册一个 system。
+                 */ registerSystem(name: any, cls: any, compClsNames: any, priority: any): any;
+        /**
+                 * @en get a system.
+                 * @zh 获取一个 system。
+                 */ getSystem(name: any): any;
+        /**
+                 * @en Returns the cc.AnimationManager associated with this director.
+                 * @zh 获取和 director 相关联的 cc.AnimationManager（动画管理器）。
+                 */ getAnimationManager(): any;
+        /**
+                 * @en Starts Animation
+                 * @zh 开始动画
+                 */ startAnimation(): void;
+        /**
+                 * @en Stops animation
+                 * @zh 停止动画
+                 */ stopAnimation(): void;
+        /**
+                 * @en Run main loop of director
+                 * @zh 运行主循环
+                 */ mainLoop(time: number): void;
     }
+    var profiler: {
+        isShowingStats(): boolean;
+        hideStats(): void;
+        showStats(): void;
+    };
     /**
          * 原生资源的基类。内部使用。
          * @private
@@ -6188,7 +9152,6 @@ declare module "Cocos3D" {
                  * 将预制数据动态转换为最小化代码。<br/>
                  * 此方法将在第一次实例化预制件之前自动调用，<br/>
                  * 但是您可以在脚本中修改原始预制数据后重新调用以刷新创建功能。
-                 * @method compileCreateFunction
                  */ compileCreateFunction(): void;
     }
     /**
@@ -6208,7 +9171,14 @@ declare module "Cocos3D" {
                  * @default false
                  */ asyncLoadAssets: boolean;
     }
-    export class SpriteAtlas extends Asset {
+    /**
+         * @en
+         * Class for sprite atlas handling.
+         *
+         * @zh
+         * 精灵图集资源类。
+         * 可通过 cc.SpriteAtlas 获取该组件。
+         */ export class SpriteAtlas extends Asset {
         spriteFrames: __internal.cocos_assets_sprite_atlas_ISpriteFrameList;
         /**
                  * @zh
@@ -6276,7 +9246,6 @@ declare module "Cocos3D" {
                  */ /**
                  * @zh
                  * 加载资源。
-                 * @method loadAsset
                  * @param {String} uuid
                  * @param {loadCallback} callback - 加载完成后执行的回调函数。
                  * @param {Object} options
@@ -6332,7 +9301,6 @@ declare module "Cocos3D" {
                  * Get the exists asset by uuid.
                  * @zh
                  * 根据 uuid 获取存在的资源。
-                 * @method getAssetByUuid
                  * @param {String} uuid
                  * @return {Asset} - 返回存在的资源，若没有加载则返回 null
                  * @private
@@ -6392,7 +9360,7 @@ declare module "Cocos3D" {
     /**
          * 二维贴图资源。
          * 二维贴图资源的每个 Mipmap 层级都为一张图像资源。
-         */ export class Texture2D extends __internal.cocos_assets_texture_base_TextureBase {
+         */ export class Texture2D extends TrivialTexture {
         /**
                  * 所有层级 Mipmap，注意，这里不包含自动生成的 Mipmap。
                  * 当设置 Mipmap 时，贴图的尺寸以及像素格式可能会改变。
@@ -6405,6 +9373,20 @@ declare module "Cocos3D" {
         _mipmaps: ImageAsset[];
         constructor();
         onLoaded(): void;
+        /**
+                 * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级。重置后，贴图的像素数据将变为未定义。
+                 * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
+                 * @param info 贴图重置选项。
+                 */ reset(info: __internal.cocos_assets_texture_2d_ITexture2DCreateInfo): void;
+        /**
+                 * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级的贴图。重置后，贴图的像素数据将变为未定义。
+                 * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
+                 * @param width 像素宽度。
+                 * @param height 像素高度。
+                 * @param format 像素格式。
+                 * @param mipmapLevel mipmap 层级。
+                 * @deprecated 将在 V1.0.0 移除，请转用 `this.reset()`。
+                 */ create(width: number, height: number, format?: __internal.cocos_assets_asset_enum_PixelFormat, mipmapLevel?: number): void;
         /**
                  * 返回此贴图的字符串表示。
                  */ toString(): string;
@@ -6427,28 +9409,45 @@ declare module "Cocos3D" {
                  */ releaseTexture(): void;
         _serialize(exporting?: any): any;
         _deserialize(serializedData: any, handle: any): void;
-        protected initialize(): void;
+        initialize(): void;
+        protected _getGfxTextureCreateInfo(presumed: __internal.cocos_assets_simple_texture_PresumedGFXTextureInfo): {
+            type: __internal.cocos_gfx_define_GFXTextureType;
+            width: number;
+            height: number;
+        } & Pick<__internal.cocos_gfx_texture_IGFXTextureInfo, "usage" | "flags" | "format" | "mipLevel">;
+        protected _getGfxTextureViewCreateInfo(presumed: __internal.cocos_assets_simple_texture_PresumedGFXTextureViewInfo): {
+            type: __internal.cocos_gfx_define_GFXTextureViewType;
+        } & Pick<__internal.cocos_gfx_texture_view_IGFXTextureViewInfo, "format" | "texture">;
+        protected _checkTextureLoaded(): void;
     }
     /**
-         * @module cc
-         */ /**
-         * @en Class for TTFFont handling.
-         * @zh TTF 字体资源类。
+         * @en
+         * Class for TTFFont handling.
+         *
+         * @zh
+         * TTF 字体资源类。
+         * 可通过 cc.TTFFont 获取该组件。
          */ export class TTFFont extends Font {
         _fontFamily: any;
         _nativeAsset: any;
     }
     /**
-         * @module cc
-         */ /**
-         * @en Class for LabelAtlas handling.
-         * @zh 艺术数字字体资源类。
+         * @en
+         * Class for LabelAtlas handling.
+         *
+         * @zh
+         * 艺术数字字体资源类。
+         * 可通过 cc.LabelAtlas 获取该组件。
          *
          */ export class LabelAtlas extends BitmapFont {
     }
     /**
-         * @en Class for BitmapFont handling.
-         * @zh 位图字体资源类。
+         * @en
+         * Class for BitmapFont handling.
+         *
+         * @zh
+         * 位图字体资源类。
+         * 可通过 cc.BitmapFont 获取该组件。
          */ export class BitmapFont extends Font {
         fntDataStr: string;
         /**
@@ -6465,8 +9464,12 @@ declare module "Cocos3D" {
                  */ fntConfig: __internal.cocos_assets_bitmap_font_IConfig | null;
     }
     /**
-         * @en Class for Font handling.
-         * @zh 字体资源类。
+         * @en
+         * Class for Font handling.
+         *
+         * @zh
+         * 字体资源类。
+         * 可通过 cc.Font 获取该组件。
          */ export class Font extends Asset {
     }
     namespace textureUtil {
@@ -6488,6 +9491,75 @@ declare module "Cocos3D" {
              * @param callback 回调函数。
              */ export function postLoadImage(imageAsset: ImageAsset, callback?: Function): void;
         export type LoadImageCallback<T> = (this: T | undefined, ...args: LoadCallbackParams<ImageAsset>) => void;
+    }
+    /**
+         * 简单贴图基类。
+         * 简单贴图内部创建了 GFX 贴图和该贴图上的 GFX 贴图视图。
+         * 简单贴图允许指定不同的 Mipmap 层级。
+         */ export class TrivialTexture extends __internal.cocos_assets_texture_base_TextureBase {
+        protected _gfxTexture: __internal.cocos_gfx_texture_GFXTexture | null;
+        protected _gfxTextureView: __internal.cocos_gfx_texture_view_GFXTextureView | null;
+        /**
+                 * 获取此贴图底层的 GFX 贴图对象。
+                 */ getGFXTexture(): __internal.cocos_gfx_texture_GFXTexture | null;
+        getGFXTextureView(): __internal.cocos_gfx_texture_view_GFXTextureView | null;
+        destroy(): boolean;
+        /**
+                 * 更新 0 级 Mipmap。
+                 */ updateImage(): void;
+        /**
+                 * 更新指定层级范围内的 Mipmap。当 Mipmap 数据发生了改变时应调用此方法提交更改。
+                 * 若指定的层级范围超出了实际已有的层级范围，只有覆盖的那些层级范围会被更新。
+                 * @param firstLevel 起始层级。
+                 * @param count 层级数量。
+                 */ updateMipmaps(firstLevel?: number, count?: number): void;
+        /**
+                 * 上传图像数据到指定层级的 Mipmap 中。
+                 * 图像的尺寸影响 Mipmap 的更新范围：
+                 * - 当图像是 `ArrayBuffer` 时，图像的尺寸必须和 Mipmap 的尺寸一致；否则，
+                 * - 若图像的尺寸与 Mipmap 的尺寸相同，上传后整个 Mipmap 的数据将与图像数据一致；
+                 * - 若图像的尺寸小于指定层级 Mipmap 的尺寸（不管是长或宽），则从贴图左上角开始，图像尺寸范围内的 Mipmap 会被更新；
+                 * - 若图像的尺寸超出了指定层级 Mipmap 的尺寸（不管是长或宽），都将引起错误。
+                 * @param source 图像数据源。
+                 * @param level Mipmap 层级。
+                 * @param arrayIndex 数组索引。
+                 */ uploadData(source: HTMLCanvasElement | HTMLImageElement | ArrayBuffer, level?: number, arrayIndex?: number): void;
+        protected _assignImage(image: ImageAsset, level: number, arrayIndex?: number): void;
+        protected _checkTextureLoaded(): void;
+        protected _textureReady(): void;
+        /**
+                 * Set mipmap level of this texture.
+                 * The value is passes as presumed info to `this._getGfxTextureCreateInfo()`.
+                 * @param value The mipmap level.
+                 */ protected _setMipmapLevel(value: number): void;
+        /**
+                 * This method is overrided by derived classes to provide GFX texture info.
+                 * @param presumed The presumed GFX texture info.
+                 */ protected _getGfxTextureCreateInfo(presumed: __internal.cocos_assets_simple_texture_PresumedGFXTextureInfo): __internal.cocos_gfx_texture_IGFXTextureInfo | null;
+        /**
+                 * This method is overrided by derived classes to provide GFX texture view info.
+                 * @param presumed The presumed GFX texture view info.
+                 */ protected _getGfxTextureViewCreateInfo(texture: __internal.cocos_assets_simple_texture_PresumedGFXTextureViewInfo): __internal.cocos_gfx_texture_view_IGFXTextureViewInfo | null;
+        protected _tryReset(): void;
+        protected _createTexture(device: __internal.cocos_gfx_device_GFXDevice): void;
+        protected _tryDestroyTexture(): void;
+    }
+    export class RenderTexture extends __internal.cocos_assets_texture_base_TextureBase {
+        static DepthStencilFormat: typeof __internal.cocos_assets_asset_enum_DepthStencilFormat;
+        width: number;
+        height: number;
+        depthStencilFormat: __internal.cocos_assets_asset_enum_DepthStencilFormat;
+        constructor(info?: __internal.cocos_assets_render_texture_IRenderTextureCreateInfo);
+        getGFXWindow(): __internal.cocos_gfx_window_GFXWindow | null;
+        getGFXTextureView(): __internal.cocos_gfx_texture_view_GFXTextureView | null;
+        getGFXStencilTexture(): __internal.cocos_gfx_texture_view_GFXTextureView | null;
+        reset(info?: __internal.cocos_assets_render_texture_IRenderTextureCreateInfo): void;
+        destroy(): boolean;
+        addCamera(camera: renderer.Camera): void;
+        removeCamera(camera: renderer.Camera): void;
+        onLoaded(): void;
+        _serialize(exporting?: any): any;
+        _deserialize(serializeData: any, handle: any): void;
     }
     /**
          * @zh
@@ -6518,9 +9590,41 @@ declare module "Cocos3D" {
         v: number[];
     }
     interface ISpriteFrameOriginal {
-        texture: Texture2D;
+        spriteframe: SpriteFrame;
         x: number;
         y: number;
+    }
+    interface ISpriteFrameInitInfo {
+        /**
+                 * @zh Texture 对象资源。
+                 */ texture?: __internal.cocos_assets_texture_base_TextureBase;
+        /**
+                 * @zh 精灵帧原始尺寸。
+                 */ originalSize?: Size;
+        /**
+                 * @zh 精灵帧裁切矩形。
+                 */ rect?: Rect;
+        /**
+                 * @zh 精灵帧偏移量。
+                 */ offset?: Vec2;
+        /**
+                 * @zh 上边界。
+                 */ borderTop?: number;
+        /**
+                 * @zh 下边界。
+                 */ borderBottom?: number;
+        /**
+                 * @zh 左边界
+                 */ borderLeft?: number;
+        /**
+                 * @zh 右边界
+                 */ borderRight?: number;
+        /**
+                 * @zh 是否旋转。
+                 */ isRotate?: boolean;
+        /**
+                 * @zh 是否转置 UV。
+                 */ isFlipUv?: boolean;
     }
     /**
          * @en
@@ -6529,22 +9633,61 @@ declare module "Cocos3D" {
          *  - rectangle: A rectangle of the texture
          *
          * @zh
+         * 精灵帧资源。
          * 一个 SpriteFrame 包含：<br/>
          *  - 纹理：会被渲染组件使用的 Texture2D 对象。<br/>
          *  - 矩形：在纹理中的矩形区域。
+         * 可通过 cc.SpriteFrame 获取该组件。
          *
          * @example
-         * ```ts
-         * var self = this;
-         * var url = "assets/PurpleMonster/icon/icon";
-         * cc.loader.loadRes(url, function (err, spriteFrame) {
-         *   var node = new cc.Node("New Sprite");
-         *   var sprite = node.addComponent(cc.SpriteComponent);
+         * ```typescript
+         * // First way to use a SpriteFrame
+         * const url = "assets/PurpleMonster/icon/spriteFrame";
+         * cc.loader.loadRes(url, (err, spriteFrame) => {
+         *   const node = new Node("New Sprite");
+         *   const sprite = node.addComponent(SpriteComponent);
          *   sprite.spriteFrame = spriteFrame;
          *   node.parent = self.node;
          * });
+         *
+         * // Second way to use a SpriteFrame
+         * const self = this;
+         * const url = "assets/PurpleMonster/icon";
+         * cc.loader.loadRes(url, (err, imageAsset) => {
+         *  const node = new Node("New Sprite");
+         *  const sprite = node.addComponent(SpriteComponent);
+         *  const spriteFrame = new SpriteFrame();
+         *  (spriteFrame.texture as Texture2D).image = imageAsset;
+         *  spriteFrame.initialize({
+         *    originalSize: new Size(imageAsset.width, imageAsset.height),
+         *    rect: new Rect(0, 0, imageAsset.width, imageAsset.height),
+         *  });
+         *  sprite.spriteFrame = spriteFrame;
+         *  node.parent = self.node;
+         * });
+         *
+         * // Third way to use a SpriteFrame
+         * const self = this;
+         * const cameraComp = this.getComponent(CameraComponent);
+         * const renderTexture = new RenderTexture();
+         * rendetTex.reset({
+         *   width: 512,
+         *   height: 512,
+         *   depthStencilFormat: RenderTexture.DepthStencilFormat.DEPTH_24_STENCIL_8
+         * });
+         *
+         * cameraComp.targetTexture = renderTexture;
+         * const spriteFrame = new SpriteFrame();
+         * spriteFrame.texture = renderTexture;
          * ```
-         */ export class SpriteFrame extends Texture2D {
+         */ export class SpriteFrame extends Asset {
+        /**
+                 * @zh
+                 * 一键创建 spriteframe
+                 *
+                 * @deprecated v1.0.0 beta10 后移除，新方案请参考头部。
+                 * @param config - 图片源
+                 */ static create(config: ISpriteFrameInitInfo): SpriteFrame;
         /**
                  * @en
                  * Top border of the sprite.
@@ -6573,24 +9716,65 @@ declare module "Cocos3D" {
                  * @zh
                  * sprite 的左边边框。
                  */ insetRight: number;
+        /**
+                 * @en
+                 * Returns the rect of the sprite frame in the texture.
+                 * If it's a atlas texture, a transparent pixel area is proposed for the actual mapping of the current texture.
+                 *
+                 * @zh
+                 * 获取 SpriteFrame 的纹理矩形区域。
+                 * 如果是一个 atlas 的贴图，则为当前贴图的实际剔除透明像素区域。
+                 */ rect: Rect;
+        /**
+                 * @en
+                 * Returns the original size of the trimmed image.
+                 *
+                 * @zh
+                 * 获取修剪前的原始大小。
+                 */ originalSize: Size;
+        /**
+                 * 图片源 ImageAsset。用户不要设置此参数。
+                 * @deprecated v1.0.0 beta10 废弃。
+                 */ image: ImageAsset | null;
+        _imageSource: ImageAsset;
+        texture: __internal.cocos_assets_texture_base_TextureBase;
         atlasUuid: string;
         readonly original: ISpriteFrameOriginal | null;
+        readonly width: number;
+        readonly height: number;
         vertices: IVertices | null;
         /**
                  * @zh
                  * 不带裁切的 UV。
                  */ uv: number[];
+        uvHash: number;
         /**
                  * @zh
                  * 带有裁切的 UV。
                  */ uvSliced: IUV[];
+        protected _rect: Rect;
+        protected _offset: Vec2;
+        protected _originalSize: Size;
+        protected _rotated: boolean;
+        protected _capInsets: number[];
+        protected _image: ImageAsset | null;
+        protected _original: ISpriteFrameOriginal | null;
+        protected _atlasUuid: string;
+        protected _texture: __internal.cocos_assets_texture_base_TextureBase;
+        protected _flipUv: boolean;
         constructor();
+        /**
+                 * 初始化配置
+                 *
+                 * @deprecated v1.0.0 beta10 后移除。
+                 * @param info 配置。
+                 */ initialize(info?: ISpriteFrameInitInfo): void;
         /**
                  * @en
                  * Returns whether the texture have been loaded.
                  *
                  * @zh
-                 * 返回是否已加载纹理。
+                 * 返回是否已加载精灵帧。
                  */ textureLoaded(): boolean;
         /**
                  * @en
@@ -6614,7 +9798,7 @@ declare module "Cocos3D" {
                  *
                  * @zh
                  * 获取 SpriteFrame 的纹理矩形区域。
-                 * 如果是一个 atlas 的贴图，则为当前贴图的实际提出透明像素区域。
+                 * 如果是一个 atlas 的贴图，则为当前贴图的实际剔除透明像素区域。
                  */ getRect(out?: Rect): Rect;
         /**
                  * @en
@@ -6639,14 +9823,7 @@ declare module "Cocos3D" {
                  *
                  * @param size - 设置精灵原始大小。
                  */ setOriginalSize(size: Size): void;
-        _setBorder(l: number, b: number, r: number, t: number): void;
         /**
-                 * @en
-                 * Returns the texture of the frame.
-                 *
-                 * @zh
-                 * 获取使用的纹理实例。
-                 */ /**
                  * @en
                  * Returns the offset of the frame in the texture.
                  *
@@ -6664,6 +9841,13 @@ declare module "Cocos3D" {
                  *
                  * @param offsets - 偏移量。
                  */ setOffset(offsets: Vec2): void;
+        getGFXTextureView(): __internal.cocos_gfx_texture_view_GFXTextureView | null;
+        /**
+                 * 外置 GFX 贴图视图，一般提供给 FrameBuffer 使用。
+                 * 注意： 需要取消使用外置 GFXTextureView 可以使用 set image 方法替换新视图。
+                 * @deprecated v1.0.0 beta10 后移除
+                 * @param value GFX 贴图视图
+                 */ setGFXTextureView(value: __internal.cocos_gfx_texture_view_GFXTextureView): void;
         /**
                  * @en
                  * Clone the sprite frame.
@@ -6671,431 +9855,68 @@ declare module "Cocos3D" {
                  * @zh
                  * 克隆 SpriteFrame。
                  *
+                 * @deprecated 建议重新创建，v1.0.0 beta10 后移除
                  * @returns - 复制后的精灵帧
                  */ clone(): SpriteFrame;
+        /**
+                 * @en
+                 * If a loading scene (or prefab) is marked as `asyncLoadAssets`, all the textures of the SpriteFrame which
+                 * associated by user's custom Components in the scene, will not preload automatically.
+                 * These textures will be load when Sprite component is going to render the SpriteFrames.
+                 * You can call this method if you want to load the texture early.
+                 *
+                 * @zh
+                 * 当加载中的场景或 Prefab 被标记为 `asyncLoadAssets` 时，用户在场景中由自定义组件关联到的所有 SpriteFrame 的贴图都不会被提前加载。
+                 * 只有当 Sprite 组件要渲染这些 SpriteFrame 时，才会检查贴图是否加载。如果你希望加载过程提前，你可以手工调用这个方法。
+                 *
+                 * @deprecated v1.0.0 beta10 后移除
+                 * @example
+                 * ```ts
+                 * spriteFrame.once('load', this._onTextureLoaded, this);
+                 * spriteFrame.ensureLoadTexture();
+                 * ```
+                 */ ensureLoadTexture(): void;
+        /**
+                 * 重新更新 ImageAsset
+                 * @deprecated v1.0.0 beta10 后移除
+                 */ updateImage(): void;
+        /**
+                 * 重置 SpriteFrame 数据。
+                 * @param info SpriteFrame 初始化数据。
+                 */ reset(info?: ISpriteFrameInitInfo, clearData?: boolean): void;
         /**
                  * @zh
                  * 判断精灵计算的矩形区域是否越界。
                  *
                  * @param texture
-                 */ checkRect(texture: ImageAsset): void;
+                 */ checkRect(texture: __internal.cocos_assets_texture_base_TextureBase): boolean;
+        onLoaded(): void;
+        /**
+                 * @en Sets the texture of the frame.
+                 *
+                 * @zh 设置使用的纹理实例。
+                 *
+                 * @deprecated v1.0.0 beta10 后移除
+                 * @param image
+                 */ _refreshTexture(image: ImageAsset): void;
         /**
                  * @zh
                  * 计算裁切的 UV。
                  */ _calculateSlicedUV(): void;
+        _setDynamicAtlasFrame(frame: SpriteFrame): void;
+        _resetDynamicAtlasFrame(): void;
         /**
                  * @zh
                  * 计算 UV。
                  */ _calculateUV(): void;
         _serialize(exporting?: any): any;
         _deserialize(serializeData: any, handle: any): void;
-        protected initialize(): void;
-    }
-    namespace easing {
-        export function constant(): number;
-        export function linear(k: number): number;
-        export function quadIn(k: number): number;
-        export function quadOut(k: number): number;
-        export function quadInOut(k: number): number;
-        export function cubicIn(k: number): number;
-        export function cubicOut(k: number): number;
-        export function cubicInOut(k: number): number;
-        export function quartIn(k: number): number;
-        export function quartOut(k: number): number;
-        export function quartInOut(k: number): number;
-        export function quintIn(k: number): number;
-        export function quintOut(k: number): number;
-        export function quintInOut(k: number): number;
-        export function sineIn(k: number): number;
-        export function sineOut(k: number): number;
-        export function sineInOut(k: number): number;
-        export function expoIn(k: number): number;
-        export function expoOut(k: number): number;
-        export function expoInOut(k: number): number;
-        export function circIn(k: number): number;
-        export function circOut(k: number): number;
-        export function circInOut(k: number): number;
-        export function elasticIn(k: number): number;
-        export function elasticOut(k: number): number;
-        export function elasticInOut(k: number): number;
-        export function backIn(k: number): number;
-        export function backOut(k: number): number;
-        export function backInOut(k: number): number;
-        export function bounceIn(k: number): number;
-        export function bounceOut(k: number): number;
-        export function bounceInOut(k: number): number;
-        export function smooth(k: number): number;
-        export function fade(k: number): number;
-        var quadOutIn: (k: number) => number;
-        var cubicOutIn: (k: number) => number;
-        var quartOutIn: (k: number) => number;
-        var quintOutIn: (k: number) => number;
-        var sineOutIn: (k: number) => number;
-        var expoOutIn: (k: number) => number;
-        var circOutIn: (k: number) => number;
-        var backOutIn: (k: number) => number;
-        var bounceOutIn: (k: number) => number;
-    }
-    export function bezier(C1: number, C2: number, C3: number, C4: number, t: number): number;
-    export function bezierByTime(controlPoints: BezierControlPoints, x: number): number;
-    export type BezierControlPoints = [number, number, number, number];
-    export function sampleMotionPaths(motionPaths: Array<(MotionPath | undefined)>, data: AnimCurve, duration: number, fps: number): void;
-    export class Curve {
-        points: IControlPoint[];
-        beziers: Bezier[];
-        ratios: number[];
-        progresses: number[];
-        length: number;
-        constructor(points?: IControlPoint[]);
-        computeBeziers(): Bezier[];
-    }
-    export class Bezier {
-        start: Vec2;
-        end: Vec2;
-        /**
-                 * cp0, cp1
-                 */ startCtrlPoint: Vec2;
-        /**
-                 * cp2, cp3
-                 */ endCtrlPoint: Vec2;
-        __arcLengthDivisions?: number;
-        /**
-                 * Get point at relative position in curve according to arc length
-                 * @param u [0 .. 1]
-                 */ getPointAt(u: number): Vec2;
-        /**
-                 * Get point at time t.
-                 * @param t [0 .. 1]
-                 */ getPoint(t: number): Vec2;
-        /**
-                 * Get total curve arc length.
-                 */ getLength(): number;
-        /**
-                 * Get list of cumulative segment lengths.
-                 */ getLengths(divisions?: number): number[];
-        getUtoTmapping(u: number, distance?: number): number;
-    }
-    interface IControlPoint {
-        in: Vec2;
-        pos: Vec2;
-        out: Vec2;
-    }
-    export type MotionPath = Vec2[];
-    /**
-         * Compute a new ratio by curve type.
-         * @param ratio - The origin ratio
-         * @param type - If it's Array, then ratio will be computed with bezierByTime.
-         * If it's string, then ratio will be computed with cc.easing function
-         */ export function computeRatioByType(ratio: number, type: EasingMethod): number;
-    /**
-         * 表示曲线值，曲线值可以是任意类型，但必须符合插值方式的要求。
-         */ export type CurveValue = any;
-    /**
-         * 表示曲线的目标对象。
-         */ export type CurveTarget = Record<string, any>;
-    /**
-         * If propertyBlendState.weight equals to zero, the propertyBlendState.value is dirty.
-         * You shall handle this situation correctly.
-         */ export type BlendFunction<T> = (value: T, weight: number, propertyBlendState: __internal.cocos_animation_animation_blend_state_PropertyBlendState) => T;
-    /**
-         * 内置帧时间渐变方式名称。
-         */ export type EasingMethodName = keyof (typeof easing);
-    /**
-         * 帧时间渐变方式。可能为内置帧时间渐变方式的名称或贝塞尔控制点。
-         */ export type EasingMethod = EasingMethodName | BezierControlPoints;
-    /**
-         * 曲线数据。
-         */ export interface IPropertyCurveData {
-        /**
-                 * 曲线使用的时间轴。
-                 * @see {AnimationClip.keys}
-                 */ keys: number;
-        /**
-                 * 曲线值。曲线值的数量应和 `keys` 所引用时间轴的帧数相同。
-                 */ values: CurveValue[];
-        /**
-                 * 曲线任意两帧时间的渐变方式。仅当 `easingMethods === undefined` 时本字段才生效。
-                 */ easingMethod?: EasingMethod;
-        /**
-                 * 描述了每一帧时间到下一帧时间之间的渐变方式。
-                 */ easingMethods?: EasingMethod[];
-        /**
-                 * @private
-                 */ motionPaths?: MotionPath | MotionPath[];
-        /**
-                 * 是否进行插值。
-                 * @default true
-                 */ interpolate?: boolean;
-    }
-    export class RatioSampler {
-        ratios: number[];
-        constructor(ratios: number[]);
-        sample(ratio: number): number;
-    }
-    /**
-         * 动画曲线。
-         */ export class AnimCurve {
-        static Linear: null;
-        static Bezier(controlPoints: number[]): [number, number, number, number];
-        types?: Array<(EasingMethod | null)>;
-        type?: EasingMethod | null;
-        _blendFunction: BlendFunction<any> | undefined;
-        constructor(propertyCurveData: IPropertyCurveData, propertyName: string, duration: number, isNode: boolean);
-        hasLerp(): boolean;
-        valueAt(index: number): any;
-        valueBetween(ratio: number, from: number, fromRatio: number, to: number, toRatio: number): any;
-        empty(): boolean;
-    }
-    export class EventInfo {
-        events: any[];
-        /**
-                 * @param func event function
-                 * @param params event params
-                 */ add(func: string, params: any[]): void;
-    }
-    interface IAnimationEventData {
-        frame: number;
-        func: string;
-        params: string[];
-    }
-    export interface IObjectCurveData {
-    }
-    export interface IComponentsCurveData {
-    }
-    export interface INodeCurveData {
-        props?: IObjectCurveData;
-        comps?: IComponentsCurveData;
-    }
-    export interface ICurveData {
-    }
-    export interface IKeySharedCurveData {
-        keys: number[][];
-        curves: ICurveData;
-    }
-    export interface IPropertyCurve {
-        /**
-                 * 结点路径。
-                 */ path: string;
-        /**
-                 * 组件名称。
-                 */ component?: string;
-        /**
-                 * 属性名称。
-                 */ propertyName: string;
-        /**
-                 * 属性曲线。
-                 */ curve: AnimCurve;
-        /**
-                 * 曲线采样器。
-                 */ sampler: RatioSampler | null;
-    }
-    export interface IAnimationEvent {
-        functionName: string;
-        parameters: string[];
-    }
-    export interface IAnimationEventGroup {
-        events: IAnimationEvent[];
-    }
-    /**
-         * 动画剪辑。
-         */ export class AnimationClip extends Asset {
-        static WrapMode: typeof __internal.cocos_animation_types_WrapMode;
-        /**
-                 * @en Crate clip with a set of sprite frames
-                 * @zh 使用一组序列帧图片来创建动画剪辑
-                 * @example
-                 * const clip = cc.AnimationClip.createWithSpriteFrames(spriteFrames, 10);
-                 *
-                 */ static createWithSpriteFrames(spriteFrames: SpriteFrame[], sample: number): AnimationClip | null;
-        /**
-                 * 动画帧率，单位为帧/秒。
-                 */ sample: number;
-        /**
-                 * 动画的播放速度。
-                 */ speed: number;
-        /**
-                 * 动画的循环模式。
-                 */ wrapMode: __internal.cocos_animation_types_WrapMode;
-        /**
-                 * 动画的曲线数据。
-                 */ curveDatas: ICurveData;
-        /**
-                 * 动画包含的事件数据。
-                 */ events: IAnimationEventData[];
-        /**
-                 * 动画的周期。
-                 */ duration: number;
-        /**
-                 * 动画所有时间轴。
-                 */ keys: number[][];
-        /**
-                 * @private
-                 */ readonly propertyCurves: ReadonlyArray<IPropertyCurve>;
-        /**
-                 * @private
-                 */ readonly eventGroups: ReadonlyArray<IAnimationEventGroup>;
-        /**
-                 * @private
-                 */ /**
-                * @private
-                */ stepness: number;
-        onLoad(): void;
-        /**
-                 * 提交曲线数据的修改。
-                 * 当你修改了 `this.curveDatas`、`this.keys` 或 `this.duration`时，
-                 * 必须调用 `this.updateCurveDatas()` 使修改生效。
-                 */ updateCurveDatas(): void;
-        /**
-                 * 提交事件数据的修改。
-                 * 当你修改了 `this.events` 时，必须调用 `this.updateEventDatas()` 使修改生效。
-                 * @private
-                 */ updateEventDatas(): void;
-        /**
-                 * Gets the event group shall be processed at specified ratio.
-                 * @param ratio The ratio.
-                 * @private
-                 */ getEventGroupIndexAtRatio(ratio: number): number;
-        /**
-                 * 返回本动画是否包含事件数据。
-                 * @private
-                 */ hasEvents(): boolean;
-    }
-    export class AnimationManager {
-        constructor();
-        readonly blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState;
-        addCrossFade(crossFade: __internal.cocos_animation_cross_fade_CrossFade): void;
-        removeCrossFade(crossFade: __internal.cocos_animation_cross_fade_CrossFade): void;
-        update(dt: number): void;
-        destruct(): void;
-        addAnimation(anim: AnimationState): void;
-        removeAnimation(anim: AnimationState): void;
-        pushDelayEvent(target: Node, func: string, args: any[]): void;
-    }
-    export interface IAnimationEventDefinitionMap {
-        "finished": (animationState: AnimationState) => void;
-        "lastframe": (animationState: AnimationState) => void;
-        "play": (animationState: AnimationState) => void;
-        "pause": (animationState: AnimationState) => void;
-        "resume": (animationState: AnimationState) => void;
-        "stop": (animationState: AnimationState) => void;
-    }
-    /**
-         * @en
-         * The AnimationState gives full control over animation playback process.
-         * In most cases the Animation Component is sufficient and easier to use. Use the AnimationState if you need full control.
-         * @zh
-         * AnimationState 完全控制动画播放过程。<br/>
-         * 大多数情况下 动画组件 是足够和易于使用的。如果您需要更多的动画控制接口，请使用 AnimationState。
-         *
-         */ export class AnimationState extends __internal.cocos_animation_playable_Playable {
-        /**
-                 * @en The clip that is being played by this animation state.
-                 * @zh 此动画状态正在播放的剪辑。
-                 */ readonly clip: AnimationClip;
-        /**
-                 * @en The name of the playing animation.
-                 * @zh 动画的名字。
-                 */ readonly name: string;
-        readonly length: number;
-        /**
-                 * @en
-                 * Wrapping mode of the playing animation.
-                 * Notice : dynamic change wrapMode will reset time and repeatCount property
-                 * @zh
-                 * 动画循环方式。
-                 * 需要注意的是，动态修改 wrapMode 时，会重置 time 以及 repeatCount。
-                 * @default: WrapMode.Normal
-                 */ wrapMode: __internal.cocos_animation_types_WrapMode;
-        /**
-                 * @en The animation's iteration count property.
-                 *
-                 * A real number greater than or equal to zero (including positive infinity) representing the number of times
-                 * to repeat the animation node.
-                 *
-                 * Values less than zero and NaN values are treated as the value 1.0 for the purpose of timing model
-                 * calculations.
-                 *
-                 * @zh 迭代次数，指动画播放多少次后结束, normalize time。 如 2.5（2次半）。
-                 *
-                 * @property repeatCount
-                 * @type {Number}
-                 * @default 1
-                 */ repeatCount: number;
-        /**
-                 * @en The start delay which represents the number of seconds from an animation's start time to the start of
-                 * the active interval.
-                 * @zh 延迟多少秒播放。
-                 * @default 0
-                 */ delay: number;
-        /**
-                 * @en The curves list.
-                 * @zh 曲线列表。
-                 */ /**
-                 * @en The iteration duration of this animation in seconds. (length)
-                 * @zh 单次动画的持续时间，秒。
-                 * @readOnly
-                 */ duration: number;
-        /**
-                 * @en The animation's playback speed. 1 is normal playback speed.
-                 * @zh 播放速率。
-                 * @default: 1.0
-                 */ speed: number;
-        /**
-                 * @en The current time of this animation in seconds.
-                 * @zh 动画当前的时间，秒。
-                 * @default 0
-                 */ time: number;
-        /**
-                 * The weight.
-                 */ weight: number;
-        frameRate: number;
-        _lastframeEventOn: boolean;
-        constructor(clip: AnimationClip, name?: string);
-        readonly curveLoaded: boolean;
-        initialize(root: Node): void;
-        _emit(type: any, state: any): void;
-        emit<K extends string>(type: K, ...args: __internal.cocos_core_event_defines_EventArgumentsOf<K, IAnimationEventDefinitionMap>): void;
-        on<K extends string>(type: K, callback: __internal.cocos_core_event_defines_EventCallbackOf<K, IAnimationEventDefinitionMap>, target?: any): void;
-        once<K extends string>(type: K, callback: __internal.cocos_core_event_defines_EventCallbackOf<K, IAnimationEventDefinitionMap>, target?: any): void;
-        off(type: string, callback: Function, target?: any): void;
-        _setEventTarget(target: any): void;
-        setTime(time: number): void;
-        update(delta: number): void;
-        _needReverse(currentIterations: number): boolean;
-        getWrappedInfo(time: number, info?: __internal.cocos_animation_types_WrappedInfo): __internal.cocos_animation_types_WrappedInfo;
-        sample(): __internal.cocos_animation_types_WrappedInfo;
-        process(): void;
-        simpleProcess(): void;
-        attachToBlendState(blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState): void;
-        detachFromBlendState(blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState): void;
-        cache(frames: number): void;
-        protected onPlay(): void;
-        protected onStop(): void;
-        protected onResume(): void;
-        protected onPause(): void;
-    }
-    interface ICubicSplineValue<T> extends __internal.cocos_animation_types_ILerpable {
-        dataPoint: T;
-        inTangent: T;
-        outTangent: T;
-        lerp(to: ICubicSplineValue<T>, t: number, dt: number): T;
-        getNoLerp(): T;
-    }
-    type CubicSplineValueConstructor<T> = new (dataPoint: T, inTangent: T, outTangent: T) => ICubicSplineValue<T>;
-    var CubicSplineVec2Value: CubicSplineValueConstructor<Vec2>;
-    var CubicSplineVec3Value: CubicSplineValueConstructor<Vec3>;
-    var CubicSplineVec4Value: CubicSplineValueConstructor<Vec4>;
-    var CubicSplineQuatValue: CubicSplineValueConstructor<Quat>;
-    export class CubicSplineNumberValue implements ICubicSplineValue<number> {
-        dataPoint: number;
-        inTangent: number;
-        outTangent: number;
-        constructor(dataPoint: number, inTangent: number, outTangent: number);
-        lerp(to: CubicSplineNumberValue, t: number, dt: number): number;
-        getNoLerp(): number;
+        protected _textureLoaded(): void;
     }
     var loader: __internal.cocos_load_pipeline_CCLoader_CCLoader;
-    type LoadSuccessParams<T> = Parameters<(error: null | undefined, asset: T) => void>;
+    /**
+         * @category loader
+         */ type LoadSuccessParams<T> = Parameters<(error: null | undefined, asset: T) => void>;
     type LoadErrorParams<T> = Parameters<(error: Error) => void>;
     export type LoadCallbackParams<T> = LoadSuccessParams<T> | LoadErrorParams<T>;
     export type LoadCompleteCallback<T> = (...args: LoadCallbackParams<T>) => void;
@@ -7171,7 +9992,7 @@ declare module "Cocos3D" {
                  * ```typescript
                  * cc.log(comp.node);
                  * ```
-                 */ node: Node;
+                 */ node: __internal.cocos_core_utils_interfaces_INode;
         /**
                  * @property _enabled
                  * @type {Boolean}
@@ -7187,7 +10008,7 @@ declare module "Cocos3D" {
                  * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
                  * @example
                  * ```typescript
-                 * var sprite = node.addComponent(cc.Sprite);
+                 * var sprite = node.addComponent(cc.SpriteComponent);
                  * ```
                  */ addComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
         /**
@@ -7208,7 +10029,7 @@ declare module "Cocos3D" {
                  * @example
                  * ```typescript
                  * // get sprite component.
-                 * var sprite = node.getComponent(cc.Sprite);
+                 * var sprite = node.getComponent(cc.SpriteComponent);
                  * ```
                  */ getComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
         /**
@@ -7229,7 +10050,7 @@ declare module "Cocos3D" {
                  * @zh 返回节点上指定类型的所有组件。
                  * @example
                  * ```typescript
-                 * var sprites = node.getComponents(cc.Sprite);
+                 * var sprites = node.getComponents(cc.SpriteComponent);
                  * ```
                  */ getComponents<T extends Component>(classConstructor: Constructor<T>): T[];
         /**
@@ -7245,7 +10066,7 @@ declare module "Cocos3D" {
                  * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
                  * @example
                  * ```typescript
-                 * var sprite = node.getComponentInChildren(cc.Sprite);
+                 * var sprite = node.getComponentInChildren(cc.SpriteComponent);
                  * ```
                  */ getComponentInChildren<T extends Component>(classConstructor: Constructor<T>): T | null;
         /**
@@ -7261,7 +10082,7 @@ declare module "Cocos3D" {
                  * @zh 递归查找自身或所有子节点中指定类型的组件。
                  * @example
                  * ```typescript
-                 * var sprites = node.getComponentsInChildren(cc.Sprite);
+                 * var sprites = node.getComponentsInChildren(cc.SpriteComponent);
                  * ```
                  */ getComponentsInChildren<T extends Component>(classConstructor: Constructor<T>): T[];
         /**
@@ -7346,7 +10167,8 @@ declare module "Cocos3D" {
                  * You can only call its super class method inside it. It should not be called manually elsewhere.
                  * @zh 如果该组件启用，则每帧调用 LateUpdate。<br/>
                  * 该方法为生命周期方法，父类未必会有实现。并且你只能在该方法内部调用父类的实现，不可在其它地方直接调用该方法。
-                 */ protected lateUpdate?(): void;
+                 * @param dt - the delta time in seconds it took to complete the last frame
+                 */ protected lateUpdate?(dt: number): void;
         /**
                  * `__preload` is called before every onLoad.
                  * It is used to initialize the builtin components internally,
@@ -7455,9 +10277,10 @@ declare module "Cocos3D" {
     /**
          * @zh
          * “EventHandler” 类用来设置场景中的事件回调，该类允许用户设置回调目标节点，目标组件名，组件方法名，并可通过 emit 方法调用目标函数。
+         * 可通过 cc.Component.EventHandler 获得该事件。
          *
          * @example
-         * ```ts
+         * ```typescript
          *
          * var eventHandler = new cc.Component.EventHandler();
          * eventHandler.target = newTarget;
@@ -7497,7 +10320,7 @@ declare module "Cocos3D" {
                  *
                  * @param params - 派发参数数组。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * var eventHandler = new cc.Component.EventHandler();
                  * eventHandler.target = newTarget;
                  * eventHandler.component = "MainMenu";
@@ -7519,143 +10342,9 @@ declare module "Cocos3D" {
         constructor();
         onLoad(): void;
     }
-    /**
-         * 动画组件管理动画状态来控制动画的播放。
-         * 它提供了方便的接口用来预创建指定动画剪辑的动画状态，并提供了一系列事件：
-         *  - play : 开始播放时
-         *  - stop : 停止播放时
-         *  - pause : 暂停播放时
-         *  - resume : 恢复播放时
-         *  - lastframe : 假如动画循环次数大于 1，当动画播放到最后一帧时
-         *  - finished : 动画播放完成时
-         */ export class AnimationComponent extends Component implements __internal.cocos_core_event_event_target_factory_IEventTarget {
-        /**
-                 * 获取此动画组件的自有动画剪辑。
-                 * 动画组件开始运行时会为每个自有动画剪辑创建动画状态。
-                 */ /**
-                * 设置此动画组件的自有动画剪辑。
-                * 设置时将移除已有的动画剪辑，并将其动画状态设为停止；若默认动画剪辑不在新的自有动画剪辑中，将被重置为空。
-                */ clips: (AnimationClip | null)[];
-        /**
-                 * 获取默认动画剪辑。
-                 * @see [[playOnLoad]]
-                 */ /**
-                * 设置默认动画剪辑。当指定的剪辑不在 `this.clips` 中时会被自动添加至 `this.clips`。
-                */ defaultClip: AnimationClip | null;
-        readonly currentPlaying: __internal.cocos_animation_playable_Playable;
-        static EventType: typeof __internal.cocos_components_animation_component_EventType;
-        /**
-                 * 是否在动画组件开始运行时自动播放默认动画剪辑。
-                 */ playOnLoad: boolean;
-        _callbackTable: __internal.cocos_core_event_callbacks_invoker_ICallbackTable;
-        constructor();
-        onLoad(): void;
-        start(): void;
+    export class BlockInputEventsComponent extends Component {
         onEnable(): void;
         onDisable(): void;
-        onDestroy(): void;
-        /**
-                 * @en Plays an animation and stop other animations.
-                 * @zh 播放指定的动画，并且停止当前正在播放动画。如果没有指定动画，则播放默认动画。
-                 * @param name - 要播放的动画的名称。 如果未提供名称，则将播放默认动画。
-                 * @param startTime - 开始播放动画的时间
-                 * @return
-                 * 播放动画的动画状态。 在无法播放动画的情况下（即没有默认动画或没有指定名称的动画），该函数将返回null。
-                 * @example
-                 * ```typescript
-                 * var animCtrl = this.node.getComponent(cc.Animation);
-                 * animCtrl.play("linear");
-                 * ```
-                 */ play(name?: string, startTime?: number): AnimationState | null;
-        crossFade(name: string, duration?: number): void;
-        /**
-                 * @zh
-                 * 获取指定的动画状态。<br>
-                 * **即将弃用**，请使用 [[getState]]。
-                 */ getAnimationState(name: string): AnimationState;
-        /**
-                 * 获取指定的动画状态。
-                 * @param name 动画状态的名称。
-                 * @returns 不存在指定名称的动画状态时返回空，否则返回指定的动画状态。
-                 */ getState(name: string): AnimationState;
-        /**
-                 * 使用指定的动画剪辑创建一个动画状态，并将其命名为指定的名称。
-                 * 若指定名称的动画状态已存在，已存在的动画状态将先被设为停止并被移除。
-                 * @param clip 动画剪辑。
-                 * @param name 动画状态的名称，若未指定，则使用动画剪辑的名称。
-                 * @returns 新创建的动画状态。
-                 */ createState(clip: AnimationClip, name?: string): AnimationState;
-        /**
-                 * 停止并移除指定名称的动画状态。
-                 * @param name 动画状态的名称。
-                 */ removeState(name: string): void;
-        /**
-                 * @zh
-                 * 添加一个动画剪辑到 `this.clips`中并以此剪辑创建动画状态。<br>
-                 * **即将弃用**，请使用 [[createState]]
-                 * @param clip 动画剪辑。
-                 * @param name 动画状态的名称，若未指定，则使用动画剪辑的名称。
-                 * @returns 新创建的动画状态。
-                 */ addClip(clip: AnimationClip, name?: string): AnimationState;
-        /**
-                 * @en
-                 * Remove clip from the animation list. This will remove the clip and any animation states based on it.<br>
-                 * If there are animation states depand on the clip are playing or clip is defaultClip, it will not delete the clip.<br>
-                 * But if force is true, then will always remove the clip and any animation states based on it. If clip is defaultClip, defaultClip will be reset to null
-                 * @zh
-                 * 从动画列表中移除指定的动画剪辑，<br/>
-                 * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。<br/>
-                 * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。<br/>
-                 * **即将弃用**，请使用 [[removeState]]
-                 * @param {Boolean} [force=false] - If force is true, then will always remove the clip and any animation states based on it.
-                 */ removeClip(clip: AnimationClip, force?: boolean): void;
-        /**
-                 * @en
-                 * Register animation event callback.<bg>
-                 * The event arguments will provide the AnimationState which emit the event.<bg>
-                 * When play an animation, will auto register the event callback to the AnimationState,<bg>
-                 * and unregister the event callback from the AnimationState when animation stopped.
-                 * @zh
-                 * 注册动画事件回调。<bg>
-                 * 回调的事件里将会附上发送事件的 AnimationState。<bg>
-                 * 当播放一个动画时，会自动将事件注册到对应的 AnimationState 上，停止播放时会将事件从这个 AnimationState 上取消注册。
-                 * @param type - 表示要侦听的事件类型的字符串。
-                 * @param callback - 调度事件时将调用的回调。
-                 *                   如果回调是重复的（回调是唯一的），则忽略回调。
-                 * @param target - 调用回调的目标（此对象）可以为null
-                 * @return 只返回传入的回调，以便可以更轻松地保存匿名函数。
-                 * @example
-                 * ```typescript
-                 * onPlay: function (type, state) {
-                 *     // callback
-                 * }
-                 *
-                 * // register event to all animation
-                 * animation.on('play', this.onPlay, this);
-                 * ```
-                 */ on(type: string, callback: (state: AnimationState) => void, target?: Object): Function | undefined;
-        /**
-                 * @en
-                 * Unregister animation event callback.
-                 * @zh
-                 * 取消注册动画事件回调。
-                 * @param {String} type - 要删除的事件类型的字符串。
-                 * @param {Function} callback - 要删除的回调
-                 * @param {Object} target - 调用回调的目标（此对象），如果没有给出，则只删除没有目标的回调
-                 * @example
-                 * ```typescript
-                 * // unregister event to all animation
-                 * animation.off('play', this.onPlay, this);
-                 * ```
-                 */ off(type: string, callback: Function, target?: Object): void;
-        /**
-                 * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
-                 */ targetOff(keyOrTarget?: string | Object | undefined): void;
-        once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
-        dispatchEvent(event: Event): void;
-        hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
-        removeAll(keyOrTarget?: string | Object | undefined): void;
-        emit(key: string, ...args: any[]): void;
     }
     namespace utils {
         /**
@@ -7676,229 +10365,7 @@ declare module "Cocos3D" {
         export interface ICreateMeshOptions {
             calculateBounds?: boolean;
         }
-        var LCA: (a: Node, b: Node) => Node | null;
-    }
-    namespace primitives {
-        /**
-             * @en
-             * This function generates a box with specified extents and centered at origin,
-             * but may be repositioned through `center` option).
-             * @zh
-             * 生成一个立方体，其大小是定义的范围且中心在原点。
-             * @param options 参数选项。
-             */ export function box(options?: __internal.cocos_3d_primitive_box_IBoxOptions): IGeometry;
-        /**
-             * @zh
-             * 生成一个圆锥。
-             * @param radius 圆锥半径。
-             * @param height 圆锥高度。
-             * @param opts 圆锥参数选项。
-             */ export function cone(radius?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cone_IConeOptions>): import("cocos/3d/primitive").IGeometry;
-        /**
-             * @zh
-             * 生成一个圆柱。
-             * @param radiusTop 顶部半径。
-             * @param radiusBottom 底部半径。
-             * @param opts 圆柱参数选项。
-             */ export function cylinder(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_cylinder_ICylinderOptions>): IGeometry;
-        /**
-             * @en
-             * This function generates a plane on XOZ plane with positive Y direction.
-             * @zh
-             * 生成一个平面，其位于XOZ平面，方向为Y轴正方向。
-             * @param options 平面参数选项。
-             */ export function plane(options?: __internal.cocos_3d_primitive_plane_IPlaneOptions): IGeometry;
-        /**
-             * @en
-             * Generate a quad with width and height both to 1, centered at origin.
-             * @zh
-             * 生成一个四边形，宽高都为1，中心在原点。
-             * @param options 参数选项。
-             */ export function quad(options?: IGeometryOptions): IGeometry;
-        /**
-             * @zh
-             * 生成一个球。
-             * @param radius 球半径。
-             * @param options 参数选项。
-             */ export function sphere(radius?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_sphere_ISphereOptions>): IGeometry;
-        /**
-             * @zh
-             * 生成一个环面。
-             * @param radius 环面半径。
-             * @param tube 管形大小。
-             * @param opts 参数选项。
-             *
-             */ export function torus(radius?: number, tube?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_torus_ITorusOptions>): {
-            positions: number[];
-            normals: number[];
-            uvs: number[];
-            indices: number[];
-            minPos: vmath.vec3;
-            maxPos: vmath.vec3;
-            boundingRadius: number;
-        };
-        /**
-             * @zh
-             * 生成一个胶囊体。
-             * @param radiusTop 顶部半径。
-             * @param radiusBottom 底部半径。
-             * @param opts 胶囊体参数选项。
-             */ export function capsule(radiusTop?: number, radiusBottom?: number, height?: number, opts?: RecursivePartial<__internal.cocos_3d_primitive_capsule_ICapsuteOptions>): {
-            positions: number[];
-            normals: number[];
-            uvs: number[];
-            indices: number[];
-            minPos: vmath.vec3;
-            maxPos: vmath.vec3;
-            boundingRadius: number;
-        };
-        /**
-             * Generate a circle with radius 1, centered at origin.
-             * @zh
-             * 生成一个圆，其半径是单位1，中心点在原点。
-             * @param options 参数选项。
-             */ export function circle(options?: RecursivePartial<__internal.cocos_3d_primitive_circle_ICircleOptions> | __internal.cocos_3d_primitive_circle_ICircleOptions): IGeometry;
-        /**
-             * @zh
-             * 平移几何体。
-             * @param geometry 几何体信息。
-             * @param offset 偏移量。
-             */ export function translate(geometry: IGeometry, offset: {
-            x?: number;
-            y?: number;
-            z?: number;
-        }): IGeometry;
-        /**
-             * @zh
-             * 缩放几何体。
-             * @param geometry 几何体信息。
-             * @param value 缩放量。
-             */ export function scale(geometry: IGeometry, value: {
-            x?: number;
-            y?: number;
-            z?: number;
-        }): IGeometry;
-        /**
-             * @zh
-             * 将几何体转换为线框模式，仅支持三角形拓扑的几何体。
-             * @param geometry 几何体信息。
-             */ export function wireframed(geometry: IGeometry): IGeometry;
-        /**
-             * @deprecated
-             */ export function wireframe(indices: number[]): number[];
-        /**
-             * @deprecated
-             */ export function invWinding(indices: number[]): number[];
-        /**
-             * @deprecated
-             */ export function toWavefrontOBJ(primitive: IGeometry, scale?: number): string;
-        /**
-             * @deprecated
-             */ export function normals(positions: number[], normals: number[], length?: number): any[];
-        /**
-             * @zh
-             * 应用默认的几何参数选项。
-             */ export function applyDefaultGeometryOptions<GeometryOptions = IGeometryOptions>(options?: RecursivePartial<IGeometryOptions>): GeometryOptions;
-        /**
-             * @zh
-             * 几何体参数选项。
-             */ export interface IGeometryOptions {
-            /**
-                     * @en
-                     * Whether to include normal. Default to true.
-                     * @zh
-                     * 是否包含法线。默认为true。
-                     */ includeNormal: boolean;
-            /**
-                     * @en
-                     * Whether to include uv. Default to true.
-                     * @zh
-                     * 是否包含UV。默认为true。
-                     */ includeUV: boolean;
-        }
-        /**
-             * @zh
-             * 几何体信息。
-             */ export interface IGeometry {
-            /**
-                     * @en
-                     * Vertex positions.
-                     * @zh
-                     * 顶点位置。
-                     */ positions: number[];
-            /**
-                     * @en
-                     * Vertex normals.
-                     * @zh
-                     * 顶点法线。
-                     */ normals?: number[];
-            /**
-                     * @en
-                     * Texture coordinates.
-                     * @zh
-                     * 纹理坐标。
-                     */ uvs?: number[];
-            /**
-                     * @en
-                     * Vertex colors.
-                     * @zh
-                     * 顶点颜色。
-                     */ colors?: number[];
-            /**
-                     * @en
-                     * specify vertex attributes, use (positions|normals|uvs|colors) as keys
-                     * @zh
-                     * 顶点属性。
-                     */ attributes?: __internal.cocos_gfx_input_assembler_IGFXAttribute[];
-            customAttributes?: Array<{
-                attr: __internal.cocos_gfx_input_assembler_IGFXAttribute;
-                values: number[];
-            }>;
-            /**
-                     * @en
-                     * Bounding sphere radius.
-                     * @zh
-                     * 包围球半径。
-                     */ boundingRadius?: number;
-            /**
-                     * @en
-                     * Min position.
-                     * @zh
-                     * 最小位置。
-                     */ minPos?: {
-                x: number;
-                y: number;
-                z: number;
-            };
-            /**
-                     * @en
-                     * Max position.
-                     * @zh
-                     * 最大位置。
-                     */ maxPos?: {
-                x: number;
-                y: number;
-                z: number;
-            };
-            /**
-                     * @en
-                     * Geometry indices, if one needs indexed-draw.
-                     * @zh
-                     * 几何索引，当使用索引绘制时。
-                     */ indices?: number[];
-            /**
-                     * @en
-                     * Topology of the geometry vertices. Default is TRIANGLE_LIST.
-                     * @zh
-                     * 几何顶点的拓扑图元。默认值是TRIANGLE_LIST。
-                     */ primitiveMode?: GFXPrimitiveMode;
-            /**
-                     * @en
-                     * whether rays casting from the back face of this geometry could collide with it
-                     * @zh
-                     * 是否是双面，用于判断来自于几何体背面的射线检测。
-                     */ doubleSided?: boolean;
-        }
+        var LCA: (a: __internal.cocos_core_utils_interfaces_INode, b: __internal.cocos_core_utils_interfaces_INode) => __internal.cocos_core_utils_interfaces_INode | null;
     }
     namespace geometry {
         var enums: {
@@ -7918,10 +10385,10 @@ declare module "Cocos3D" {
                  * the distance between a point and a plane
                  * @zh
                  * 计算点和平面之间的距离。
-                 * @param {vec3} point 点。
+                 * @param {Vec3} point 点。
                  * @param {plane} plane 平面。
                  * @return 距离。
-                 */ export function point_plane(point: vmath.vec3, plane_: plane): number;
+                 */ export function point_plane(point: Vec3, plane_: plane): number;
             /**
                  * @en
                  * the closest point on plane to a given point
@@ -7931,27 +10398,27 @@ declare module "Cocos3D" {
                  * @param point 给定点。
                  * @param plane 平面。
                  * @return 最近点。
-                 */ export function pt_point_plane(out: vmath.vec3, point: vmath.vec3, plane_: plane): vmath.vec3;
+                 */ export function pt_point_plane(out: Vec3, point: Vec3, plane_: plane): Vec3;
             /**
                  * @en
                  * the closest point on aabb to a given point
                  * @zh
                  * 计算 aabb 上最接近给定点的点。
-                 * @param {vec3} out 最近点。
-                 * @param {vec3} point 给定点。
+                 * @param {Vec3} out 最近点。
+                 * @param {Vec3} point 给定点。
                  * @param {aabb} aabb 轴对齐包围盒。
-                 * @return {vec3} 最近点。
-                 */ export function pt_point_aabb(out: vmath.vec3, point: vmath.vec3, aabb_: aabb): vmath.vec3;
+                 * @return {Vec3} 最近点。
+                 */ export function pt_point_aabb(out: Vec3, point: Vec3, aabb_: aabb): Vec3;
             /**
                  * @en
                  * the closest point on obb to a given point
                  * @zh
                  * 计算 obb 上最接近给定点的点。
-                 * @param {vec3} out 最近点。
-                 * @param {vec3} point 给定点。
+                 * @param {Vec3} out 最近点。
+                 * @param {Vec3} point 给定点。
                  * @param {obb} obb 方向包围盒。
-                 * @return {vec3} 最近点。
-                 */ export function pt_point_obb(out: vmath.vec3, point: vmath.vec3, obb_: obb): vmath.vec3;
+                 * @return {Vec3} 最近点。
+                 */ export function pt_point_obb(out: Vec3, point: Vec3, obb_: obb): Vec3;
         }
         var intersect: {
             ray_sphere: (ray: ray, sphere: sphere) => number;
@@ -7960,8 +10427,8 @@ declare module "Cocos3D" {
             ray_plane: (ray: ray, plane: plane) => number;
             ray_triangle: (ray: ray, triangle: triangle, doubleSided?: boolean | undefined) => number;
             line_plane: (line: line, plane: plane) => number;
-            line_triangle: (line: line, triangle: triangle, outPt: vmath.vec3) => number;
-            line_quad: (p: vmath.vec3, q: vmath.vec3, a: vmath.vec3, b: vmath.vec3, c: vmath.vec3, d: vmath.vec3, outPt: vmath.vec3) => number;
+            line_triangle: (line: line, triangle: triangle, outPt: Vec3) => number;
+            line_quad: (p: Vec3, q: Vec3, a: Vec3, b: Vec3, c: Vec3, d: Vec3, outPt: Vec3) => number;
             sphere_sphere: (sphere0: sphere, sphere1: sphere) => boolean;
             sphere_aabb: (sphere: sphere, aabb: aabb) => boolean;
             sphere_obb: (sphere: sphere, obb: obb) => boolean;
@@ -7977,7 +10444,7 @@ declare module "Cocos3D" {
             obb_plane: (obb: obb, plane: plane) => number;
             obb_frustum: (obb: obb, frustum: frustum) => number;
             obb_frustum_accurate: (obb: obb, frustum: frustum) => number;
-            obb_point: (obb: obb, point: vmath.vec3) => boolean;
+            obb_point: (obb: obb, point: Vec3) => boolean;
             /**
                      * @zh
                      * g1 和 g2 的相交性检测，可填入基础几何中的形状。
@@ -8029,10 +10496,10 @@ declare module "Cocos3D" {
                      * @param start 起点。
                      * @param end 终点。
                      * @return out 接受操作的对象。
-                     */ static fromPoints(out: line, start: vmath.vec3, end: vmath.vec3): line;
+                     */ static fromPoints(out: line, start: Vec3, end: Vec3): line;
             /**
                      * @en
-                     * Set the components of a vec3 to the given values
+                     * Set the components of a Vec3 to the given values
                      * @zh
                      * 将给定线的属性设置为给定值。
                      * @param out 接受操作的对象。
@@ -8049,23 +10516,16 @@ declare module "Cocos3D" {
                      * 计算线的长度。
                      * @param a 要计算的线。
                      * @return 长度。
-                     */ static magnitude(a: line): number;
-            /**
-                     * @en
-                     * Alias of {@link line.magnitude}.
-                     * @zh
-                     * line.magnitude 的别名。
-                     */ static mag(a: line): number;
+                     */ static len(a: line): number;
             /**
                      * @zh
                      * 起点。
-                     */ s: vmath.vec3;
+                     */ s: Vec3;
             /**
                      * @zh
                      * 终点。
-                     */ e: vmath.vec3;
+                     */ e: Vec3;
             /**
-                     * @zh
                      * 构造一条线。
                      * @param sx 起点的 x 部分。
                      * @param sy 起点的 y 部分。
@@ -8074,6 +10534,12 @@ declare module "Cocos3D" {
                      * @param ey 终点的 y 部分。
                      * @param ez 终点的 z 部分。
                      */ constructor(sx?: number, sy?: number, sz?: number, ex?: number, ey?: number, ez?: number);
+            /**
+                     * @zh
+                     * 计算线的长度。
+                     * @param a 要计算的线。
+                     * @return 长度。
+                     */ length(): number;
         }
         /**
              * @zh
@@ -8117,7 +10583,7 @@ declare module "Cocos3D" {
                      * @param b 点 b。
                      * @param c 点 c。
                      * @return out 接受操作的对象。
-                     */ static fromPoints(out: plane, a: vmath.vec3, b: vmath.vec3, c: vmath.vec3): plane;
+                     */ static fromPoints(out: plane, a: Vec3, b: Vec3, c: Vec3): plane;
             /**
                      * @en
                      * Set the components of a plane to the given values
@@ -8139,7 +10605,7 @@ declare module "Cocos3D" {
                      * @param normal 平面的法线。
                      * @param point 平面上的一点。
                      * @return out 接受操作的对象。
-                     */ static fromNormalAndPoint(out: plane, normal: vmath.vec3, point: vmath.vec3): plane;
+                     */ static fromNormalAndPoint(out: plane, normal: Vec3, point: Vec3): plane;
             /**
                      * @en
                      * normalize a plane
@@ -8152,13 +10618,12 @@ declare module "Cocos3D" {
             /**
                      * @zh
                      * 法线向量。
-                     */ n: vmath.vec3;
+                     */ n: Vec3;
             /**
                      * @zh
                      * 原点到平面的距离。
                      */ d: number;
             /**
-                     * @zh
                      * 构造一个平面。
                      * @param nx 法向分量的 x 部分。
                      * @param ny 法向分量的 y 部分。
@@ -8169,7 +10634,7 @@ declare module "Cocos3D" {
                      * @zh
                      * 变换一个平面。
                      * @param mat
-                     */ transform(mat: vmath.mat4): void;
+                     */ transform(mat: Mat4): void;
         }
         /**
              * @zh
@@ -8211,10 +10676,10 @@ declare module "Cocos3D" {
                      * @zh
                      * 用两个点创建一条射线。
                      * @param {ray} out 接受操作的射线。
-                     * @param {vec3} origin 射线的起点。
-                     * @param {vec3} target 射线上的一点。
+                     * @param {Vec3} origin 射线的起点。
+                     * @param {Vec3} target 射线上的一点。
                      * @return {ray} out 接受操作的射线。
-                     */ static fromPoints(out: ray, origin: vmath.vec3, target: vmath.vec3): ray;
+                     */ static fromPoints(out: ray, origin: Vec3, target: Vec3): ray;
             /**
                      * @en
                      * Set the components of a ray to the given values
@@ -8232,11 +10697,11 @@ declare module "Cocos3D" {
             /**
                      * @zh
                      * 起点。
-                     */ o: vmath.vec3;
+                     */ o: Vec3;
             /**
                      * @zh
                      * 方向。
-                     */ d: vmath.vec3;
+                     */ d: Vec3;
             /**
                      * 构造一条射线。
                      * @param {number} ox 起点的 x 部分。
@@ -8290,11 +10755,11 @@ declare module "Cocos3D" {
                      * @zh
                      * 用三个点创建一个 triangle。
                      * @param {triangle} out 接受操作的 triangle。
-                     * @param {vec3} a a 点。
-                     * @param {vec3} b b 点。
-                     * @param {vec3} c c 点。
+                     * @param {Vec3} a a 点。
+                     * @param {Vec3} b b 点。
+                     * @param {Vec3} c c 点。
                      * @return {triangle} out 接受操作的 triangle。
-                     */ static fromPoints(out: triangle, a: vmath.vec3, b: vmath.vec3, c: vmath.vec3): triangle;
+                     */ static fromPoints(out: triangle, a: Vec3, b: Vec3, c: Vec3): triangle;
             /**
                      * @en
                      * Set the components of a triangle to the given values
@@ -8316,17 +10781,16 @@ declare module "Cocos3D" {
             /**
                      * @zh
                      * 点 a。
-                     */ a: vmath.vec3;
+                     */ a: Vec3;
             /**
                      * @zh
                      * 点 b。
-                     */ b: vmath.vec3;
+                     */ b: Vec3;
             /**
                      * @zh
                      * 点 c。
-                     */ c: vmath.vec3;
+                     */ c: Vec3;
             /**
-                     * @zh
                      * 构造一个三角形。
                      * @param {number} ax a 点的 x 部分。
                      * @param {number} ay a 点的 y 部分。
@@ -8380,7 +10844,7 @@ declare module "Cocos3D" {
                      * @param minPos - sphere 的最小点。
                      * @param maxPos - sphere 的最大点。
                      * @returns {sphere} out 接受操作的 sphere。
-                     */ static fromPoints(out: sphere, minPos: vmath.vec3, maxPos: vmath.vec3): sphere;
+                     */ static fromPoints(out: sphere, minPos: Vec3, maxPos: Vec3): sphere;
             /**
                      * Set the components of a sphere to the given values
                      *
@@ -8395,14 +10859,13 @@ declare module "Cocos3D" {
             /**
                      * @zh
                      * 本地坐标的中心点。
-                     */ center: vmath.vec3;
+                     */ center: Vec3;
             /**
                      * @zh
                      * 半径。
                      */ radius: number;
             protected _type: number;
             /**
-                     * @zh
                      * 构造一个球。
                      * @param cx 形状的相对于原点的 X 坐标。
                      * @param cy 形状的相对于原点的 Y 坐标。
@@ -8423,9 +10886,9 @@ declare module "Cocos3D" {
                      * Get the bounding points of this shape
                      * @zh
                      * 获取此形状的边界点。
-                     * @param {vec3} minPos 最小点。
-                     * @param {vec3} maxPos 最大点。
-                     */ getBoundary(minPos: vmath.vec3, maxPos: vmath.vec3): void;
+                     * @param {Vec3} minPos 最小点。
+                     * @param {Vec3} maxPos 最大点。
+                     */ getBoundary(minPos: Vec3, maxPos: Vec3): void;
             /**
                      * @en
                      * Transform this shape
@@ -8436,20 +10899,20 @@ declare module "Cocos3D" {
                      * @param rot 变换的旋转部分。
                      * @param scale 变换的缩放部分。
                      * @param out 变换的目标。
-                     */ transform(m: vmath.mat4, pos: vmath.vec3, rot: vmath.quat, scale: vmath.vec3, out: sphere): void;
+                     */ transform(m: Mat4, pos: Vec3, rot: Quat, scale: Vec3, out: sphere): void;
             /**
                      * @zh
                      * 将 out 根据这个 sphere 的数据进行变换。
                      * @param m 变换的矩阵。
                      * @param rot 变换的旋转部分。
                      * @param out 变换的目标。
-                     */ translateAndRotate(m: vmath.mat4, rot: vmath.quat, out: sphere): void;
+                     */ translateAndRotate(m: Mat4, rot: Quat, out: sphere): void;
             /**
                      * @zh
                      *  将 out 根据这个 sphere 的数据进行缩放。
                      * @param scale 缩放值。
                      * @param out 缩放的目标。
-                     */ setScale(scale: vmath.vec3, out: sphere): void;
+                     */ setScale(scale: Vec3, out: sphere): void;
         }
         /**
              * @zh
@@ -8498,7 +10961,7 @@ declare module "Cocos3D" {
                      * @param minPos - aabb 的最小点。
                      * @param maxPos - aabb 的最大点。
                      * @returns {aabb} out 接受操作的 aabb。
-                     */ static fromPoints(out: aabb, minPos: vmath.vec3, maxPos: vmath.vec3): aabb;
+                     */ static fromPoints(out: aabb, minPos: Vec3, maxPos: Vec3): aabb;
             /**
                      * @en
                      * Set the components of a aabb to the given values
@@ -8528,15 +10991,15 @@ declare module "Cocos3D" {
                      * @param a 输入的源 aabb。
                      * @param matrix 矩阵。
                      * @returns {aabb} out 接受操作的 aabb。
-                     */ static transform(out: aabb, a: aabb, matrix: vmath.mat4): aabb;
+                     */ static transform(out: aabb, a: aabb, matrix: Mat4): aabb;
             /**
                      * @zh
                      * 本地坐标的中心点。
-                     */ center: vmath.vec3;
+                     */ center: Vec3;
             /**
                      * @zh
                      * 长宽高的一半。
-                     */ halfExtents: vmath.vec3;
+                     */ halfExtents: Vec3;
             protected _type: number;
             constructor(px?: number, py?: number, pz?: number, hw?: number, hh?: number, hl?: number);
             /**
@@ -8544,9 +11007,9 @@ declare module "Cocos3D" {
                      * Get the bounding points of this shape
                      * @zh
                      * 获取 aabb 的最小点和最大点。
-                     * @param {vec3} minPos 最小点。
-                     * @param {vec3} maxPos 最大点。
-                     */ getBoundary(minPos: vmath.vec3, maxPos: vmath.vec3): void;
+                     * @param {Vec3} minPos 最小点。
+                     * @param {Vec3} maxPos 最大点。
+                     */ getBoundary(minPos: Vec3, maxPos: Vec3): void;
             /**
                      * @en
                      * Transform this shape
@@ -8557,7 +11020,7 @@ declare module "Cocos3D" {
                      * @param rot 变换的旋转部分。
                      * @param scale 变换的缩放部分。
                      * @param out 变换的目标。
-                     */ transform(m: vmath.mat4, pos: vmath.vec3 | null, rot: vmath.quat | null, scale: vmath.vec3 | null, out: aabb): void;
+                     */ transform(m: Mat4, pos: Vec3 | null, rot: Quat | null, scale: Vec3 | null, out: aabb): void;
             /**
                      * @zh
                      * 获得克隆。
@@ -8626,7 +11089,7 @@ declare module "Cocos3D" {
                      * @param minPos - obb 的最小点。
                      * @param maxPos - obb 的最大点。
                      * @returns {obb} out 接受操作的 obb。
-                     */ static fromPoints(out: obb, minPos: vmath.vec3, maxPos: vmath.vec3): obb;
+                     */ static fromPoints(out: obb, minPos: Vec3, maxPos: Vec3): obb;
             /**
                      * @en
                      * Set the components of a obb to the given values
@@ -8652,15 +11115,15 @@ declare module "Cocos3D" {
             /**
                      * @zh
                      * 本地坐标的中心点。
-                     */ center: vmath.vec3;
+                     */ center: Vec3;
             /**
                      * @zh
                      * 长宽高的一半。
-                     */ halfExtents: vmath.vec3;
+                     */ halfExtents: Vec3;
             /**
                      * @zh
                      * 方向矩阵。
-                     */ orientation: vmath.mat3;
+                     */ orientation: Mat3;
             protected _type: number;
             constructor(cx?: number, cy?: number, cz?: number, hw?: number, hh?: number, hl?: number, ox_1?: number, ox_2?: number, ox_3?: number, oy_1?: number, oy_2?: number, oy_3?: number, oz_1?: number, oz_2?: number, oz_3?: number);
             /**
@@ -8668,9 +11131,9 @@ declare module "Cocos3D" {
                      * Get the bounding points of this shape
                      * @zh
                      * 获取 obb 的最小点和最大点。
-                     * @param {vec3} minPos 最小点。
-                     * @param {vec3} maxPos 最大点。
-                     */ getBoundary(minPos: vmath.vec3, maxPos: vmath.vec3): void;
+                     * @param {Vec3} minPos 最小点。
+                     * @param {Vec3} maxPos 最大点。
+                     */ getBoundary(minPos: Vec3, maxPos: Vec3): void;
             /**
                      * Transform this shape
                      * @zh
@@ -8680,31 +11143,31 @@ declare module "Cocos3D" {
                      * @param rot 变换的旋转部分。
                      * @param scale 变换的缩放部分。
                      * @param out 变换的目标。
-                     */ transform(m: vmath.mat4, pos: vmath.vec3, rot: vmath.quat, scale: vmath.vec3, out: obb): void;
+                     */ transform(m: Mat4, pos: Vec3, rot: Quat, scale: Vec3, out: obb): void;
             /**
                      * @zh
                      * 将 out 根据这个 obb 的数据进行变换。
                      * @param m 变换的矩阵。
                      * @param rot 变换的旋转部分。
                      * @param out 变换的目标。
-                     */ translateAndRotate(m: vmath.mat4, rot: vmath.quat, out: obb): void;
+                     */ translateAndRotate(m: Mat4, rot: Quat, out: obb): void;
             /**
                      * @zh
                      *  将 out 根据这个 obb 的数据进行缩放。
                      * @param scale 缩放值。
                      * @param out 缩放的目标。
-                     */ setScale(scale: vmath.vec3, out: obb): void;
+                     */ setScale(scale: Vec3, out: obb): void;
         }
         export class frustum {
             /**
                      * Set whether to use accurate intersection testing function on this frustum
                      */ accurate: boolean;
+            static createOrtho: (out: frustum, width: number, height: number, near: number, far: number, transform: Mat4) => void;
             /**
                      * create a new frustum
                      *
                      * @return {frustum}
                      */ static create(): frustum;
-            static createOrtho: (out: frustum, width: number, height: number, near: number, far: number, transform: vmath.mat4) => void;
             /**
                      * Clone a frustum
                      */ static clone(f: frustum): frustum;
@@ -8712,30 +11175,32 @@ declare module "Cocos3D" {
                      * Copy the values from one frustum to another
                      */ static copy(out: frustum, f: frustum): frustum;
             planes: plane[];
-            vertices: vmath.vec3[];
+            vertices: Vec3[];
             constructor();
             /**
                      * Update the frustum information according to the given transform matrix.
                      * Note that the resulting planes are not normalized under normal mode.
                      *
-                     * @param {mat4} m the view-projection matrix
-                     * @param {mat4} inv the inverse view-projection matrix
-                     */ update(m: vmath.mat4, inv: vmath.mat4): void;
-            transform(mat: vmath.mat4): void;
+                     * @param {Mat4} m the view-projection matrix
+                     * @param {Mat4} inv the inverse view-projection matrix
+                     */ update(m: Mat4, inv: Mat4): void;
+            transform(mat: Mat4): void;
         }
         /**
              * An octree acceleration data structure
              * @example
+             * ```
              * let octree = new Octree();
              * octree.build(models, model => {
              *   return model._boundingShape;
              * });
              * octree.select(enums.SHAPE_FRUSTUM, view._frustum);
+             * ```
              */ export class Octree {
             /**
                      * Create sub blocks and populate them with given entries
-                     * @param {vec3} worldMin - min position of the parent bounding box
-                     * @param {vec3} worldMax - max position of the parent bounding box
+                     * @param {Vec3} worldMin - min position of the parent bounding box
+                     * @param {Vec3} worldMax - max position of the parent bounding box
                      * @param {Array<Object>} entries - the entries to be inserted
                      * @param {number} blockCapacity - maximum capacity for each block node
                      * before it's been subdivided, might be exceeded if `maxDepth` is reached
@@ -8832,39 +11297,6 @@ declare module "Cocos3D" {
                      */ calcOptimizedKey(optKey: __internal.cocos_3d_geom_utils_curve_OptimizedKey, leftIndex: number, rightIndex: number): void;
         }
     }
-    export class AudioClip extends Asset {
-        static PlayingState: {
-            INITIALIZING: number;
-            PLAYING: number;
-            STOPPED: number;
-        };
-        static AudioType: {
-            UNKNOWN_AUDIO: number;
-            WEB_AUDIO: number;
-            DOM_AUDIO: number;
-            WX_GAME_AUDIO: number;
-        };
-        static preventDeferredLoadDependents: boolean;
-        protected _duration: number;
-        protected _loadMode: number;
-        protected _audio: any;
-        constructor();
-        _nativeAsset: any;
-        destroy(): boolean;
-        readonly loadMode: number;
-        readonly state: number;
-        play(): void;
-        pause(): void;
-        stop(): void;
-        playOneShot(volume: number): void;
-        setCurrentTime(val: number): void;
-        getCurrentTime(): number;
-        getDuration(): number;
-        setVolume(val: number, immediate?: boolean): void;
-        getVolume(): number;
-        setLoop(val: boolean): void;
-        getLoop(): boolean;
-    }
     /**
          * @zh
          * Effect 资源，作为材质实例初始化的模板，每个 effect 资源都应是全局唯一的。
@@ -8896,8 +11328,13 @@ declare module "Cocos3D" {
                  */ shaders: __internal.cocos_3d_assets_effect_asset_IShaderInfo[];
         /**
                  * @zh
+                 * 每个 shader 需要预编译的宏定义组合。
+                 */ combinations: __internal.cocos_3d_assets_effect_asset_IPreCompileInfo[];
+        /**
+                 * @zh
                  * 通过 Loader 加载完成时的回调，将自动注册 effect 资源。
                  */ onLoaded(): void;
+        protected _precompile(): void;
     }
     /**
          * @zh
@@ -8905,7 +11342,7 @@ declare module "Cocos3D" {
          */ export class Material extends Asset {
         /**
                  * @zh
-                 * 获取材质资源的实例，您应当不会需要手动调用这个函数。
+                 * 获取材质资源的实例，应当不会需要手动调用这个函数。
                  */ static getInstantiatedMaterial(mat: Material, rndCom: RenderableComponent, inEditor: boolean): Material;
         protected _effectAsset: EffectAsset | null;
         protected _techIdx: number;
@@ -9029,7 +11466,12 @@ declare module "Cocos3D" {
                  * 重置此网格的结构和数据。
                  * @param struct 新的结构。
                  * @param data 新的数据。
+                 * @deprecated 将在 V1.0.0 移除，请转用 `this.reset()`。
                  */ assign(struct: __internal.cocos_3d_assets_mesh_IMeshStruct, data: Uint8Array): void;
+        /**
+                 * 重置此网格。
+                 * @param info 网格重置选项。
+                 */ reset(info: __internal.cocos_3d_assets_mesh_IMeshCreateInfo): void;
         /**
                  * 此网格创建的渲染网格。
                  */ readonly renderingMesh: __internal.cocos_3d_assets_mesh_RenderingMesh;
@@ -9091,14 +11533,17 @@ declare module "Cocos3D" {
     }
     /**
          * 骨骼资源。
-         * 骨骼资源记录了每个关节（相对于`SkinningModelComponent.SkinningRoot`）的路径以及它的绑定姿势矩阵。
+         * 骨骼资源记录了每个关节（相对于`SkinningModelComponent.skinningRoot`）的路径以及它的绑定姿势矩阵。
          */ export class Skeleton extends Asset {
         /**
                  * 所有关节的绑定姿势矩阵。该数组的长度始终与 `this.joints` 的长度相同。
-                 */ bindposes: Node[];
+                 */ bindposes: Mat4[];
+        readonly bindTRS: __internal.cocos_3d_assets_skeleton_IBindTRS[];
         /**
                  * 所有关节的路径。该数组的长度始终与 `this.bindposes` 的长度相同。
                  */ joints: string[];
+        readonly hash: number;
+        onLoaded(): void;
     }
     export class PhysicsMaterial extends Asset {
         _friction: number;
@@ -9169,11 +11614,17 @@ declare module "Cocos3D" {
             };
             "builtins": {
                 "globals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                     "samplers": never[];
                 };
                 "locals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                     "samplers": never[];
                 };
             };
@@ -9184,14 +11635,12 @@ declare module "Cocos3D" {
             }[];
             "blocks": {
                 "name": string;
-                "size": number;
                 "defines": never[];
                 "binding": number;
                 "members": {
                     "name": string;
                     "type": number;
                     "count": number;
-                    "size": number;
                 }[];
             }[];
             "samplers": {
@@ -9261,11 +11710,17 @@ declare module "Cocos3D" {
             };
             "builtins": {
                 "globals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                     "samplers": never[];
                 };
                 "locals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                     "samplers": never[];
                 };
             };
@@ -9276,14 +11731,12 @@ declare module "Cocos3D" {
             }[];
             "blocks": {
                 "name": string;
-                "size": number;
                 "defines": never[];
                 "binding": number;
                 "members": {
                     "name": string;
                     "type": number;
                     "count": number;
-                    "size": number;
                 }[];
             }[];
             "samplers": {
@@ -9323,12 +11776,24 @@ declare module "Cocos3D" {
             };
             "builtins": {
                 "globals": {
-                    "blocks": string[];
-                    "samplers": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
+                    "samplers": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                 };
                 "locals": {
-                    "blocks": string[];
-                    "samplers": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
+                    "samplers": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
                 };
             };
             "defines": ({
@@ -9388,11 +11853,17 @@ declare module "Cocos3D" {
             };
             "builtins": {
                 "globals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                     "samplers": never[];
                 };
                 "locals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
                     "samplers": never[];
                 };
             };
@@ -9415,7 +11886,7 @@ declare module "Cocos3D" {
         "name": string;
         "techniques": {
             "name": string;
-            "passes": ({
+            "passes": {
                 "program": string;
                 "properties": {
                     "tilingOffset": {
@@ -9464,42 +11935,20 @@ declare module "Cocos3D" {
                         "value": string;
                         "type": number;
                     };
+                    "metallicRoughnessMap": {
+                        "value": string;
+                        "type": number;
+                    };
+                    "occlusionMap": {
+                        "value": string;
+                        "type": number;
+                    };
                     "emissiveMap": {
                         "value": string;
                         "type": number;
                     };
                 };
-                "customizations"?: undefined;
-                "blendState"?: undefined;
-                "depthStencilState"?: undefined;
-                "switch"?: undefined;
-            } | {
-                "customizations": string[];
-                "blendState": {
-                    "targets": {
-                        "blend": boolean;
-                        "blendSrc": number;
-                        "blendDst": number;
-                        "blendDstAlpha": number;
-                    }[];
-                };
-                "program": string;
-                "depthStencilState": {
-                    "depthTest": boolean;
-                    "depthWrite": boolean;
-                    "stencilTestFront": boolean;
-                    "stencilFuncFront": number;
-                    "stencilPassOpFront": number;
-                    "stencilWriteMaskBack": number;
-                    "stencilWriteMaskFront": number;
-                    "stencilReadMaskBack": number;
-                    "stencilReadMaskFront": number;
-                    "stencilRefBack": number;
-                    "stencilRefFront": number;
-                };
-                "switch": string;
-                "properties"?: undefined;
-            })[];
+            }[];
         }[];
         "shaders": {
             "name": string;
@@ -9514,12 +11963,24 @@ declare module "Cocos3D" {
             };
             "builtins": {
                 "globals": {
-                    "blocks": string[];
-                    "samplers": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
+                    "samplers": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
                 };
                 "locals": {
-                    "blocks": string[];
-                    "samplers": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
+                    "samplers": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
                 };
             };
             "defines": ({
@@ -9543,14 +12004,12 @@ declare module "Cocos3D" {
             })[];
             "blocks": {
                 "name": string;
-                "size": number;
                 "defines": never[];
                 "binding": number;
                 "members": {
                     "name": string;
                     "type": number;
                     "count": number;
-                    "size": number;
                 }[];
             }[];
             "samplers": {
@@ -9558,6 +12017,97 @@ declare module "Cocos3D" {
                 "type": number;
                 "count": number;
                 "defines": string[];
+                "binding": number;
+            }[];
+            "dependencies": {};
+        }[];
+    } | {
+        "name": string;
+        "techniques": {
+            "name": string;
+            "passes": {
+                "program": string;
+                "properties": {
+                    "UVScale": {
+                        "value": number[];
+                        "type": number;
+                    };
+                    "weightMap": {
+                        "value": string;
+                        "type": number;
+                    };
+                    "detailMap0": {
+                        "value": string;
+                        "type": number;
+                    };
+                    "detailMap1": {
+                        "value": string;
+                        "type": number;
+                    };
+                    "detailMap2": {
+                        "value": string;
+                        "type": number;
+                    };
+                    "detailMap3": {
+                        "value": string;
+                        "type": number;
+                    };
+                };
+            }[];
+        }[];
+        "shaders": {
+            "name": string;
+            "hash": number;
+            "glsl3": {
+                "vert": string;
+                "frag": string;
+            };
+            "glsl1": {
+                "vert": string;
+                "frag": string;
+            };
+            "builtins": {
+                "globals": {
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
+                    "samplers": never[];
+                };
+                "locals": {
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
+                    "samplers": never[];
+                };
+            };
+            "defines": ({
+                "name": string;
+                "type": string;
+                "defines": never[];
+                "range"?: undefined;
+            } | {
+                "name": string;
+                "type": string;
+                "defines": never[];
+                "range": number[];
+            })[];
+            "blocks": {
+                "name": string;
+                "defines": never[];
+                "binding": number;
+                "members": {
+                    "name": string;
+                    "type": number;
+                    "count": number;
+                }[];
+            }[];
+            "samplers": {
+                "name": string;
+                "type": number;
+                "count": number;
+                "defines": never[];
                 "binding": number;
             }[];
             "dependencies": {};
@@ -9600,12 +12150,21 @@ declare module "Cocos3D" {
             };
             "builtins": {
                 "globals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                     "samplers": never[];
                 };
                 "locals": {
-                    "blocks": string[];
-                    "samplers": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
+                    "samplers": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
                 };
             };
             "defines": ({
@@ -9621,14 +12180,12 @@ declare module "Cocos3D" {
             })[];
             "blocks": {
                 "name": string;
-                "size": number;
                 "defines": string[];
                 "binding": number;
                 "members": {
                     "name": string;
                     "type": number;
                     "count": number;
-                    "size": number;
                 }[];
             }[];
             "samplers": {
@@ -9644,6 +12201,155 @@ declare module "Cocos3D" {
         "name": string;
         "techniques": {
             "name": string;
+            "passes": {
+                "blendState": {
+                    "targets": {
+                        "blend": boolean;
+                        "blendSrc": number;
+                        "blendDst": number;
+                        "blendDstAlpha": number;
+                    }[];
+                };
+                "program": string;
+                "depthStencilState": {
+                    "depthTest": boolean;
+                    "depthWrite": boolean;
+                };
+                "properties": {
+                    "BrushPos": {
+                        "value": number[];
+                        "type": number;
+                    };
+                    "BrushParams": {
+                        "value": number[];
+                        "type": number;
+                    };
+                };
+            }[];
+        }[];
+        "shaders": {
+            "name": string;
+            "hash": number;
+            "glsl3": {
+                "vert": string;
+                "frag": string;
+            };
+            "glsl1": {
+                "vert": string;
+                "frag": string;
+            };
+            "builtins": {
+                "globals": {
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
+                    "samplers": never[];
+                };
+                "locals": {
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
+                    "samplers": never[];
+                };
+            };
+            "defines": {
+                "name": string;
+                "type": string;
+                "defines": never[];
+            }[];
+            "blocks": {
+                "name": string;
+                "defines": never[];
+                "binding": number;
+                "members": {
+                    "name": string;
+                    "type": number;
+                    "count": number;
+                }[];
+            }[];
+            "samplers": never[];
+            "dependencies": {};
+        }[];
+    } | {
+        "name": string;
+        "techniques": {
+            "passes": {
+                "phase": string;
+                "blendState": {
+                    "targets": {
+                        "blend": boolean;
+                        "blendSrc": number;
+                        "blendDst": number;
+                        "blendDstAlpha": number;
+                    }[];
+                };
+                "program": string;
+                "depthStencilState": {
+                    "depthTest": boolean;
+                    "depthWrite": boolean;
+                    "stencilTestFront": boolean;
+                    "stencilFuncFront": number;
+                    "stencilPassOpFront": number;
+                    "stencilWriteMaskBack": number;
+                    "stencilWriteMaskFront": number;
+                    "stencilReadMaskBack": number;
+                    "stencilReadMaskFront": number;
+                    "stencilRefBack": number;
+                    "stencilRefFront": number;
+                };
+            }[];
+        }[];
+        "shaders": {
+            "name": string;
+            "hash": number;
+            "glsl3": {
+                "vert": string;
+                "frag": string;
+            };
+            "glsl1": {
+                "vert": string;
+                "frag": string;
+            };
+            "builtins": {
+                "globals": {
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
+                    "samplers": never[];
+                };
+                "locals": {
+                    "blocks": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
+                    "samplers": {
+                        "name": string;
+                        "defines": string[];
+                    }[];
+                };
+            };
+            "defines": ({
+                "name": string;
+                "type": string;
+                "defines": never[];
+                "range": number[];
+            } | {
+                "name": string;
+                "type": string;
+                "defines": never[];
+                "range"?: undefined;
+            })[];
+            "blocks": never[];
+            "samplers": never[];
+            "dependencies": {};
+        }[];
+    } | {
+        "name": string;
+        "techniques": {
+            "name": string;
             "passes": ({
                 "program": string;
                 "depthStencilState": {
@@ -9652,8 +12358,8 @@ declare module "Cocos3D" {
                 };
                 "properties": {
                     "u_texSampler": {
-                        "sampler": (number | null)[];
                         "type": number;
+                        "samplerHash": number;
                     };
                     "u_edgeTexSampler"?: undefined;
                     "u_areaTexSampler"?: undefined;
@@ -9667,16 +12373,16 @@ declare module "Cocos3D" {
                 };
                 "properties": {
                     "u_edgeTexSampler": {
-                        "sampler": (number | null)[];
                         "type": number;
+                        "samplerHash": number;
                     };
                     "u_areaTexSampler": {
-                        "sampler": (number | null)[];
                         "type": number;
+                        "samplerHash": number;
                     };
                     "u_searchTexSampler": {
-                        "sampler": (number | null)[];
                         "type": number;
+                        "samplerHash": number;
                     };
                     "u_texSampler"?: undefined;
                 };
@@ -9695,7 +12401,10 @@ declare module "Cocos3D" {
             };
             "builtins": {
                 "globals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                     "samplers": never[];
                 };
                 "locals": {
@@ -9730,12 +12439,12 @@ declare module "Cocos3D" {
                 };
                 "properties": {
                     "u_texSampler": {
-                        "sampler": (number | null)[];
                         "type": number;
+                        "samplerHash": number;
                     };
                     "u_blendTexSampler": {
-                        "sampler": (number | null)[];
                         "type": number;
+                        "samplerHash": number;
                     };
                 };
             }[];
@@ -9753,7 +12462,10 @@ declare module "Cocos3D" {
             };
             "builtins": {
                 "globals": {
-                    "blocks": string[];
+                    "blocks": {
+                        "name": string;
+                        "defines": never[];
+                    }[];
                     "samplers": never[];
                 };
                 "locals": {
@@ -9779,140 +12491,19 @@ declare module "Cocos3D" {
     })[];
     var builtinResMgr: __internal.cocos_3d_builtin_init_BuiltinResMgr;
     /**
-         * @en
-         * A representation of a single audio source,
-         * contains basic functionalities like play, pause and stop.
-         * @zh
-         * 音频组件，代表单个音源，提供播放、暂停、停止等基本功能。<br>
-         * 用户可通过 cc.AudioSourceComponent 调用此类。
-         */ export class AudioSourceComponent extends Component {
-        protected _clip: AudioClip | null;
-        protected _loop: boolean;
-        protected _playOnAwake: boolean;
-        protected _volume: number;
-        /**
-                 * @en
-                 * The default AudioClip to play
-                 * @zh
-                 * 设定要播放的音频。
-                 */ clip: any;
-        /**
-                 * @en
-                 * Is the audio clip looping?
-                 * @zh
-                 * 是否循环播放音频？
-                 */ loop: any;
-        /**
-                 * @en
-                 * Is the autoplay enabled? <br>
-                 * Note that for the most time now the autoplay will only starts <br>
-                 * after a user gesture is received, according to the latest autoplay policy: <br>
-                 * https://www.chromium.org/audio-video/autoplay
-                 * @zh
-                 * 是否启用自动播放。 <br>
-                 * 请注意，根据最新的自动播放策略，大部分自动播放仅在收到用户指令后生效。 <br>
-                 * 参看：https://www.chromium.org/audio-video/autoplay
-                 */ playOnAwake: any;
-        /**
-                 * @en
-                 * The volume of this audio source (0.0 to 1.0).
-                 * @zh
-                 * 音频的音量（大小范围为 0.0 到 1.0 ）。
-                 *
-                 * 请注意,在某些平台上，音量控制可能不起效。<br>
-                 * 请注意,在 ios 平台的 dom 模式下控制音量将无法生效。
-                 */ volume: any;
-        onLoad(): void;
-        /**
-                 * @en
-                 * Plays the clip
-                 * @zh
-                 * 开始播放音频。
-                 *
-                 * 如果音频处于正在播放状态，将会重新开始播放音频。 <br>
-                 * 如果音频处于暂停状态，则会继续播放音频。
-                 */ play(): void;
-        /**
-                 * @en
-                 * Pause the clip
-                 * @zh
-                 * 暂停播放。
-                 */ pause(): void;
-        /**
-                 * @en
-                 * Stop the clip
-                 * @zh
-                 * 停止播放。
-                 */ stop(): void;
-        /**
-                 * @en Plays an AudioClip, and scales volume by volumeScale.
-                 * @zh 以指定音量播放一个音频一次。
-                 *
-                 * 注意，对同一个音频片段，不同平台多重播放效果存在差异。<br>
-                 * 在 Web Audio 模式下，可以同时维护多个播放进度，达到多重播放。<br>
-                 * 其他模式下都不支持多重播放，如前一次尚未播完，则会立即重新播放。
-                 * @param clip - the clip being played
-                 * @param volumeScale - the scale of the volume (0-1).
-                 */ playOneShot(clip: AudioClip, volumeScale?: number): void;
-        protected _syncStates(): void;
-        /**
-                 * @en
-                 * set current playback time, in seconds
-                 * @zh
-                 * 以秒为单位设置当前播放时间。
-                 * @param num the playback time you want to jump to
-                 */ /**
-                * @en
-                * get the current playback time, in seconds
-                * @zh
-                * 以秒为单位获取当前播放时间。
-                * @returns time current playback time
-                */ currentTime: number;
-        /**
-                 * @en
-                 * get the audio duration, in seconds
-                 * @zh
-                 * 以秒为单位获取音频持续时间。
-                 * @returns audio duration
-                 */ readonly duration: number;
-        /**
-                 * @en
-                 * get current audio state
-                 * @zh
-                 * 获取当前音频状态。
-                 * @returns current audio state
-                 */ readonly state: number;
-        /**
-                 * @en
-                 * is the audio currently playing?
-                 * @zh
-                 * 当前音频是否正在播放？
-                 */ readonly playing: boolean;
-    }
-    /**
          * @en The Camera Component
          * @zh 相机组件。
-         * @class CameraComponent
-         * @extends Component
          */ export class CameraComponent extends Component {
         static ProjectionType: {
             /**
-                         * @en
-                         * The orthogonal camera
-                         * @zh
                          * 正交相机。
                          * @property Ortho
                          * @readonly
-                         * @type {Number}
                          */ ORTHO: number;
             /**
-                         * @en
-                         * The perspective camera
-                         * @zh
                          * 透视相机。
                          * @property Perspective
                          * @readonly
-                         * @type {Number}
                          */ PERSPECTIVE: number;
         };
         protected _projection: number;
@@ -9927,9 +12518,10 @@ declare module "Cocos3D" {
         protected _clearFlags: __internal.cocos_gfx_define_GFXClearFlag;
         protected _rect: Rect;
         protected _screenScale: number;
-        protected _targetDisplay: number;
         protected _visibility: number;
+        protected _targetTexture: RenderTexture | null;
         protected _camera: renderer.Camera | null;
+        protected _editorWindow: __internal.cocos_gfx_window_GFXWindow | null;
         constructor();
         /**
                  * @en The projection type of the camera
@@ -9958,7 +12550,7 @@ declare module "Cocos3D" {
         /**
                  * @en The color clearing value of the camera
                  * @zh 相机的颜色缓冲默认值。
-                 */ color: Color;
+                 */ color: Readonly<Color>;
         /**
                  * @en The depth clearing value of the camera
                  * @zh 相机的深度缓冲默认值。
@@ -9981,12 +12573,11 @@ declare module "Cocos3D" {
                  * @zh 相机内部缓冲尺寸的缩放值, 1 为与 canvas 尺寸相同。
                  */ screenScale: number;
         /**
-                 * @en The target display for this Camera.
-                 * @zh 相机的目标屏幕序号。
-                 */ targetDisplay: number;
-        /**
                  * @zh 设置摄像机可见掩码，与Component中的visibility同时使用，用于过滤摄像机不需要渲染的物体
                  */ visibility: number;
+        /**
+                 * @zh 设置摄像机 RenderTexture
+                 */ targetTexture: RenderTexture | null;
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
@@ -9996,6 +12587,8 @@ declare module "Cocos3D" {
         screenToWorld(screenPos: Vec3, out?: Vec3): Vec3;
         protected _createCamera(): void;
         protected onSceneChanged(scene: Scene): void;
+        protected _getEditorWindow(): void;
+        protected _updateTargetTexture(): void;
     }
     export class LightComponent extends Component {
         static Type: typeof __internal.cocos_renderer_scene_light_LightType;
@@ -10013,7 +12606,7 @@ declare module "Cocos3D" {
                  * The light source color
                  * @zh
                  * 光源颜色。
-                 */ color: Color;
+                 */ color: Readonly<Color>;
         /**
                  * @en
                  * Whether to enable light color temperature
@@ -10041,52 +12634,31 @@ declare module "Cocos3D" {
     /**
          * 模型组件。
          * @class ModelComponent
-         * @extends RenderableComponent
          */ export class ModelComponent extends RenderableComponent {
         /**
                  * @en The mesh of the model
                  * @zh 模型网格。
-                 * @type {Mesh}
                  */ mesh: Mesh | null;
         /**
                  * @en The shadow casting mode
                  * @zh 投射阴影方式。
-                 * @type {Number}
                  */ shadowCastingMode: number;
         /**
                  * @en Does this model receive shadows?
                  * @zh 是否接受阴影？
-                 * @type {Boolean}
                  */ receiveShadows: boolean;
         readonly model: renderer.Model | null;
         static ShadowCastingMode: {
             /**
-                         * 关闭阴影投射。
-                         * @property Off
-                         * @readonly
-                         * @type {Number}
-                         */ Off: number;
+                         * 不投射阴影。
+                         */ OFF: number;
             /**
-                         * 开启阴影投射，当阴影光产生的时候。
-                         * @property On
-                         * @readonly
-                         * @type {Number}
-                         */ On: number;
-            /**
-                         * 可以从网格的任意一边投射出阴影。
-                         * @property TwoSided
-                         * @readonly
-                         * @type {Number}
-                         */ TwoSided: number;
-            /**
-                         * 只显示阴影。
-                         * @property ShadowsOnly
-                         * @readonly
-                         * @type {Number}
-                         */ ShadowsOnly: number;
+                         * 开启阴影投射。
+                         */ ON: number;
         };
         protected _model: renderer.Model | null;
         protected _mesh: Mesh | null;
+        onLoad(): void;
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
@@ -10107,29 +12679,30 @@ declare module "Cocos3D" {
          * @en The Skinning Model Component
          * @zh 蒙皮模型组件。
          */ export class SkinningModelComponent extends ModelComponent {
+        protected _skeleton: Skeleton | null;
+        protected _skinningRoot: __internal.cocos_core_utils_interfaces_INode | null;
         /**
                  * @en The bone nodes
                  * @zh 骨骼节点。
                  */ skeleton: Skeleton | null;
         /**
                  * 骨骼根节点的引用。
-                 */ skinningRoot: Node | null;
+                 */ skinningRoot: __internal.cocos_core_utils_interfaces_INode | null;
         readonly model: renderer.SkinningModel;
-        protected _skeleton: Skeleton | null;
-        protected _skinningRoot: Node | null;
-        onLoad(): void;
+        frameID: number;
+        uploadAnimation(clip: SkeletalAnimationClip): void;
         _updateModelParams(): void;
         protected _onMaterialModified(index: number, material: Material | null): void;
         protected _getModelConstructor(): typeof renderer.SkinningModel;
         protected _getBuiltinMaterial(): Material;
     }
     /**
-         * !#en The Avatar Model Component
-         * !#ch 换装模型组件
+         * @en The Avatar Model Component
+         * @zh 换装模型组件
          */ export class AvatarModelComponent extends SkinningModelComponent {
         readonly mesh: Mesh | null;
         readonly skeleton: Skeleton | null;
-        readonly skinningRoot: Node | null;
+        readonly skinningRoot: __internal.cocos_core_utils_interfaces_INode | null;
         combinedTexSize: number;
         albedoMapName: string;
         avatarUnits: AvatarUnit[];
@@ -10146,22 +12719,21 @@ declare module "Cocos3D" {
     export class AvatarUnit {
         mesh: Mesh | null;
         skeleton: Skeleton | null;
-        skinningRoot: Node | null;
+        skinningRoot: __internal.cocos_core_utils_interfaces_INode | null;
         atlasSize: any;
         offset: any;
         albedoMap: Texture2D | null;
         source: SkinningModelComponent | null;
     }
     /**
-         * !#en The Batched Skinning Model Component
-         * !#ch 蒙皮模型合批组件
+         * @en The Batched Skinning Model Component
+         * @zh 蒙皮模型合批组件
          */ export class BatchedSkinningModelComponent extends SkinningModelComponent {
         atlasSize: number;
         batchableTextureNames: string[];
         units: SkinningModelUnit[];
         mesh: Mesh | null;
         skeleton: Skeleton | null;
-        skinningRoot: Node | null;
         onLoad(): void;
         onDestroy(): void;
         cook(): void;
@@ -10175,7 +12747,6 @@ declare module "Cocos3D" {
     export class SkinningModelUnit {
         mesh: Mesh | null;
         skeleton: Skeleton | null;
-        skinningRoot: Node | null;
         material: Material | null;
         offset: any;
         size: any;
@@ -10369,213 +12940,13 @@ declare module "Cocos3D" {
         protected _clearMaterials(): void;
         protected _onVisiblityChange(val: any): void;
     }
-    export class ColliderComponent extends __internal.cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent implements __internal.cocos_core_event_event_target_factory_IEventTarget {
-        _callbackTable: __internal.cocos_core_event_callbacks_invoker_ICallbackTable;
-        isTrigger: boolean;
-        /**
-                 * @en
-                 * get the center of the collider, in local space.
-                 * @zh
-                 * 获取碰撞器的中心点。
-                 *
-                 */ /**
-                * @zh
-                * 设置碰撞器的中心点。
-                */ center: Vec3;
-        readonly attachedRigidbody: RigidBodyComponent | null;
-        protected _shapeBase: __internal.cocos_3d_physics_api_ShapeBase;
-        constructor();
-        /**
-                 * @zh
-                 * 注册触发事件或碰撞事件相关的回调。
-                 * @param type - 触发或碰撞事件的类型，可为 'onTriggerEnter'，'onTriggerStay'，'onTriggerExit' 或 'onCollisionEnter'，'onCollisionStay'，'onCollisionExit';
-                 * @param callback - 注册的回调函数
-                 * @param target - 可选参数，执行回调函数的目标
-                 * @param useCapture - 可选参数，当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-                 */ on(type: TriggerEventType | CollisionEventType, callback: TriggerCallback | CollisionCallback, target?: Object, useCapture?: any): any;
-        /**
-                 * @zh
-                 * 取消已经注册的触发事件或碰撞事件相关的回调。
-                 * @param type - 触发或碰撞事件的类型，可为 'onTriggerEnter'，'onTriggerStay'，'onTriggerExit' 或 'onCollisionEnter'，'onCollisionStay'，'onCollisionExit';
-                 * @param callback - 注册的回调函数
-                 * @param target - 可选参数，执行回调函数的目标
-                 * @param useCapture - 可选参数，当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-                 */ off(type: TriggerEventType | CollisionEventType, callback: TriggerCallback | CollisionCallback, target?: Object, useCapture?: any): void;
-        /**
-                 * @zh
-                 * 注册触发事件或碰撞事件相关的回调，但只会执行一次。
-                 * @param type - 触发或碰撞事件的类型，可为 'onTriggerEnter'，'onTriggerStay'，'onTriggerExit' 或 'onCollisionEnter'，'onCollisionStay'，'onCollisionExit';
-                 * @param callback - 注册的回调函数
-                 * @param target - 可选参数，执行回调函数的目标
-                 * @param useCapture - 可选参数，当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-                 */ once(type: TriggerEventType | CollisionEventType, callback: TriggerCallback | CollisionCallback, target?: Object, useCapture?: any): any;
-        /**
-                 * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
-                 */ targetOff(keyOrTarget?: TriggerEventType | CollisionEventType | Object): void;
-        dispatchEvent(event: Event): void;
-        hasEventListener(key: TriggerEventType | CollisionEventType, callback?: TriggerCallback | CollisionCallback, target?: Object): boolean;
-        removeAll(keyOrTarget?: TriggerEventType | CollisionEventType | Object): void;
-        emit(key: TriggerEventType | CollisionEventType, ...args: any[]): void;
-        protected onLoad(): void;
-        protected onEnable(): void;
-        protected onDisable(): void;
-        protected onDestroy(): void;
-    }
-    export class BoxColliderComponent extends ColliderComponent {
-        constructor();
-        protected onLoad(): void;
-        /**
-                 * @en
-                 * Get the size of the box, in local space.
-                 * @zh
-                 * 获取盒的大小。
-                 */ /**
-                * @zh
-                * 设置盒的大小。
-                */ size: Vec3;
-    }
-    export class SphereColliderComponent extends ColliderComponent {
-        constructor();
-        protected onLoad(): void;
-        /**
-                 * @en
-                 * Get the radius of the sphere.
-                 * @zh
-                 * 获取球的半径。
-                 */ /**
-                * @zh
-                * 设置球的半径。
-                */ radius: number;
-    }
-    export class RigidBodyComponent extends __internal.cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent {
-        /**
-                 * @zh
-                 * 获取刚体的质量。
-                 */ /**
-                * @zh
-                * 设置刚体的质量。
-                */ mass: number;
-        /**
-                 * @zh
-                 * 获取线性阻尼。
-                 */ /**
-                * @zh
-                * 设置线性阻尼。
-                */ linearDamping: number;
-        /**
-                 * @zh
-                 * 获取角阻尼。
-                 */ /**
-                * @zh
-                * 设置角阻尼。
-                */ angularDamping: number;
-        /**
-                 * @zh
-                 * 获取刚体是否由物理系统控制运动。
-                 */ /**
-                * @zh
-                * 设置刚体是否由自己控制运动。
-                */ isKinematic: boolean;
-        /**
-                 * @zh
-                 * 获取刚体是否使用重力。
-                 */ /**
-                * @zh
-                * 设置刚体是否使用重力。
-                */ useGravity: boolean;
-        /**
-                 * @zh
-                 * 获取刚体是否固定旋转。
-                 */ /**
-                * @zh
-                * 设置刚体是否固定旋转。
-                */ fixedRotation: boolean;
-        /**
-                 * @zh
-                 * 设置线性速度的因子，可以用来控制每个轴方向上的速度的缩放。
-                 */ linearFactor: Vec3;
-        /**
-                 * @zh
-                 * 设置旋转速度的因子，可以用来控制每个轴方向上的旋转速度的缩放。
-                 */ angularFactor: Vec3;
-        /**
-                 * @zh
-                 * 是否是唤醒的状态。
-                 */ readonly isAwake: boolean;
-        /**
-                 * @zh
-                 * 是否是可进入休眠的状态。
-                 */ readonly isSleepy: boolean;
-        /**
-                 * @zh
-                 * 是否是正在休眠的状态。
-                 */ readonly isSleeping: boolean;
-        constructor();
-        /**
-                 * @zh
-                 * 在世界空间中的某点上对刚体施加一个作用力。
-                 * @param force - 作用力
-                 * @param worldPoint - 作用点
-                 */ applyForce(force: Vec3, worldPoint?: Vec3): void;
-        /**
-                 * @zh
-                 * 在本地空间中的某点上对刚体施加一个作用力。
-                 * @param force - 作用力
-                 * @param localPoint - 作用点
-                 */ applyLocalForce(force: Vec3, localPoint?: Vec3): void;
-        /**
-                 * @zh
-                 * 在世界空间的某点上对刚体施加一个冲量。
-                 * @param impulse - 冲量
-                 * @param worldPoint - 作用点
-                 */ applyImpulse(impulse: Vec3, worldPoint?: Vec3): void;
-        /**
-                 * @zh
-                 * 在本地空间的某点上对刚体施加一个冲量。
-                 * @param impulse - 冲量
-                 * @param localPoint - 作用点
-                 */ applyLocalImpulse(impulse: Vec3, localPoint?: Vec3): void;
-        /**
-                 * @zh
-                 * 唤醒刚体。
-                 */ wakeUp(): void;
-        /**
-                 * @zh
-                 * 休眠刚体。
-                 */ sleep(): void;
-        getLinearVelocity(out: Vec3): Vec3;
-        setLinearVelocity(value: Vec3): void;
-        getAngularVelocity(out: Vec3): Vec3;
-        setAngularVelocity(value: Vec3): void;
-        protected onLoad(): void;
-    }
-    export class PhysicsSystem {
-        constructor();
-        /**
-                 * @zh
-                 * 设置是否只运行一步。
-                 * @param b - 布尔值
-                 */ setSingleStep(b: boolean): void;
-        /**
-                 * @zh
-                 * 继续。
-                 */ resume(): void;
-        /**
-                 * @zh
-                 * 暂停。
-                 */ pause(): void;
-        update(deltaTime: number): void;
-        readonly world: __internal.cocos_3d_physics_api_PhysicsWorldBase;
-    }
     /**
          * @hidden
-         */ /**
-         * @disable
          */ /**
          * @zh 循环列表。
          */ export class CircularPool<T = {}> {
         /**
-                 * @zh 构造函数。
+                 * 构造函数。
                  * @param fn 创建对象函数。
                  * @param size 列表长度。
                  */ constructor(fn: () => T, size: number);
@@ -10587,7 +12958,7 @@ declare module "Cocos3D" {
          * @zh 定长数组。
          */ export class FixedArray<T = {}> {
         /**
-                 * @zh 构造函数。
+                 * 构造函数。
                  * @param size 数组长度。
                  */ constructor(size: number);
         _resize(size: number): void;
@@ -10624,7 +12995,6 @@ declare module "Cocos3D" {
          * @zh 链表，可以自动分配对象。
          */ export class LinkedArray<T = {}> {
         /**
-                 * @zh
                  * 构造函数。
                  * @param fn 对象构建函数。
                  * @param size 内置元素个数。
@@ -10654,16 +13024,12 @@ declare module "Cocos3D" {
     }
     /**
          * 可以自动分配内存的数据结构
-         * @internal
-         * @module memop
-         * @preferred
-         */ /**
-         * @able
+         * @category memop
          */ /**
          * @zh 对象池。
          */ export class Pool<T> {
         /**
-                 * @zh 构造函数。
+                 * 构造函数。
                  * @param fn 元素构造函数。
                  * @param size 初始大小。
                  */ constructor(fn: () => T, size: number);
@@ -10683,7 +13049,7 @@ declare module "Cocos3D" {
          * @zh 循环对象池。
          */ export class RecyclePool<T = any> {
         /**
-                 * @zh 构造函数。
+                 * 构造函数。
                  * @param fn 对象构造函数。
                  * @param size 初始大小。
                  */ constructor(fn: () => T, size: number);
@@ -10753,93 +13119,6 @@ declare module "Cocos3D" {
                  * @zh 重置TypeArray池。
                  */ reset(): void;
     };
-    namespace Assembler {
-        var graphicsAssemblerManager: IAssemblerManager;
-        var labelAssembler: IAssemblerManager;
-        var ttfUtils: {
-            getAssemblerData(): __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData;
-            resetAssemblerData(assemblerData: __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData): void;
-            updateRenderData(comp: LabelComponent): void;
-            updateVerts(comp: LabelComponent): void;
-            _updateFontFamly(comp: LabelComponent): void;
-            _updateProperties(comp: LabelComponent): void;
-            _calculateFillTextStartPosition(): any;
-            _updateTexture(): void;
-            _calculateUnderlineStartPosition(): any;
-            _updateLabelDimensions(): void;
-            _calculateTextBaseline(): void;
-            _calculateSplitedStrings(): void;
-            _getFontDesc(): string;
-            _getLineHeight(): number;
-            _calculateParagraphLength(paragraphedStrings: string[], ctx: CanvasRenderingContext2D): number[];
-            _measureText(ctx: CanvasRenderingContext2D): (string: string) => number;
-            _calculateLabelFont(): void;
-        };
-        var bmfontUtils: {
-            updateRenderData(comp: LabelComponent): void;
-            _updateFontScale(): void;
-            _updateProperties(): void;
-            _resetProperties(): void;
-            _updateContent(): void;
-            _computeHorizontalKerningForText(): void;
-            _multilineTextWrap(nextTokenFunc: Function): boolean;
-            _getFirstCharLen(): number;
-            _getFirstWordLen(text: string, startIndex: number, textLen: number): number;
-            _multilineTextWrapByWord(): boolean;
-            _multilineTextWrapByChar(): boolean;
-            _recordPlaceholderInfo(letterIndex: number, char: string): void;
-            _recordLetterInfo(letterDefinitions: __internal.cocos_3d_ui_assembler_label_bmfontUtils_ILetterDefinition, letterPosition: Vec2, character: string, letterIndex: number, lineIndex: number): void;
-            _alignText(): void;
-            _scaleFontSizeDown(fontSize: number): void;
-            _shrinkLabelToContentSize(lambda: Function): void;
-            _isVerticalClamp(): boolean;
-            _isHorizontalClamp(): boolean | undefined;
-            _isHorizontalClamped(px: number, lineIndex: number): boolean;
-            _updateQuads(): boolean;
-            appendQuad(comp: any, texture: any, rect: any, rotated: any, x: any, y: any, scale: any): void;
-            _computeAlignmentOffset(): void;
-            _setupBMFontOverflowMetrics(): void;
-        };
-        export class CanvasPool {
-            pool: __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData[];
-            get(): __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData;
-            put(canvas: __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData): void;
-        }
-        export enum Stage {
-            DISABLED = 0,
-            CLEAR = 1,
-            ENTER_LEVEL = 2,
-            ENABLED = 3,
-            EXIT_LEVEL = 4
-        }
-        export class StencilManager {
-            static sharedManager: StencilManager | null;
-            stage: Stage;
-            pushMask(mask: MaskComponent): void;
-            clear(): void;
-            enterLevel(): void;
-            enableMask(): void;
-            exitMask(): void;
-            handleMaterial(mat: Material): boolean;
-            getWriteMask(): number;
-            getExitWriteMask(): number;
-            getStencilRef(): number;
-            getInvertedRef(): number;
-            reset(): void;
-        }
-        var spriteAssembler: IAssemblerManager;
-        export interface IAssembler {
-        }
-        export interface IAssemblerManager {
-            getAssembler(component: UIRenderComponent): IAssembler;
-        }
-        export function fillVertices(node: Node, buffer: MeshBuffer, renderData: __internal.cocos_renderer_ui_renderData_RenderData, color: Color): void;
-        export function fillMeshVertices(node: Node, buffer: MeshBuffer, renderData: __internal.cocos_renderer_ui_renderData_RenderData, color: Color): void;
-        export function fillVertices3D(node: Node, renderer: __internal.cocos_renderer_ui_ui_UI, renderData: __internal.cocos_renderer_ui_renderData_RenderData, color: Color): void;
-        export function fillMeshVertices3D(node: Node, renderer: __internal.cocos_renderer_ui_ui_UI, renderData: __internal.cocos_renderer_ui_renderData_RenderData, color: Color): void;
-        export function fillVerticesWithoutCalc(node: Node, buffer: MeshBuffer, renderData: __internal.cocos_renderer_ui_renderData_RenderData, color: Color): void;
-        export function fillVerticesWithoutCalc3D(node: Node, renderer: __internal.cocos_renderer_ui_ui_UI, renderData: __internal.cocos_renderer_ui_renderData_RenderData, color: Color): void;
-    }
     export class MeshBuffer {
         batcher: __internal.cocos_renderer_ui_ui_UI;
         vData: Float32Array | null;
@@ -10856,7 +13135,7 @@ declare module "Cocos3D" {
         dirty: boolean;
         constructor(batcher: __internal.cocos_renderer_ui_ui_UI);
         initialize(attrs: __internal.cocos_gfx_input_assembler_IGFXAttribute[], outofCallback: ((...args: number[]) => void) | null): void;
-        request(vertexCount: number, indiceCount: number): boolean;
+        request(vertexCount?: number, indiceCount?: number): boolean;
         reset(): void;
         destroy(): void;
         uploadData(): void;
@@ -10867,11 +13146,49 @@ declare module "Cocos3D" {
             format: GFXFormat;
         }[];
     }
+    export class StencilManager {
+        static sharedManager: StencilManager | null;
+        stage: __internal.cocos_3d_ui_assembler_mask_stencil_manager_Stage;
+        pushMask(mask: MaskComponent): void;
+        clear(): void;
+        enterLevel(): void;
+        enableMask(): void;
+        exitMask(): void;
+        handleMaterial(mat: Material): boolean;
+        getWriteMask(): number;
+        getExitWriteMask(): number;
+        getStencilRef(): number;
+        getInvertedRef(): number;
+        reset(): void;
+    }
+    export class CanvasPool {
+        pool: __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData[];
+        get(): __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData;
+        put(canvas: __internal.cocos_3d_ui_assembler_label_font_utils_ISharedLabelData): void;
+    }
+    var barFilled: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var radialFilled: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var simple: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var sliced: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var ttf: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var bmfont: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var letter: {
+        createData(comp: LabelComponent): __internal.cocos_renderer_ui_renderData_RenderData;
+        fillBuffers(comp: LabelComponent, renderer: __internal.cocos_renderer_ui_ui_UI): void;
+        appendQuad: any;
+    };
+    var mask: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var maskEnd: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var spriteAssembler: __internal.cocos_3d_ui_assembler_base_IAssemblerManager;
+    var graphics: __internal.cocos_3d_ui_assembler_base_IAssembler;
+    var labelAssembler: __internal.cocos_3d_ui_assembler_base_IAssemblerManager;
+    var graphicsAssembler: __internal.cocos_3d_ui_assembler_base_IAssemblerManager;
     /**
          * @zh
          * 作为 UI 根节点，为所有子节点提供视窗四边的位置信息以供对齐，另外提供屏幕适配策略接口，方便从编辑器设置。
          * 注：由于本节点的尺寸会跟随屏幕拉伸，所以 anchorPoint 只支持 (0.5, 0.5)，否则适配不同屏幕时坐标会有偏差。
          * 同时 UI 相机默认 fov 是 1000，所以 UI 节点的事件坐标一定是大于或等于 0 的，不支持负数。
+         * 可通过 cc.CanvasComponent 获得此组件
          */ export class CanvasComponent extends Component {
         /**
                  * @zh
@@ -10879,9 +13196,13 @@ declare module "Cocos3D" {
                  *
                  * @param value - 渲染优先级。
                  */ priority: number;
+        /**
+                 * @zh Canvas 的 RenderTexture
+                 */ targetTexture: RenderTexture | null;
         readonly visibility: number;
         readonly camera: renderer.Camera | null;
         protected _priority: number;
+        protected _targetTexture: RenderTexture | null;
         protected _thisOnResized: () => void;
         protected _camera: renderer.Camera | null;
         constructor();
@@ -10920,17 +13241,29 @@ declare module "Cocos3D" {
         protected _visibility: number;
         onEnable(): void;
         onDisable(): void;
-        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
-        postUpdateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
+        /**
+                 * @zh
+                 * 渲染数据收集。每个渲染组件都由此自身决定是否渲染以及渲染状态的更新。
+                 *
+                 * @param render 数据处理中转站。
+                 */ updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
+        /**
+                 * @zh
+                 * 后渲染数据收集。每个渲染组件都由此接口决定是否渲染以及渲染状态的更新。
+                 * 一般是在自身子节点 updateAssembler 执行完调用。
+                 *
+                 * @param render 数据处理中转站。
+                 */ postUpdateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
         /**
                  * @zh
                  * 设置当前组件的可视编号。（我们不希望用户自行做处理，除非用户自己知道在做什么）
                  */ setVisibility(value: number): void;
-        protected _parentChanged(node: Node): boolean;
+        protected _parentChanged(node: __internal.cocos_core_utils_interfaces_INode): boolean;
     }
     /**
          * @zh
          * 按钮组件。可以被按下,或者点击。<br/>
+         * 可通过 cc.ButtonComponent 获得此组件
          *
          * 按钮可以通过修改 Transition 来设置按钮状态过渡的方式：<br/>
          *   -Button.Transition.NONE   // 不做任何过渡<br/>
@@ -10953,14 +13286,14 @@ declare module "Cocos3D" {
          *   -cc.Node.EventType.MOUSE_WHEEL // 鼠标滚轮事件<br/>
          *
          * @example
-         * ```ts
+         * ```typescript
          * // Add an event to the button.
-         * button.node.on(cc.Node.EventType.TOUCH_START, function (event) {
+         * button.node.on(cc.Node.EventType.TOUCH_START, (event) => {
          *     cc.log("This is a callback after the trigger event");
          * });
          * // You could also add a click event
          * //Note: In this way, you can't get the touch event info, so use it wisely.
-         * button.node.on('click', function (button) {
+         * button.node.on('click', (button) => {
          *    //The event is a custom event, you could get the Button component via first argument
          * })
          * ```
@@ -10980,19 +13313,19 @@ declare module "Cocos3D" {
         /**
                  * @zh
                  * 普通状态下按钮所显示的颜色。
-                 */ normalColor: Color;
+                 */ normalColor: Readonly<Color>;
         /**
                  * @zh
                  * 按下状态时按钮所显示的颜色。
-                 */ pressedColor: Color;
+                 */ pressedColor: Readonly<Color>;
         /**
                  * @zh
                  * 悬停状态下按钮所显示的颜色。
-                 */ hoverColor: Color;
+                 */ hoverColor: Readonly<Color>;
         /**
                  * @zh
                  * 禁用状态下按钮所显示的颜色。
-                 */ disabledColor: Color;
+                 */ disabledColor: Readonly<Color>;
         /**
                  * @zh
                  * 颜色过渡和缩放过渡时所需时间。
@@ -11024,7 +13357,7 @@ declare module "Cocos3D" {
                  * -如果 Transition type 选择 Button.Transition.NONE，按钮不做任何过渡。<br/>
                  * -如果 Transition type 选择 Button.Transition.COLOR，按钮会对目标颜色进行颜色之间的过渡。<br/>
                  * -如果 Transition type 选择 Button.Transition.Sprite，按钮会对目标 Sprite 进行 Sprite 之间的过渡。<br/>
-                 */ target: Node | null;
+                 */ target: __internal.cocos_core_utils_interfaces_INode | null;
         static Transition: typeof __internal.cocos_3d_ui_components_button_component_Transition;
         /**
                  * @zh
@@ -11207,13 +13540,11 @@ declare module "Cocos3D" {
         /**
                  * @en Let the EditBox get focus
                  * @zh 让当前 EditBox 获得焦点。
-                 * @method setFocus
                  */ setFocus(): void;
         /**
                  * @en Determine whether EditBox is getting focus or not.
                  * @zh 判断 EditBox 是否获得了焦点。
                  * Note: only available on Web at the moment.
-                 * @method isFocused
                  */ isFocused(): boolean;
         update(): void;
     }
@@ -11222,8 +13553,8 @@ declare module "Cocos3D" {
          * Layout 组件相当于一个容器，能自动对它的所有子节点进行统一排版。<br>
          * 注意：<br>
          * 1.不会考虑子节点的缩放和旋转。<br>
-         * 2.对 Layout 设置后结果需要到下一帧才会更新，除非你设置完以后手动调用。
-         * @see updateLayout
+         * 2.对 Layout 设置后结果需要到下一帧才会更新，除非你设置完以后手动调用。[[updateLayout]]
+         * 可通过 cc.LayoutComponent 获得此组件
          */ export class LayoutComponent extends Component {
         /**
                  * @zh
@@ -11236,7 +13567,7 @@ declare module "Cocos3D" {
         /**
                  * @zh
                  * 每个格子的大小，只有布局类型为 GRID 的时候才有效。
-                 */ cellSize: Size;
+                 */ cellSize: Readonly<Size>;
         /**
                  * @zh
                  * 起始轴方向类型，可进行水平和垂直布局排列，只有布局类型为 GRID 的时候才有效。
@@ -11291,7 +13622,7 @@ declare module "Cocos3D" {
                  * 立即执行更新布局。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * layout.type = cc.LayoutComponent.HORIZONTAL;
                  * layout.node.addChild(childNode);
                  * cc.log(childNode.x); // not yet changed
@@ -11305,6 +13636,7 @@ declare module "Cocos3D" {
     /**
          * @zh
          * 遮罩组件。
+         * 可通过 cc.MaskComponent 获得该组件。
          */ export class MaskComponent extends UIRenderComponent {
         /**
                  * @zh
@@ -11330,7 +13662,7 @@ declare module "Cocos3D" {
         readonly clearGraphics: GraphicsComponent | null;
         dstBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         srcBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
-        color: Color;
+        color: Readonly<Color>;
         static Type: typeof __internal.cocos_3d_ui_components_mask_component_MaskType;
         constructor();
         onLoad(): void;
@@ -11341,8 +13673,6 @@ declare module "Cocos3D" {
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
-        postUpdateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
         /**
                  * @zh
                  * 根据屏幕坐标计算点击事件。
@@ -11350,7 +13680,10 @@ declare module "Cocos3D" {
                  * @param cameraPt  屏幕点转换到相机坐标系下的点。
                  */ isHit(cameraPt: Vec2): boolean;
         _resizeNodeToTargetNode(): void;
-        protected _nodeStateChange(): void;
+        protected _render(render: __internal.cocos_renderer_ui_ui_UI): void;
+        protected _postRender(render: __internal.cocos_renderer_ui_ui_UI): void;
+        protected _nodeStateChange(type: SystemEventType): void;
+        protected _resolutionChanged(): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
         protected _parentChanged(node: Node): boolean;
@@ -11358,8 +13691,10 @@ declare module "Cocos3D" {
     /**
          * @zh
          * 进度条组件，可用于显示加载资源时的进度。
+         * 可通过 cc.ProgressBarComponent 获得该组件。
+         *
          * @example
-         * ```ts
+         * ```typescript
          * // update progressBar
          * update(dt) {
          *     var progress = progressBar.progress;
@@ -11398,6 +13733,7 @@ declare module "Cocos3D" {
     /**
          * @zh
          * 富文本组件。
+         * 可通过 cc.RichTextComponent 获得该组件。
          */ export class RichTextComponent extends UIComponent {
         /**
                  * @zh
@@ -11443,6 +13779,7 @@ declare module "Cocos3D" {
     /**
          * @zh
          * 滚动条组件。
+         * 可通过 cc.ScrollBarComponent 获得该组件。
          */ export class ScrollBarComponent extends Component {
         /**
                  * @zh
@@ -11491,11 +13828,12 @@ declare module "Cocos3D" {
     /**
          * @zh
          * 滚动视图组件。
+         * 可通过 cc.ScrollViewComponent 获得该组件。
          */ export class ScrollViewComponent extends ViewGroupComponent {
         /**
                  * @zh
                  * 可滚动展示内容的节点。
-                 */ content: Node | null;
+                 */ content: __internal.cocos_core_utils_interfaces_INode | null;
         /**
                  * @zh
                  * 水平滚动的 ScrollBar。
@@ -11504,8 +13842,8 @@ declare module "Cocos3D" {
                  * @zh
                  * 垂直滚动的 ScrollBar。
                  */ verticalScrollBar: ScrollBarComponent | null;
-        readonly view: Node | null;
-        static EventType: typeof __internal.cocos_3d_ui_components_scroll_view_component_EventType;
+        readonly view: __internal.cocos_core_utils_interfaces_INode | null;
+        static EventType: typeof __internal.cocos_3d_ui_components_scroll_view_component_ScrollViewEventType;
         /**
                  * @zh
                  * 是否开启水平滚动。
@@ -11539,6 +13877,10 @@ declare module "Cocos3D" {
                  * 如果这个属性被设置为 true，那么滚动行为会取消子节点上注册的触摸事件，默认被设置为 true。<br/>
                  * 注意，子节点上的 touchstart 事件仍然会触发，触点移动距离非常短的情况下 touchmove 和 touchend 也不会受影响。
                  */ cancelInnerEvents: boolean;
+        protected _autoScrolling: boolean;
+        protected _scrolling: boolean;
+        protected _horizontalScrollBar: ScrollBarComponent | null;
+        protected _verticalScrollBar: ScrollBarComponent | null;
         /**
                  * @zh
                  * 视图内容将在规定时间内滚动到视图底部。
@@ -11546,7 +13888,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到底部边界。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to the bottom of the view.
                  * scrollView.scrollToBottom(0.1);
                  * ```
@@ -11558,7 +13900,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到顶部边界。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to the top of the view.
                  * scrollView.scrollToTop(0.1);
                  * ```
@@ -11570,7 +13912,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左边边界。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to the left of the view.
                  * scrollView.scrollToLeft(0.1);
                  * ```
@@ -11582,7 +13924,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右边边界。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to the right of the view.
                  * scrollView.scrollToRight(0.1);
                  * ```
@@ -11594,7 +13936,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左上边边界。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to the upper left corner of the view.
                  * scrollView.scrollToTopLeft(0.1);
                  * ```
@@ -11606,7 +13948,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右上边界。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to the top right corner of the view.
                  * scrollView.scrollToTopRight(0.1);
                  * ```
@@ -11618,7 +13960,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左下边界。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to the lower left corner of the view.
                  * scrollView.scrollToBottomLeft(0.1);
                  * ```
@@ -11630,7 +13972,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右边下边界。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to the lower right corner of the view.
                  * scrollView.scrollToBottomRight(0.1);
                  * ```
@@ -11643,7 +13985,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定偏移量处。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to middle position in 0.1 second in x-axis
                  * let maxScrollOffset = this.getMaxScrollOffset();
                  * scrollView.scrollToOffset(new Vec3(maxScrollOffset.x / 2, 0, 0), 0.1);
@@ -11669,7 +14011,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定水平百分比位置。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Scroll to middle position.
                  * scrollView.scrollToBottomRight(0.5, 0.1);
                  * ```
@@ -11682,7 +14024,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定水平或垂直百分比位置。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // Vertical scroll to the bottom of the view.
                  * scrollView.scrollTo(new Vec2(0, 1), 0.1);
                  *
@@ -11698,7 +14040,7 @@ declare module "Cocos3D" {
                  * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定垂直百分比位置。
                  * @param attenuated - 滚动加速是否衰减，默认为 true。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * scrollView.scrollToPercentVertical(0.5, 0.1);
                  * ```
                  */ scrollToPercentVertical(percent: number, timeInSecond: number, attenuated?: boolean): void;
@@ -11735,10 +14077,70 @@ declare module "Cocos3D" {
         onEnable(): void;
         update(dt: number): void;
         onDisable(): void;
+        protected _registerEvent(): void;
+        protected _unregisterEvent(): void;
+        /**
+                 * @zh
+                 * 鼠标滚轮事件。
+                 *
+                 * @param event - 鼠标事件信息。
+                 * @param captureListeners
+                 */ protected _onMouseWheel(event: EventMouse, captureListeners?: any): void;
+        protected _onTouchBegan(event: EventTouch, captureListeners?: any): void;
+        protected _onTouchMoved(event: EventTouch, captureListeners?: any): void;
+        protected _onTouchEnded(event: EventTouch, captureListeners?: any): void;
+        protected _onTouchCancelled(event: EventTouch, captureListeners?: any): void;
+        /**
+                 * @zh
+                 * 重新计算内容活动边界（view）
+                 */ protected _calculateBoundary(): void;
+        protected _hasNestedViewGroup(event?: Event, captureListeners?: any): boolean | undefined;
+        protected _handleReleaseLogic(touch: any): void;
+        protected _startInertiaScroll(touchMoveVelocity: Vec3): void;
+        protected _calculateAttenuatedFactor(distance: number): number;
+        protected _startAttenuatingAutoScroll(deltaMove: Vec3, initialVelocity: Vec3): void;
+        protected _calculateAutoScrollTimeByInitalSpeed(initalSpeed: any): number;
+        protected _startAutoScroll(deltaMove: Vec3, timeInSecond: number, attenuated?: boolean): void;
+        protected _calculateTouchMoveVelocity(): Vec3;
+        protected _flattenVectorByDirection(vector: Vec3): Vec3;
+        protected _moveContent(deltaMove: Vec3, canStartBounceBack?: boolean): void;
+        protected _getContentLeftBoundary(): number;
+        protected _getContentRightBoundary(): number;
+        protected _getContentTopBoundary(): number;
+        protected _getContentBottomBoundary(): number;
+        protected _getHowMuchOutOfBoundary(addition?: Vec3): Vec3;
+        protected _updateScrollBar(outOfBoundary: Vec3): void;
+        protected _onScrollBarTouchBegan(): void;
+        protected _onScrollBarTouchEnded(): void;
+        protected _dispatchEvent(event: any): void;
+        protected _adjustContentOutOfBoundary(): void;
+        protected _hideScrollbar(): void;
+        protected _showScrollbar(): void;
+        protected _stopPropagationIfTargetIsMe(event?: Event): void;
+        protected _processDeltaMove(deltaMove: Vec3): void;
+        protected _handleMoveLogic(touch: __internal.cocos_core_platform_event_manager_CCTouch_default): void;
+        protected _scrollChildren(deltaMove: Vec3): void;
+        protected _handlePressLogic(): void;
+        protected _clampDelta(delta: Vec3): Vec3;
+        protected _gatherTouchMove(delta: Vec3): void;
+        protected _startBounceBackIfNeeded(): boolean;
+        protected _processInertiaScroll(): void;
+        protected _isOutOfBoundary(): boolean;
+        protected _isNecessaryAutoScrollBrake(): boolean;
+        protected _processAutoScrolling(dt: any): void;
+        protected _checkMouseWheel(dt: number): void;
+        protected _calculateMovePercentDelta(options: any): Vec3;
+        /**
+                 * @zh
+                 *
+                 *
+                 * @param scrollViewSize - 可视区域尺寸。
+                 */ protected _moveContentToTopLeft(scrollViewSize: Size): void;
     }
     /**
          * @zh
          * 滑动器组件。
+         * 可通过 cc.SliderComponent 获得该组件。
          */ export class SliderComponent extends Component {
         /**
                  * @zh
@@ -11761,7 +14163,11 @@ declare module "Cocos3D" {
         onEnable(): void;
         onDisable(): void;
     }
-    export class SpriteComponent extends UIRenderComponent {
+    /**
+         * @zh
+         * 渲染精灵组件。
+         * 可通过 cc.SpriteComponent 获得该组件。
+         */ export class SpriteComponent extends UIRenderComponent {
         /**
                  * @zh
                  * 精灵的图集。
@@ -11775,7 +14181,7 @@ declare module "Cocos3D" {
                  * 精灵渲染类型。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * sprite.type = cc.SpriteComponent.Type.SIMPLE;
                  * ```
                  */ type: __internal.cocos_3d_ui_components_sprite_component_SpriteType;
@@ -11784,7 +14190,7 @@ declare module "Cocos3D" {
                  * 精灵填充类型，仅渲染类型设置为 cc.SpriteComponent.Type.FILLED 时有效。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * sprite.fillType = cc.SpriteComponent.FillType.HORIZONTAL;
                  * ```
                  */ fillType: __internal.cocos_3d_ui_components_sprite_component_FillType;
@@ -11793,26 +14199,26 @@ declare module "Cocos3D" {
                  * 填充中心点，仅渲染类型设置为 cc.SpriteComponent.Type.FILLED 时有效。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * sprite.fillCenter = cc.v2(0, 0);
                  * ```
                  */ fillCenter: Vec2;
         /**
                  * @zh
-                 * 填充起始点，仅渲染类型设置为 cc.Sprite.Type.FILLED 时有效。
+                 * 填充起始点，仅渲染类型设置为 cc.SpriteComponent.Type.FILLED 时有效。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // -1 To 1 between the numbers
                  * sprite.fillStart = 0.5;
                  * ```
                  */ fillStart: number;
         /**
                  * @zh
-                 * 填充范围，仅渲染类型设置为 cc.Sprite.Type.FILLED 时有效。
+                 * 填充范围，仅渲染类型设置为 cc.SpriteComponent.Type.FILLED 时有效。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * // -1 To 1 between the numbers
                  * sprite.fillRange = 1;
                  * ```
@@ -11821,7 +14227,7 @@ declare module "Cocos3D" {
                  * @zh  是否使用裁剪模式。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * sprite.trim = true;
                  * ```
                  */ trim: boolean;
@@ -11829,7 +14235,7 @@ declare module "Cocos3D" {
                  * @zh  精灵尺寸调整模式。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * sprite.sizeMode = cc.SpriteComponent.SizeMode.CUSTOM;
                  * ```
                  */ sizeMode: __internal.cocos_3d_ui_components_sprite_component_SizeMode;
@@ -11838,14 +14244,15 @@ declare module "Cocos3D" {
         static SizeMode: typeof __internal.cocos_3d_ui_components_sprite_component_SizeMode;
         __preload(): void;
         onEnable(): void;
-        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         onDestroy(): void;
+        protected _render(render: __internal.cocos_renderer_ui_ui_UI): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
     }
     /**
          * @zh
          * Toggle 是一个 CheckBox，当它和 ToggleGroup 一起使用的时候，可以变成 RadioButton。
+         * 可通过 cc.ToggleComponent 获得该组件。
          */ export class ToggleComponent extends ButtonComponent {
         /**
                  * @zh
@@ -11884,6 +14291,7 @@ declare module "Cocos3D" {
          * @zh
          * ToggleGroup 不是一个可见的 UI 组件，它可以用来修改一组 Toggle  组件的行为。当一组 Toggle 属于同一个 ToggleGroup 的时候，<br/>
          * 任何时候只能有一个 Toggle 处于选中状态。
+         * 可通过 cc.ToggleContainerComponent 获得该组件。
          */ export class ToggleContainerComponent extends Component {
         checkEvents: EventHandler[];
         /**
@@ -11916,7 +14324,8 @@ declare module "Cocos3D" {
     }
     /**
          * @zh
-         * UI 模型基础类。
+         * UI 模型基础组件。
+         * 可通过 cc.UIModelComponent 获得该组件。
          */ export class UIModelComponent extends UIComponent {
         readonly modelComponent: RenderableComponent | null;
         onLoad(): void;
@@ -11927,6 +14336,7 @@ declare module "Cocos3D" {
     /**
          * @zh
          * 所有支持渲染的 UI 组件的基类。
+         * 可通过 cc.UIRenderComponent 获得该组件。
          */ export class UIRenderComponent extends UIComponent {
         /**
                  * @zh
@@ -11934,7 +14344,7 @@ declare module "Cocos3D" {
                  *
                  * @param value 原图混合模式。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * sprite.srcBlendFactor = GFXBlendFactor.ONE;
                  * ```
                  */ srcBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
@@ -11944,7 +14354,7 @@ declare module "Cocos3D" {
                  *
                  * @param value 目标混合模式。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * sprite.dstBlendFactor = GFXBlendFactor.ONE;
                  * ```
                  */ dstBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
@@ -11953,7 +14363,7 @@ declare module "Cocos3D" {
                  * 渲染颜色。
                  *
                  * @param value 渲染颜色。
-                 */ color: Color;
+                 */ color: Readonly<Color>;
         /**
                  * @zh
                  * 渲染使用材质，实际使用材质是实例后材质。
@@ -11963,18 +14373,17 @@ declare module "Cocos3D" {
         readonly material: Material | null;
         readonly renderData: __internal.cocos_renderer_ui_renderData_RenderData | null;
         static BlendState: typeof __internal.cocos_gfx_define_GFXBlendFactor;
-        static Assembler: Assembler.IAssemblerManager | null;
-        static PostAssembler: Assembler.IAssemblerManager | null;
+        static Assembler: __internal.cocos_3d_ui_assembler_base_IAssemblerManager | null;
+        static PostAssembler: __internal.cocos_3d_ui_assembler_base_IAssemblerManager | null;
         protected _srcBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         protected _dstBlendFactor: __internal.cocos_gfx_define_GFXBlendFactor;
         protected _color: Color;
         protected _sharedMaterial: Material | null;
-        protected _assembler: Assembler.IAssembler | null;
-        protected _postAssembler: Assembler.IAssembler | null;
-        protected _renderDataPoolID: number;
+        protected _assembler: __internal.cocos_3d_ui_assembler_base_IAssembler | null;
+        protected _postAssembler: __internal.cocos_3d_ui_assembler_base_IAssembler | null;
         protected _renderData: __internal.cocos_renderer_ui_renderData_RenderData | null;
-        protected _renderDataDirty: boolean;
-        protected _renderPermit: boolean;
+        protected _renderDataFlag: boolean;
+        protected _renderFlag: boolean;
         protected _material: Material | null;
         protected _instanceMaterialType: __internal.cocos_3d_ui_components_ui_render_component_InstanceMaterialType;
         protected _blendTemplate: {
@@ -12007,37 +14416,38 @@ declare module "Cocos3D" {
                  * @zh
                  * 渲染数据销毁。
                  */ destroyRenderData(): void;
-        /**
-                 * @zh
-                 * 每个渲染组件都由此接口决定是否渲染以及渲染状态的更新。
-                 *
-                 * @param render 数据处理中转站。
-                 */ updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
+        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
+        postUpdateAssembler(render: __internal.cocos_renderer_ui_ui_UI): void;
+        protected _render(render: __internal.cocos_renderer_ui_ui_UI): void;
+        protected _postRender(render: __internal.cocos_renderer_ui_ui_UI): void;
         protected _checkAndUpdateRenderData(): void;
         protected _canRender(): boolean;
+        protected _postCanRender(): void;
         protected _updateColor(): void;
         protected _updateMaterial(material: Material | null): void;
         protected _updateBlendFunc(): void;
-        protected _nodeStateChange(): void;
+        protected _nodeStateChange(type: SystemEventType): void;
         protected _instanceMaterial(): void;
         protected _flushAssembler?(): void;
     }
-    export class UITransformComponent extends Component {
+    /**
+         * @zh
+         * UI 变换组件。
+         * 可通过 cc.UITransformComponent 获得该组件。
+         */ export class UITransformComponent extends Component {
         /**
                  * @zh
                  * 内容尺寸。
-                 */ contentSize: Size;
+                 */ contentSize: Readonly<Size>;
         width: number;
         height: number;
         /**
                  * @zh
                  * 锚点位置。
-                 */ anchorPoint: Vec2;
+                 */ anchorPoint: Readonly<Vec2>;
         anchorX: number;
         anchorY: number;
         static EventType: typeof SystemEventType;
-        _contentSize: Size;
-        _anchorPoint: Vec2;
         __preload(): void;
         onDestroy(): void;
         /**
@@ -12047,7 +14457,7 @@ declare module "Cocos3D" {
                  * @param size - 节点内容变换的尺寸或者宽度。
                  * @param height - 节点内容未变换的高度。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * node.setContentSize(cc.size(100, 100));
                  * node.setContentSize(100, 100);
                  * ```
@@ -12064,7 +14474,7 @@ declare module "Cocos3D" {
                  * @param point - 节点锚点或节点 x 轴锚。
                  * @param y - 节点 y 轴锚。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * node.setAnchorPoint(cc.v2(1, 1));
                  * node.setAnchorPoint(1, 1);
                  * ```
@@ -12085,7 +14495,7 @@ declare module "Cocos3D" {
                  * @param out - 转换后坐标。
                  * @returns - 返回与目标节点的相对位置。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * var newVec2 = uiTransform.convertToNodeSpaceAR(cc.v3(100, 100, 0));
                  * ```
                  */ convertToNodeSpaceAR(worldPoint: Vec3, out?: Vec3): Vec3;
@@ -12097,7 +14507,7 @@ declare module "Cocos3D" {
                  * @param out - 转换后坐标。
                  * @returns - 返回 UI 世界坐标系。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * var newVec2 = uiTransform.convertToWorldSpaceAR(3(100, 100, 0));
                  * ```
                  */ convertToWorldSpaceAR(nodePoint: Vec3, out?: Vec3): Vec3;
@@ -12107,7 +14517,7 @@ declare module "Cocos3D" {
                  *
                  * @return - 节点大小的包围盒
                  * @example
-                 * ```ts
+                 * ```typescript
                  * var boundingBox = uiTransform.getBoundingBox();
                  * ```
                  */ getBoundingBox(): Rect;
@@ -12118,7 +14528,7 @@ declare module "Cocos3D" {
                  *
                  * @returns - 返回世界坐标系下包围盒。
                  * @example
-                 * ```ts
+                 * ```typescript
                  * var newRect = uiTransform.getBoundingBoxToWorld();
                  * ```
                  */ getBoundingBoxToWorld(): Rect;
@@ -12210,7 +14620,7 @@ declare module "Cocos3D" {
         /**
                  * @zh
                  * 指定一个对齐目标，只能是当前节点的其中一个父节点，默认为空，为空时表示当前父节点。
-                 */ target: Node | null;
+                 */ target: __internal.cocos_core_utils_interfaces_INode | null;
         /**
                  * @zh
                  * 是否对齐上边。
@@ -12288,7 +14698,9 @@ declare module "Cocos3D" {
                  * 指定 Widget 的对齐模式，用于决定 Widget 应该何时刷新。
                  *
                  * @example
+                 * ```
                  * widget.alignMode = cc.Widget.AlignMode.ON_WINDOW_RESIZE;
+                 * ```
                  */ alignMode: __internal.cocos_3d_ui_components_widget_component_AlignMode;
         /**
                  * @zh
@@ -12312,7 +14724,7 @@ declare module "Cocos3D" {
                  * 只有当你需要在当前帧结束前获得 widget 对齐后的最新结果时才需要手动调用这个方法。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * widget.top = 10;       // change top margin
                  * cc.log(widget.node.y); // not yet changed
                  * widget.updateAlignment();
@@ -12326,13 +14738,17 @@ declare module "Cocos3D" {
         update(): void;
         onDisable(): void;
         protected _aotuChangedValue(flag: __internal.cocos_3d_ui_components_widget_component_AlignFlags, isAbs: boolean): void;
+        protected _registerTargetEvents(): void;
+        protected _unregisterTargetEvents(): void;
+        protected _targetChangedOperation(): void;
     }
     /**
          * @zh
          * 描边效果组件,用于字体描边,只能用于系统字体。
+         * 可通过 cc.LabelOutlineComponent 获得此组件
          *
          * @example
-         * ```ts
+         * ```typescript
          *
          *  // Create a new node and add label components.
          *  var node = new cc.Node("New Label");
@@ -12346,23 +14762,24 @@ declare module "Cocos3D" {
                  * 改变描边的颜色。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * outline.color = cc.color(0.5, 0.3, 0.7, 1.0);
                  * ```
-                 */ color: Color;
+                 */ color: Readonly<Color>;
         /**
                  * @zh
                  * 改变描边的宽度。
                  *
                  * @example
-                 * ```ts
+                 * ```typescript
                  * outline.width = 3;
                  * ```
                  */ width: number;
     }
     /**
-         * @class Graphics
-         * @extends Component
+         * @zh
+         * 自定义图形类
+         * 可通过 cc.GraphicsComponent 获得此组件
          */ export class GraphicsComponent extends UIRenderComponent {
         /**
                  * @zh
@@ -12379,11 +14796,11 @@ declare module "Cocos3D" {
         /**
                  * @zh
                  * 线段颜色。
-                 */ strokeColor: Color;
+                 */ strokeColor: Readonly<Color>;
         /**
                  * @zh
                  * 填充颜色。
-                 */ fillColor: Color;
+                 */ fillColor: Readonly<Color>;
         /**
                  * @zh
                  * 设置斜接面限制比例。
@@ -12494,7 +14911,7 @@ declare module "Cocos3D" {
         /**
                  * @zh
                  * 擦除之前绘制的所有内容的方法。
-                 */ clear(): void;
+                 */ clear(clean?: boolean): void;
         /**
                  * @zh
                  * 将笔点返回到当前路径起始点的。它尝试从当前点到起始点绘制一条直线。
@@ -12507,14 +14924,171 @@ declare module "Cocos3D" {
                  * @zh
                  * 根据当前的画线样式，填充当前或已经存在的路径。
                  */ fill(): void;
-        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
         /**
                  * @zh
                  * 辅助材质实例化。可用于只取数据而无实体情况下渲染使用。特殊情况可参考：[[_instanceMaterial]]
                  */ helpInstanceMaterial(): void;
+        protected _render(render: __internal.cocos_renderer_ui_ui_UI): void;
         protected _instanceMaterial(): void;
         protected _flushAssembler(): void;
         protected _canRender(): boolean;
+    }
+    /**
+         * @zh
+         * UI 及 UI 模型渲染基类。
+         */ export class UIReorderComponent extends UIComponent {
+    }
+    /**
+         * @en The PageView control
+         * @zh 页面视图组件
+         */ export class PageViewComponent extends ScrollViewComponent {
+        /**
+                 * @en Specify the size type of each page in PageView.
+                 * @zh 页面视图中每个页面大小类型
+                 */ sizeMode: __internal.cocos_3d_ui_components_page_view_component_SizeMode;
+        /**
+                 * @en The page view direction
+                 * @zh 页面视图滚动类型
+                 */ direction: __internal.cocos_3d_ui_components_page_view_component_Direction;
+        /**
+                 * @en
+                 * The scroll threshold value, when drag exceeds this value,
+                 * release the next page will automatically scroll, less than the restore
+                 * @zh 滚动临界值，默认单位百分比，当拖拽超出该数值时，松开会自动滚动下一页，小于时则还原。
+                 */ scrollThreshold: number;
+        /**
+                 * @en Change the PageTurning event timing of PageView.
+                 * @zh 设置 PageView PageTurning 事件的发送时机。
+                 */ pageTurningEventTiming: number;
+        /**
+                 * @en The Page View Indicator
+                 * @zh 页面视图指示器组件
+                 */ indicator: PageViewIndicatorComponent | null;
+        readonly curPageIdx: number;
+        static SizeMode: typeof __internal.cocos_3d_ui_components_page_view_component_SizeMode;
+        static Direction: typeof __internal.cocos_3d_ui_components_page_view_component_Direction;
+        static EventType: typeof __internal.cocos_3d_ui_components_page_view_component_PageViewEventType;
+        /**
+                 * @en
+                 * Auto page turning velocity threshold. When users swipe the PageView quickly,
+                 * it will calculate a velocity based on the scroll distance and time,
+                 * if the calculated velocity is larger than the threshold, then it will trigger page turning.
+                 * @zh
+                 * 快速滑动翻页临界值。
+                 * 当用户快速滑动时，会根据滑动开始和结束的距离与时间计算出一个速度值，
+                 * 该值与此临界值相比较，如果大于临界值，则进行自动翻页。
+                 */ autoPageTurningThreshold: number;
+        readonly verticalScrollBar: ScrollBarComponent | null;
+        readonly horizontalScrollBar: ScrollBarComponent | null;
+        horizontal: boolean;
+        vertical: boolean;
+        cancelInnerEvents: boolean;
+        scrollEvents: EventHandler[];
+        /**
+                 * @en The time required to turn over a page. unit: second
+                 * @zh 每个页面翻页时所需时间。单位：秒
+                 * @property {Number} pageTurningSpeed
+                 */ pageTurningSpeed: number;
+        /**
+                 * @en PageView events callback
+                 * @zh 滚动视图的事件回调函数
+                 */ pageEvents: EventHandler[];
+        __preload(): void;
+        onEnable(): void;
+        onDisable(): void;
+        onLoad(): void;
+        onDestroy(): void;
+        /**
+                 * @en Returns current page index.
+                 * @zh 返回当前页面索引。
+                 * @returns 当前页面索引。
+                 */ getCurrentPageIndex(): number;
+        /**
+                 * @en Set current page index.
+                 * @zh 设置当前页面索引。
+                 * @param index 索引。
+                 */ setCurrentPageIndex(index: number): void;
+        /**
+                 * @en Returns all pages of pageview.
+                 * @zh 返回视图中的所有页面。
+                 * @returns 输=视图所有页面。
+                 */ getPages(): __internal.cocos_core_utils_interfaces_INode[];
+        /**
+                 * @en At the end of the current page view to insert a new view.
+                 * @zh 在当前页面视图的尾部插入一个新视图。
+                 * @param page 新视图。
+                 */ addPage(page: __internal.cocos_core_utils_interfaces_INode): void;
+        /**
+                 * @en Inserts a page in the specified location.
+                 * @zh 将页面插入指定位置中。
+                 * @param page 新视图。
+                 * @param index 指定位置。
+                 */ insertPage(page: __internal.cocos_core_utils_interfaces_INode, index: number): void;
+        /**
+                 * @en Removes a page from PageView.
+                 * @zh 移除指定页面。
+                 * @param page 指定页面。
+                 */ removePage(page: __internal.cocos_core_utils_interfaces_INode): void;
+        /**
+                 * @en Removes a page at index of PageView.
+                 * @zh 移除指定下标的页面。
+                 * @param index 页面下标。
+                 */ removePageAtIndex(index: number): void;
+        /**
+                 * @en Removes all pages from PageView
+                 * @zh 移除所有页面。
+                 */ removeAllPages(): void;
+        /**
+                 * @en Scroll PageView to index.
+                 * @zh 滚动到指定页面
+                 * @param idx index of page.
+                 * @param timeInSecond scrolling time.
+                 */ scrollToPage(idx: number, timeInSecond?: number): void;
+        getScrollEndedEventTiming(): number;
+        protected _updatePageView(): void;
+        protected _updateAllPagesSize(): void;
+        protected _handleReleaseLogic(): void;
+        protected _onTouchBegan(event: EventTouch, captureListeners: any): void;
+        protected _onTouchMoved(event: EventTouch, captureListeners: any): void;
+        protected _onTouchEnded(event: EventTouch, captureListeners: any): void;
+        protected _onTouchCancelled(event: EventTouch, captureListeners: any): void;
+        protected _onMouseWheel(): void;
+    }
+    /**
+         * @en The Page View Indicator Component
+         * @zh 页面视图每页标记组件
+         */ export class PageViewIndicatorComponent extends Component {
+        /**
+                 * @en The spriteFrame for each element.
+                 * @zh 每个页面标记显示的图片
+                 */ spriteFrame: SpriteFrame | null;
+        /**
+                 * @en The location direction of PageViewIndicator.
+                 * @zh 页面标记摆放方向
+                 * @param direction 摆放方向
+                 */ direction: __internal.cocos_3d_ui_components_page_view_indicator_component_Direction;
+        /**
+                 * @en The cellSize for each element.
+                 * @zh 每个页面标记的大小
+                 */ cellSize: Size;
+        static Direction: typeof __internal.cocos_3d_ui_components_page_view_indicator_component_Direction;
+        /**
+                 * @en The distance between each element.
+                 * @zh 每个页面标记之间的边距
+                 */ spacing: number;
+        _spriteFrame: SpriteFrame | null;
+        _direction: __internal.cocos_3d_ui_components_page_view_indicator_component_Direction;
+        _cellSize: Size;
+        onLoad(): void;
+        /**
+                 * @en Set Page View
+                 * @zh 设置页面视图
+                 * @param target 页面视图对象
+                 */ setPageView(target: PageViewComponent): void;
+        _updateLayout(): void;
+        _createIndicator(): Node;
+        _changedState(): void;
+        _refresh(): void;
     }
     var widgetManager: {
         isAligning: boolean;
@@ -12529,7 +15103,7 @@ declare module "Cocos3D" {
         add(widget: WidgetComponent): void;
         remove(widget: WidgetComponent): void;
         onResized(): void;
-        refreshWidgetOnResized(node: Node): void;
+        refreshWidgetOnResized(node: __internal.cocos_core_utils_interfaces_INode): void;
         updateOffsetsToStayPut(widget: WidgetComponent, e?: __internal.cocos_3d_ui_components_widget_component_AlignFlags | undefined): void;
         updateAlignment: typeof __internal.cocos_3d_ui_components_widget_manager_updateAlignment;
         AlignMode: typeof __internal.cocos_3d_ui_components_widget_component_AlignMode;
@@ -12583,6 +15157,7 @@ declare module "Cocos3D" {
          */ /**
          * @zh
          * 文字标签组件。
+         * 可通过 cc.LabelComponent 获得此组件
          */ export class LabelComponent extends UIRenderComponent {
         /**
                  * @zh
@@ -12653,37 +15228,17 @@ declare module "Cocos3D" {
         static VerticalAlign: typeof VerticalTextAlignment;
         static Overflow: typeof Overflow;
         static CacheMode: typeof CacheMode;
-        static CanvasPool: Assembler.CanvasPool;
+        static CanvasPool: CanvasPool;
         constructor();
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
         updateRenderData(force?: boolean): void;
-        updateAssembler(render: __internal.cocos_renderer_ui_ui_UI): boolean;
+        protected _render(render: __internal.cocos_renderer_ui_ui_UI): void;
         protected _updateColor(): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
     }
-    export interface ITriggerEvent {
-        type: TriggerEventType;
-        selfCollider: ColliderComponent;
-        otherCollider: ColliderComponent;
-    }
-    export type TriggerEventType = 'onTriggerEnter' | 'onTriggerStay' | 'onTriggerExit';
-    export type TriggerCallback = (event: ITriggerEvent) => void;
-    export interface IContactEquation {
-        contactA: Vec3;
-        contactB: Vec3;
-        normal: Vec3;
-    }
-    export interface ICollisionEvent {
-        type: CollisionEventType;
-        selfCollider: ColliderComponent;
-        otherCollider: ColliderComponent;
-        contacts: IContactEquation[];
-    }
-    export type CollisionEventType = 'onCollisionEnter' | 'onCollisionStay' | 'onCollisionExit';
-    export type CollisionCallback = (event: ICollisionEvent) => void;
     /**
          * @zh
          * GFX顶点属性名。
@@ -12854,7 +15409,7 @@ declare module "Cocos3D" {
         reuse(...args: any[]): void;
     }
     /**
-         * !#en
+         * @en
          *  cc.NodePool is the cache pool designed for node type.<br/>
          *  It can helps you to improve your game performance for objects which need frequent release and recreate operations<br/>
          *
@@ -12866,7 +15421,7 @@ declare module "Cocos3D" {
          *      1. Bullets in game (die very soon, massive creation and recreation, no side effect on other objects)<br/>
          *      2. Blocks in candy crash (massive creation and recreation)<br/>
          *      etc...
-         * !#zh
+         * @zh
          * cc.NodePool 是用于管理节点对象的对象缓存池。<br/>
          * 它可以帮助您提高游戏性能，适用于优化对象的反复创建和销毁<br/>
          * 以前 cocos2d-x 中的 cc.pool 和新的节点事件注册系统不兼容，因此请使用 cc.NodePool 来代替。
@@ -12880,16 +15435,16 @@ declare module "Cocos3D" {
          *      等等....
          */ export class NodePool {
         /**
-                 * !#en The pool handler component, it could be the class name or the constructor.
-                 * !#zh 缓冲池处理组件，用于节点的回收和复用逻辑，这个属性可以是组件类名或组件的构造函数。
+                 * @en The pool handler component, it could be the class name or the constructor.
+                 * @zh 缓冲池处理组件，用于节点的回收和复用逻辑，这个属性可以是组件类名或组件的构造函数。
                  */ poolHandlerComp?: Constructor<IPoolHandlerComponent> | string;
         /**
-                 * !#en
+                 * @en
                  * Constructor for creating a pool for a specific node template (usually a prefab).
                  * You can pass a component (type or name) argument for handling event for reusing and recycling node.
-                 * !#zh
+                 * @zh
                  * 使用构造函数来创建一个节点专用的对象池，您可以传递一个组件类型或名称，用于处理节点回收和复用时的事件逻辑。
-                 * @param poolHandlerComp !#en The constructor or the class name of the component to control the unuse/reuse logic. !#zh 处理节点回收和复用事件逻辑的组件类型或名称。
+                 * @param poolHandlerComp @en The constructor or the class name of the component to control the unuse/reuse logic. @zh 处理节点回收和复用事件逻辑的组件类型或名称。
                  * @example
                  *  properties: {
                  *      template: cc.Prefab
@@ -12901,18 +15456,18 @@ declare module "Cocos3D" {
                  *  }
                  */ constructor(poolHandlerComp?: Constructor<IPoolHandlerComponent> | string);
         /**
-                 * !#en The current available size in the pool
-                 * !#zh 获取当前缓冲池的可用对象数量
+                 * @en The current available size in the pool
+                 * @zh 获取当前缓冲池的可用对象数量
                  */ size(): number;
         /**
-                 * !#en Destroy all cached nodes in the pool
-                 * !#zh 销毁对象池中缓存的所有节点
+                 * @en Destroy all cached nodes in the pool
+                 * @zh 销毁对象池中缓存的所有节点
                  */ clear(): void;
         /**
-                 * !#en Put a new Node into the pool.
+                 * @en Put a new Node into the pool.
                  * It will automatically remove the node from its parent without cleanup.
                  * It will also invoke unuse method of the poolHandlerComp if exist.
-                 * !#zh 向缓冲池中存入一个不再需要的节点对象。
+                 * @zh 向缓冲池中存入一个不再需要的节点对象。
                  * 这个函数会自动将目标节点从父节点上移除，但是不会进行 cleanup 操作。
                  * 这个函数会调用 poolHandlerComp 的 unuse 函数，如果组件和函数都存在的话。
                  * @example
@@ -12920,16 +15475,1489 @@ declare module "Cocos3D" {
                  *   this.myPool.put(myNode);
                  */ put(obj: Node): void;
         /**
-                 * !#en Get a obj from pool, if no available object in pool, null will be returned.
+                 * @en Get a obj from pool, if no available object in pool, null will be returned.
                  * This function will invoke the reuse function of poolHandlerComp if exist.
-                 * !#zh 获取对象池中的对象，如果对象池没有可用对象，则返回空。
+                 * @zh 获取对象池中的对象，如果对象池没有可用对象，则返回空。
                  * 这个函数会调用 poolHandlerComp 的 reuse 函数，如果组件和函数都存在的话。
-                 * @param args - !#en Params to pass to 'reuse' method in poolHandlerComp !#zh 向 poolHandlerComp 中的 'reuse' 函数传递的参数
+                 * @param args - 向 poolHandlerComp 中的 'reuse' 函数传递的参数
                  * @example
                  *   let newNode = this.myPool.get();
                  */ get(...args: any[]): Node | null;
     }
+    export interface IWrapOptions {
+        oldTarget: Function | {};
+        oldPrefix: string;
+        pairs: string[][];
+        newTarget?: Function | {};
+        newPrefix?: string;
+        custom?: Function;
+        compatible?: boolean;
+    }
+    interface IDeprecatedItem {
+        name: string;
+        logTimes?: number;
+    }
+    interface IReplacement extends IDeprecatedItem {
+        newName?: string;
+        target?: object;
+        targetName?: string;
+        customFunction?: Function;
+        customSetter?: (v: any) => void;
+        customGetter?: () => any;
+    }
+    interface IRemoveItem extends IDeprecatedItem {
+    }
+    interface IMarkItem extends IDeprecatedItem {
+    }
+    var replaceProperty: (owner: object, ownerName: string, properties: IReplacement[]) => void;
+    var removeProperty: (owner: object, ownerName: string, properties: IRemoveItem[]) => void;
+    var markAsWarning: (owner: object, ownerName: string, properties: IMarkItem[]) => void;
+    namespace easing {
+        /**
+             * @category animation
+             */ export function constant(): number;
+        export function linear(k: number): number;
+        export function quadIn(k: number): number;
+        export function quadOut(k: number): number;
+        export function quadInOut(k: number): number;
+        export function cubicIn(k: number): number;
+        export function cubicOut(k: number): number;
+        export function cubicInOut(k: number): number;
+        export function quartIn(k: number): number;
+        export function quartOut(k: number): number;
+        export function quartInOut(k: number): number;
+        export function quintIn(k: number): number;
+        export function quintOut(k: number): number;
+        export function quintInOut(k: number): number;
+        export function sineIn(k: number): number;
+        export function sineOut(k: number): number;
+        export function sineInOut(k: number): number;
+        export function expoIn(k: number): number;
+        export function expoOut(k: number): number;
+        export function expoInOut(k: number): number;
+        export function circIn(k: number): number;
+        export function circOut(k: number): number;
+        export function circInOut(k: number): number;
+        export function elasticIn(k: number): number;
+        export function elasticOut(k: number): number;
+        export function elasticInOut(k: number): number;
+        export function backIn(k: number): number;
+        export function backOut(k: number): number;
+        export function backInOut(k: number): number;
+        export function bounceIn(k: number): number;
+        export function bounceOut(k: number): number;
+        export function bounceInOut(k: number): number;
+        export function smooth(k: number): number;
+        export function fade(k: number): number;
+        var quadOutIn: (k: number) => number;
+        var cubicOutIn: (k: number) => number;
+        var quartOutIn: (k: number) => number;
+        var quintOutIn: (k: number) => number;
+        var sineOutIn: (k: number) => number;
+        var expoOutIn: (k: number) => number;
+        var circOutIn: (k: number) => number;
+        var backOutIn: (k: number) => number;
+        var bounceOutIn: (k: number) => number;
+    }
+    export class ComponentModifier implements __internal.cocos_animation_target_modifier_ICustomTargetModifier {
+        component: string;
+        constructor(component?: string);
+        get(target: __internal.cocos_core_utils_interfaces_INode): Component;
+    }
+    export class HierachyModifier implements __internal.cocos_animation_target_modifier_ICustomTargetModifier {
+        path: string;
+        constructor(path?: string);
+        get(target: __internal.cocos_core_utils_interfaces_INode): Node;
+    }
+    export function isElementModifier(modifier: __internal.cocos_animation_target_modifier_TargetModifier): modifier is __internal.cocos_animation_target_modifier_ElementModifier;
+    export function isPropertyModifier(modifier: __internal.cocos_animation_target_modifier_TargetModifier): modifier is __internal.cocos_animation_target_modifier_PropertyModifier;
+    export function isCustomTargetModifier<T extends __internal.cocos_animation_target_modifier_ICustomTargetModifier>(modifier: __internal.cocos_animation_target_modifier_TargetModifier, constructor: Constructor<T>): modifier is T;
+    export function bezier(C1: number, C2: number, C3: number, C4: number, t: number): number;
+    export function bezierByTime(controlPoints: BezierControlPoints, x: number): number;
+    /**
+         * @category animation
+         */ export type BezierControlPoints = [number, number, number, number];
+    /**
+         * 采样动画曲线。
+         * @param curve 动画曲线。
+         * @param sampler 采样器。
+         * @param ratio 采样比率。
+         */ export function sampleAnimationCurve(curve: AnimCurve, sampler: RatioSampler, ratio: number): any;
+    /**
+         * Compute a new ratio by curve type.
+         * @param ratio - The origin ratio
+         * @param type - If it's Array, then ratio will be computed with bezierByTime.
+         * If it's string, then ratio will be computed with cc.easing function
+         */ export function computeRatioByType(ratio: number, type: EasingMethod): number;
+    /**
+         * 表示曲线值，曲线值可以是任意类型，但必须符合插值方式的要求。
+         */ export type CurveValue = any;
+    /**
+         * 表示曲线的目标对象。
+         */ export type CurveTarget = Record<string, any>;
+    /**
+         * 内置帧时间渐变方式名称。
+         */ export type EasingMethodName = keyof (typeof easing);
+    /**
+         * 帧时间渐变方式。可能为内置帧时间渐变方式的名称或贝塞尔控制点。
+         */ export type EasingMethod = EasingMethodName | BezierControlPoints;
+    /**
+         * 曲线数据。
+         */ export interface IPropertyCurveData {
+        /**
+                 * 曲线使用的时间轴。
+                 * @see {AnimationClip.keys}
+                 */ keys: number;
+        /**
+                 * 曲线值。曲线值的数量应和 `keys` 所引用时间轴的帧数相同。
+                 */ values: CurveValue[];
+        /**
+                 * 曲线任意两帧时间的渐变方式。仅当 `easingMethods === undefined` 时本字段才生效。
+                 */ easingMethod?: EasingMethod;
+        /**
+                 * 描述了每一帧时间到下一帧时间之间的渐变方式。
+                 */ easingMethods?: EasingMethod[];
+        /**
+                 * 是否进行插值。
+                 * @default true
+                 */ interpolate?: boolean;
+    }
+    export interface INestedPropertyCurveData {
+        /**
+                 * 曲线值适配器。
+                 * 若存在曲线值适配器，将从曲线值适配器中获取曲线值代理以获取和设置曲线值；
+                 * 否则，直接使用赋值操作符写入曲线值。
+                 * @example
+                 * ```
+                 * [
+                 *   'sharedMaterials',
+                 *   0,
+                 *   new UniformCurveValueAdapter('albedo', 0, 0),
+                 * ]
+                 * ```
+                 */ properties: Array<number | string | CurveValueAdapter>;
+        data: IPropertyCurveData;
+    }
+    export class RatioSampler {
+        ratios: number[];
+        constructor(ratios: number[]);
+        sample(ratio: number): number;
+    }
+    /**
+         * 动画曲线。
+         */ export class AnimCurve {
+        static Linear: null;
+        static Bezier(controlPoints: number[]): [number, number, number, number];
+        types?: Array<(EasingMethod | null)>;
+        type?: EasingMethod | null;
+        constructor(propertyCurveData: Omit<IPropertyCurveData, "keys">, duration: number);
+        hasLerp(): boolean;
+        valueAt(index: number): any;
+        valueBetween(ratio: number, from: number, fromRatio: number, to: number, toRatio: number): any;
+        empty(): boolean;
+    }
+    export class EventInfo {
+        events: any[];
+        /**
+                 * @param func event function
+                 * @param params event params
+                 */ add(func: string, params: any[]): void;
+    }
+    /**
+         * 曲线值代理用来设置曲线值到目标，是广义的赋值。
+         * 每个曲线值代理都关联着一个目标对象。
+         */ export interface ICurveValueProxy {
+        /**
+                 * 设置曲线值到目标对象上。
+                 */ set: (value: any) => void;
+    }
+    /**
+         * 曲线值适配器是曲线值代理的工厂。
+         */ export class CurveValueAdapter {
+        /**
+                 * 返回指定目标的曲线值代理。
+                 * @param target
+                 */ forTarget(target: any): ICurveValueProxy;
+    }
+    export interface ITargetCurveData {
+        modifiers: __internal.cocos_animation_target_modifier_TargetModifier[];
+        valueAdapter?: CurveValueAdapter;
+        data: IPropertyCurveData;
+    }
+    interface IAnimationEventData {
+        frame: number;
+        func: string;
+        params: string[];
+    }
+    export interface IObjectCurveData {
+    }
+    export interface IComponentsCurveData {
+    }
+    export interface INodeCurveData {
+        props?: IObjectCurveData;
+        comps?: IComponentsCurveData;
+    }
+    export interface ICurveData {
+    }
+    export interface IRuntimeCurve {
+        /**
+                 * 属性曲线。
+                 */ curve: AnimCurve;
+        /**
+                 * 目标修改器。
+                 */ modifiers: __internal.cocos_animation_target_modifier_TargetModifier[];
+        /**
+                 * 曲线值适配器。
+                 */ valueAdapter?: CurveValueAdapter;
+        /**
+                 * 曲线采样器。
+                 */ sampler: RatioSampler | null;
+    }
+    export interface IAnimationEvent {
+        functionName: string;
+        parameters: string[];
+    }
+    export interface IAnimationEventGroup {
+        events: IAnimationEvent[];
+    }
+    /**
+         * 动画剪辑。
+         */ export class AnimationClip extends Asset {
+        static WrapMode: typeof __internal.cocos_animation_types_WrapMode;
+        /**
+                 * @en Crate clip with a set of sprite frames
+                 * @zh 使用一组序列帧图片来创建动画剪辑
+                 * @example
+                 * ```
+                 * const clip = cc.AnimationClip.createWithSpriteFrames(spriteFrames, 10);
+                 * ```
+                 */ static createWithSpriteFrames(spriteFrames: SpriteFrame[], sample: number): AnimationClip | null;
+        /**
+                 * 动画帧率，单位为帧/秒。
+                 */ sample: number;
+        /**
+                 * 动画的播放速度。
+                 */ speed: number;
+        /**
+                 * 动画的循环模式。
+                 */ wrapMode: __internal.cocos_animation_types_WrapMode;
+        /**
+                 * 动画的曲线数据。
+                 * @deprecated 请转用 `this.curves`
+                 */ curveDatas?: ICurveData;
+        /**
+                 * 动画包含的事件数据。
+                 */ events: IAnimationEventData[];
+        protected _duration: number;
+        protected _keys: number[][];
+        protected _ratioSamplers: RatioSampler[];
+        protected _runtimeCurves?: IRuntimeCurve[];
+        protected _runtimeEvents?: {
+            ratios: number[];
+            eventGroups: IAnimationEventGroup[];
+        };
+        protected frameRate: number;
+        protected _stepness: number;
+        protected _hash: number;
+        /**
+                 * 动画的周期。
+                 */ duration: number;
+        /**
+                 * 动画所有时间轴。
+                 */ keys: number[][];
+        /**
+                 * @protected
+                 */ readonly eventGroups: ReadonlyArray<IAnimationEventGroup>;
+        /**
+                 * @protected
+                 */ /**
+                * @protected
+                */ stepness: number;
+        readonly hash: number;
+        curves: ITargetCurveData[];
+        onLoaded(): void;
+        getPropertyCurves(root: __internal.cocos_core_utils_interfaces_INode): ReadonlyArray<IRuntimeCurve>;
+        /**
+                 * 提交曲线数据的修改。
+                 * 当你修改了 `this.curveDatas`、`this.keys` 或 `this.duration`时，
+                 * 必须调用 `this.updateCurveDatas()` 使修改生效。
+                 * @deprecated
+                 */ updateCurveDatas(): void;
+        /**
+                 * 提交事件数据的修改。
+                 * 当你修改了 `this.events` 时，必须调用 `this.updateEventDatas()` 使修改生效。
+                 * @protected
+                 */ updateEventDatas(): void;
+        /**
+                 * Gets the event group shall be processed at specified ratio.
+                 * @param ratio The ratio.
+                 * @protected
+                 */ getEventGroupIndexAtRatio(ratio: number): number;
+        /**
+                 * 返回本动画是否包含事件数据。
+                 * @protected
+                 */ hasEvents(): boolean;
+        protected _createPropertyCurves(): void;
+        protected _createRuntimeEvents(): void;
+        protected _applyStepness(): void;
+    }
+    export class AnimationManager {
+        constructor();
+        readonly blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState;
+        addCrossFade(crossFade: __internal.cocos_animation_cross_fade_CrossFade): void;
+        removeCrossFade(crossFade: __internal.cocos_animation_cross_fade_CrossFade): void;
+        update(dt: number): void;
+        destruct(): void;
+        addAnimation(anim: AnimationState): void;
+        removeAnimation(anim: AnimationState): void;
+        pushDelayEvent(target: Node, func: string, args: any[]): void;
+    }
+    export class ICurveInstance {
+        constructor(runtimeCurve: Omit<IRuntimeCurve, "sampler">, target: any, blendTarget?: __internal.cocos_animation_animation_blend_state_PropertyBlendState | null);
+        attachToBlendState(blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState): void;
+        dettachFromBlendState(blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState): void;
+        applySample(ratio: number, index: number, lerpRequired: boolean, samplerResultCache: any, weight: number): void;
+        readonly propertyName: string;
+        readonly curveDetail: Pick<IRuntimeCurve, "curve" | "modifiers" | "valueAdapter">;
+    }
+    /**
+         * The curves in ISamplerSharedGroup share a same keys.
+         */ interface ISamplerSharedGroup {
+        sampler: RatioSampler | null;
+        curves: ICurveInstance[];
+        samplerResultCache: {
+            from: number;
+            fromRatio: number;
+            to: number;
+            toRatio: number;
+        };
+    }
+    export interface IAnimationEventDefinitionMap {
+        "finished": (animationState: AnimationState) => void;
+        "lastframe": (animationState: AnimationState) => void;
+        "play": (animationState: AnimationState) => void;
+        "pause": (animationState: AnimationState) => void;
+        "resume": (animationState: AnimationState) => void;
+        "stop": (animationState: AnimationState) => void;
+    }
+    /**
+         * @en
+         * The AnimationState gives full control over animation playback process.
+         * In most cases the Animation Component is sufficient and easier to use. Use the AnimationState if you need full control.
+         * @zh
+         * AnimationState 完全控制动画播放过程。<br/>
+         * 大多数情况下 动画组件 是足够和易于使用的。如果您需要更多的动画控制接口，请使用 AnimationState。
+         *
+         */ export class AnimationState extends __internal.cocos_animation_playable_Playable {
+        /**
+                 * @en The clip that is being played by this animation state.
+                 * @zh 此动画状态正在播放的剪辑。
+                 */ readonly clip: AnimationClip;
+        /**
+                 * @en The name of the playing animation.
+                 * @zh 动画的名字。
+                 */ readonly name: string;
+        readonly length: number;
+        /**
+                 * @en
+                 * Wrapping mode of the playing animation.
+                 * Notice : dynamic change wrapMode will reset time and repeatCount property
+                 * @zh
+                 * 动画循环方式。
+                 * 需要注意的是，动态修改 wrapMode 时，会重置 time 以及 repeatCount。
+                 * @default: WrapMode.Normal
+                 */ wrapMode: __internal.cocos_animation_types_WrapMode;
+        /**
+                 * @en The animation's iteration count property.
+                 *
+                 * A real number greater than or equal to zero (including positive infinity) representing the number of times
+                 * to repeat the animation node.
+                 *
+                 * Values less than zero and NaN values are treated as the value 1.0 for the purpose of timing model
+                 * calculations.
+                 *
+                 * @zh 迭代次数，指动画播放多少次后结束, normalize time。 如 2.5（2次半）。
+                 *
+                 * @property repeatCount
+                 * @type {Number}
+                 * @default 1
+                 */ repeatCount: number;
+        /**
+                 * @en The start delay which represents the number of seconds from an animation's start time to the start of
+                 * the active interval.
+                 * @zh 延迟多少秒播放。
+                 * @default 0
+                 */ delay: number;
+        /**
+                 * @en The curves list.
+                 * @zh 曲线列表。
+                 */ /**
+                 * @en The iteration duration of this animation in seconds. (length)
+                 * @zh 单次动画的持续时间，秒。
+                 * @readOnly
+                 */ duration: number;
+        /**
+                 * @en The animation's playback speed. 1 is normal playback speed.
+                 * @zh 播放速率。
+                 * @default: 1.0
+                 */ speed: number;
+        /**
+                 * @en The current time of this animation in seconds.
+                 * @zh 动画当前的时间，秒。
+                 * @default 0
+                 */ time: number;
+        /**
+                 * The weight.
+                 */ weight: number;
+        frameRate: number;
+        _lastframeEventOn: boolean;
+        protected _wrapMode: __internal.cocos_animation_types_WrapMode;
+        protected _repeatCount: number;
+        /**
+                 * Mark whether the current frame is played.
+                 * When set new time to animation state, we should ensure the frame at the specified time being played at next update.
+                 */ protected _currentFramePlayed: boolean;
+        protected _delay: number;
+        protected _delayTime: number;
+        protected _wrappedInfo: __internal.cocos_animation_types_WrappedInfo;
+        protected _lastWrapInfo: __internal.cocos_animation_types_WrappedInfo | null;
+        protected _lastWrapInfoEvent: __internal.cocos_animation_types_WrappedInfo | null;
+        protected _process: () => void;
+        protected _target: __internal.cocos_core_utils_interfaces_INode | null;
+        protected _targetNode: __internal.cocos_core_utils_interfaces_INode | null;
+        protected _clip: AnimationClip;
+        protected _name: string;
+        protected _lastIterations?: number;
+        protected _samplerSharedGroups: ISamplerSharedGroup[];
+        protected _curveLoaded: boolean;
+        protected _ignoreIndex: number;
+        constructor(clip: AnimationClip, name?: string);
+        readonly curveLoaded: boolean;
+        initialize(root: __internal.cocos_core_utils_interfaces_INode): void;
+        _emit(type: any, state: any): void;
+        emit<K extends string>(type: K, ...args: __internal.cocos_core_event_defines_EventArgumentsOf<K, IAnimationEventDefinitionMap>): void;
+        on<K extends string>(type: K, callback: __internal.cocos_core_event_defines_EventCallbackOf<K, IAnimationEventDefinitionMap>, target?: any): void;
+        once<K extends string>(type: K, callback: __internal.cocos_core_event_defines_EventCallbackOf<K, IAnimationEventDefinitionMap>, target?: any): void;
+        off(type: string, callback: Function, target?: any): void;
+        _setEventTarget(target: any): void;
+        setTime(time: number): void;
+        update(delta: number): void;
+        _needReverse(currentIterations: number): boolean;
+        getWrappedInfo(time: number, info?: __internal.cocos_animation_types_WrappedInfo): __internal.cocos_animation_types_WrappedInfo;
+        sample(): __internal.cocos_animation_types_WrappedInfo;
+        process(): void;
+        simpleProcess(): void;
+        attachToBlendState(blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState): void;
+        detachFromBlendState(blendState: __internal.cocos_animation_animation_blend_state_AnimationBlendState): void;
+        cache(frames: number): void;
+        protected onPlay(): void;
+        protected onStop(): void;
+        protected onResume(): void;
+        protected onPause(): void;
+    }
+    interface ICubicSplineValue<T> extends __internal.cocos_animation_types_ILerpable {
+        dataPoint: T;
+        inTangent: T;
+        outTangent: T;
+        lerp(to: ICubicSplineValue<T>, t: number, dt: number): T;
+        getNoLerp(): T;
+    }
+    type CubicSplineValueConstructor<T> = new (dataPoint: T, inTangent: T, outTangent: T) => ICubicSplineValue<T>;
+    var CubicSplineVec2Value: CubicSplineValueConstructor<Vec2>;
+    var CubicSplineVec3Value: CubicSplineValueConstructor<Vec3>;
+    var CubicSplineVec4Value: CubicSplineValueConstructor<Vec4>;
+    var CubicSplineQuatValue: CubicSplineValueConstructor<Quat>;
+    export class CubicSplineNumberValue implements ICubicSplineValue<number> {
+        dataPoint: number;
+        inTangent: number;
+        outTangent: number;
+        constructor(dataPoint: number, inTangent: number, outTangent: number);
+        lerp(to: CubicSplineNumberValue, t: number, dt: number): number;
+        getNoLerp(): number;
+    }
+    /**
+         * @en The event type supported by Animation
+         * @zh Animation 支持的事件类型。
+         */ export enum EventType {
+        PLAY = "play",
+        STOP = "stop",
+        PAUSE = "pause",
+        RESUME = "resume",
+        LASTFRAME = "lastframe",
+        FINISHED = "finished"
+    }
+    /**
+         * 动画组件管理动画状态来控制动画的播放。
+         * 它提供了方便的接口用来预创建指定动画剪辑的动画状态，并提供了一系列事件：
+         *  - play : 开始播放时
+         *  - stop : 停止播放时
+         *  - pause : 暂停播放时
+         *  - resume : 恢复播放时
+         *  - lastframe : 假如动画循环次数大于 1，当动画播放到最后一帧时
+         *  - finished : 动画播放完成时
+         */ export class AnimationComponent extends Component implements __internal.cocos_core_event_event_target_factory_IEventTarget {
+        /**
+                 * 获取此动画组件的自有动画剪辑。
+                 * 动画组件开始运行时会为每个自有动画剪辑创建动画状态。
+                 */ /**
+                * 设置此动画组件的自有动画剪辑。
+                * 设置时将移除已有的动画剪辑，并将其动画状态设为停止；若默认动画剪辑不在新的自有动画剪辑中，将被重置为空。
+                */ clips: (AnimationClip | null)[];
+        /**
+                 * 获取默认动画剪辑。
+                 * @see [[playOnLoad]]
+                 */ /**
+                * 设置默认动画剪辑。当指定的剪辑不在 `this.clips` 中时会被自动添加至 `this.clips`。
+                */ defaultClip: AnimationClip | null;
+        static EventType: typeof EventType;
+        /**
+                 * 是否在动画组件开始运行时自动播放默认动画剪辑。
+                 */ playOnLoad: boolean;
+        _callbackTable: __internal.cocos_core_event_callbacks_invoker_ICallbackTable;
+        protected _crossFade: __internal.cocos_animation_cross_fade_CrossFade;
+        protected _nameToState: {};
+        protected _clips: Array<(AnimationClip | null)>;
+        protected _defaultClip: AnimationClip | null;
+        onLoad(): void;
+        start(): void;
+        onEnable(): void;
+        onDisable(): void;
+        onDestroy(): void;
+        /**
+                 * 立即切换到指定动画状态。
+                 * @param [name] 目标动画状态的名称；若未指定，使用默认动画剪辑的名称。
+                 */ play(name?: string): void;
+        /**
+                 * 在指定周期内从当前动画状态平滑地切换到指定动画状态。
+                 * @param name 目标动画状态的名称。
+                 * @param duration 切换周期，单位为秒。
+                 */ crossFade(name: string, duration?: number): void;
+        /**
+                 * 暂停所有动画状态，并暂停动画切换。
+                 */ pause(): void;
+        /**
+                 * 恢复所有动画状态，并继续动画切换。
+                 */ resume(): void;
+        /**
+                 * 停止所有动画状态，并停止动画切换。
+                 */ stop(): void;
+        /**
+                 * 获取指定的动画状态。
+                 * @deprecated 将在 V1.0.0 移除，请转用 `this.getState()`。
+                 */ getAnimationState(name: string): AnimationState;
+        /**
+                 * 获取指定的动画状态。
+                 * @param name 动画状态的名称。
+                 * @returns 不存在指定名称的动画状态时返回空，否则返回指定的动画状态。
+                 */ getState(name: string): AnimationState;
+        /**
+                 * 使用指定的动画剪辑创建一个动画状态，并将其命名为指定的名称。
+                 * 若指定名称的动画状态已存在，已存在的动画状态将先被设为停止并被移除。
+                 * @param clip 动画剪辑。
+                 * @param name 动画状态的名称，若未指定，则使用动画剪辑的名称。
+                 * @returns 新创建的动画状态。
+                 */ createState(clip: AnimationClip, name?: string): AnimationState;
+        /**
+                 * 停止并移除指定名称的动画状态。
+                 * @param name 动画状态的名称。
+                 */ removeState(name: string): void;
+        /**
+                 * 添加一个动画剪辑到 `this.clips`中并以此剪辑创建动画状态。
+                 * @deprecated 将在 V1.0.0 移除，请转用 `this.createState()`。
+                 * @param clip 动画剪辑。
+                 * @param name 动画状态的名称，若未指定，则使用动画剪辑的名称。
+                 * @returns 新创建的动画状态。
+                 */ addClip(clip: AnimationClip, name?: string): AnimationState;
+        /**
+                 * @en
+                 * Remove clip from the animation list. This will remove the clip and any animation states based on it.<br>
+                 * If there are animation states depand on the clip are playing or clip is defaultClip, it will not delete the clip.<br>
+                 * But if force is true, then will always remove the clip and any animation states based on it. If clip is defaultClip, defaultClip will be reset to null
+                 * @zh
+                 * 从动画列表中移除指定的动画剪辑，<br/>
+                 * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。<br/>
+                 * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。<br/>
+                 * @deprecated 将在 V1.0.0 移除，请转用 `this.removeState()`。
+                 * @param {Boolean} [force=false] - If force is true, then will always remove the clip and any animation states based on it.
+                 */ removeClip(clip: AnimationClip, force?: boolean): void;
+        /**
+                 * @en
+                 * Register animation event callback.<bg>
+                 * The event arguments will provide the AnimationState which emit the event.<bg>
+                 * When play an animation, will auto register the event callback to the AnimationState,<bg>
+                 * and unregister the event callback from the AnimationState when animation stopped.
+                 * @zh
+                 * 注册动画事件回调。<bg>
+                 * 回调的事件里将会附上发送事件的 AnimationState。<bg>
+                 * 当播放一个动画时，会自动将事件注册到对应的 AnimationState 上，停止播放时会将事件从这个 AnimationState 上取消注册。
+                 * @param type - 表示要侦听的事件类型的字符串。
+                 * @param callback - 调度事件时将调用的回调。
+                 *                   如果回调是重复的（回调是唯一的），则忽略回调。
+                 * @param target - 调用回调的目标（此对象）可以为null
+                 * @return 只返回传入的回调，以便可以更轻松地保存匿名函数。
+                 * @example
+                 * ```typescript
+                 * onPlay: function (type, state) {
+                 *     // callback
+                 * }
+                 *
+                 * // register event to all animation
+                 * animation.on('play', this.onPlay, this);
+                 * ```
+                 */ on(type: string, callback: (state: AnimationState) => void, target?: Object): Function | undefined;
+        /**
+                 * @en
+                 * Unregister animation event callback.
+                 * @zh
+                 * 取消注册动画事件回调。
+                 * @param {String} type - 要删除的事件类型的字符串。
+                 * @param {Function} callback - 要删除的回调
+                 * @param {Object} target - 调用回调的目标（此对象），如果没有给出，则只删除没有目标的回调
+                 * @example
+                 * ```typescript
+                 * // unregister event to all animation
+                 * animation.off('play', this.onPlay, this);
+                 * ```
+                 */ off(type: string, callback: Function, target?: Object): void;
+        /**
+                 * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
+                 */ targetOff(keyOrTarget?: string | Object | undefined): void;
+        once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
+        dispatchEvent(event: Event): void;
+        hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
+        removeAll(keyOrTarget?: string | Object | undefined): void;
+        emit(key: string, ...args: any[]): void;
+        protected _createState(clip: AnimationClip, name?: string): AnimationState;
+        protected _doCreateState(clip: AnimationClip, name: string): AnimationState;
+    }
+    type ConvertedData = Record<string, {
+        props: Record<string, IPropertyCurveData>;
+    }>;
+    export class FrameIDValueAdapter extends CurveValueAdapter {
+        path: string;
+        component: string;
+        constructor(path: string, component: string);
+        forTarget(target: any): {
+            set: (value: any) => void;
+        };
+    }
+    /**
+         * 骨骼动画剪辑。
+         */ export class SkeletalAnimationClip extends AnimationClip {
+        convertedData: ConvertedData;
+        protected _converted: boolean;
+        getPropertyCurves(root: __internal.cocos_core_utils_interfaces_INode): ReadonlyArray<IRuntimeCurve>;
+    }
+    export class SkeletalAnimationState extends AnimationState {
+        onPlay(): void;
+        rebuildSocketCurves(sockets: Socket[]): void;
+    }
+    export class Socket {
+        path: string;
+        target: __internal.cocos_core_utils_interfaces_INode | null;
+        constructor(path?: string, target?: __internal.cocos_core_utils_interfaces_INode | null);
+    }
+    /**
+         * 骨骼动画组件，额外提供骨骼挂点功能
+         */ export class SkeletalAnimationComponent extends AnimationComponent {
+        static Socket: typeof Socket;
+        _sockets: Socket[];
+        sockets: Socket[];
+        start(): void;
+        querySockets(): string[];
+        rebuildSocketAnimations(): void;
+        createSocket(path: string): __internal.cocos_core_utils_interfaces_INode | null;
+        protected _createState(clip: AnimationClip, name?: string): SkeletalAnimationState;
+        protected _doCreateState(clip: AnimationClip, name: string): SkeletalAnimationState;
+    }
+    export function getPathFromRoot(target: __internal.cocos_core_utils_interfaces_INode | null, root: __internal.cocos_core_utils_interfaces_INode): string;
+    export function getWorldTransformUntilRoot(target: __internal.cocos_core_utils_interfaces_INode, root: __internal.cocos_core_utils_interfaces_INode, outMatrix: Mat4): void;
+    export class UniformCurveValueAdapter extends CurveValueAdapter {
+        passIndex: number;
+        uniformName: string;
+        constructor();
+        forTarget(target: Material): {
+            set: (value: any) => void;
+        };
+    }
+    /**
+         * @en
+         * for compatible cocos creator
+         * @zh
+         * 为兼容 cocos creator 的 Tween 而封装的 tween.js
+         * @see
+         * https://github.com/cocos-creator/tween.js
+         */ export class Tween {
+        constructor(target: Object);
+        /**
+                 * @zh
+                 * 增加一个相对缓动
+                 * @param duration 缓动时间
+                 * @param props 缓动的属性，相对值
+                 * @param opts 缓动的可选项
+                 */ to(duration: number, props: ITweenProp, opts?: ITweenOption): this;
+        /**
+                 * @zh
+                 * 增加一个绝对缓动
+                 * @param duration 缓动时间
+                 * @param props 缓动的属性，绝对值
+                 * @param opts 缓动的可选项
+                 */ by(duration: number, props: ITweenProp, opts?: ITweenOption): this;
+        /**
+                 * @zh
+                 * 将以上的缓动联合成一个 union
+                 */ union(): this;
+        /**
+                 * @zh
+                 * 开始执行缓动。
+                 *
+                 * 注：调用此方法后，请勿再增加缓动行为。
+                 */ start(): this;
+        /**
+                 * @zh
+                 * 停止缓动。
+                 *
+                 * 注：此方法尚不稳定。
+                 */ stop(): this;
+        /**
+                 * @zh
+                 * 重复几次。
+                 *
+                 * 注：目前多次调用为重写次数，不是累加次数。
+                 *
+                 * 注：repeat(1) 代表重复一次，即执行两次。
+                 *
+                 * 注：暂不支持传入 Tween。
+                 *
+                 * @param times 次数
+                 */ repeat(times: number): this;
+        /**
+                 * @zh
+                 * 一直重复。
+                 *
+                 * 注：此方法可能会被废弃。
+                 */ repeatForever(): this;
+        /**
+                 * @zh
+                 * 延迟多少时间这个缓动，单位是秒。
+                 * @param timeInSecond 时间
+                 */ delay(timeInSecond: number): this;
+        /**
+                 * @zh
+                 * 注册缓动执行完成后的回调。
+                 *
+                 * 注：一个 to 或 一个 union 仅支持注册一个。
+                 * @param callback 回调
+                 */ call(callback: (object?: any) => void): this;
+    }
+    /**
+         * @zh
+         * 增加一个 tween 缓动，与 creator 2D 中的 cc.tween 功能类似
+         * @param target 缓动目标
+         *
+         * 注：请勿对 node 矩阵相关数据直接进行缓动，例如传入 this.node.position
+         * @example
+         *
+         * ```typescript
+         *
+         * let position = new math.Vec3();
+         *
+         * tweenUtil(position)
+         *
+         *    .to(2, new math.Vec3(0, 2, 0), { easing: 'Cubic-InOut' })
+         *
+         *    .start();
+         *
+         * ```
+         */ export function tweenUtil(target: Object): Tween;
+    /**
+         * @hidden
+         */ export type TweenEasing = "Linear-None" | "Quadratic-In" | "Quadratic-Out" | "Quadratic-InOut" | "Cubic-In" | "Cubic-Out" | "Cubic-InOut" | "Quartic-In" | "Quartic-Out" | "Quartic-InOut" | "Quintic-In" | "Quintic-Out" | "Quintic-InOut" | "Sinusoidal-In" | "Sinusoidal-Out" | "Sinusoidal-InOut" | "Exponential-In" | "Exponential-Out" | "Exponential-InOut" | "Circular-In" | "Circular-Out" | "Circular-InOut" | "Elastic-In" | "Elastic-Out" | "Elastic-InOut" | "Back-In" | "Back-Out" | "Back-InOut" | "Bounce-In" | "Bounce-Out" | "Bounce-InOut";
+    export type TweenInterpolation = "Linear" | "Bezier" | "CatmullRom";
+    export interface ITweenOption {
+        delay?: number;
+        repeat?: number;
+        repeatDelay?: number;
+        yoyo?: boolean;
+        easing?: TweenEasing | ((k: number) => number);
+        interpolation?: TweenInterpolation | ((v: number[], k: number) => number);
+        onStart?: (object?: any) => void;
+        onStop?: (object?: any) => void;
+        onUpdate?: (object?: any) => void;
+        onComplete?: (object?: any) => void;
+    }
+    export interface ITweenProp {
+    }
+    /**
+         * @zh
+         * 增加一个 tween 缓动，与 creator 2D 中的 cc.tween 功能类似
+         * @deprecated
+         * 下个版本中将会移除 tween 方法，请及时调整为 tweenUtil
+         * @param target 缓动目标
+         *
+         * 注：请勿对 node 矩阵相关数据直接进行缓动，例如传入 this.node.position
+         * @example
+         *
+         * ```typescript
+         *
+         * let position = new math.Vec3();
+         *
+         * tweenUtil(position)
+         *
+         *    .to(2, new math.Vec3(0, 2, 0), { easing: 'Cubic-InOut' })
+         *
+         *    .start();
+         *
+         * ```
+         */ export function tween(target: {}): Tween;
+    /**
+         * @zh
+         * 碰撞器的基类
+         */ export class ColliderComponent extends __internal.cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent implements __internal.cocos_core_event_event_target_factory_IEventTarget {
+        /**
+                 * @zh
+                 * 存储注册事件的回调列表，请不要直接修改。
+                 */ _callbackTable: __internal.cocos_core_event_callbacks_invoker_ICallbackTable;
+        /**
+                 * @en
+                 * get or set the collider is trigger, this will be always trigger if using builtin.
+                 * @zh
+                 * 获取或设置碰撞器是否为触发器，若使用 builtin ，属性值无论真假 ，此碰撞器都为触发器。
+                 */ isTrigger: boolean;
+        /**
+                 * @en
+                 * get or set the center of the collider, in local space.
+                 * @zh
+                 * 获取或设置碰撞器的中心点。
+                 */ center: Vec3;
+        /**
+                 * @en
+                 * get the collider attached rigidbody, this may be null
+                 * @zh
+                 * 获取碰撞器所绑定的刚体组件，可能为 null
+                 */ readonly attachedRigidbody: RigidBodyComponent | null;
+        protected _shapeBase: __internal.cocos_3d_physics_api_ShapeBase;
+        constructor();
+        /**
+                 * @zh
+                 * 注册触发事件或碰撞事件相关的回调。
+                 * @param type - 触发或碰撞事件的类型，可为 'onTriggerEnter'，'onTriggerStay'，'onTriggerExit' 或 'onCollisionEnter'，'onCollisionStay'，'onCollisionExit';
+                 * @param callback - 注册的回调函数
+                 * @param target - 可选参数，执行回调函数的目标
+                 * @param useCapture - 可选参数，当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+                 */ on(type: TriggerEventType | CollisionEventType, callback: TriggerCallback | CollisionCallback, target?: Object, useCapture?: any): any;
+        /**
+                 * @zh
+                 * 取消已经注册的触发事件或碰撞事件相关的回调。
+                 * @param type - 触发或碰撞事件的类型，可为 'onTriggerEnter'，'onTriggerStay'，'onTriggerExit' 或 'onCollisionEnter'，'onCollisionStay'，'onCollisionExit';
+                 * @param callback - 注册的回调函数
+                 * @param target - 可选参数，执行回调函数的目标
+                 * @param useCapture - 可选参数，当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+                 */ off(type: TriggerEventType | CollisionEventType, callback: TriggerCallback | CollisionCallback, target?: Object, useCapture?: any): void;
+        /**
+                 * @zh
+                 * 注册触发事件或碰撞事件相关的回调，但只会执行一次。
+                 * @param type - 触发或碰撞事件的类型，可为 'onTriggerEnter'，'onTriggerStay'，'onTriggerExit' 或 'onCollisionEnter'，'onCollisionStay'，'onCollisionExit';
+                 * @param callback - 注册的回调函数
+                 * @param target - 可选参数，执行回调函数的目标
+                 * @param useCapture - 可选参数，当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+                 */ once(type: TriggerEventType | CollisionEventType, callback: TriggerCallback | CollisionCallback, target?: Object, useCapture?: any): any;
+        /**
+                 * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
+                 */ targetOff(keyOrTarget?: TriggerEventType | CollisionEventType | Object): void;
+        dispatchEvent(event: Event): void;
+        hasEventListener(key: TriggerEventType | CollisionEventType, callback?: TriggerCallback | CollisionCallback, target?: Object): boolean;
+        removeAll(keyOrTarget?: TriggerEventType | CollisionEventType | Object): void;
+        emit(key: TriggerEventType | CollisionEventType, ...args: any[]): void;
+        protected onLoad(): void;
+        protected onEnable(): void;
+        protected onDisable(): void;
+        protected onDestroy(): void;
+    }
+    /**
+         * @zh
+         * 盒子碰撞器
+         */ export class BoxColliderComponent extends ColliderComponent {
+        constructor();
+        protected onLoad(): void;
+        /**
+                 * @en
+                 * Get or set the size of the box, in local space.
+                 * @zh
+                 * 获取或设置盒的大小。
+                 */ size: Vec3;
+    }
+    /**
+         * @zh
+         * 球碰撞器
+         */ export class SphereColliderComponent extends ColliderComponent {
+        constructor();
+        protected onLoad(): void;
+        /**
+                 * @en
+                 * Get or set the radius of the sphere.
+                 * @zh
+                 * 获取或设置球的半径。
+                 */ radius: number;
+    }
+    /**
+         * @zh
+         * 刚体组件。
+         */ export class RigidBodyComponent extends __internal.cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent {
+        /**
+                 * @zh
+                 * 获取或设置是否允许休眠
+                 */ allowSleep: boolean;
+        /**
+                 * @zh
+                 * 获取或设置刚体的质量。
+                 */ mass: number;
+        /**
+                 * @zh
+                 * 获取或设置线性阻尼。
+                 */ linearDamping: number;
+        /**
+                 * @zh
+                 * 获取或设置旋转阻尼。
+                 */ angularDamping: number;
+        /**
+                 * @zh
+                 * 获取或设置刚体是否由物理系统控制运动。
+                 */ isKinematic: boolean;
+        /**
+                 * @zh
+                 * 获取或设置刚体是否使用重力。
+                 */ useGravity: boolean;
+        /**
+                 * @zh
+                 * 获取或设置刚体是否固定旋转。
+                 */ fixedRotation: boolean;
+        /**
+                 * @zh
+                 * 获取或设置线性速度的因子，可以用来控制每个轴方向上的速度的缩放。
+                 */ linearFactor: Vec3;
+        /**
+                 * @zh
+                 * 获取或设置旋转速度的因子，可以用来控制每个轴方向上的旋转速度的缩放。
+                 */ angularFactor: Vec3;
+        /**
+                 * @zh
+                 * 获取是否是唤醒的状态。
+                 */ readonly isAwake: boolean;
+        /**
+                 * @zh
+                 * 获取是否是可进入休眠的状态。
+                 */ readonly isSleepy: boolean;
+        /**
+                 * @zh
+                 * 获取是否是正在休眠的状态。
+                 */ readonly isSleeping: boolean;
+        constructor();
+        /**
+                 * @zh
+                 * 在世界空间中的某点上对刚体施加一个作用力。
+                 * @param force - 作用力
+                 * @param relativePoint - 作用点，相对于刚体的中心点
+                 */ applyForce(force: Vec3, relativePoint?: Vec3): void;
+        /**
+                 * @zh
+                 * 在本地空间中的某点上对刚体施加一个作用力。
+                 * @param force - 作用力
+                 * @param localPoint - 作用点
+                 */ applyLocalForce(force: Vec3, localPoint?: Vec3): void;
+        /**
+                 * @zh
+                 * 在世界空间的某点上对刚体施加一个冲量。
+                 * @param impulse - 冲量
+                 * @param relativePoint - 作用点，相对于刚体的中心点
+                 */ applyImpulse(impulse: Vec3, relativePoint?: Vec3): void;
+        /**
+                 * @zh
+                 * 在本地空间的某点上对刚体施加一个冲量。
+                 * @param impulse - 冲量
+                 * @param localPoint - 作用点
+                 */ applyLocalImpulse(impulse: Vec3, localPoint?: Vec3): void;
+        /**
+                 * @zh
+                 * 唤醒刚体。
+                 */ wakeUp(): void;
+        /**
+                 * @zh
+                 * 休眠刚体。
+                 */ sleep(): void;
+        /**
+                 * @zh
+                 * 获取线性速度。
+                 * @param out 速度 Vec3
+                 */ getLinearVelocity(out: Vec3): void;
+        /**
+                 * @zh
+                 * 设置线性速度。
+                 * @param value 速度 Vec3
+                 */ setLinearVelocity(value: Vec3): void;
+        /**
+                 * @zh
+                 * 获取旋转速度。
+                 * @param out 速度 Vec3
+                 */ getAngularVelocity(out: Vec3): void;
+        /**
+                 * @zh
+                 * 设置旋转速度。
+                 * @param value 速度 Vec3
+                 */ setAngularVelocity(value: Vec3): void;
+        protected onLoad(): void;
+    }
+    /**
+         * @zh
+         * 物理系统。
+         */ export class PhysicsSystem {
+        /**
+                 * @zh
+                 * 获取或设置是否启用物理系统，可以用于暂停或继续运行物理系统。
+                 */ enable: boolean;
+        /**
+                 * @zh
+                 * 获取或设置物理系统是否允许自动休眠，默认为 true
+                 */ allowSleep: boolean;
+        /**
+                 * @zh
+                 * 获取或设置每帧模拟的最大子步数。
+                 */ maxSubStep: number;
+        /**
+                 * @zh
+                 * 获取或设置每步模拟消耗的固定时间。
+                 */ deltaTime: number;
+        /**
+                 * @zh
+                 * 获取或设置物理世界的重力数值，默认为 (0, -10, 0)
+                 */ gravity: Vec3;
+        static readonly ins: PhysicsSystem;
+        constructor();
+        /**
+                 * @zh
+                 * 执行一次物理系统的模拟，目前将在每帧自动执行一次。
+                 * @param deltaTime 与上一次执行相差的时间，目前为每帧消耗时间
+                 */ update(deltaTime: number): void;
+    }
+    /**
+         * @zh
+         * 触发事件。
+         */ export interface ITriggerEvent {
+        /**
+                 * @zh
+                 * 触发的事件类型
+                 */ type: TriggerEventType;
+        /**
+                 * @zh
+                 * 触发事件中的自己的碰撞器
+                 */ selfCollider: ColliderComponent;
+        /**
+                 * @zh
+                 * 触发事件中的另一个碰撞器
+                 */ otherCollider: ColliderComponent;
+    }
+    /**
+         * 触发事件的值类型定义。
+         */ export type TriggerEventType = "onTriggerEnter" | "onTriggerStay" | "onTriggerExit";
+    /**
+         * 触发事件的回调函数签名定义。
+         */ export type TriggerCallback = (event: ITriggerEvent) => void;
+    /**
+         * @zh
+         * 碰撞事件的碰撞信息。
+         */ export interface IContactEquation {
+        /**
+                 * @zh
+                 * 碰撞信息中的碰撞点A。
+                 */ contactA: Vec3;
+        /**
+                 * @zh
+                 * 碰撞信息中的碰撞点B。
+                 */ contactB: Vec3;
+        /**
+                 * @zh
+                 * 碰撞信息中的法线。
+                 */ normal: Vec3;
+    }
+    /**
+         * @zh
+         * 碰撞事件。
+         */ export interface ICollisionEvent {
+        /**
+                 * @zh
+                 * 碰撞的事件类型。
+                 */ type: CollisionEventType;
+        /**
+                 * @zh
+                 * 碰撞中的自己的碰撞器。
+                 */ selfCollider: ColliderComponent;
+        /**
+                 * @zh
+                 * 碰撞中的另一个碰撞器。
+                 */ otherCollider: ColliderComponent;
+        /**
+                 * @zh
+                 * 碰撞中的所有碰撞点的信息。
+                 */ contacts: IContactEquation[];
+    }
+    /**
+         * 碰撞事件的值类型定义。
+         */ export type CollisionEventType = "onCollisionEnter" | "onCollisionStay" | "onCollisionExit";
+    /**
+         * 碰撞事件的回调函数签名定义。
+         */ export type CollisionCallback = (event: ICollisionEvent) => void;
+    /**
+         * @zh
+         * 音频片段资源，每个片段知道自己应该如何播放、寻址等。
+         * 每当音频片段实际开始播放时，会发出 'started' 事件；
+         * 每当音频片段自然结束播放时，会发出 'ended' 事件。
+         */ export class AudioClip extends Asset {
+        static PlayingState: {
+            INITIALIZING: number;
+            PLAYING: number;
+            STOPPED: number;
+        };
+        static AudioType: {
+            WEB_AUDIO: number;
+            DOM_AUDIO: number;
+            WX_GAME_AUDIO: number;
+            UNKNOWN_AUDIO: number;
+        };
+        static preventDeferredLoadDependents: boolean;
+        protected _duration: number;
+        protected _loadMode: number;
+        protected _audio: any;
+        protected _player: __internal.cocos_3d_assets_audio_player_AudioPlayer | null;
+        constructor();
+        destroy(): boolean;
+        _nativeAsset: any;
+        readonly loadMode: number;
+        readonly state: number;
+        play(): void;
+        pause(): void;
+        stop(): void;
+        playOneShot(volume: number): void;
+        setCurrentTime(val: number): void;
+        getCurrentTime(): number;
+        getDuration(): number;
+        setVolume(val: number, immediate?: boolean): void;
+        getVolume(): number;
+        setLoop(val: boolean): void;
+        getLoop(): boolean;
+    }
+    /**
+         * @en
+         * A representation of a single audio source,
+         * contains basic functionalities like play, pause and stop.
+         * @zh
+         * 音频组件，代表单个音源，提供播放、暂停、停止等基本功能。<br>
+         * 用户可通过 cc.AudioSourceComponent 调用此类。
+         */ export class AudioSourceComponent extends Component {
+        protected _clip: AudioClip | null;
+        protected _loop: boolean;
+        protected _playOnAwake: boolean;
+        protected _volume: number;
+        /**
+                 * @en
+                 * The default AudioClip to play
+                 * @zh
+                 * 设定要播放的音频。
+                 */ clip: any;
+        /**
+                 * @en
+                 * Is the audio clip looping?
+                 * @zh
+                 * 是否循环播放音频？
+                 */ loop: any;
+        /**
+                 * @en
+                 * Is the autoplay enabled? <br>
+                 * Note that for the most time now the autoplay will only starts <br>
+                 * after a user gesture is received, according to the latest autoplay policy: <br>
+                 * https://www.chromium.org/audio-video/autoplay
+                 * @zh
+                 * 是否启用自动播放。 <br>
+                 * 请注意，根据最新的自动播放策略，现在大部分时候，自动播放只会在第一次收到用户输入后生效。 <br>
+                 * 参考：https://www.chromium.org/audio-video/autoplay
+                 */ playOnAwake: any;
+        /**
+                 * @en
+                 * The volume of this audio source (0.0 to 1.0).
+                 * @zh
+                 * 音频的音量（大小范围为 0.0 到 1.0 ）。
+                 *
+                 * 请注意,在某些平台上，音量控制可能不起效。<br>
+                 */ volume: any;
+        onLoad(): void;
+        /**
+                 * @en
+                 * Plays the clip
+                 * @zh
+                 * 开始播放音频。
+                 *
+                 * 如果音频处于正在播放状态，将会重新开始播放音频。 <br>
+                 * 如果音频处于暂停状态，则会继续播放音频。
+                 */ play(): void;
+        /**
+                 * @en
+                 * Pause the clip
+                 * @zh
+                 * 暂停播放。
+                 */ pause(): void;
+        /**
+                 * @en
+                 * Stop the clip
+                 * @zh
+                 * 停止播放。
+                 */ stop(): void;
+        /**
+                 * @en Plays an AudioClip, and scales volume by volumeScale.
+                 * @zh 以指定音量播放一个音频一次。
+                 *
+                 * 注意，对同一个音频片段，不同平台多重播放效果存在差异。<br>
+                 * 在 Web Audio 模式下，可以同时维护多个播放进度，达到多重播放。<br>
+                 * 其他模式下都不支持多重播放，如前一次尚未播完，则会立即重新播放。
+                 * @param clip 要播放的音频
+                 * @param volumeScale 相对当前音量的缩放，默认为 1
+                 */ playOneShot(clip: AudioClip, volumeScale?: number): void;
+        protected _syncStates(): void;
+        /**
+                 * @en
+                 * set current playback time, in seconds
+                 * @zh
+                 * 以秒为单位设置当前播放时间。
+                 * @param num 要跳转到的播放时间
+                 */ /**
+                * @en
+                * get the current playback time, in seconds
+                * @zh
+                * 以秒为单位获取当前播放时间。
+                */ currentTime: number;
+        /**
+                 * @en
+                 * get the audio duration, in seconds
+                 * @zh
+                 * 获取以秒为单位的音频总时长。
+                 */ readonly duration: number;
+        /**
+                 * @en
+                 * get current audio state
+                 * @zh
+                 * 获取当前音频状态。
+                 */ readonly state: number;
+        /**
+                 * @en
+                 * is the audio currently playing?
+                 * @zh
+                 * 当前音频是否正在播放？
+                 */ readonly playing: boolean;
+    }
     namespace __internal {
+        export interface cocos_renderer_core_pass_IDefineMap {
+        }
+        /**
+             * @zh
+             * 渲染过程阶段。
+             */ export enum cocos_pipeline_define_RenderPassStage {
+            DEFAULT = 100
+        }
+        /**
+             * @zh
+             * GFX三角形填充模式。
+             */ export enum cocos_gfx_define_GFXPolygonMode {
+            FILL = 0,
+            POINT = 1,
+            LINE = 2
+        }
+        /**
+             * @zh
+             * GFX着色模式。
+             */ export enum cocos_gfx_define_GFXShadeModel {
+            GOURAND = 0,
+            FLAT = 1
+        }
+        /**
+             * @zh
+             * GFX裁剪模式。
+             */ export enum cocos_gfx_define_GFXCullMode {
+            NONE = 0,
+            FRONT = 1,
+            BACK = 2
+        }
+        /**
+             * @zh
+             * GFX光栅化状态。
+             */ export class cocos_gfx_pipeline_state_GFXRasterizerState {
+            isDiscard: boolean;
+            polygonMode: cocos_gfx_define_GFXPolygonMode;
+            shadeModel: cocos_gfx_define_GFXShadeModel;
+            cullMode: cocos_gfx_define_GFXCullMode;
+            isFrontFaceCCW: boolean;
+            depthBias: number;
+            depthBiasClamp: number;
+            depthBiasSlop: number;
+            isDepthClip: boolean;
+            isMultisample: boolean;
+            lineWidth: number;
+            /**
+                     * @zh
+                     * 比较函数。
+                     * @param state GFX光栅化状态。
+                     */ compare(state: cocos_gfx_pipeline_state_GFXRasterizerState): boolean;
+        }
+        /**
+             * @zh
+             * GFX比较函数。
+             */ export enum cocos_gfx_define_GFXComparisonFunc {
+            NEVER = 0,
+            LESS = 1,
+            EQUAL = 2,
+            LESS_EQUAL = 3,
+            GREATER = 4,
+            NOT_EQUAL = 5,
+            GREATER_EQUAL = 6,
+            ALWAYS = 7
+        }
+        /**
+             * @zh
+             * GFX模板操作。
+             */ export enum cocos_gfx_define_GFXStencilOp {
+            ZERO = 0,
+            KEEP = 1,
+            REPLACE = 2,
+            INCR = 3,
+            DECR = 4,
+            INVERT = 5,
+            INCR_WRAP = 6,
+            DECR_WRAP = 7
+        }
+        /**
+             * @zh
+             * GFX深度模板状态。
+             */ export class cocos_gfx_pipeline_state_GFXDepthStencilState {
+            depthTest: boolean;
+            depthWrite: boolean;
+            depthFunc: cocos_gfx_define_GFXComparisonFunc;
+            stencilTestFront: boolean;
+            stencilFuncFront: cocos_gfx_define_GFXComparisonFunc;
+            stencilReadMaskFront: number;
+            stencilWriteMaskFront: number;
+            stencilFailOpFront: cocos_gfx_define_GFXStencilOp;
+            stencilZFailOpFront: cocos_gfx_define_GFXStencilOp;
+            stencilPassOpFront: cocos_gfx_define_GFXStencilOp;
+            stencilRefFront: number;
+            stencilTestBack: boolean;
+            stencilFuncBack: cocos_gfx_define_GFXComparisonFunc;
+            stencilReadMaskBack: number;
+            stencilWriteMaskBack: number;
+            stencilFailOpBack: cocos_gfx_define_GFXStencilOp;
+            stencilZFailOpBack: cocos_gfx_define_GFXStencilOp;
+            stencilPassOpBack: cocos_gfx_define_GFXStencilOp;
+            stencilRefBack: number;
+            /**
+                     * @zh
+                     * 比较函数。
+                     * @param state GFX深度模板状态。
+                     */ compare(state: cocos_gfx_pipeline_state_GFXDepthStencilState): boolean;
+        }
+        /**
+             * @zh
+             * GFX混合因子。
+             */ export enum cocos_gfx_define_GFXBlendFactor {
+            ZERO = 0,
+            ONE = 1,
+            SRC_ALPHA = 2,
+            DST_ALPHA = 3,
+            ONE_MINUS_SRC_ALPHA = 4,
+            ONE_MINUS_DST_ALPHA = 5,
+            SRC_COLOR = 6,
+            DST_COLOR = 7,
+            ONE_MINUS_SRC_COLOR = 8,
+            ONE_MINUS_DST_COLOR = 9,
+            SRC_ALPHA_SATURATE = 10,
+            CONSTANT_COLOR = 11,
+            ONE_MINUS_CONSTANT_COLOR = 12,
+            CONSTANT_ALPHA = 13,
+            ONE_MINUS_CONSTANT_ALPHA = 14
+        }
+        /**
+             * @zh
+             * GFX混合操作。
+             */ export enum cocos_gfx_define_GFXBlendOp {
+            ADD = 0,
+            SUB = 1,
+            REV_SUB = 2,
+            MIN = 3,
+            MAX = 4
+        }
+        /**
+             * @zh
+             * GFX颜色掩码。
+             */ export enum cocos_gfx_define_GFXColorMask {
+            NONE = 0,
+            R = 1,
+            G = 2,
+            B = 4,
+            A = 8,
+            ALL = 15
+        }
+        /**
+             * @zh
+             * GFX混合目标。
+             */ export class cocos_gfx_pipeline_state_GFXBlendTarget {
+            blend: boolean;
+            blendSrc: cocos_gfx_define_GFXBlendFactor;
+            blendDst: cocos_gfx_define_GFXBlendFactor;
+            blendEq: cocos_gfx_define_GFXBlendOp;
+            blendSrcAlpha: cocos_gfx_define_GFXBlendFactor;
+            blendDstAlpha: cocos_gfx_define_GFXBlendFactor;
+            blendAlphaEq: cocos_gfx_define_GFXBlendOp;
+            blendColorMask: cocos_gfx_define_GFXColorMask;
+            /**
+                     * @zh
+                     * 比较函数。
+                     * @param target GFX混合目标。
+                     */ compare(target: cocos_gfx_pipeline_state_GFXBlendTarget): boolean;
+        }
+        /**
+             * @zh
+             * GFX混合状态。
+             */ export class cocos_gfx_pipeline_state_GFXBlendState {
+            isA2C: boolean;
+            isIndepend: boolean;
+            blendColor: number[];
+            targets: cocos_gfx_pipeline_state_GFXBlendTarget[];
+        }
+        /**
+             * @zh
+             * GFX动态状态。
+             */ export enum cocos_gfx_define_GFXDynamicState {
+            VIEWPORT = 0,
+            SCISSOR = 1,
+            LINE_WIDTH = 2,
+            DEPTH_BIAS = 3,
+            BLEND_CONSTANTS = 4,
+            DEPTH_BOUNDS = 5,
+            STENCIL_WRITE_MASK = 6,
+            STENCIL_COMPARE_MASK = 7
+        }
+        export interface cocos_3d_assets_effect_asset_IPassStates {
+            priority?: number;
+            primitive?: GFXPrimitiveMode;
+            stage?: cocos_pipeline_define_RenderPassStage;
+            rasterizerState?: cocos_gfx_pipeline_state_GFXRasterizerState;
+            depthStencilState?: cocos_gfx_pipeline_state_GFXDepthStencilState;
+            blendState?: cocos_gfx_pipeline_state_GFXBlendState;
+            dynamics?: cocos_gfx_define_GFXDynamicState[];
+            customizations?: string[];
+            phase?: string;
+        }
+        export type cocos_renderer_core_pass_PassOverrides = RecursivePartial<cocos_3d_assets_effect_asset_IPassStates>;
+        interface cocos_renderer_core_pass_IEffectInfo {
+            techIdx: number;
+            defines: cocos_renderer_core_pass_IDefineMap[];
+            states: cocos_renderer_core_pass_PassOverrides[];
+        }
         /**
              * @zh
              * GFX缓冲使用方式标识位。
@@ -13031,7 +17059,6 @@ declare module "Cocos3D" {
                      * 对象状态。
                      */ protected _status: cocos_gfx_define_GFXStatus;
             /**
-                     * @zh
                      * 构造函数。
                      * @param gfxType GFX对象类型。
                      */ constructor(gfxType: cocos_gfx_define_GFXObjectType);
@@ -13045,7 +17072,6 @@ declare module "Cocos3D" {
                      * GFX设备。
                      */ protected _device: cocos_gfx_device_GFXDevice;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -13144,7 +17170,6 @@ declare module "Cocos3D" {
                      * GFX深度模板附件。
                      */ protected _depthStencilInfo: cocos_gfx_render_pass_GFXDepthStencilAttachment | null;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -13327,7 +17352,6 @@ declare module "Cocos3D" {
                      * 纹理缓冲。
                      */ protected _buffer: ArrayBuffer | null;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -13435,7 +17459,6 @@ declare module "Cocos3D" {
                      * 纹理视图图层数量。
                      */ protected _layerCount: number;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -13499,7 +17522,6 @@ declare module "Cocos3D" {
                      * 是否是离屏的。
                      */ protected _isOffscreen: boolean;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -13678,7 +17700,6 @@ declare module "Cocos3D" {
                      * 着色器Uniform采样器数组。
                      */ protected _samplers: cocos_gfx_shader_GFXUniformSampler[];
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -13691,186 +17712,6 @@ declare module "Cocos3D" {
                      * @zh
                      * 销毁函数。
                      */ abstract destroy(): any;
-        }
-        /**
-             * @zh
-             * GFX三角形填充模式。
-             */ export enum cocos_gfx_define_GFXPolygonMode {
-            FILL = 0,
-            POINT = 1,
-            LINE = 2
-        }
-        /**
-             * @zh
-             * GFX着色模式。
-             */ export enum cocos_gfx_define_GFXShadeModel {
-            GOURAND = 0,
-            FLAT = 1
-        }
-        /**
-             * @zh
-             * GFX裁剪模式。
-             */ export enum cocos_gfx_define_GFXCullMode {
-            NONE = 0,
-            FRONT = 1,
-            BACK = 2
-        }
-        /**
-             * @zh
-             * GFX光栅化状态。
-             */ export class cocos_gfx_pipeline_state_GFXRasterizerState {
-            isDiscard: boolean;
-            polygonMode: cocos_gfx_define_GFXPolygonMode;
-            shadeModel: cocos_gfx_define_GFXShadeModel;
-            cullMode: cocos_gfx_define_GFXCullMode;
-            isFrontFaceCCW: boolean;
-            depthBias: number;
-            depthBiasClamp: number;
-            depthBiasSlop: number;
-            isDepthClip: boolean;
-            isMultisample: boolean;
-            lineWidth: number;
-            /**
-                     * @zh
-                     * 比较函数。
-                     * @param state GFX光栅化状态。
-                     */ compare(state: cocos_gfx_pipeline_state_GFXRasterizerState): boolean;
-        }
-        /**
-             * @zh
-             * GFX比较函数。
-             */ export enum cocos_gfx_define_GFXComparisonFunc {
-            NEVER = 0,
-            LESS = 1,
-            EQUAL = 2,
-            LESS_EQUAL = 3,
-            GREATER = 4,
-            NOT_EQUAL = 5,
-            GREATER_EQUAL = 6,
-            ALWAYS = 7
-        }
-        /**
-             * @zh
-             * GFX模板操作。
-             */ export enum cocos_gfx_define_GFXStencilOp {
-            ZERO = 0,
-            KEEP = 1,
-            REPLACE = 2,
-            INCR = 3,
-            DECR = 4,
-            INVERT = 5,
-            INCR_WRAP = 6,
-            DECR_WRAP = 7
-        }
-        /**
-             * @zh
-             * GFX深度模板状态。
-             */ export class cocos_gfx_pipeline_state_GFXDepthStencilState {
-            depthTest: boolean;
-            depthWrite: boolean;
-            depthFunc: cocos_gfx_define_GFXComparisonFunc;
-            stencilTestFront: boolean;
-            stencilFuncFront: cocos_gfx_define_GFXComparisonFunc;
-            stencilReadMaskFront: number;
-            stencilWriteMaskFront: number;
-            stencilFailOpFront: cocos_gfx_define_GFXStencilOp;
-            stencilZFailOpFront: cocos_gfx_define_GFXStencilOp;
-            stencilPassOpFront: cocos_gfx_define_GFXStencilOp;
-            stencilRefFront: number;
-            stencilTestBack: boolean;
-            stencilFuncBack: cocos_gfx_define_GFXComparisonFunc;
-            stencilReadMaskBack: number;
-            stencilWriteMaskBack: number;
-            stencilFailOpBack: cocos_gfx_define_GFXStencilOp;
-            stencilZFailOpBack: cocos_gfx_define_GFXStencilOp;
-            stencilPassOpBack: cocos_gfx_define_GFXStencilOp;
-            stencilRefBack: number;
-            /**
-                     * @zh
-                     * 比较函数。
-                     * @param state GFX深度模板状态。
-                     */ compare(state: cocos_gfx_pipeline_state_GFXDepthStencilState): boolean;
-        }
-        /**
-             * @zh
-             * GFX混合因子。
-             */ export enum cocos_gfx_define_GFXBlendFactor {
-            ZERO = 0,
-            ONE = 1,
-            SRC_ALPHA = 2,
-            DST_ALPHA = 3,
-            ONE_MINUS_SRC_ALPHA = 4,
-            ONE_MINUS_DST_ALPHA = 5,
-            SRC_COLOR = 6,
-            DST_COLOR = 7,
-            ONE_MINUS_SRC_COLOR = 8,
-            ONE_MINUS_DST_COLOR = 9,
-            SRC_ALPHA_SATURATE = 10,
-            CONSTANT_COLOR = 11,
-            ONE_MINUS_CONSTANT_COLOR = 12,
-            CONSTANT_ALPHA = 13,
-            ONE_MINUS_CONSTANT_ALPHA = 14
-        }
-        /**
-             * @zh
-             * GFX混合操作。
-             */ export enum cocos_gfx_define_GFXBlendOp {
-            ADD = 0,
-            SUB = 1,
-            REV_SUB = 2,
-            MIN = 3,
-            MAX = 4
-        }
-        /**
-             * @zh
-             * GFX颜色掩码。
-             */ export enum cocos_gfx_define_GFXColorMask {
-            NONE = 0,
-            R = 1,
-            G = 2,
-            B = 4,
-            A = 8,
-            ALL = 15
-        }
-        /**
-             * @zh
-             * GFX混合目标。
-             */ export class cocos_gfx_pipeline_state_GFXBlendTarget {
-            blend: boolean;
-            blendSrc: cocos_gfx_define_GFXBlendFactor;
-            blendDst: cocos_gfx_define_GFXBlendFactor;
-            blendEq: cocos_gfx_define_GFXBlendOp;
-            blendSrcAlpha: cocos_gfx_define_GFXBlendFactor;
-            blendDstAlpha: cocos_gfx_define_GFXBlendFactor;
-            blendAlphaEq: cocos_gfx_define_GFXBlendOp;
-            blendColorMask: cocos_gfx_define_GFXColorMask;
-            /**
-                     * @zh
-                     * 比较函数。
-                     * @param target GFX混合目标。
-                     */ compare(target: cocos_gfx_pipeline_state_GFXBlendTarget): boolean;
-        }
-        /**
-             * @zh
-             * GFX混合状态。
-             */ export class cocos_gfx_pipeline_state_GFXBlendState {
-            isA2C: boolean;
-            isIndepend: boolean;
-            blendColor: number[];
-            targets: cocos_gfx_pipeline_state_GFXBlendTarget[];
-        }
-        /**
-             * @zh
-             * GFX动态状态。
-             */ export enum cocos_gfx_define_GFXDynamicState {
-            VIEWPORT = 0,
-            SCISSOR = 1,
-            LINE_WIDTH = 2,
-            DEPTH_BIAS = 3,
-            BLEND_CONSTANTS = 4,
-            DEPTH_BOUNDS = 5,
-            STENCIL_WRITE_MASK = 6,
-            STENCIL_COMPARE_MASK = 7
         }
         /**
              * @zh
@@ -13957,7 +17798,6 @@ declare module "Cocos3D" {
                      * GFX采样器状态。
                      */ protected _state: cocos_gfx_sampler_GFXSamplerState;
             /**
-                     * @zh
                      * 构造函数。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
             /**
@@ -14012,7 +17852,6 @@ declare module "Cocos3D" {
                      * 脏数据标识。
                      */ protected _isDirty: boolean;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -14080,7 +17919,6 @@ declare module "Cocos3D" {
                      * GFX绑定布局数组。
                      */ protected _layouts: cocos_gfx_binding_layout_GFXBindingLayout[];
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -14201,7 +18039,6 @@ declare module "Cocos3D" {
                      * GFX渲染过程。
                      */ protected _renderPass: cocos_gfx_render_pass_GFXRenderPass | null;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -14243,7 +18080,6 @@ declare module "Cocos3D" {
             drawInfos: cocos_gfx_buffer_IGFXDrawInfo[];
         }
         /**
-             * @zh
              * GFX缓冲数据源。
              */ export type cocos_gfx_buffer_GFXBufferSource = ArrayBuffer | cocos_gfx_buffer_IGFXIndirectBuffer;
         /**
@@ -14315,7 +18151,6 @@ declare module "Cocos3D" {
             protected _isIndirect: boolean;
             protected _indirectBuffer: cocos_gfx_buffer_GFXBuffer | null;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -14341,41 +18176,40 @@ declare module "Cocos3D" {
             /**
                      * @en
                      * update VB data on the fly.
-                     * @param vbuffer - an ArrayBuffer containing the full VB
-                     * @param attr - name of the attribute to update (default names are specified in GFXAttributeName)
-                     * @param data - the new VB attribute data to be uploaded
-                     * @example
-                     * ```typescript
-                     * // get VB array buffer from mesh, better to cache this somewhere convenient
-                     * const vbInfo = mesh.struct.vertexBundles[0].data;
-                     * const vbuffer = mesh.data.buffer.slice(vbInfo.offset, vbInfo.offset + vbInfo.length);
-                     * const submodel = someModelComponent.model.getSubModel(0);
-                     * // say the new positions is stored in 'data' as a plain array
-                     * submodel.inputAssembler.updateVertexBuffer(vbuffer, cc.GFXAttributeName.ATTR_POSITION, data);
-                     * ```
                      * @zh
                      * 根据顶点属性名称更新顶点缓冲数据。
                      * @param vbuffer 缓冲数据源。
                      * @param attr 属性名。
                      * @param data 更新数据。
-                     */ updateVertexAttr(vbuffer: cocos_gfx_buffer_GFXBufferSource, attr: string, data: number[]): void;
+                     * @param index 要更新第几号顶点缓冲？（默认为 0）
+                     * @param final 是否立即更新？（默认为 true，需要一次修改多个属性时可以使用）
+                     * @example
+                     * ```typescript
+                     * // get VB array buffer from mesh, better to cache this somewhere convenient
+                     * const vbInfo = mesh.struct.vertexBundles[mesh.struct.primitives[0].vertexBundelIndices[0]].view;
+                     * const vbuffer = mesh.data.buffer.slice(vbInfo.offset, vbInfo.offset + vbInfo.length);
+                     * const submodel = someModelComponent.model.getSubModel(0);
+                     * // say the new positions is stored in 'data' as a plain array
+                     * submodel.inputAssembler.updateVertexBuffer(vbuffer, cc.GFXAttributeName.ATTR_POSITION, data);
+                     * ```
+                     */ updateVertexAttr(vbuffer: cocos_gfx_buffer_GFXBufferSource, attr: string, data: number[], index?: number, final?: boolean): void;
             /**
                      * @en
                      * update IB data on the fly.
-                     * need to call submodel.updateCommandBuffer after this if index count changed
+                     * need to call `submodel.updateCommandBuffer` after this if index count changed
+                     * @zh
+                     * 更新索引缓冲数据，如果索引数量改变了，需要在此函数后调用 `submodel.updateCommandBuffer`。
+                     * @param ibuffer 缓冲数据源。
+                     * @param data 更新数据。
                      * @example
                      * ```typescript
                      * // get IB array buffer from mesh, better to cache this somewhere convenient
-                     * const ibInfo = mesh.struct.primitives[0].indices.range;
+                     * const ibInfo = mesh.struct.primitives[0].indexView;
                      * const ibuffer = mesh.data.buffer.slice(ibInfo.offset, ibInfo.offset + ibInfo.length);
                      * const submodel = someModelComponent.model.getSubModel(0);
                      * submodel.inputAssembler.updateIndexBuffer(ibuffer, [0, 1, 2]);
                      * submodel.updateCommandBuffer(); // index count changed
                      * ```
-                     * @zh
-                     * 更新索引缓冲数据。
-                     * @param ibuffer 缓冲数据源。
-                     * @param data 更新数据。
                      */ updateIndexBuffer(ibuffer: cocos_gfx_buffer_GFXBufferSource, data: number[]): void;
         }
         /**
@@ -14470,7 +18304,6 @@ declare module "Cocos3D" {
                      * 绘制三角形数量。
                      */ protected _numTris: number;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -14610,7 +18443,6 @@ declare module "Cocos3D" {
                      * 队列类型。
                      */ protected _type: cocos_gfx_define_GFXQueueType;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -14665,6 +18497,10 @@ declare module "Cocos3D" {
                      */ readonly detphStencilFormat: GFXFormat;
             /**
                      * @zh
+                     * 是否是离屏的。
+                     */ readonly isOffscreen: boolean;
+            /**
+                     * @zh
                      * GFX渲染过程。
                      */ readonly renderPass: cocos_gfx_render_pass_GFXRenderPass;
             /**
@@ -14679,76 +18515,24 @@ declare module "Cocos3D" {
                      * @zh
                      * GFX帧缓冲。
                      */ readonly framebuffer: cocos_gfx_framebuffer_GFXFramebuffer;
+            protected _device: cocos_gfx_device_GFXDevice;
+            protected _title: string;
+            protected _left: number;
+            protected _top: number;
+            protected _width: number;
+            protected _height: number;
+            protected _nativeWidth: number;
+            protected _nativeHeight: number;
+            protected _colorFmt: GFXFormat;
+            protected _depthStencilFmt: GFXFormat;
+            protected _isOffscreen: boolean;
+            protected _renderPass: cocos_gfx_render_pass_GFXRenderPass | null;
+            protected _colorTex: cocos_gfx_texture_GFXTexture | null;
+            protected _colorTexView: cocos_gfx_texture_view_GFXTextureView | null;
+            protected _depthStencilTex: cocos_gfx_texture_GFXTexture | null;
+            protected _depthStencilTexView: cocos_gfx_texture_view_GFXTextureView | null;
+            protected _framebuffer: cocos_gfx_framebuffer_GFXFramebuffer | null;
             /**
-                     * @zh
-                     * GFX设备。
-                     */ protected _device: cocos_gfx_device_GFXDevice;
-            /**
-                     * @zh
-                     * 标题。
-                     */ protected _title: string;
-            /**
-                     * @zh
-                     * 左侧距离。
-                     */ protected _left: number;
-            /**
-                     * @zh
-                     * 顶部距离。
-                     */ protected _top: number;
-            /**
-                     * @zh
-                     * 窗口宽度。
-                     */ protected _width: number;
-            /**
-                     * @zh
-                     * 窗口高度。
-                     */ protected _height: number;
-            /**
-                     * @zh
-                     * 原生宽度。
-                     */ protected _nativeWidth: number;
-            /**
-                     * @zh
-                     * 原生高度。
-                     */ protected _nativeHeight: number;
-            /**
-                     * @zh
-                     * 颜色格式。
-                     */ protected _colorFmt: GFXFormat;
-            /**
-                     * @zh
-                     * 深度模板格式。
-                     */ protected _depthStencilFmt: GFXFormat;
-            /**
-                     * @zh
-                     * 是否是离屏的。
-                     */ protected _isOffscreen: boolean;
-            /**
-                     * @zh
-                     * GFX渲染过程。
-                     */ protected _renderPass: cocos_gfx_render_pass_GFXRenderPass | null;
-            /**
-                     * @zh
-                     * 颜色纹理。
-                     */ protected _colorTex: cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * @zh
-                     * 颜色纹理视图。
-                     */ protected _colorTexView: cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * @zh
-                     * 深度模板纹理。
-                     */ protected _depthStencilTex: cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * @zh
-                     * 深度模板纹理视图。
-                     */ protected _depthStencilTexView: cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * @zh
-                     * GFX帧缓冲。
-                     */ protected _framebuffer: cocos_gfx_framebuffer_GFXFramebuffer | null;
-            /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -14767,6 +18551,10 @@ declare module "Cocos3D" {
                      * @param width 窗口宽度。
                      * @param height 窗口高度。
                      */ abstract resize(width: number, height: number): any;
+        }
+        export interface cocos_gfx_define_IGFXMemoryStatus {
+            bufferSize: number;
+            textureSize: number;
         }
         /**
              * @zh
@@ -14920,20 +18708,18 @@ declare module "Cocos3D" {
                      * @zh
                      * 渲染三角形数量。
                      */ readonly numTris: number;
+            /**
+                     * @zh
+                     * 内存状态。
+                     */ readonly memoryStatus: cocos_gfx_define_IGFXMemoryStatus;
             protected _canvas: HTMLCanvasElement | null;
             protected _canvas2D: HTMLCanvasElement | null;
             protected _gfxAPI: cocos_gfx_device_GFXAPI;
             protected _deviceName: string;
             protected _renderer: string;
             protected _vendor: string;
-            /**
-                     * @zh
-                     * 驱动版本。
-                     */ protected _version: string;
-            /**
-                     * @zh
-                     * 特性数组。
-                     */ protected _features: boolean[];
+            protected _version: string;
+            protected _features: boolean[];
             protected _queue: cocos_gfx_queue_GFXQueue | null;
             protected _devicePixelRatio: number;
             protected _width: number;
@@ -14953,13 +18739,11 @@ declare module "Cocos3D" {
             protected _stencilBits: number;
             protected _colorFmt: GFXFormat;
             protected _depthStencilFmt: GFXFormat;
-            /**
-                     * @zh
-                     * Shader ID 生成标识。
-                     */ protected _shaderIdGen: number;
+            protected _shaderIdGen: number;
             protected _macros: Map<string, string>;
             protected _numDrawCalls: number;
             protected _numTris: number;
+            protected _memoryStatus: cocos_gfx_define_IGFXMemoryStatus;
             /**
                      * @zh
                      * 初始化函数。
@@ -15149,7 +18933,6 @@ declare module "Cocos3D" {
                      * 缓冲条目数量。
                      */ protected _count: number;
             /**
-                     * @zh
                      * 构造函数。
                      * @param device GFX设备。
                      */ constructor(device: cocos_gfx_device_GFXDevice);
@@ -15188,12 +18971,6 @@ declare module "Cocos3D" {
             MAX = 255,
             DEFAULT = 128
         }
-        /**
-             * @zh
-             * 渲染过程阶段。
-             */ export enum cocos_pipeline_define_RenderPassStage {
-            DEFAULT = 100
-        }
         interface cocos_renderer_core_pass_IPassDynamics {
         }
         interface cocos_renderer_core_pass_IBlock {
@@ -15201,9 +18978,13 @@ declare module "Cocos3D" {
             views: Float32Array[];
             dirty: boolean;
         }
+        export interface cocos_3d_assets_effect_asset_IBuiltin {
+            name: string;
+            defines: string[];
+        }
         export interface cocos_3d_assets_effect_asset_IBuiltinInfo {
-            blocks: string[];
-            samplers: string[];
+            blocks: cocos_3d_assets_effect_asset_IBuiltin[];
+            samplers: cocos_3d_assets_effect_asset_IBuiltin[];
         }
         export interface cocos_3d_assets_effect_asset_IDefineInfo {
             name: string;
@@ -15212,23 +18993,11 @@ declare module "Cocos3D" {
             options?: string[];
             default?: string;
         }
-        export interface cocos_3d_assets_effect_asset_IBlockMember {
-            size: number;
-            name: string;
-            type: cocos_gfx_define_GFXType;
-            count: number;
+        export interface cocos_3d_assets_effect_asset_IBlockInfo extends cocos_gfx_shader_GFXUniformBlock {
+            defines: string[];
         }
-        export interface cocos_3d_assets_effect_asset_IBlockInfo {
-            size: number;
-            binding: number;
-            name: string;
-            members: cocos_3d_assets_effect_asset_IBlockMember[];
-        }
-        export interface cocos_3d_assets_effect_asset_ISamplerInfo {
-            binding: number;
-            name: string;
-            type: cocos_gfx_define_GFXType;
-            count: number;
+        export interface cocos_3d_assets_effect_asset_ISamplerInfo extends cocos_gfx_shader_GFXUniformSampler {
+            defines: string[];
         }
         export interface cocos_3d_assets_effect_asset_IShaderInfo {
             name: string;
@@ -15250,30 +19019,16 @@ declare module "Cocos3D" {
             samplers: cocos_3d_assets_effect_asset_ISamplerInfo[];
             dependencies: Record<string, string>;
         }
-        export interface cocos_renderer_core_pass_IDefineMap {
-        }
         export interface cocos_3d_assets_effect_asset_IPropertyInfo {
             type: number;
             value?: number[] | string;
-            sampler?: Array<number | undefined>;
-        }
-        export interface cocos_3d_assets_effect_asset_IPassStates {
-            priority?: number;
-            primitive?: GFXPrimitiveMode;
-            stage?: cocos_pipeline_define_RenderPassStage;
-            rasterizerState?: cocos_gfx_pipeline_state_GFXRasterizerState;
-            depthStencilState?: cocos_gfx_pipeline_state_GFXDepthStencilState;
-            blendState?: cocos_gfx_pipeline_state_GFXBlendState;
-            dynamics?: cocos_gfx_define_GFXDynamicState[];
-            customizations?: string[];
-            phase?: string;
+            samplerHash?: number;
         }
         export interface cocos_3d_assets_effect_asset_IPassInfo extends cocos_3d_assets_effect_asset_IPassStates {
             program: string;
             switch?: string;
             properties?: Record<string, cocos_3d_assets_effect_asset_IPropertyInfo>;
         }
-        export type cocos_renderer_core_pass_PassOverrides = RecursivePartial<cocos_3d_assets_effect_asset_IPassStates>;
         export interface cocos_renderer_core_pass_IPassInfoFull extends cocos_3d_assets_effect_asset_IPassInfo {
             idxInTech: number;
             curDefs: cocos_renderer_core_pass_IDefineMap;
@@ -15324,17 +19079,6 @@ declare module "Cocos3D" {
             top: ImageAsset;
             bottom: ImageAsset;
         }
-        interface cocos_3d_assets_texture_cube_ITextureCubeSerializeData {
-            base: string;
-            mipmaps: Array<{
-                front: string;
-                back: string;
-                left: string;
-                right: string;
-                top: string;
-                bottom: string;
-            }>;
-        }
         /**
              * @en
              * The texture pixel format, default value is RGBA8888,<br>
@@ -15344,7 +19088,6 @@ declare module "Cocos3D" {
              * 纹理像素格式，默认值为RGBA8888，<br>
              * 你应该注意到普通图像文件（png，jpg）加载的纹理只能支持RGBA8888格式，<br>
              * 压缩文件类型或原始数据支持其他格式。
-             * @enum {number}
              */ export enum cocos_assets_asset_enum_PixelFormat {
             RGB565 = 46,
             RGB5A1 = 48,
@@ -15364,167 +19107,41 @@ declare module "Cocos3D" {
             RGBA_ETC2 = 80
         }
         /**
-             * @en
-             * The texture wrap mode.
-             * @zh
-             * 纹理环绕方式。
-             * @enum {number}
-             */ export enum cocos_assets_asset_enum_WrapMode {
-            REPEAT = 0,
-            CLAMP_TO_EDGE = 2,
-            MIRRORED_REPEAT = 1,
-            CLAMP_TO_BORDER = 3
+             * 贴图创建选项。
+             */ export interface cocos_assets_texture_2d_ITexture2DCreateInfo {
+            /**
+                     * 像素宽度。
+                     */ width: number;
+            /**
+                     * 像素高度。
+                     */ height: number;
+            /**
+                     * 像素格式。
+                     * @default PixelFormat.RGBA8888
+                     */ format?: cocos_assets_asset_enum_PixelFormat;
+            /**
+                     * mipmap 层级。
+                     * @default 1
+                     */ mipmapLevel?: number;
         }
-        /**
-             * @en
-             * The texture filter mode
-             * @zh
-             * 纹理过滤模式。
-             * @enum {number}
-             */ export enum cocos_assets_asset_enum_Filter {
-            NONE = 0,
-            LINEAR = 2,
-            NEAREST = 1
+        export type cocos_3d_assets_texture_cube_ITextureCubeCreateInfo = cocos_assets_texture_2d_ITexture2DCreateInfo;
+        interface cocos_3d_assets_texture_cube_ITextureCubeSerializeData {
+            base: string;
+            mipmaps: Array<{
+                front: string;
+                back: string;
+                left: string;
+                right: string;
+                top: string;
+                bottom: string;
+            }>;
         }
-        /**
-             * 贴图资源基类。它定义了所有贴图共用的概念。
-             */ export class cocos_assets_texture_base_TextureBase extends Asset {
-            /**
-                     * 此贴图的像素宽度。
-                     * 对于二维贴图来说，贴图的像素宽度等于它 0 级 Mipmap 的宽度；
-                     * 对于立方体贴图来说，贴图的像素宽度等于它 0 级 Mipmap 任何面的宽度；
-                     */ readonly width: number;
-            /**
-                     * 此贴图的像素高度。
-                     * 对于二维贴图来说，贴图的像素高度等于它 0 级 Mipmap 的高度；
-                     * 对于立方体贴图来说，贴图的像素高度等于它 0 级 Mipmap 任何面的高度；
-                     */ readonly height: number;
-            /**
-                     * 此贴图是否为压缩的像素格式。
-                     */ readonly isCompressed: boolean;
-            static PixelFormat: typeof cocos_assets_asset_enum_PixelFormat;
-            static WrapMode: typeof cocos_assets_asset_enum_WrapMode;
-            static Filter: typeof cocos_assets_asset_enum_Filter;
-            protected _format: number;
-            protected _premultiplyAlpha: boolean;
-            protected _flipY: boolean;
-            protected _minFilter: number;
-            protected _magFilter: number;
-            protected _mipFilter: number;
-            protected _wrapS: number;
-            protected _wrapT: number;
-            protected _wrapR: number;
-            protected _anisotropy: number;
-            protected _texture: cocos_gfx_texture_GFXTexture | null;
-            protected _textureView: cocos_gfx_texture_view_GFXTextureView | null;
-            protected constructor(flipY?: boolean);
-            /**
-                     * 将当且贴图重置为指定尺寸、像素格式以及指定 mipmap 层级的贴图。重置后，贴图的像素数据将变为未定义。
-                     * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
-                     * @param width 像素宽度。
-                     * @param height 像素高度。
-                     * @param format 像素格式。
-                     * @param mipmapLevel mipmap 层级。
-                     */ create(width: number, height: number, format?: cocos_assets_asset_enum_PixelFormat, mipmapLevel?: number): void;
-            /**
-                     * 获取底层贴图对象。
-                     * @returns 此贴图的底层贴图对象。
-                     * @deprecated 请转用 `getGfxTexture()`。
-                     */ getImpl(): cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * 获取标识符。
-                     * @returns 此贴图的标识符。
-                     */ getId(): string;
-            /**
-                     * 获取像素格式。
-                     * @returns 此贴图的像素格式。
-                     */ getPixelFormat(): number;
-            /**
-                     * 返回是否开启了预乘透明通道功能。
-                     * @returns 此贴图是否开启了预乘透明通道功能。
-                     */ hasPremultipliedAlpha(): boolean;
-            /**
-                     * 获取各向异性。
-                     * @returns 此贴图的各向异性。
-                     */ getAnisotropy(): number;
-            /**
-                     * 设置此贴图的缠绕模式。
-                     * 注意，若贴图尺寸不是 2 的整数幂，缠绕模式仅允许 `WrapMode.CLAMP_TO_EDGE`。
-                     * @param wrapS S(U) 坐标的采样模式。
-                     * @param wrapT T(V) 坐标的采样模式。
-                     * @param wrapR R(W) 坐标的采样模式。
-                     */ setWrapMode(wrapS: cocos_assets_asset_enum_WrapMode, wrapT: cocos_assets_asset_enum_WrapMode, wrapR?: cocos_assets_asset_enum_WrapMode): void;
-            /**
-                     * 设置此贴图的过滤算法。
-                     * @param minFilter 缩小过滤算法。
-                     * @param magFilter 放大过滤算法。
-                     */ setFilters(minFilter: cocos_assets_asset_enum_Filter, magFilter: cocos_assets_asset_enum_Filter): void;
-            /**
-                     * 设置此贴图的 mip 过滤算法。
-                     * @param mipFilter mip 过滤算法。
-                     */ setMipFilter(mipFilter: cocos_assets_asset_enum_Filter): void;
-            /**
-                     * 设置渲染时是否运行将此贴图进行翻转。
-                     * @param flipY 翻转则为 `true`，否则为 `false`。
-                     */ setFlipY(flipY: boolean): void;
-            /**
-                     * 设置此贴图是否预乘透明通道。
-                     * @param premultiply
-                     */ setPremultiplyAlpha(premultiply: boolean): void;
-            /**
-                     * 设置此贴图的各向异性。
-                     * @param anisotropy 各向异性。
-                     */ setAnisotropy(anisotropy: number): void;
-            /**
-                     * 销毁此贴图，并释放占有的所有 GPU 资源。
-                     */ destroy(): boolean;
-            /**
-                     * 获取此贴图底层的 GFX 贴图对象。
-                     */ getGFXTexture(): cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * 获取此贴图底层的 GFX 贴图视图对象。
-                     */ getGFXTextureView(): cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * 获取此贴图内部使用的 GFX 采样器信息。
-                     * @private
-                     */ getGFXSamplerInfo(): (number | undefined)[];
-            /**
-                     * @return
-                     */ _serialize(exporting?: any): any;
-            /**
-                     *
-                     * @param data
-                     */ _deserialize(serializedData: any, handle: any): void;
-            /**
-                     * 更新 0 级 Mipmap。
-                     */ updateImage(): void;
-            /**
-                     * 更新指定层级范围内的 Mipmap。当 Mipmap 数据发生了改变时应调用此方法提交更改。
-                     * 若指定的层级范围超出了实际已有的层级范围，只有覆盖的那些层级范围会被更新。
-                     * @param firstLevel 起始层级。
-                     * @param count 层级数量。
-                     */ updateMipmaps(firstLevel?: number, count?: number): void;
-            /**
-                     * 上传图像数据到指定层级的 Mipmap 中。
-                     * 图像的尺寸影响 Mipmap 的更新范围：
-                     * - 当图像是 `ArrayBuffer` 时，图像的尺寸必须和 Mipmap 的尺寸一致；否则，
-                     * - 若图像的尺寸与 Mipmap 的尺寸相同，上传后整个 Mipmap 的数据将与图像数据一致；
-                     * - 若图像的尺寸小于指定层级 Mipmap 的尺寸（不管是长或宽），则从贴图左上角开始，图像尺寸范围内的 Mipmap 会被更新；
-                     * - 若图像的尺寸超出了指定层级 Mipmap 的尺寸（不管是长或宽），都将引起错误。
-                     * @param source 图像数据源。
-                     * @param level Mipmap 层级。
-                     * @param arrayIndex 数组索引。
-                     */ uploadData(source: HTMLCanvasElement | HTMLImageElement | ArrayBuffer, level?: number, arrayIndex?: number): void;
-            protected _getGlobalDevice(): cocos_gfx_device_GFXDevice | null;
-            protected _assignImage(image: ImageAsset, level: number, arrayIndex?: number): void;
-            protected _getTextureCreateInfo(): cocos_gfx_texture_IGFXTextureInfo;
-            protected _getTextureViewCreateInfo(): cocos_gfx_texture_view_IGFXTextureViewInfo;
-            protected _recreateTexture(): void;
-        }
+        export type cocos_assets_simple_texture_PresumedGFXTextureInfo = Pick<cocos_gfx_texture_IGFXTextureInfo, "usage" | "flags" | "format" | "mipLevel">;
+        export type cocos_assets_simple_texture_PresumedGFXTextureViewInfo = Pick<cocos_gfx_texture_view_IGFXTextureViewInfo, "texture" | "format">;
         /**
              * 立方体贴图资源。
              * 立方体贴图资源的每个 Mipmap 层级都为 6 张图像资源，分别代表了立方体贴图的 6 个面。
-             */ export class cocos_3d_assets_texture_cube_TextureCube extends cocos_assets_texture_base_TextureBase {
+             */ export class cocos_3d_assets_texture_cube_TextureCube extends TrivialTexture {
             static FaceIndex: typeof cocos_3d_assets_texture_cube_FaceIndex;
             /**
                      * 所有层级 Mipmap，注意，这里不包含自动生成的 Mipmap。
@@ -15556,6 +19173,11 @@ declare module "Cocos3D" {
             _mipmaps: cocos_3d_assets_texture_cube_ITextureCubeMipmap[];
             constructor();
             onLoaded(): void;
+            /**
+                     * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级。重置后，贴图的像素数据将变为未定义。
+                     * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
+                     * @param info 贴图重置选项。
+                     */ reset(info: cocos_3d_assets_texture_cube_ITextureCubeCreateInfo): void;
             updateMipmaps(firstLevel?: number, count?: number): void;
             /**
                      * 销毁此贴图，清空所有 Mipmap 并释放占用的 GPU 资源。
@@ -15576,8 +19198,16 @@ declare module "Cocos3D" {
                 }[];
             };
             _deserialize(serializedData: cocos_3d_assets_texture_cube_ITextureCubeSerializeData, handle: any): void;
-            protected _getTextureCreateInfo(): cocos_gfx_texture_IGFXTextureInfo;
-            protected _getTextureViewCreateInfo(): cocos_gfx_texture_view_IGFXTextureViewInfo;
+            protected _getGfxTextureCreateInfo(presumed: cocos_assets_simple_texture_PresumedGFXTextureInfo): {
+                type: cocos_gfx_define_GFXTextureType;
+                width: number;
+                height: number;
+                arrayLayer: number;
+            } & Pick<cocos_gfx_texture_IGFXTextureInfo, "usage" | "flags" | "format" | "mipLevel">;
+            protected _getGfxTextureViewCreateInfo(presumed: cocos_assets_simple_texture_PresumedGFXTextureViewInfo): {
+                type: cocos_gfx_define_GFXTextureViewType;
+                layerCount: number;
+            } & Pick<cocos_gfx_texture_view_IGFXTextureViewInfo, "format" | "texture">;
         }
         export interface cocos_pipeline_define_IInternalBindingDesc {
             type: cocos_gfx_define_GFXBindingType;
@@ -15602,1408 +19232,404 @@ declare module "Cocos3D" {
             constructor(scene: cocos_renderer_scene_render_scene_RenderScene);
             protected _updateGlobalBinding(): void;
         }
-        export class cocos_renderer_scene_sphere_light_SphereLight extends renderer.Light {
-            readonly position: Vec3;
-            size: number;
-            range: number;
-            luminance: number;
-            readonly aabb: geometry.aabb;
-            protected _size: number;
-            protected _range: number;
-            protected _luminance: number;
-            protected _pos: Vec3;
-            protected _aabb: geometry.aabb;
-            constructor(scene: cocos_renderer_scene_render_scene_RenderScene, name: string, node: Node);
-            update(): void;
-        }
-        export class cocos_renderer_scene_directional_light_DirectionalLight extends renderer.Light {
-            protected _dir: Vec3;
-            protected _illum: number;
-            direction: Vec3;
-            illuminance: number;
-            constructor(scene: cocos_renderer_scene_render_scene_RenderScene, name: string, node: Node);
-            update(): void;
-        }
-        export class cocos_renderer_scene_planar_shadow_PlanarShadow {
-            enabled: boolean;
-            normal: Vec3;
-            distance: number;
-            shadowColor: Color;
-            readonly matLight: Mat4;
-            readonly data: Float32Array;
-            protected _scene: cocos_renderer_scene_render_scene_RenderScene;
-            protected _enabled: boolean;
-            protected _normal: Vec3;
-            protected _distance: number;
-            protected _matLight: Mat4;
-            protected _data: Float32Array;
-            protected _globalBindings: cocos_pipeline_define_IInternalBindingInst;
-            constructor(scene: cocos_renderer_scene_render_scene_RenderScene);
-            updateSphereLight(light: cocos_renderer_scene_sphere_light_SphereLight): void;
-            updateDirLight(light: cocos_renderer_scene_directional_light_DirectionalLight): void;
-        }
-        export class cocos_renderer_scene_spot_light_SpotLight extends renderer.Light {
-            protected _dir: Vec3;
-            protected _size: number;
-            protected _range: number;
-            protected _luminance: number;
-            protected _spotAngle: number;
-            protected _pos: Vec3;
-            protected _aabb: geometry.aabb;
-            protected _frustum: geometry.frustum;
-            protected _angle: number;
-            readonly position: Vec3;
-            size: number;
-            range: number;
-            luminance: number;
-            readonly direction: Vec3;
-            spotAngle: number;
-            readonly aabb: geometry.aabb;
-            readonly frustum: geometry.frustum;
-            constructor(scene: cocos_renderer_scene_render_scene_RenderScene, name: string, node: Node);
-            update(): void;
-        }
-        export interface cocos_renderer_scene_render_scene_IRenderSceneInfo {
-            name: string;
-        }
-        export interface cocos_renderer_scene_camera_ICameraInfo {
-            name: string;
-            node: Node;
-            projection: number;
-            targetDisplay: number;
-            priority: number;
-            pipeline?: string;
-            isUI?: boolean;
-            flows?: string[];
-        }
-        export interface cocos_renderer_scene_render_scene_IRaycastResult {
-            node: Node;
-            distance: number;
-        }
-        export class cocos_renderer_scene_render_scene_RenderScene {
-            readonly root: cocos_core_root_Root;
-            readonly name: string;
-            readonly cameras: renderer.Camera[];
-            readonly ambient: cocos_renderer_scene_ambient_Ambient;
-            readonly skybox: cocos_renderer_scene_skybox_Skybox;
-            readonly planarShadow: cocos_renderer_scene_planar_shadow_PlanarShadow;
-            readonly defaultMainLightNode: Node;
-            readonly mainLight: cocos_renderer_scene_directional_light_DirectionalLight;
-            readonly sphereLights: cocos_renderer_scene_sphere_light_SphereLight[];
-            readonly spotLights: cocos_renderer_scene_spot_light_SpotLight[];
-            readonly models: renderer.Model[];
-            static registerCreateFunc(root: cocos_core_root_Root): void;
-            constructor(root: cocos_core_root_Root);
-            initialize(info: cocos_renderer_scene_render_scene_IRenderSceneInfo): boolean;
-            destroy(): void;
-            createCamera(info: cocos_renderer_scene_camera_ICameraInfo): renderer.Camera;
-            destroyCamera(camera: renderer.Camera): void;
-            destroyCameras(): void;
-            createSphereLight(name: string, node: Node): cocos_renderer_scene_sphere_light_SphereLight | null;
-            destroySphereLight(light: cocos_renderer_scene_sphere_light_SphereLight): void;
-            createSpotLight(name: string, node: Node): cocos_renderer_scene_spot_light_SpotLight | null;
-            destroySpotLight(light: cocos_renderer_scene_spot_light_SpotLight): void;
-            destroyPointLights(): void;
-            destroySpotLights(): void;
-            createModel<T extends renderer.Model>(clazz: new (scene: cocos_renderer_scene_render_scene_RenderScene, node: Node) => T, node: Node): T;
-            destroyModel(model: renderer.Model): void;
-            destroyModels(): void;
-            onPipelineChange(): void;
-            generateModelId(): number;
-            /**
-                     * Cast a ray into the scene, record all the intersected models in the result array
-                     * @param worldRay the testing ray
-                     * @param mask the layer mask to filter the models
-                     * @returns the results array
-                     */ raycast(worldRay: geometry.ray, mask?: number): cocos_renderer_scene_render_scene_IRaycastResult[];
-            /**
-                     * Cast a ray into the scene, record all the intersected ui aabb in the result array
-                     * @param worldRay the testing ray
-                     * @param mask the layer mask to filter the ui aabb
-                     * @returns the results array
-                     */ raycastUI(worldRay: geometry.ray, mask?: number): cocos_renderer_scene_render_scene_IRaycastResult[];
-            /**
-                     * Before you raycast the ui node, make sure the node is not null
-                     * @param worldRay the testing ray
-                     * @param mask the layer mask to filter the models
-                     * @param uiNode the ui node
-                     * @returns IRaycastResult | undefined
-                     */ raycastUINode(worldRay: geometry.ray, mask: number | undefined, uiNode: Node): cocos_renderer_scene_render_scene_IRaycastResult | undefined;
-        }
-        export interface cocos_renderer_ui_ui_material_IUIMaterialInfo {
-            material: Material;
-        }
-        export class cocos_renderer_ui_ui_material_UIMaterial {
-            readonly material: Material;
-            readonly pass: renderer.Pass;
-            protected _material: Material | null;
-            protected _pass: renderer.Pass | null;
-            constructor();
-            initialize(info: cocos_renderer_ui_ui_material_IUIMaterialInfo): boolean;
-            getPipelineState(): cocos_gfx_pipeline_state_GFXPipelineState;
-            revertPipelineState(pso: cocos_gfx_pipeline_state_GFXPipelineState): void;
-            destroy(): void;
-        }
         /**
+             * @category memop
+             */ /**
              * @zh
-             * UI 渲染流程
-             */ export class cocos_renderer_ui_ui_UI {
-            readonly renderScene: cocos_renderer_scene_render_scene_RenderScene;
-            readonly currBufferBatch: MeshBuffer | null;
-            debugScreen: CanvasComponent | null;
-            device: cocos_gfx_device_GFXDevice;
-            constructor(_root: cocos_core_root_Root);
-            initialize(): boolean;
-            destroy(): void;
-            getRenderSceneGetter(): () => any;
-            _getUIMaterial(mat: Material): cocos_renderer_ui_ui_material_UIMaterial;
-            _removeUIMaterial(hash: number): void;
+             * 缓存数组
+             * 该数据结构内存只增不减，适用于处理内存常驻递增的分配策略
+             */ export class cocos_core_memop_cached_array_CachedArray<T> {
             /**
                      * @zh
-                     * 添加屏幕组件管理。
-                     *
-                     * @param comp - 屏幕组件。
-                     */ addScreen(comp: CanvasComponent): void;
+                     * 实际存储的数据内容
+                     */ array: T[];
             /**
                      * @zh
-                     * 通过屏幕编号获得屏幕组件。
-                     *
-                     * @param visibility - 屏幕编号。
-                     */ getScreen(visibility: number): CanvasComponent | null;
+                     * 数组长度
+                     */ length: number;
             /**
-                     * @zh
-                     * 移除屏幕组件管理。
-                     *
-                     * @param comp - 被移除的屏幕。
-                     */ removeScreen(comp: CanvasComponent): void;
-            update(dt: number): void;
-            render(): void;
-            /**
-                     * @zh
-                     * UI 渲染组件数据提交流程。
-                     *
-                     * @param comp - 当前执行组件。
-                     * @param frame - 当前执行组件贴图。
-                     * @param assembler - 当前组件渲染数据组装器。
-                     */ commitComp(comp: UIRenderComponent, frame?: cocos_gfx_texture_view_GFXTextureView | null, assembler?: Assembler.Assembler.IAssembler): void;
-            commitModel(comp: UIComponent, model: renderer.Model | null, mat: Material | null): void;
-            /**
-                     * @zh
-                     * UI 渲染数据合批
-                     */ autoMergeBatches(): void;
-            /**
-                     * @zh
-                     * 跳过默认合批操作，执行强制合批。
-                     *
-                     * @param material - 当前批次的材质。
-                     * @param sprite - 当前批次的精灵帧。
-                     */ forceMergeBatches(material: Material, sprite: cocos_gfx_texture_view_GFXTextureView | null): void;
-        }
-        /**
-             * @zh
-             * 渲染阶段描述信息。
-             */ export interface cocos_pipeline_render_stage_IRenderStageInfo {
-            name?: string;
-            priority: number;
-            framebuffer?: cocos_gfx_framebuffer_GFXFramebuffer;
-        }
-        /**
-             * @zh
-             * 渲染阶段。
-             */ export abstract class cocos_pipeline_render_stage_RenderStage {
-            /**
-                     * @zh
-                     * 渲染流程。
-                     */ readonly flow: cocos_pipeline_render_flow_RenderFlow;
-            /**
-                     * @zh
-                     * 渲染管线。
-                     */ readonly pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
-            /**
-                     * @zh
-                     * 优先级。
-                     */ readonly priority: number;
-            /**
-                     * @zh
-                     * 渲染流程。
-                     */ readonly framebuffer: cocos_gfx_framebuffer_GFXFramebuffer | null;
-            /**
-                     * @zh
-                     * 渲染流程。
-                     */ protected _flow: cocos_pipeline_render_flow_RenderFlow;
-            /**
-                     * @zh
-                     * 渲染管线。
-                     */ protected _pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
-            /**
-                     * @zh
-                     * GFX设备。
-                     */ protected _device: cocos_gfx_device_GFXDevice;
-            /**
-                     * @zh
-                     * 名称。
-                     */ protected _name: string;
-            /**
-                     * @zh
-                     * 优先级。
-                     */ protected _priority: number;
-            /**
-                     * @zh
-                     * 渲染流程。
-                     */ protected _framebuffer: cocos_gfx_framebuffer_GFXFramebuffer | null;
-            /**
-                     * @zh
-                     * 命令缓冲。
-                     */ protected _cmdBuff: cocos_gfx_command_buffer_GFXCommandBuffer | null;
-            /**
-                     * @zh
-                     * 清空颜色数组。
-                     */ protected _clearColors: cocos_gfx_define_IGFXColor[];
-            /**
-                     * @zh
-                     * 清空深度。
-                     */ protected _clearDepth: number;
-            /**
-                     * @zh
-                     * 清空模板。
-                     */ protected _clearStencil: number;
-            /**
-                     * @zh
-                     * 渲染区域。
-                     */ protected _renderArea: cocos_gfx_define_IGFXRect;
-            /**
-                     * @zh
-                     * 着色过程。
-                     */ protected _pass: renderer.Pass | null;
-            /**
-                     * @zh
-                     * GFX管线状态。
-                     */ protected _pso: cocos_gfx_pipeline_state_GFXPipelineState | null;
-            /**
-                     * @zh
-                     * 构造函数。
-                     * @param flow 渲染流程。
-                     */ constructor(flow: cocos_pipeline_render_flow_RenderFlow);
-            /**
-                     * @zh
-                     * 初始化函数。
-                     * @param info 渲染阶段描述信息。
-                     */ abstract initialize(info: cocos_pipeline_render_stage_IRenderStageInfo): boolean;
-            /**
-                     * @zh
-                     * 销毁函数。
-                     */ abstract destroy(): any;
-            /**
-                     * @zh
-                     * 渲染函数。
-                     * @param view 渲染视图。
-                     */ abstract render(view: cocos_pipeline_render_view_RenderView): any;
-            /**
-                     * @zh
-                     * 重置大小。
-                     * @param width 屏幕宽度。
-                     * @param height 屏幕高度。
-                     */ abstract resize(width: number, height: number): any;
-            /**
-                     * @zh
-                     * 重构函数。
-                     */ abstract rebuild(): any;
-            /**
-                     * @zh
-                     * 设置清空颜色。
-                     */ setClearColor(color: cocos_gfx_define_IGFXColor): void;
-            /**
-                     * @zh
-                     * 设置清空颜色数组。
-                     */ setClearColors(colors: cocos_gfx_define_IGFXColor[]): void;
-            /**
-                     * @zh
-                     * 设置清空深度。
-                     */ setClearDepth(depth: number): void;
-            /**
-                     * @zh
-                     * 设置清空模板。
-                     */ setClearStencil(stencil: number): void;
-            /**
-                     * @zh
-                     * 设置渲染区域。
-                     */ setRenderArea(width: number, height: number): void;
-        }
-        /**
-             * @zh
-             * 渲染流程描述信息。
-             */ export interface cocos_pipeline_render_flow_IRenderFlowInfo {
-            name?: string;
-            priority: number;
-        }
-        /**
-             * @zh
-             * 渲染流程。
-             */ export abstract class cocos_pipeline_render_flow_RenderFlow {
-            readonly device: cocos_gfx_device_GFXDevice;
-            readonly pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
-            readonly name: string;
-            readonly priority: number;
-            readonly stages: cocos_pipeline_render_stage_RenderStage[];
-            readonly material: Material;
-            /**
-                     * @zh
-                     * GFX设备。
-                     */ protected _device: cocos_gfx_device_GFXDevice;
-            /**
-                     * @zh
-                     * 渲染管线。
-                     */ protected _pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
-            /**
-                     * @zh
-                     * 名称。
-                     */ protected _name: string;
-            /**
-                     * @zh
-                     * 优先级。
-                     */ protected _priority: number;
-            /**
-                     * @zh
-                     * 渲染阶段数组。
-                     */ protected _stages: cocos_pipeline_render_stage_RenderStage[];
-            /**
-                     * @zh
-                     * 材质。
-                     */ protected _material: Material;
-            /**
-                     * @zh
-                     * 构造函数。
-                     * @param pipeline 渲染管线。
-                     */ constructor(pipeline: cocos_pipeline_render_pipeline_RenderPipeline);
-            /**
-                     * @zh
-                     * 初始化函数。
-                     * @param info 渲染流程描述信息。
-                     */ abstract initialize(info: cocos_pipeline_render_flow_IRenderFlowInfo): boolean;
-            /**
-                     * @zh
-                     * 销毁函数。
-                     */ abstract destroy(): any;
-            /**
-                     * @zh
-                     * 重构函数。
-                     */ abstract rebuild(): any;
-            /**
-                     * @zh
-                     * 重置大小。
-                     * @param width 屏幕宽度。
-                     * @param height 屏幕高度。
-                     */ resize(width: number, height: number): void;
-            /**
-                     * @zh
-                     * 渲染函数。
-                     * @param view 渲染视图。
-                     */ render(view: cocos_pipeline_render_view_RenderView): void;
-            /**
-                     * @zh
-                     * 创建渲染阶段。
-                     * @param clazz 渲染阶段类。
-                     * @param info 渲染阶段描述信息。
-                     */ createStage<T extends cocos_pipeline_render_stage_RenderStage>(clazz: new (flow: cocos_pipeline_render_flow_RenderFlow) => T, info: cocos_pipeline_render_stage_IRenderStageInfo): cocos_pipeline_render_stage_RenderStage | null;
-            /**
-                     * @zh
-                     * 销毁全部渲染阶段。
-                     */ destroyStages(): void;
-        }
-        /**
-             * @zh
-             * 渲染视图描述信息。
-             */ export interface cocos_pipeline_render_view_IRenderViewInfo {
-            camera: renderer.Camera;
-            name: string;
-            priority: number;
-            isUI: boolean;
-            flows?: string[];
-        }
-        /**
-             * @zh
-             * 渲染视图。
-             */ export class cocos_pipeline_render_view_RenderView {
-            /**
-                     * @zh
-                     * 名称。
-                     */ readonly name: string;
-            /**
-                     * @zh
-                     * GFX窗口。
-                     */ window: cocos_gfx_window_GFXWindow | null;
-            /**
-                     * @zh
-                     * 优先级。
-                     */ priority: number;
-            /**
-                     * @zh
-                     * 可见性。
-                     */ visibility: any;
-            /**
-                     * @zh
-                     * 相机。
-                     */ readonly camera: renderer.Camera;
-            /**
-                     * @zh
-                     * 是否启用。
-                     */ readonly isEnable: boolean;
-            /**
-                     * @zh
-                     * 是否是UI视图。
-                     */ readonly isUI: boolean;
-            /**
-                     * @zh
-                     * 渲染流程列表。
-                     */ readonly flows: cocos_pipeline_render_flow_RenderFlow[];
-            static registerCreateFunc(root: cocos_core_root_Root): void;
-            /**
-                     * @zh
-                     * 初始化函数。
-                     * @param info 渲染视图描述信息。
-                     */ initialize(info: cocos_pipeline_render_view_IRenderViewInfo): boolean;
-            /**
-                     * @zh
-                     * 销毁函数。
-                     */ destroy(): void;
-            /**
-                     * @zh
-                     * 启用该渲染视图。
-                     */ enable(isEnable: boolean): void;
-        }
-        /**
-             * @zh
-             * Root描述信息
-             */ export interface cocos_core_root_IRootInfo {
-            enableHDR?: boolean;
-        }
-        /**
-             * @zh
-             * Root类
-             */ export class cocos_core_root_Root {
-            /**
-                     * @zh
-                     * GFX设备
-                     */ readonly device: cocos_gfx_device_GFXDevice;
-            /**
-                     * @zh
-                     * 主窗口
-                     */ readonly mainWindow: cocos_gfx_window_GFXWindow | null;
-            /**
-                     * @zh
-                     * 当前窗口
-                     */ readonly curWindow: cocos_gfx_window_GFXWindow | null;
-            /**
-                     * @zh
-                     * 窗口列表
-                     */ readonly windows: cocos_gfx_window_GFXWindow[];
-            /**
-                     * @zh
-                     * 渲染管线
-                     */ readonly pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
-            /**
-                     * @zh
-                     * UI实例
-                     */ readonly ui: cocos_renderer_ui_ui_UI;
-            /**
-                     * @zh
-                     * 场景列表
-                     */ readonly scenes: cocos_renderer_scene_render_scene_RenderScene[];
-            /**
-                     * @zh
-                     * 渲染视图列表
-                     */ readonly views: cocos_pipeline_render_view_RenderView[];
-            /**
-                     * @zh
-                     * 累计时间（秒）
-                     */ readonly cumulativeTime: number;
-            /**
-                     * @zh
-                     * 帧时间（秒）
-                     */ readonly frameTime: number;
-            /**
-                     * @zh
-                     * 一秒内的累计帧数
-                     */ readonly frameCount: number;
-            /**
-                     * @zh
-                     * 每秒帧率
-                     */ readonly fps: number;
-            _createSceneFun: any;
-            _createViewFun: any;
-            /**
-                     * @zh
                      * 构造函数
-                     * @param device GFX设备
-                     */ constructor(device: cocos_gfx_device_GFXDevice);
+                     * @param length 数组初始化长度
+                     * @param compareFn 比较函数
+                     */ constructor(length: number, compareFn?: (a: T, b: T) => number);
             /**
                      * @zh
-                     * 初始化函数
-                     * @param info Root描述信息
-                     */ initialize(info: cocos_core_root_IRootInfo): boolean;
-            destroy(): void;
+                     * 向数组中添加一个元素
+                     * @param item 数组元素
+                     */ push(item: T): void;
             /**
                      * @zh
-                     * 重置大小
-                     * @param width 屏幕宽度
-                     * @param height 屏幕高度
-                     */ resize(width: number, height: number): void;
+                     * 弹出数组最后一个元素
+                     * @param item 数组元素
+                     */ pop(): T | undefined;
             /**
                      * @zh
-                     * 激活指定窗口为当前窗口
-                     * @param window GFX窗口
-                     */ activeWindow(window: cocos_gfx_window_GFXWindow): void;
+                     * 得到数组中指定索引的元素
+                     * @param item 数组元素
+                     */ get(idx: number): T;
             /**
                      * @zh
-                     * 重置累计时间
-                     */ resetCumulativeTime(): void;
+                     * 清空数组所有元素
+                     */ clear(): void;
             /**
                      * @zh
-                     * 每帧执行函数
-                     * @param deltaTime 间隔时间
-                     */ frameMove(deltaTime: number): void;
+                     * 排序数组
+                     */ sort(): void;
             /**
                      * @zh
-                     * 创建窗口
-                     * @param info GFX窗口描述信息
-                     */ createWindow(info: cocos_gfx_window_IGFXWindowInfo): cocos_gfx_window_GFXWindow | null;
+                     * 连接一个指定数组中的所有元素到当前数组末尾
+                     */ concat(array: cocos_core_memop_cached_array_CachedArray<T>): void;
             /**
                      * @zh
-                     * 销毁指定的窗口
-                     * @param window GFX窗口
-                     */ destroyWindow(window: cocos_gfx_window_GFXWindow): void;
-            /**
-                     * @zh
-                     * 销毁全部窗口
-                     */ destroyWindows(): void;
-            /**
-                     * @zh
-                     * 创建渲染场景
-                     * @param info 渲染场景描述信息
-                     */ createScene(info: cocos_renderer_scene_render_scene_IRenderSceneInfo): cocos_renderer_scene_render_scene_RenderScene;
-            /**
-                     * @zh
-                     * 销毁指定的渲染场景
-                     * @param scene 渲染场景
-                     */ destroyScene(scene: cocos_renderer_scene_render_scene_RenderScene): void;
-            /**
-                     * @zh
-                     * 销毁全部场景
-                     */ destroyScenes(): void;
-            /**
-                     * @zh
-                     * 创建渲染视图
-                     * @param info 渲染视图描述信息
-                     */ createView(info: cocos_pipeline_render_view_IRenderViewInfo): cocos_pipeline_render_view_RenderView;
-            /**
-                     * @zh
-                     * 销毁指定的渲染视图
-                     * @param view 渲染视图
-                     */ destroyView(view: cocos_pipeline_render_view_RenderView): void;
-            /**
-                     * @zh
-                     * 销毁全部渲染视图
-                     */ destroyViews(): void;
+                     * 向数组中追加一组数据
+                     */ append(array: T[]): void;
         }
-        /**
-             * @zh
-             * 渲染对象。
-             */ export interface cocos_pipeline_define_IRenderObject {
-            model: renderer.Model;
-            depth: number;
-        }
-        /**
-             * @zh
-             * 全局UBO。
-             */ export class cocos_pipeline_define_UBOGlobal {
-            static TIME_OFFSET: number;
-            static SCREEN_SIZE_OFFSET: number;
-            static SCREEN_SCALE_OFFSET: number;
-            static NATIVE_SIZE_OFFSET: number;
-            static MAT_VIEW_OFFSET: number;
-            static MAT_VIEW_INV_OFFSET: number;
-            static MAT_PROJ_OFFSET: number;
-            static MAT_PROJ_INV_OFFSET: number;
-            static MAT_VIEW_PROJ_OFFSET: number;
-            static MAT_VIEW_PROJ_INV_OFFSET: number;
-            static CAMERA_POS_OFFSET: number;
-            static EXPOSURE_OFFSET: number;
-            static MAIN_LIT_DIR_OFFSET: number;
-            static MAIN_LIT_COLOR_OFFSET: number;
-            static AMBIENT_SKY_OFFSET: number;
-            static AMBIENT_GROUND_OFFSET: number;
-            static COUNT: number;
-            static SIZE: number;
-            static BLOCK: cocos_gfx_shader_GFXUniformBlock;
-            view: Float32Array;
-        }
-        /**
-             * @zh
-             * 渲染流程描述信息。
-             */ export interface cocos_pipeline_render_pipeline_IRenderPipelineInfo {
-            enablePostProcess?: boolean;
-            enableHDR?: boolean;
-            enableMSAA?: boolean;
-            enableSMAA?: boolean;
-            enableIBL?: boolean;
-        }
-        /**
-             * @zh
-             * 渲染流程。
-             */ export abstract class cocos_pipeline_render_pipeline_RenderPipeline {
+        export interface cocos_core_utils_interfaces_IBaseNode {
             /**
                      * @zh
-                     * Root类对象。
-                     */ readonly root: cocos_core_root_Root;
+                     * 是否为常驻节点，与节点的自动释放有关
+                     */ _persistNode: boolean;
             /**
-                     * @zh
-                     * GFX设备。
-                     */ readonly device: cocos_gfx_device_GFXDevice;
-            /**
-                     * @zh
-                     * 名称。
-                     */ readonly name: string;
-            /**
-                     * @zh
-                     * 渲染对象数组。
-                     */ readonly renderObjects: cocos_pipeline_define_IRenderObject[];
-            /**
-                     * @zh
-                     * 渲染流程数组。
-                     */ readonly flows: cocos_pipeline_render_flow_RenderFlow[];
-            /**
-                     * @zh
-                     * 启用后期处理。
-                     */ readonly usePostProcess: boolean;
-            /**
-                     * @zh
-                     * 是否支持HDR。
-                     */ readonly isHDRSupported: boolean;
-            /**
-                     * @zh
-                     * 是否为HDR管线。
-                     */ readonly isHDR: boolean;
-            /**
-                     * @zh
-                     * 是否启用 IBL。
-                     */ useIBL: boolean;
-            /**
-                     * @zh
-                     * 着色尺寸缩放。
-                     */ readonly shadingScale: number;
-            /**
-                     * @zh
-                     * 灯光距离缩放系数（以米为单位）。
-                     */ lightMeterScale: number;
-            /**
-                     * @zh
-                     * 深度模板纹理视图。
-                     */ readonly depthStencilTexView: cocos_gfx_texture_view_GFXTextureView;
-            /**
-                     * @zh
-                     * 着色纹理视图数组的当前帧缓冲索引。
-                     */ readonly curShadingTexView: cocos_gfx_texture_view_GFXTextureView;
-            /**
-                     * @zh
-                     * 着色纹理视图数组的上一帧缓冲索引。
-                     */ readonly prevShadingTexView: cocos_gfx_texture_view_GFXTextureView;
-            /**
-                     * @zh
-                     * 着色帧缓冲数组的当前帧缓冲索引。
-                     */ readonly curShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer;
-            /**
-                     * @zh
-                     * 着色帧缓冲数组的上一帧缓冲索引。
-                     */ readonly prevShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer;
-            /**
-                     * @zh
-                     * MSAA着色帧缓冲。
-                     */ readonly msaaShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer;
-            /**
-                     * @zh
-                     * 启用MSAA。
-                     */ readonly useMSAA: boolean;
-            /**
-                     * @zh
-                     * 启用SMAA。
-                     */ readonly useSMAA: boolean;
-            /**
-                     * @zh
-                     * SMAA边缘纹理视图。
-                     */ readonly smaaEdgeTexView: cocos_gfx_texture_view_GFXTextureView;
-            /**
-                     * @zh
-                     * SMAA边缘帧缓冲。
-                     */ readonly smaaEdgeFBO: cocos_gfx_framebuffer_GFXFramebuffer;
-            /**
-                     * @zh
-                     * SMAA混合纹理视图。
-                     */ readonly smaaBlendTexView: cocos_gfx_texture_view_GFXTextureView;
-            /**
-                     * @zh
-                     * SMAA混合帧缓冲。
-                     */ readonly smaaBlendFBO: cocos_gfx_framebuffer_GFXFramebuffer;
-            /**
-                     * @zh
-                     * 四边形输入汇集器。
-                     */ readonly quadIA: cocos_gfx_input_assembler_GFXInputAssembler;
-            /**
-                     * @zh
-                     * 默认的全局绑定表。
-                     */ readonly globalBindings: Map<string, cocos_pipeline_define_IInternalBindingInst>;
-            /**
-                     * @zh
-                     * 默认纹理。
-                     */ readonly defaultTexture: cocos_gfx_texture_GFXTexture;
-            /**
-                     * @zh
-                     * 浮点精度缩放。
-                     */ readonly fpScale: number;
-            /**
-                     * @zh
-                     * 浮点精度缩放的倒数。
-                     */ readonly fpScaleInv: number;
-            /**
-                     * @zh
-                     * 管线宏定义。
-                     */ readonly macros: cocos_renderer_core_pass_IDefineMap;
-            /**
-                     * @zh
-                     * 默认的全局UBO。
-                     */ readonly defaultGlobalUBOData: Float32Array;
-            /**
-                     * @zh
-                     * Root类对象。
-                     */ protected _root: cocos_core_root_Root;
-            /**
-                     * @zh
-                     * GFX设备。
-                     */ protected _device: cocos_gfx_device_GFXDevice;
-            /**
-                     * @zh
-                     * 名称。
-                     */ protected _name: string;
-            /**
-                     * @zh
-                     * 渲染对象数组。
-                     */ protected _renderObjects: cocos_pipeline_define_IRenderObject[];
-            /**
-                     * @zh
-                     * 渲染过程数组。
-                     */ protected _renderPasses: Map<number, cocos_gfx_render_pass_GFXRenderPass>;
-            /**
-                     * @zh
-                     * 渲染流程数组。
-                     */ protected _flows: cocos_pipeline_render_flow_RenderFlow[];
-            /**
-                     * @zh
-                     * 是否支持 HDR。
-                     */ protected _isHDRSupported: boolean;
-            /**
-                     * @zh
-                     * 是否为 HDR 管线。
-                     */ protected _isHDR: boolean;
-            /**
-                     * @zh
-                     * 是否启用 IBL。
-                     */ protected _useIBL: boolean;
-            /**
-                     * @zh
-                     * 灯光距离缩放系数（以米为单位）。
-                     */ protected _lightMeterScale: number;
-            /**
-                     * @zh
-                     * 着色渲染过程。
-                     */ protected _shadingPass: cocos_gfx_render_pass_GFXRenderPass | null;
-            /**
-                     * @zh
-                     * 帧缓冲数量。
-                     */ protected _fboCount: number;
-            /**
-                     * @zh
-                     * MSAA着色纹理。
-                     */ protected _msaaShadingTex: cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * @zh
-                     * MSAA着色纹理视图。
-                     */ protected _msaaShadingTexView: cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * @zh
-                     * MSAA深度模板纹理。
-                     */ protected _msaaDepthStencilTex: cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * @zh
-                     * MSAA深度模板纹理视图。
-                     */ protected _msaaDepthStencilTexView: cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * @zh
-                     * MSAA着色帧缓冲。
-                     */ protected _msaaShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer | null;
-            /**
-                     * @zh
-                     * 颜色格式。
-                     */ protected _colorFmt: GFXFormat;
-            /**
-                     * @zh
-                     * 深度模板格式。
-                     */ protected _depthStencilFmt: GFXFormat;
-            /**
-                     * @zh
-                     * 着色纹理数组。
-                     */ protected _shadingTextures: cocos_gfx_texture_GFXTexture[];
-            /**
-                     * @zh
-                     * 着色纹理视图数组。
-                     */ protected _shadingTexViews: cocos_gfx_texture_view_GFXTextureView[];
-            /**
-                     * @zh
-                     * 深度模板纹理。
-                     */ protected _depthStencilTex: cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * @zh
-                     * 深度模板纹理视图。
-                     */ protected _depthStencilTexView: cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * @zh
-                     * 着色帧缓冲数组。
-                     */ protected _shadingFBOs: cocos_gfx_framebuffer_GFXFramebuffer[];
-            /**
-                     * @zh
-                     * 着色尺寸宽度。
-                     */ protected _shadingWidth: number;
-            /**
-                     * @zh
-                     * 着色尺寸高度。
-                     */ protected _shadingHeight: number;
-            /**
-                     * @zh
-                     * 着色尺寸缩放。
-                     */ protected _shadingScale: number;
-            /**
-                     * @zh
-                     * 当前帧缓冲索引。
-                     */ protected _curIdx: number;
-            /**
-                     * @zh
-                     * 上一帧缓冲索引。
-                     */ protected _prevIdx: number;
-            /**
-                     * @zh
-                     * 启用后期处理。
-                     */ protected _usePostProcess: boolean;
-            /**
-                     * @zh
-                     * 启用MSAA。
-                     */ protected _useMSAA: boolean;
-            /**
-                     * @zh
-                     * 启用SMAA。
-                     */ protected _useSMAA: boolean;
-            /**
-                     * @zh
-                     * SMAA渲染过程。
-                     */ protected _smaaPass: cocos_gfx_render_pass_GFXRenderPass | null;
-            /**
-                     * @zh
-                     * SMAA边缘帧缓冲。
-                     */ protected _smaaEdgeFBO: cocos_gfx_framebuffer_GFXFramebuffer | null;
-            /**
-                     * @zh
-                     * SMAA边缘纹理。
-                     */ protected _smaaEdgeTex: cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * @zh
-                     * SMAA边缘纹理视图。
-                     */ protected _smaaEdgeTexView: cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * @zh
-                     * SMAA混合帧缓冲。
-                     */ protected _smaaBlendFBO: cocos_gfx_framebuffer_GFXFramebuffer | null;
-            /**
-                     * @zh
-                     * SMAA混合纹理。
-                     */ protected _smaaBlendTex: cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * @zh
-                     * SMAA混合纹理视图。
-                     */ protected _smaaBlendTexView: cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * @zh
-                     * 四边形顶点缓冲。
-                     */ protected _quadVB: cocos_gfx_buffer_GFXBuffer | null;
-            /**
-                     * @zh
-                     * 四边形索引缓冲。
-                     */ protected _quadIB: cocos_gfx_buffer_GFXBuffer | null;
-            /**
-                     * @zh
-                     * 四边形输入汇集器。
-                     */ protected _quadIA: cocos_gfx_input_assembler_GFXInputAssembler | null;
-            /**
-                     * @zh
-                     * 默认的全局UBO。
-                     */ protected _defaultUboGlobal: cocos_pipeline_define_UBOGlobal;
-            /**
-                     * @zh
-                     * 默认的全局绑定表。
-                     */ protected _globalBindings: Map<string, cocos_pipeline_define_IInternalBindingInst>;
-            /**
-                     * @zh
-                     * 默认纹理。
-                     */ protected _defaultTex: cocos_gfx_texture_GFXTexture | null;
-            /**
-                     * @zh
-                     * 默认纹理视图。
-                     */ protected _defaultTexView: cocos_gfx_texture_view_GFXTextureView | null;
-            /**
-                     * @zh
-                     * 浮点精度缩放。
-                     */ protected _fpScale: number;
-            /**
-                     * @zh
-                     * 浮点精度缩放的倒数。
-                     */ protected _fpScaleInv: number;
-            /**
-                     * @zh
-                     * 管线宏定义。
-                     */ protected _macros: cocos_renderer_core_pass_IDefineMap;
-            /**
-                     * @zh
-                     * 构造函数。
-                     * @param root Root类实例。
-                     */ constructor(root: cocos_core_root_Root);
-            /**
-                     * @zh
-                     * 初始化函数。
-                     * @param info 渲染管线描述信息。
-                     */ abstract initialize(info: cocos_pipeline_render_pipeline_IRenderPipelineInfo): boolean;
-            /**
-                     * @zh
-                     * 销毁函数。
-                     */ abstract destroy(): any;
-            /**
-                     * @zh
-                     * 重构函数。
-                     */ rebuild(): void;
-            /**
-                     * @zh
-                     * 重置大小。
-                     * @param width 屏幕宽度。
-                     * @param height 屏幕高度。
-                     */ resize(width: number, height: number): void;
-            /**
-                     * @zh
-                     * 渲染函数。
-                     * @param view 渲染视图。
-                     */ render(view: cocos_pipeline_render_view_RenderView): void;
-            /**
-                     * @zh
-                     * 交换帧缓冲。
-                     */ swapFBOs(): void;
-            /**
-                     * @zh
-                     * 添加渲染过程。
-                     * @param stage 渲染阶段。
-                     * @param renderPass 渲染过程。
-                     */ addRenderPass(stage: number, renderPass: cocos_gfx_render_pass_GFXRenderPass): void;
-            /**
-                     * @zh
-                     * 得到指定阶段的渲染过程。
-                     * @param stage 渲染阶段。
-                     */ getRenderPass(stage: number): cocos_gfx_render_pass_GFXRenderPass | null;
-            /**
-                     * @zh
-                     * 移除指定阶段的渲染过程。
-                     * @param stage 渲染阶段。
-                     */ removeRenderPass(stage: number): void;
-            /**
-                     * @zh
-                     * 清空渲染过程。
-                     */ clearRenderPasses(): void;
-            /**
-                     * @zh
-                     * 创建渲染流程。
-                     */ createFlow<T extends cocos_pipeline_render_flow_RenderFlow>(clazz: new (pipeline: cocos_pipeline_render_pipeline_RenderPipeline) => T, info: cocos_pipeline_render_flow_IRenderFlowInfo): cocos_pipeline_render_flow_RenderFlow | null;
-            /**
-                     * @zh
-                     * 销毁全部渲染流程。
-                     */ destroyFlows(): void;
-            /**
-                     * @zh
-                     * 得到指定名称的渲染流程。
-                     * @param name 名称。
-                     */ getFlow(name: string): cocos_pipeline_render_flow_RenderFlow | null;
-            /**
-                     * @zh
-                     * 更新宏定义。
-                     */ updateMacros(): void;
-            /**
-                     * @zh
-                     * 内部初始化函数。
-                     * @param info 渲染流程描述信息。
-                     */ protected _initialize(info: cocos_pipeline_render_pipeline_IRenderPipelineInfo): boolean;
-            /**
-                     * @zh
-                     * 内部销毁函数。
-                     */ protected _destroy(): void;
-            /**
-                     * @zh
-                     * 重置帧缓冲大小。
-                     * @param width 屏幕宽度。
-                     * @param height 屏幕高度。
-                     */ protected resizeFBOs(width: number, height: number): void;
-            /**
-                     * @zh
-                     * 创建四边形输入汇集器。
-                     */ protected createQuadInputAssembler(): boolean;
-            /**
-                     * @zh
-                     * 销毁四边形输入汇集器。
-                     */ protected destroyQuadInputAssembler(): void;
-            /**
-                     * @zh
-                     * 创建所有UBO。
-                     */ protected createUBOs(): boolean;
-            /**
-                     * @zh
-                     * 销毁全部UBO。
-                     */ protected destroyUBOs(): void;
-            /**
-                     * @zh
-                     * 更新指定渲染视图的UBO。
-                     * @param view 渲染视图。
-                     */ protected updateUBOs(view: cocos_pipeline_render_view_RenderView): void;
-            /**
-                     * @zh
-                     * 场景裁剪。
-                     * @param view 渲染视图。
-                     */ protected sceneCulling(view: cocos_pipeline_render_view_RenderView): void;
-            /**
-                     * @zh
-                     * 添加可见对象。
-                     * @param model 模型。
-                     * @param camera 相机。
-                     */ protected addVisibleModel(model: renderer.Model, camera: renderer.Camera): void;
-        }
-        /**
-             * @zh
-             * 维护 shader 资源实例的全局管理器。
-             */ class cocos_renderer_core_program_lib_ProgramLib {
-            protected _templates: Record<string, cocos_renderer_core_program_lib_IProgramInfo>;
-            protected _cache: Record<string, cocos_gfx_shader_GFXShader>;
-            constructor();
-            /**
-                     * @zh
-                     * 根据 effect 信息注册 shader 模板。
-                     * @example:
-                     * ```ts
-                     *   // this object is auto-generated from your actual shaders
-                     *   let program = {
-                     *     name: 'foobar',
-                     *     glsl1: { vert: '...', frag: '...' },
-                     *     glsl3: { vert: '...', frag: '...' },
-                     *     defines: [
-                     *       { name: 'shadow', type: 'boolean', defines: [] },
-                     *       { name: 'lightCount', type: 'number', range: [1, 4], defines: [] }
-                     *     ],
-                     *     blocks: [{ name: 'Constants', binding: 0, members: [
-                     *       { name: 'color', type: 'vec4', count: 1, size: 16 }], defines: [], size: 16 }
-                     *     ],
-                     *     samplers: [],
-                     *     dependencies: { 'USE_NORMAL_TEXTURE': 'OES_standard_derivatives' },
-                     *   };
-                     *   programLib.define(program);
+                     * @en Name of node.
+                     * @zh 该节点名称。
+                     * @property name
+                     * @type {String}
+                     * @example
                      * ```
-                     */ define(prog: cocos_3d_assets_effect_asset_IShaderInfo): void;
-            getTemplate(name: string): cocos_renderer_core_program_lib_IProgramInfo;
+                     * node.name = "New Node";
+                     * cc.log("Node Name: " + node.name);
+                     * ```
+                     */ name: string;
+            /**
+                     * @en The uuid for editor, will be stripped before building project.
+                     * @zh 主要用于编辑器的 uuid，在编辑器下可用于持久化存储，在项目构建之后将变成自增的 id。
+                     * @property uuid
+                     * @type {String}
+                     * @readOnly
+                     * @example
+                     * ```
+                     * cc.log("Node Uuid: " + node.uuid);
+                     * ```
+                     */ uuid: Readonly<string>;
             /**
                      * @en
-                     * Does this library has the specified program?
-                     * @zh
-                     * 当前是否有已注册的指定名字的 shader？
-                     * @param name 目标 shader 名
-                     */ hasProgram(name: string): boolean;
-            /**
-                     * @zh
-                     * 根据 shader 名和预处理宏列表获取 shader key。
-                     * @param name 目标 shader 名
-                     * @param defines 目标预处理宏列表
-                     */ getKey(name: string, defines: cocos_renderer_core_pass_IDefineMap): number;
-            /**
-                     * @zh
-                     * 销毁所有完全满足指定预处理宏特征的 shader 实例。
-                     * @param defines 用于筛选的预处理宏列表
-                     */ destroyShaderByDefines(defines: cocos_renderer_core_pass_IDefineMap): void;
-            /**
-                     * @zh
-                     * 获取指定 shader 的渲染资源实例
-                     * @param device 渲染设备 [[GFXDevice]]
-                     * @param name shader 名字
-                     * @param defines 预处理宏列表
-                     * @param pipeline 实际渲染命令执行时所属的 [[RenderPipeline]]
-                     */ getGFXShader(device: cocos_gfx_device_GFXDevice, name: string, defines: cocos_renderer_core_pass_IDefineMap, pipeline: cocos_pipeline_render_pipeline_RenderPipeline): cocos_gfx_shader_GFXShader;
-        }
-        /**
-             * @zh
-             * 维护 sampler 资源实例的全局管理器。
-             */ class cocos_renderer_core_sampler_lib_SamplerLib {
-            protected _cache: Record<string, cocos_gfx_sampler_GFXSampler>;
-            /**
-                     * @zh
-                     * 获取指定属性的 sampler 资源。
-                     * @param device 渲染设备 [[GFXDevice]]
-                     * @param info 目标 sampler 属性
-                     */ getSampler(device: cocos_gfx_device_GFXDevice, info: Array<number | undefined>): cocos_gfx_sampler_GFXSampler;
-        }
-        export enum cocos_renderer_scene_light_LightType {
-            DIRECTIONAL = 0,
-            SPHERE = 1,
-            SPOT = 2,
-            UNKNOWN = 3
-        }
-        export enum cocos_renderer_scene_camera_CameraAperture {
-            F1_8 = 0,
-            F2_0 = 1,
-            F2_2 = 2,
-            F2_5 = 3,
-            F2_8 = 4,
-            F3_2 = 5,
-            F3_5 = 6,
-            F4_0 = 7,
-            F4_5 = 8,
-            F5_0 = 9,
-            F5_6 = 10,
-            F6_3 = 11,
-            F7_1 = 12,
-            F8_0 = 13,
-            F9_0 = 14,
-            F10_0 = 15,
-            F11_0 = 16,
-            F13_0 = 17,
-            F14_0 = 18,
-            F16_0 = 19,
-            F18_0 = 20,
-            F20_0 = 21,
-            F22_0 = 22
-        }
-        export enum cocos_renderer_scene_camera_CameraShutter {
-            D1 = 0,
-            D2 = 1,
-            D4 = 2,
-            D8 = 3,
-            D15 = 4,
-            D30 = 5,
-            D60 = 6,
-            D125 = 7,
-            D250 = 8,
-            D500 = 9,
-            D1000 = 10,
-            D2000 = 11,
-            D4000 = 12
-        }
-        export enum cocos_renderer_scene_camera_CameraISO {
-            ISO100 = 0,
-            ISO200 = 1,
-            ISO400 = 2,
-            ISO800 = 3
-        }
-        /**
-             * @zh
-             * 本地UBO。
-             */ export class cocos_pipeline_define_UBOLocal {
-            static MAT_WORLD_OFFSET: number;
-            static MAT_WORLD_IT_OFFSET: number;
-            static COUNT: number;
-            static SIZE: number;
-            static BLOCK: cocos_gfx_shader_GFXUniformBlock;
-            view: Float32Array;
-        }
-        /**
-             * 允许存储索引的数组视图。
-             */ export type cocos_3d_assets_mesh_IBArray = Uint8Array | Uint16Array | Uint32Array;
-        /**
-             * 几何信息。
-             */ export interface cocos_3d_assets_mesh_IGeometricInfo {
-            /**
-                     * 顶点位置。
-                     */ positions: Float32Array;
-            /**
-                     * 索引数据。
-                     */ indices: cocos_3d_assets_mesh_IBArray;
-            /**
-                     * 是否将图元按双面对待。
-                     */ doubleSided?: boolean;
-        }
-        /**
-             * 渲染子网格。
-             */ export interface cocos_3d_assets_mesh_IRenderingSubmesh {
-            /**
-                     * 使用的所有顶点缓冲区。
-                     */ vertexBuffers: cocos_gfx_buffer_GFXBuffer[];
-            /**
-                     * 使用的索引缓冲区，若未使用则为 `null`。
-                     */ indexBuffer: cocos_gfx_buffer_GFXBuffer | null;
-            /**
-                     * 间接绘制缓冲区。
-                     */ indirectBuffer?: cocos_gfx_buffer_GFXBuffer;
-            /**
-                     * 所有顶点属性。
-                     */ attributes: cocos_gfx_input_assembler_IGFXAttribute[];
-            /**
-                     * 图元类型。
-                     */ primitiveMode: GFXPrimitiveMode;
-            /**
-                     * （用于射线检测的）几何信息。
-                     */ geometricInfo?: cocos_3d_assets_mesh_IGeometricInfo;
-        }
-        export class cocos_renderer_scene_submodel_SubModel {
-            protected _subMeshObject: cocos_3d_assets_mesh_IRenderingSubmesh | null;
-            protected _inputAssembler: cocos_gfx_input_assembler_GFXInputAssembler | null;
-            constructor();
-            initialize(subMesh: cocos_3d_assets_mesh_IRenderingSubmesh, mat: Material, psos: cocos_gfx_pipeline_state_GFXPipelineState[]): void;
-            destroy(): void;
-            priority: cocos_pipeline_define_RenderPriority;
-            subMeshData: cocos_3d_assets_mesh_IRenderingSubmesh;
-            psos: cocos_gfx_pipeline_state_GFXPipelineState[] | null;
-            material: Material | null;
-            readonly inputAssembler: cocos_gfx_input_assembler_GFXInputAssembler | null;
-            castShadow: boolean;
-            updateCommandBuffer(): void;
-            protected recordCommandBuffer(index: number): void;
-            readonly passes: renderer.Pass[];
-            readonly commandBuffers: cocos_gfx_command_buffer_GFXCommandBuffer[];
-        }
-        export class cocos_renderer_models_skinning_model_Joint {
-            node: Node;
-            position: Vec3;
-            rotation: Quat;
-            scale: Vec3;
-            parent: cocos_renderer_models_skinning_model_Joint | null;
-            protected _lastUpdate: number;
-            constructor(node: Node);
-            update(): void;
-        }
-        type cocos_core_utils_pool_CleanUpFunction<T> = (value: T) => boolean | void;
-        export interface cocos_core_data_utils_attribute_defines_IExposedAttributes {
-            /**
-                     * 指定属性的类型。
-                     */ type?: any;
-            /**
-                     * ???
-                     */ url?: string;
-            /**
-                     * 控制是否在编辑器中显示该属性。
-                     */ visible?: boolean | (() => boolean);
-            /**
-                     * 该属性在编辑器中的显示名称。
-                     */ displayName?: string;
-            /**
-                     * ???
-                     */ displayOrder?: number;
-            /**
-                     * 该属性在编辑器中的工具提示内容。
-                     */ tooltip?: string;
-            /**
-                     * ???
-                     */ multiline?: boolean;
-            /**
-                     * 指定该属性是否为可读的。
-                     */ readonly?: boolean;
-            /**
-                     * 当该属性为数值类型时，指定了该属性允许的最小值。
-                     */ min?: number;
-            /**
-                     * 当该属性为数值类型时，指定了该属性允许的最大值。
-                     */ max?: number;
-            /**
-                     * 当该属性为数值类型时并在编辑器中提供了滑动条时，指定了滑动条的步长。
-                     */ step?: number;
-            /**
-                     * 当该属性为数值类型时，指定了该属性允许的范围。
-                     */ range?: number[];
-            /**
-                     * 当该属性为数值类型时，是否在编辑器中提供滑动条来调节值。
-                     */ slide?: boolean;
-            /**
-                     * 该属性是否参与序列化和反序列化。
-                     */ serializable?: boolean;
-            /**
-                     * 该属性的曾用名。
-                     */ formerlySerializedAs?: string;
-            /**
-                     * 该属性是否仅仅在编辑器环境中生效。
-                     */ editorOnly?: boolean;
-            /**
-                     * 是否覆盖基类中的同名属性。
-                     */ override?: boolean;
-            /**
-                     * ???
-                     */ animatable?: boolean;
-            /**
-                     * ???
-                     */ unit?: string;
-            /**
-                     * 转换为弧度
-                     */ radian?: boolean;
-        }
-        export interface cocos_core_event_callbacks_invoker_ICallbackTable {
-        }
-        /**
-             * @zh
-             * CallbacksInvoker 用来根据 Key 管理事件监听器列表并调用回调方法。
-             * @class CallbacksInvoker
-             */ export class cocos_core_event_callbacks_invoker_CallbacksInvoker {
-            _callbackTable: cocos_core_event_callbacks_invoker_ICallbackTable;
-            /**
-                     * @zh
-                     * 事件添加管理
+                     * Indicates whether the object is not yet destroyed. (It will not be available after being destroyed)<br>
+                     * When an object's `destroy` is called, it is actually destroyed after the end of this frame.
+                     * So `isValid` will return false from the next frame, while `isValid` in the current frame will still be true.
+                     * If you want to determine whether the current frame has called `destroy`, use `cc.isValid(obj, true)`,
+                     * but this is often caused by a particular logical requirements, which is not normally required.
                      *
-                     * @param key - 一个监听事件类型的字符串。
-                     * @param callback - 事件分派时将被调用的回调函数。
-                     * @param arget - 调用回调的目标。可以为空。
-                     * @param once - 是否只调用一次。
-                     */ on(key: string, callback: Function, target?: Object, once?: boolean): void;
+                     * @zh
+                     * 表示该对象是否可用（被 destroy 后将不可用）。<br>
+                     * 当一个对象的 `destroy` 调用以后，会在这一帧结束后才真正销毁。<br>
+                     * 因此从下一帧开始 `isValid` 就会返回 false，而当前帧内 `isValid` 仍然会是 true。<br>
+                     * 如果希望判断当前帧是否调用过 `destroy`，请使用 `cc.isValid(obj, true)`，不过这往往是特殊的业务需求引起的，通常情况下不需要这样。
+                     *
+                     * @property {Boolean} isValid
+                     * @default true
+                     * @readOnly
+                     */ isValid: boolean;
             /**
                      * @zh
-                     * 检查指定事件是否已注册回调。
-                     *
-                     * @param key - 一个监听事件类型的字符串。
-                     * @param callback - 事件分派时将被调用的回调函数。
-                     * @param target - 调用回调的目标。
-                     * @return - 指定事件是否已注册回调。
-                     */ hasEventListener(key: string, callback?: Function, target?: Object | null): boolean;
+                     * 父节点
+                     */ parent: this | null;
             /**
                      * @zh
-                     * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+                     * 孩子节点数组
+                     */ children: Readonly<this[]>;
+            /**
+                     * @en
+                     * The local active state of this node.<br/>
+                     * Note that a Node may be inactive because a parent is not active, even if this returns true.<br/>
+                     * Use {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}
+                     * if you want to check if the Node is actually treated as active in the scene.
+                     * @zh
+                     * 当前节点的自身激活状态。<br/>
+                     * 值得注意的是，一个节点的父节点如果不被激活，那么即使它自身设为激活，它仍然无法激活。<br/>
+                     * 如果你想检查节点在场景中实际的激活状态可以使用 {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}。
+                     * @property active
+                     * @type {Boolean}
+                     * @default true
+                     * @example
+                     * ```
+                     * node.active = false;
+                     * ```
+                     */ active: boolean;
+            /**
+                     * @en Indicates whether this node is active in the scene.
+                     * @zh 表示此节点是否在场景中激活。
+                     * @property activeInHierarchy
+                     * @type {Boolean}
+                     * @example
+                     * ```
+                     * cc.log("activeInHierarchy: " + node.activeInHierarchy);
+                     */ activeInHierarchy: boolean;
+            /**
+                     * @en which scene this node belongs to.
+                     * @zh 此节点属于哪个场景。
+                     * @type {cc.Scene}}
+                     */ scene: Readonly<Scene> | null;
+            /**
+                     * @en
+                     * Gets all components attached to this node.
+                     * @zh
+                     * 获取此节点上所有的组件
+                     */ components: ReadonlyArray<Component>;
+            /**
+                     * @en Get parent of the node.
+                     * @zh 获取该节点的父节点。
+                     * @example
+                     * ```
+                     * var parent = this.node.getParent();
+                     * ```
+                     */ getParent(): this | null;
+            /**
+                     * @en Set parent of the node.
+                     * @zh 设置该节点的父节点。
+                     * @example
+                     * ```
+                     * node.setParent(newNode);
+                     * ```
+                     */ setParent(value: this | null, keepWorldTransform?: boolean): void;
+            /**
+                     * @en Is this node a child of the given node?
+                     * @zh 是否是指定节点的子节点？
+                     * @return True if this node is a child, deep child or identical to the given node.
+                     * @example
+                     * ```
+                     * node.isChildOf(newNode);
+                     * ```
+                     */ isChildOf(parent: this): boolean;
+            /**
+                     * @zh 增加一个孩子节点
+                     * @param child 孩子节点
+                     */ addChild(child: this): void;
+            /**
+                     * @zh 移除节点中指定的子节点
+                     * @param child 孩子节点
+                     */ removeChild(child: this, cleanup?: boolean): void;
+            /**
+                    * @zh 插入子节点到指定位置
+                    * @param siblingIndex 指定位置
+                    */ insertChild(child: this, siblingIndex: number): void;
+            /**
+                     * @en Returns a child from the container given its uuid.
+                     * @zh 通过 uuid 获取节点的子节点。
+                     * @param uuid - The uuid to find the child node.
+                     * @return a Node whose uuid equals to the input parameter
+                     * @example
+                     * ```
+                     * var child = node.getChildByUuid(uuid);
+                     * ```
+                     */ getChildByUuid(uuid: string): this | null;
+            /**
+                     * @en Returns a child from the container given its name.
+                     * @zh 通过名称获取节点的子节点。
+                     * @param name - A name to find the child node.
+                     * @return a CCNode object whose name equals to the input parameter
+                     * @example
+                     * ```
+                     * var child = node.getChildByName("Test Node");
+                     * ```
+                     */ getChildByName(name: string): this | null;
+            /**
+                     * @en Returns a child from the container given its path.
+                     * @zh 通过路径获取节点的子节点。
+                     * @param path - A path to find the child node.
+                     * @return a CCNode object whose name equals to the input parameter
+                     * @example
+                     * ```
+                     * var child = node.getChildByPath("Test Node");
+                     * ```
+                     */ getChildByPath(path: string): this | null;
+            /**
+                     * @en
+                     * Inserts a child to the node at a specified index.
+                     * @zh
+                     * 插入子节点到指定位置
+                     * @param child - the child node to be inserted
+                     * @param siblingIndex - the sibling index to place the child in
+                     * @example
+                     * ```
+                     * node.insertChild(child, 2);
+                     * ```
+                     */ insertChild(child: this, siblingIndex: number): void;
+            /**
+                     * @en Get the sibling index.
+                     * @zh 获取同级索引。
+                     * @example
+                     * ```
+                     * var index = node.getSiblingIndex();
+                     * ```
+                     */ getSiblingIndex(): number;
+            /**
+                     * @en Set the sibling index of this node.
+                     * @zh 设置节点同级索引。
+                     * @example
+                     * ```
+                     * node.setSiblingIndex(1);
+                     * ```
+                     */ setSiblingIndex(index: number): void;
+            /**
+                     * @en
+                     * Remove itself from its parent node. <br/>
+                     * If the node orphan, then nothing happens.
+                     * @zh
+                     * 从父节点中删除该节点。<br/>
+                     * 如果这个节点是一个孤节点，那么什么都不会发生。
+                     * @see cc.Node#removeFromParentAndCleanup
+                     * @example
+                     * ```
+                     * node.removeFromParent();
+                     * ```
+                     */ removeFromParent(): void;
+            /**
+                     * @en
+                     * Removes a child from the container.
+                     * @zh
+                     * 移除节点中指定的子节点。
+                     * @param child - The child node which will be removed.
+                     * @example
+                     * ```
+                     * node.removeChild(newNode);
+                     * ```
+                     */ removeChild(child: this): void;
+            /**
+                     * @en
+                     * Removes all children from the container.
+                     * @zh
+                     * 移除节点所有的子节点。
+                     * @example
+                     * ```
+                     * node.removeAllChildren();
+                     * ```
+                     */ removeAllChildren(): void;
+            /**
+                     * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
+                     * @zh 向节点添加一个指定类型的组件类，传入参数可以是一个组件类型或 ccclass 的注册名称，也可以是已经获得的组件引用。
+                     * @example
+                     * ```
                      *
-                     * @param keyOrTarget - 要删除的事件键或要删除的目标。
-                     */ removeAll(keyOrTarget?: string | Object): void;
+                     * let sprite = node.addComponent(SpriteComponent);
+                     *
+                     * var sprite = node.addComponent(cc.SpriteComponent);
+                     *
+                     * var sprite = node.addComponent("cc.SpriteComponent");
+                     *
+                     * ```
+                     */ addComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
+            addComponent(className: string): Component | null;
+            addComponent(typeOrClassName: string | Function): any;
+            /**
+                     * @en
+                     * Removes a component identified by the given name or removes the component object given.
+                     * You can also use component.destroy() if you already have the reference.
+                     * @zh
+                     * 删除节点上的指定组件，传入参数可以是一个组件类型或 ccclass 的注册名称，也可以是已经获得的组件引用。
+                     * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
+                     * @example
+                     * ```
+                     *
+                     * node.removeComponent(SpriteComponent);
+                     *
+                     * node.removeComponent(cc.SpriteComponent);
+                     *
+                     * node.removeComponent("cc.SpriteComponent");
+                     *
+                     * ```
+                     */ removeComponent<T extends Component>(classConstructor: Constructor<T>): void;
+            removeComponent(classNameOrInstance: string | Component): void;
+            removeComponent(component: string | Component | any): void;
+            _removeComponent(component: Component): void;
+            /**
+                     * @en
+                     * Returns the component of supplied type if the node has one attached, null if it doesn't.<br/>
+                     * You can also get component in the node by passing in the name of the script.
+                     * @zh
+                     * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
+                     * 传入参数也可以是脚本的名称。
+                     * @example
+                     * ```
+                     *
+                     * let sprite = node.getComponent(SpriteComponent);
+                     *
+                     * var sprite = node.getComponent(cc.SpriteComponent);
+                     *
+                     * var sprite = node.getComponent("cc.SpriteComponent");
+                     *
+                     * ```
+                     */ getComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
+            getComponent(className: string): Component | null;
+            getComponent(typeOrClassName: string | Function): any;
+            getComponents<T extends Component>(classConstructor: Constructor<T>): T[];
+            getComponents(className: string): Component[];
+            getComponents(typeOrClassName: string | Function): any;
+            /**
+                     * @en Returns all components of supplied type in the node.
+                     * @zh 返回节点上指定类型的所有组件。
+                     * @example
+                     * ```
+                     *
+                     * let sprite = node.getComponentInChildren(SpriteComponent);
+                     *
+                     * var sprite = node.getComponentInChildren(cc.SpriteComponent);
+                     *
+                     * var sprite = node.getComponentInChildren("cc.SpriteComponent");
+                     *
+                     * ```
+                     */ getComponentInChildren<T extends Component>(classConstructor: Constructor<T>): T | null;
+            getComponentInChildren(className: string): Component | null;
+            getComponentInChildren(typeOrClassName: string | Function): any;
+            /**
+                     * @en Returns all components of supplied type in self or any of its children.
+                     * @zh 递归查找自身或所有子节点中指定类型的组件
+                     * @example
+                     * ```
+                     *
+                     * let sprites = node.getComponentsInChildren(SpriteComponent);
+                     *
+                     * var sprites = node.getComponentsInChildren(cc.SpriteComponent);
+                     *
+                     * var sprites = node.getComponentsInChildren("cc.SpriteComponent");
+                     *
+                     *
+                     * ```
+                     */ getComponentsInChildren<T extends Component>(classConstructor: Constructor<T>): T[];
+            getComponentsInChildren(className: string): Component[];
+            getComponentsInChildren(typeOrClassName: string | Function): any;
             /**
                      * @zh
-                     * 删除之前与同类型，回调，目标注册的回调。
-                     *
-                     * @param key - 一个监听事件类型的字符串。
-                     * @param callback - 移除指定注册回调。如果没有给，则删除全部同事件类型的监听。
-                     * @param target - 调用回调的目标。
-                     */ off(key: string, callback?: Function, target?: Object): void;
+                     * 销毁实例，实际销毁操作会延迟到当前帧渲染前执行。
+                     * @returns true 代表销毁成功
+                     */ destroy(): boolean;
             /**
+                     * @en
+                     * Destroy all children from the node, and release all their own references to other objects.<br/>
+                     * Actual destruct operation will delayed until before rendering.
                      * @zh
-                     * 事件派发
-                     *
-                     * @param key - 一个监听事件类型的字符串
-                     * @param p1 - 派发的第一个参数。
-                     * @param p2 - 派发的第二个参数。
-                     * @param p3 - 派发的第三个参数。
-                     * @param p4 - 派发的第四个参数。
-                     * @param p5 - 派发的第五个参数。
-                     */ emit(key: string, ...args: any[]): void;
+                     * 销毁所有子节点，并释放所有它们对其它对象的引用。<br/>
+                     * 实际销毁操作会延迟到当前帧渲染前执行。
+                     * @example
+                     * ```
+                     * node.destroyAllChildren();
+                     * ```
+                     */ destroyAllChildren(): void;
+        }
+        export enum cocos_scene_graph_node_enum_TransformDirtyBit {
+            NONE = 0,
+            POSITION = 1,
+            ROTATION = 2,
+            SCALE = 4,
+            RS = 6,
+            TRS = 7,
+            TRS_MASK = "Bad expression <-8>"
         }
         export interface cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo {
             event?: number;
         }
         export interface cocos_core_platform_event_manager_event_listener_ILinstenerMask {
             index: number;
-            node: Node;
+            node: cocos_core_utils_interfaces_INode;
         }
         /**
              * @en
@@ -17183,13 +19809,2070 @@ declare module "Cocos3D" {
                      * @zh 检查监听器是否可用。
                      */ isEnabled(): boolean;
         }
+        /**
+             * @zh
+             * 节点事件类。
+             */ export class cocos_scene_graph_node_event_processor_NodeEventProcessor {
+            readonly node: cocos_core_utils_interfaces_INode;
+            /**
+                     * @zh
+                     * 节点冒泡事件监听器
+                     */ bubblingTargets: EventTarget | null;
+            /**
+                     * @zh
+                     * 节点捕获事件监听器
+                     */ capturingTargets: EventTarget | null;
+            /**
+                     * @zh
+                     * 触摸监听器
+                     */ touchListener: cocos_core_platform_event_manager_event_listener_EventListener | null;
+            /**
+                     * @zh
+                     * 鼠标监听器
+                     */ mouseListener: cocos_core_platform_event_manager_event_listener_EventListener | null;
+            constructor(node: cocos_core_utils_interfaces_INode);
+            reattach(): void;
+            destroy(): void;
+            /**
+                     * @zh
+                     * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的 this 对象。<br/>
+                     * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：<br/>
+                     * 1. 捕获阶段：派发事件给捕获目标（通过 `getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。<br/>
+                     * 2. 目标阶段：派发给目标节点的监听器。<br/>
+                     * 3. 冒泡阶段：派发事件给冒泡目标（通过 `getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发知道根节点。<br/>
+                     * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。<br/>
+                     * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 cc.eventManager。<br/>
+                     * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器。<br/>
+                     * 你可以通过在 emit 方法调用时在 type 之后传递额外的参数作为事件回调的参数列表。<br/>
+                     *
+                     * @param type - 一个监听事件类型的字符串。参见：[[EventType]]
+                     * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
+                     * @param callback.event - 事件派发的时候回调的第一个参数。
+                     * @param callback.arg2 - 第二个参数。
+                     * @param callback.arg3 - 第三个参数。
+                     * @param callback.arg4 - 第四个参数。
+                     * @param callback.arg5 - 第五个参数。
+                     * @param target - 调用回调的目标。可以为空。
+                     * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+                     * @return - 返回监听回调函数自身。
+                     *
+                     * @example
+                     * ```typescript
+                     * this.node.on(cc.Node.EventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
+                     * this.node.on(cc.Node.EventType.TOUCH_START, callback, this);
+                     * this.node.on(cc.Node.EventType.ANCHOR_CHANGED, callback);
+                     * ```
+                     */ on(type: string, callback: Function, target?: Object, useCapture?: Object): Function | undefined;
+            /**
+                     * @zh
+                     * 注册节点的特定事件类型回调，回调会在第一时间被触发后删除自身。
+                     *
+                     * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
+                     * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
+                     * @param callback.event - 事件派发的时候回调的第一个参数。
+                     * @param callback.arg2 - 第二个参数。
+                     * @param callback.arg3 - 第三个参数。
+                     * @param callback.arg4 - 第四个参数。
+                     * @param callback.arg5 - 第五个参数。
+                     * @param target - 调用回调的目标。可以为空。
+                     * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+                     *
+                     * @example
+                     * ```typescript
+                     * node.once(cc.Node.EventType.ANCHOR_CHANGED, callback);
+                     * ```
+                     */ once(type: string, callback: Function, target?: Object, useCapture?: Object): void;
+            /**
+                     * @zh
+                     * 删除之前与同类型，回调，目标或 useCapture 注册的回调。
+                     *
+                     * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
+                     * @param callback - 移除指定注册回调。如果没有给，则删除全部同事件类型的监听。
+                     * @param target - 调用回调的目标。配合 callback 一起使用。
+                     * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+                     *
+                     * @example
+                     * ```typescript
+                     * this.node.off(cc.Node.EventType.TOUCH_START, this.memberFunction, this);
+                     * node.off(cc.Node.EventType.TOUCH_START, callback, this.node);
+                     * node.off(cc.Node.EventType.ANCHOR_CHANGED, callback, this);
+                     * ```
+                     */ off(type: string, callback?: Function, target?: Object, useCapture?: Object): void;
+            /**
+                     * @zh
+                     * 通过事件名发送自定义事件
+                     *
+                     * @param type - 一个监听事件类型的字符串。
+                     * @param arg1 - 回调第一个参数。
+                     * @param arg2 - 回调第二个参数。
+                     * @param arg3 - 回调第三个参数。
+                     * @param arg4 - 回调第四个参数。
+                     * @param arg5 - 回调第五个参数。
+                     * @example
+                     * ```typescript
+                     * eventTarget.emit('fire', event);
+                     * eventTarget.emit('fire', message, emitter);
+                     * ```
+                     */ emit(type: string, ...args: any[]): void;
+            /**
+                     * @zh
+                     * 分发事件到事件流中。
+                     *
+                     * @param event - 分派到事件流中的事件对象。
+                     */ dispatchEvent(event: Event): void;
+            /**
+                     * @zh
+                     * 是否监听过某事件。
+                     *
+                     * @param type - 一个监听事件类型的字符串。
+                     * @return - 返回是否当前节点已监听该事件类型。
+                     */ hasEventListener(type: string): boolean;
+            /**
+                     * @zh
+                     * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+                     *
+                     * @param target - 要删除的事件键或要删除的目标。
+                     */ targetOff(target: string | Object): void;
+            /**
+                     * @zh
+                     * 获得所提供的事件类型在目标捕获阶段监听的所有目标。
+                     * 捕获阶段包括从根节点到目标节点的过程。
+                     * 结果保存在数组参数中，并且必须从子节点排序到父节点。
+                     *
+                     * @param type - 一个监听事件类型的字符串。
+                     * @param array - 接收目标的数组。
+                     */ getCapturingTargets(type: string, targets: cocos_core_utils_interfaces_INode[]): void;
+            /**
+                     * @zh
+                     * 获得所提供的事件类型在目标冒泡阶段监听的所有目标。
+                     * 冒泡阶段目标节点到根节点的过程。
+                     * 结果保存在数组参数中，并且必须从子节点排序到父节点。
+                     *
+                     * @param type - 一个监听事件类型的字符串。
+                     * @param array - 接收目标的数组。
+                     */ getBubblingTargets(type: string, targets: cocos_core_utils_interfaces_INode[]): void;
+        }
+        export enum cocos_scene_graph_node_enum_NodeSpace {
+            LOCAL = 0,
+            WORLD = 1
+        }
+        export interface cocos_core_utils_interfaces_INode extends cocos_core_utils_interfaces_IBaseNode {
+            /**
+                     * @zh
+                     * 节点所属层，主要影响射线检测、物理碰撞等，参考 [[Layers]]
+                     */ layer: number;
+            /**
+                     * @zh
+                     * 这个节点的空间变换信息在当前帧内是否有变过？
+                     */ hasChangedFlags: Readonly<cocos_scene_graph_node_enum_TransformDirtyBit>;
+            /**
+                     * @zh
+                     * 节点事件相关的处理器
+                     */ eventProcessor: Readonly<cocos_scene_graph_node_event_processor_NodeEventProcessor>;
+            /**
+                     * @zh
+                     * 本地坐标
+                     */ position: Readonly<Vec3>;
+            /**
+                     * @zh
+                     * 世界坐标
+                     */ worldPosition: Readonly<Vec3>;
+            /**
+                     * @zh
+                     * 本地缩放
+                     */ scale: Readonly<Vec3>;
+            /**
+                     * @zh
+                     * 世界旋转
+                     */ worldScale: Readonly<Vec3>;
+            /**
+                     * @zh
+                     * 以欧拉角表示的本地旋转值
+                     */ eulerAngles: Readonly<Vec3>;
+            /**
+                     * @zh
+                     * 当前节点面向的前方方向
+                     */ forward: Vec3;
+            /**
+                     * @zh
+                     * 本地旋转四元数
+                     */ rotation: Readonly<Quat>;
+            /**
+                     * @zh
+                     * 世界旋转四元数
+                     */ worldRotation: Readonly<Quat>;
+            /**
+                     * @zh
+                     * 本地变换矩阵
+                     */ matrix: Readonly<Mat4>;
+            /**
+                     * @zh
+                     * 世界变换矩阵
+                     */ worldMatrix: Readonly<Mat4>;
+            width: number;
+            height: number;
+            anchorX: number;
+            anchorY: number;
+            _uiComp: any;
+            isValid: boolean;
+            uiTransfromComp: any;
+            /**
+                     * @zh
+                     * 获取本地坐标
+                     * @param out 输出到此目标 vector
+                     */ getPosition(out?: Vec3): Vec3;
+            /**
+                     * @zh
+                     * 设置本地坐标
+                     * @param position 目标本地坐标
+                     * @overload
+                     * @param x 目标本地坐标的 X 分量
+                     * @param y 目标本地坐标的 Y 分量
+                     * @param z 目标本地坐标的 Z 分量
+                     * @param w 目标本地坐标的 W 分量
+                     */ setPosition(position: Vec3): void;
+            setPosition(x: number, y: number, z: number): void;
+            setPosition(val: Vec3 | number, y?: number, z?: number): void;
+            /**
+                     * @zh
+                     * 获取世界坐标
+                     * @param out 输出到此目标 vector
+                     */ getWorldPosition(out?: Vec3): Vec3;
+            /**
+                     * @zh
+                     * 设置世界坐标
+                     * @param position 目标世界坐标
+                     * @overload
+                     * @param x 目标世界坐标的 X 分量
+                     * @param y 目标世界坐标的 Y 分量
+                     * @param z 目标世界坐标的 Z 分量
+                     * @param w 目标世界坐标的 W 分量
+                     */ setWorldPosition(position: Vec3): void;
+            setWorldPosition(x: number, y: number, z: number): void;
+            setWorldPosition(val: Vec3 | number, y?: number, z?: number): void;
+            /**
+                     * @zh
+                     * 获取本地旋转
+                     * @param out 输出到此目标 quaternion
+                     */ getRotation(out?: Quat): Quat;
+            /**
+                     * @zh
+                     * 设置本地旋转
+                     * @param rotation 目标本地旋转
+                     * @override
+                     * @param x 目标本地旋转的 X 分量
+                     * @param y 目标本地旋转的 Y 分量
+                     * @param z 目标本地旋转的 Z 分量
+                     * @param w 目标本地旋转的 W 分量
+                     */ setRotation(rotation: Quat): void;
+            setRotation(x: number, y: number, z: number, w: number): void;
+            setRotation(val: Quat | number, y?: number, z?: number, w?: number): void;
+            /**
+                     * @zh
+                     * 通过欧拉角设置本地旋转
+                     * @param x - 目标欧拉角的 X 分量
+                     * @param y - 目标欧拉角的 Y 分量
+                     * @param z - 目标欧拉角的 Z 分量
+                     */ setRotationFromEuler(x: number, y: number, z: number): void;
+            /**
+                     * @zh
+                     * 获取世界旋转
+                     * @param out 输出到此目标 quaternion
+                     */ getWorldRotation(out?: Quat): Quat;
+            /**
+                     * @zh
+                     * 设置世界旋转
+                     * @param rotation 目标世界旋转
+                     * @override
+                     * @param x 目标世界旋转的 X 分量
+                     * @param y 目标世界旋转的 Y 分量
+                     * @param z 目标世界旋转的 Z 分量
+                     * @param w 目标世界旋转的 W 分量
+                     */ setWorldRotation(rotation: Quat): void;
+            setWorldRotation(x: number, y: number, z: number, w: number): void;
+            setWorldRotation(val: Quat | number, y?: number, z?: number, w?: number): void;
+            /**
+                     * @zh
+                     * 通过欧拉角设置世界旋转
+                     * @param x - 目标欧拉角的 X 分量
+                     * @param y - 目标欧拉角的 Y 分量
+                     * @param z - 目标欧拉角的 Z 分量
+                     */ setWorldRotationFromEuler(x: number, y: number, z: number): void;
+            /**
+                     * @zh
+                     * 获取本地缩放
+                     * @param out 输出到此目标 vector
+                     */ getScale(out?: Vec3): Vec3;
+            setScale(scale: Vec3): void;
+            setScale(x: number, y: number, z: number): void;
+            setScale(val: Vec3 | number, y?: number, z?: number): void;
+            /**
+                     * @zh
+                     * 获取世界缩放
+                     * @param out 输出到此目标 vector
+                     */ getWorldScale(out?: Vec3): Vec3;
+            /**
+                     * @zh
+                     * 设置世界缩放
+                     * @param scale 目标世界缩放
+                     * @override
+                     * @param x 目标世界缩放的 X 分量
+                     * @param y 目标世界缩放的 Y 分量
+                     * @param z 目标世界缩放的 Z 分量
+                     */ setWorldScale(scale: Vec3): void;
+            setWorldScale(x: number, y: number, z: number): void;
+            setWorldScale(val: Vec3 | number, y?: number, z?: number): void;
+            /**
+                     * @zh
+                     * 获取世界变换矩阵
+                     * @param out 输出到此目标矩阵
+                     */ getWorldMatrix(out?: Mat4): Mat4;
+            /**
+                     * @zh
+                     * 获取只包含旋转和缩放的世界变换矩阵
+                     * @param out 输出到此目标矩阵
+                     */ getWorldRS(out?: Mat4): Mat4;
+            /**
+                     * @zh
+                     * 获取只包含坐标和旋转的世界变换矩阵
+                     * @param out 输出到此目标矩阵
+                     */ getWorldRT(out?: Mat4): Mat4;
+            /**
+                     * @en
+                     * update the world transform information if outdated
+                     * here we assume all nodes are children of a scene node,
+                     * which is always not dirty, has an identity transform and no parent.
+                     * @zh
+                     * 更新节点的世界变换信息
+                     */ updateWorldTransform(): void;
+            /**
+                     * @zh
+                     * 移动节点
+                     * @param trans 位置增量
+                     * @param ns 操作空间
+                     */ translate(trans: Vec3, ns?: cocos_scene_graph_node_enum_NodeSpace): void;
+            /**
+                     * @zh
+                     * 旋转节点
+                     * @param trans 旋转增量
+                     * @param ns 操作空间
+                     */ rotate(rot: Quat, ns?: cocos_scene_graph_node_enum_NodeSpace): void;
+            /**
+                     * @zh
+                     * 设置当前节点旋转为面向目标位置
+                     * @param pos 目标位置
+                     * @param up 坐标系的上方向
+                     */ lookAt(pos: Vec3, up?: Vec3): void;
+            /**
+                     * @en
+                     * Reset the `hasChangedFlags` flag recursively
+                     * @zh
+                     * 递归重置节点的 hasChangedFlags 标记为 false
+                     */ resetHasChangedFlags(): void;
+            /**
+                     * @en
+                     * invalidate the world transform information
+                     * for this node and all its children recursively, one part at a time
+                     * @zh
+                     * 递归标记节点世界变换为 dirty，一次只能标记 TRS 中的一种类型
+                     */ invalidateChildren(dirtyBit: any): void;
+            getContentSize(out?: Size): Size;
+            setContentSize(size: Size | number, height?: number): void;
+            getAnchorPoint(out?: Vec2): Vec2;
+            setAnchorPoint(point: Vec2 | number, y?: number): void;
+            /**
+                     * @zh
+                     * 节点事件API，注：未来可能会移除
+                     */ on(type: string | SystemEventType, callback: Function, target?: Object, useCapture?: boolean): void;
+            off(type: string, callback?: Function, target?: Object, useCapture?: boolean): void;
+            once(type: string, callback: Function, target?: Object, useCapture?: boolean): void;
+            emit(type: string, ...args: any[]): void;
+            dispatchEvent(event: Event): void;
+            hasEventListener(type: string): boolean;
+            targetOff(target: string | Object): void;
+            pauseSystemEvents(recursive: boolean): void;
+            resumeSystemEvents(recursive: boolean): void;
+        }
+        export class cocos_renderer_scene_sphere_light_SphereLight extends renderer.Light {
+            readonly position: Vec3;
+            size: number;
+            range: number;
+            luminance: number;
+            readonly aabb: geometry.aabb;
+            protected _size: number;
+            protected _range: number;
+            protected _luminance: number;
+            protected _pos: Vec3;
+            protected _aabb: geometry.aabb;
+            constructor(scene: cocos_renderer_scene_render_scene_RenderScene, name: string, node: cocos_core_utils_interfaces_INode);
+            update(): void;
+        }
+        export class cocos_renderer_scene_directional_light_DirectionalLight extends renderer.Light {
+            protected _dir: Vec3;
+            protected _illum: number;
+            direction: Vec3;
+            illuminance: number;
+            constructor(scene: cocos_renderer_scene_render_scene_RenderScene, name: string, node: cocos_core_utils_interfaces_INode);
+            update(): void;
+        }
+        export class cocos_renderer_scene_planar_shadows_PlanarShadows {
+            enabled: boolean;
+            normal: Vec3;
+            distance: number;
+            shadowColor: Color;
+            readonly matLight: Mat4;
+            readonly data: Float32Array;
+            readonly cmdBuffs: cocos_core_memop_cached_array_CachedArray<cocos_gfx_command_buffer_GFXCommandBuffer>;
+            readonly cmdBuffCount: number;
+            protected _scene: cocos_renderer_scene_render_scene_RenderScene;
+            protected _enabled: boolean;
+            protected _normal: Vec3;
+            protected _distance: number;
+            protected _matLight: Mat4;
+            protected _data: Float32Array;
+            protected _globalBindings: cocos_pipeline_define_IInternalBindingInst;
+            protected _cmdBuffs: cocos_core_memop_cached_array_CachedArray<cocos_gfx_command_buffer_GFXCommandBuffer>;
+            protected _cmdBuffCount: number;
+            protected _psoRecord: Map<renderer.Model, cocos_gfx_pipeline_state_GFXPipelineState>;
+            protected _cbRecord: Map<cocos_gfx_input_assembler_GFXInputAssembler, cocos_gfx_command_buffer_GFXCommandBuffer>;
+            protected _passNormal: renderer.Pass;
+            protected _passSkinning: renderer.Pass;
+            constructor(scene: cocos_renderer_scene_render_scene_RenderScene);
+            updateSphereLight(light: cocos_renderer_scene_sphere_light_SphereLight): void;
+            updateDirLight(light?: cocos_renderer_scene_directional_light_DirectionalLight): void;
+            updateCommandBuffers(): void;
+            onPipelineChange(): void;
+            destroy(): void;
+            protected _createPSO(model: renderer.Model): cocos_gfx_pipeline_state_GFXPipelineState;
+            protected _createCommandBuffer(): cocos_gfx_command_buffer_GFXCommandBuffer;
+        }
+        export class cocos_renderer_scene_spot_light_SpotLight extends renderer.Light {
+            protected _dir: Vec3;
+            protected _size: number;
+            protected _range: number;
+            protected _luminance: number;
+            protected _spotAngle: number;
+            protected _pos: Vec3;
+            protected _aabb: geometry.aabb;
+            protected _frustum: geometry.frustum;
+            protected _angle: number;
+            readonly position: Vec3;
+            size: number;
+            range: number;
+            luminance: number;
+            readonly direction: Vec3;
+            spotAngle: number;
+            readonly aabb: geometry.aabb;
+            readonly frustum: geometry.frustum;
+            constructor(scene: cocos_renderer_scene_render_scene_RenderScene, name: string, node: cocos_core_utils_interfaces_INode);
+            update(): void;
+        }
+        export interface cocos_renderer_scene_render_scene_IRenderSceneInfo {
+            name: string;
+        }
+        export interface cocos_renderer_scene_camera_ICameraInfo {
+            name: string;
+            node: cocos_core_utils_interfaces_INode;
+            projection: number;
+            targetDisplay?: number;
+            window?: cocos_gfx_window_GFXWindow;
+            priority: number;
+            pipeline?: string;
+            isUI?: boolean;
+            flows?: string[];
+        }
+        export interface cocos_renderer_scene_render_scene_IRaycastResult {
+            node: cocos_core_utils_interfaces_INode;
+            distance: number;
+        }
+        export class cocos_renderer_scene_render_scene_RenderScene {
+            readonly root: cocos_core_root_Root;
+            readonly name: string;
+            readonly cameras: renderer.Camera[];
+            readonly ambient: cocos_renderer_scene_ambient_Ambient;
+            readonly skybox: cocos_renderer_scene_skybox_Skybox;
+            readonly planarShadows: cocos_renderer_scene_planar_shadows_PlanarShadows;
+            readonly defaultMainLightNode: cocos_core_utils_interfaces_INode;
+            readonly mainLight: cocos_renderer_scene_directional_light_DirectionalLight;
+            readonly sphereLights: cocos_renderer_scene_sphere_light_SphereLight[];
+            readonly spotLights: cocos_renderer_scene_spot_light_SpotLight[];
+            readonly models: renderer.Model[];
+            readonly texturePool: renderer.JointsTexturePool;
+            static registerCreateFunc(root: cocos_core_root_Root): void;
+            constructor(root: cocos_core_root_Root);
+            initialize(info: cocos_renderer_scene_render_scene_IRenderSceneInfo): boolean;
+            destroy(): void;
+            createCamera(info: cocos_renderer_scene_camera_ICameraInfo): renderer.Camera;
+            destroyCamera(camera: renderer.Camera): void;
+            destroyCameras(): void;
+            createSphereLight(name: string, node: cocos_core_utils_interfaces_INode): cocos_renderer_scene_sphere_light_SphereLight | null;
+            destroySphereLight(light: cocos_renderer_scene_sphere_light_SphereLight): void;
+            createSpotLight(name: string, node: cocos_core_utils_interfaces_INode): cocos_renderer_scene_spot_light_SpotLight | null;
+            destroySpotLight(light: cocos_renderer_scene_spot_light_SpotLight): void;
+            destroyPointLights(): void;
+            destroySpotLights(): void;
+            createModel<T extends renderer.Model>(clazz: new (scene: cocos_renderer_scene_render_scene_RenderScene, node: cocos_core_utils_interfaces_INode) => T, node: cocos_core_utils_interfaces_INode): T;
+            destroyModel(model: renderer.Model): void;
+            destroyModels(): void;
+            onPipelineChange(): void;
+            generateModelId(): number;
+            /**
+                     * Cast a ray into the scene, record all the intersected models in the result array
+                     * @param worldRay the testing ray
+                     * @param mask the layer mask to filter the models
+                     * @returns the results array
+                     */ raycast(worldRay: geometry.ray, mask?: number): cocos_renderer_scene_render_scene_IRaycastResult[];
+            /**
+                     * Cast a ray into the scene, record all the intersected ui aabb in the result array
+                     * @param worldRay the testing ray
+                     * @param mask the layer mask to filter the ui aabb
+                     * @returns the results array
+                     */ raycastUI(worldRay: geometry.ray, mask?: number): cocos_renderer_scene_render_scene_IRaycastResult[];
+            /**
+                     * Before you raycast the ui node, make sure the node is not null
+                     * @param worldRay the testing ray
+                     * @param mask the layer mask to filter the models
+                     * @param uiNode the ui node
+                     * @returns IRaycastResult | undefined
+                     */ raycastUINode(worldRay: geometry.ray, mask: number | undefined, uiNode: cocos_core_utils_interfaces_INode): cocos_renderer_scene_render_scene_IRaycastResult | undefined;
+        }
+        export interface cocos_renderer_ui_ui_material_IUIMaterialInfo {
+            material: Material;
+        }
+        export class cocos_renderer_ui_ui_material_UIMaterial {
+            readonly material: Material;
+            readonly pass: renderer.Pass;
+            protected _material: Material | null;
+            protected _pass: renderer.Pass | null;
+            constructor();
+            initialize(info: cocos_renderer_ui_ui_material_IUIMaterialInfo): boolean;
+            getPipelineState(): cocos_gfx_pipeline_state_GFXPipelineState;
+            revertPipelineState(pso: cocos_gfx_pipeline_state_GFXPipelineState): void;
+            destroy(): void;
+        }
+        /**
+             * @zh
+             * UI 渲染流程
+             */ export class cocos_renderer_ui_ui_UI {
+            readonly renderScene: cocos_renderer_scene_render_scene_RenderScene;
+            readonly currBufferBatch: MeshBuffer | null;
+            debugScreen: CanvasComponent | null;
+            device: cocos_gfx_device_GFXDevice;
+            constructor(_root: cocos_core_root_Root);
+            initialize(): boolean;
+            destroy(): void;
+            getRenderSceneGetter(): () => any;
+            _getUIMaterial(mat: Material): cocos_renderer_ui_ui_material_UIMaterial;
+            _removeUIMaterial(hash: number): void;
+            /**
+                     * @zh
+                     * 添加屏幕组件管理。
+                     *
+                     * @param comp - 屏幕组件。
+                     */ addScreen(comp: CanvasComponent): void;
+            /**
+                     * @zh
+                     * 通过屏幕编号获得屏幕组件。
+                     *
+                     * @param visibility - 屏幕编号。
+                     */ getScreen(visibility: number): CanvasComponent | null;
+            /**
+                     * @zh
+                     * 移除屏幕组件管理。
+                     *
+                     * @param comp - 被移除的屏幕。
+                     */ removeScreen(comp: CanvasComponent): void;
+            update(dt: number): void;
+            render(): void;
+            /**
+                     * @zh
+                     * UI 渲染组件数据提交流程（针对顶点数据都是世界坐标下的提交流程，例如：除 graphics 和 uimodel 的大部分 ui 组件）。
+                     * 此处的数据最终会生成需要提交渲染的 model 数据。
+                     *
+                     * @param comp - 当前执行组件。
+                     * @param frame - 当前执行组件贴图。
+                     * @param assembler - 当前组件渲染数据组装器。
+                     */ commitComp(comp: UIRenderComponent, frame?: cocos_gfx_texture_view_GFXTextureView | null, assembler?: any): void;
+            /**
+                     * @zh
+                     * UI 渲染组件数据提交流程（针对例如： graphics 和 uimodel 等数据量较为庞大的 ui 组件）。
+                     *
+                     * @param comp - 当前执行组件。
+                     * @param model - 提交渲染的 model 数据。
+                     * @param mat - 提交渲染的材质。
+                     */ commitModel(comp: UIComponent, model: renderer.Model | null, mat: Material | null): void;
+            /**
+                     * @zh
+                     * UI 渲染数据合批
+                     */ autoMergeBatches(): void;
+            /**
+                     * @zh
+                     * 跳过默认合批操作，执行强制合批。
+                     *
+                     * @param material - 当前批次的材质。
+                     * @param sprite - 当前批次的精灵帧。
+                     */ forceMergeBatches(material: Material, sprite: cocos_gfx_texture_view_GFXTextureView | null): void;
+        }
+        /**
+             * @zh
+             * 渲染阶段描述信息。
+             */ export interface cocos_pipeline_render_stage_IRenderStageInfo {
+            name?: string;
+            priority: number;
+            framebuffer?: cocos_gfx_framebuffer_GFXFramebuffer;
+        }
+        /**
+             * @zh
+             * 渲染阶段。
+             */ export abstract class cocos_pipeline_render_stage_RenderStage {
+            /**
+                     * @zh
+                     * 渲染流程。
+                     */ readonly flow: cocos_pipeline_render_flow_RenderFlow;
+            /**
+                     * @zh
+                     * 渲染管线。
+                     */ readonly pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
+            /**
+                     * @zh
+                     * 优先级。
+                     */ readonly priority: number;
+            /**
+                     * @zh
+                     * 渲染流程。
+                     */ readonly framebuffer: cocos_gfx_framebuffer_GFXFramebuffer | null;
+            /**
+                     * @zh
+                     * 渲染流程。
+                     */ protected _flow: cocos_pipeline_render_flow_RenderFlow;
+            /**
+                     * @zh
+                     * 渲染管线。
+                     */ protected _pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
+            /**
+                     * @zh
+                     * GFX设备。
+                     */ protected _device: cocos_gfx_device_GFXDevice;
+            /**
+                     * @zh
+                     * 名称。
+                     */ protected _name: string;
+            /**
+                     * @zh
+                     * 优先级。
+                     */ protected _priority: number;
+            /**
+                     * @zh
+                     * 渲染流程。
+                     */ protected _framebuffer: cocos_gfx_framebuffer_GFXFramebuffer | null;
+            /**
+                     * @zh
+                     * 命令缓冲。
+                     */ protected _cmdBuff: cocos_gfx_command_buffer_GFXCommandBuffer | null;
+            /**
+                     * @zh
+                     * 清空颜色数组。
+                     */ protected _clearColors: cocos_gfx_define_IGFXColor[];
+            /**
+                     * @zh
+                     * 清空深度。
+                     */ protected _clearDepth: number;
+            /**
+                     * @zh
+                     * 清空模板。
+                     */ protected _clearStencil: number;
+            /**
+                     * @zh
+                     * 渲染区域。
+                     */ protected _renderArea: cocos_gfx_define_IGFXRect;
+            /**
+                     * @zh
+                     * 着色过程。
+                     */ protected _pass: renderer.Pass | null;
+            /**
+                     * @zh
+                     * GFX管线状态。
+                     */ protected _pso: cocos_gfx_pipeline_state_GFXPipelineState | null;
+            /**
+                     * 构造函数。
+                     * @param flow 渲染流程。
+                     */ constructor(flow: cocos_pipeline_render_flow_RenderFlow);
+            /**
+                     * @zh
+                     * 初始化函数。
+                     * @param info 渲染阶段描述信息。
+                     */ abstract initialize(info: cocos_pipeline_render_stage_IRenderStageInfo): boolean;
+            /**
+                     * @zh
+                     * 销毁函数。
+                     */ abstract destroy(): any;
+            /**
+                     * @zh
+                     * 渲染函数。
+                     * @param view 渲染视图。
+                     */ abstract render(view: cocos_pipeline_render_view_RenderView): any;
+            /**
+                     * @zh
+                     * 重置大小。
+                     * @param width 屏幕宽度。
+                     * @param height 屏幕高度。
+                     */ abstract resize(width: number, height: number): any;
+            /**
+                     * @zh
+                     * 重构函数。
+                     */ abstract rebuild(): any;
+            /**
+                     * @zh
+                     * 设置清空颜色。
+                     */ setClearColor(color: cocos_gfx_define_IGFXColor): void;
+            /**
+                     * @zh
+                     * 设置清空颜色数组。
+                     */ setClearColors(colors: cocos_gfx_define_IGFXColor[]): void;
+            /**
+                     * @zh
+                     * 设置清空深度。
+                     */ setClearDepth(depth: number): void;
+            /**
+                     * @zh
+                     * 设置清空模板。
+                     */ setClearStencil(stencil: number): void;
+            /**
+                     * @zh
+                     * 设置渲染区域。
+                     */ setRenderArea(width: number, height: number): void;
+        }
+        /**
+             * @zh
+             * 渲染流程描述信息。
+             */ export interface cocos_pipeline_render_flow_IRenderFlowInfo {
+            name?: string;
+            priority: number;
+        }
+        /**
+             * @zh
+             * 渲染流程。
+             */ export abstract class cocos_pipeline_render_flow_RenderFlow {
+            readonly device: cocos_gfx_device_GFXDevice;
+            readonly pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
+            readonly name: string;
+            readonly priority: number;
+            readonly stages: cocos_pipeline_render_stage_RenderStage[];
+            readonly material: Material;
+            /**
+                     * @zh
+                     * GFX设备。
+                     */ protected _device: cocos_gfx_device_GFXDevice;
+            /**
+                     * @zh
+                     * 渲染管线。
+                     */ protected _pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
+            /**
+                     * @zh
+                     * 名称。
+                     */ protected _name: string;
+            /**
+                     * @zh
+                     * 优先级。
+                     */ protected _priority: number;
+            /**
+                     * @zh
+                     * 渲染阶段数组。
+                     */ protected _stages: cocos_pipeline_render_stage_RenderStage[];
+            /**
+                     * @zh
+                     * 材质。
+                     */ protected _material: Material;
+            /**
+                     * 构造函数。
+                     * @param pipeline 渲染管线。
+                     */ constructor(pipeline: cocos_pipeline_render_pipeline_RenderPipeline);
+            /**
+                     * @zh
+                     * 初始化函数。
+                     * @param info 渲染流程描述信息。
+                     */ abstract initialize(info: cocos_pipeline_render_flow_IRenderFlowInfo): boolean;
+            /**
+                     * @zh
+                     * 销毁函数。
+                     */ abstract destroy(): any;
+            /**
+                     * @zh
+                     * 重构函数。
+                     */ abstract rebuild(): any;
+            /**
+                     * @zh
+                     * 重置大小。
+                     * @param width 屏幕宽度。
+                     * @param height 屏幕高度。
+                     */ resize(width: number, height: number): void;
+            /**
+                     * @zh
+                     * 渲染函数。
+                     * @param view 渲染视图。
+                     */ render(view: cocos_pipeline_render_view_RenderView): void;
+            /**
+                     * @zh
+                     * 创建渲染阶段。
+                     * @param clazz 渲染阶段类。
+                     * @param info 渲染阶段描述信息。
+                     */ createStage<T extends cocos_pipeline_render_stage_RenderStage>(clazz: new (flow: cocos_pipeline_render_flow_RenderFlow) => T, info: cocos_pipeline_render_stage_IRenderStageInfo): cocos_pipeline_render_stage_RenderStage | null;
+            /**
+                     * @zh
+                     * 销毁全部渲染阶段。
+                     */ destroyStages(): void;
+        }
+        /**
+             * @zh
+             * 渲染视图描述信息。
+             */ export interface cocos_pipeline_render_view_IRenderViewInfo {
+            camera: renderer.Camera;
+            name: string;
+            priority: number;
+            isUI: boolean;
+            flows?: string[];
+        }
+        /**
+             * @zh
+             * 渲染视图。
+             */ export class cocos_pipeline_render_view_RenderView {
+            /**
+                     * @zh
+                     * 名称。
+                     */ readonly name: string;
+            /**
+                     * @zh
+                     * GFX窗口。
+                     */ window: cocos_gfx_window_GFXWindow | null;
+            /**
+                     * @zh
+                     * 优先级。
+                     */ priority: number;
+            /**
+                     * @zh
+                     * 可见性。
+                     */ visibility: any;
+            /**
+                     * @zh
+                     * 相机。
+                     */ readonly camera: renderer.Camera;
+            /**
+                     * @zh
+                     * 是否启用。
+                     */ readonly isEnable: boolean;
+            /**
+                     * @zh
+                     * 是否是UI视图。
+                     */ readonly isUI: boolean;
+            /**
+                     * @zh
+                     * 渲染流程列表。
+                     */ readonly flows: cocos_pipeline_render_flow_RenderFlow[];
+            static registerCreateFunc(root: cocos_core_root_Root): void;
+            /**
+                     * @zh
+                     * 初始化函数。
+                     * @param info 渲染视图描述信息。
+                     */ initialize(info: cocos_pipeline_render_view_IRenderViewInfo): boolean;
+            /**
+                     * @zh
+                     * 销毁函数。
+                     */ destroy(): void;
+            /**
+                     * @zh
+                     * 启用该渲染视图。
+                     */ enable(isEnable: boolean): void;
+        }
+        /**
+             * @zh
+             * Root描述信息
+             */ export interface cocos_core_root_IRootInfo {
+            enableHDR?: boolean;
+        }
+        /**
+             * @zh
+             * Root类
+             */ export class cocos_core_root_Root {
+            /**
+                     * @zh
+                     * GFX设备
+                     */ readonly device: cocos_gfx_device_GFXDevice;
+            /**
+                     * @zh
+                     * 主窗口
+                     */ readonly mainWindow: cocos_gfx_window_GFXWindow | null;
+            /**
+                     * @zh
+                     * 当前窗口
+                     */ readonly curWindow: cocos_gfx_window_GFXWindow | null;
+            /**
+                     * @zh
+                     * 窗口列表
+                     */ readonly windows: cocos_gfx_window_GFXWindow[];
+            /**
+                     * @zh
+                     * 渲染管线
+                     */ readonly pipeline: cocos_pipeline_render_pipeline_RenderPipeline;
+            /**
+                     * @zh
+                     * UI实例
+                     */ readonly ui: cocos_renderer_ui_ui_UI;
+            /**
+                     * @zh
+                     * 场景列表
+                     */ readonly scenes: cocos_renderer_scene_render_scene_RenderScene[];
+            /**
+                     * @zh
+                     * 渲染视图列表
+                     */ readonly views: cocos_pipeline_render_view_RenderView[];
+            /**
+                     * @zh
+                     * 累计时间（秒）
+                     */ readonly cumulativeTime: number;
+            /**
+                     * @zh
+                     * 帧时间（秒）
+                     */ readonly frameTime: number;
+            /**
+                     * @zh
+                     * 一秒内的累计帧数
+                     */ readonly frameCount: number;
+            /**
+                     * @zh
+                     * 每秒帧率
+                     */ readonly fps: number;
+            _createSceneFun: any;
+            _createViewFun: any;
+            /**
+                     * 构造函数
+                     * @param device GFX设备
+                     */ constructor(device: cocos_gfx_device_GFXDevice);
+            /**
+                     * @zh
+                     * 初始化函数
+                     * @param info Root描述信息
+                     */ initialize(info: cocos_core_root_IRootInfo): boolean;
+            destroy(): void;
+            /**
+                     * @zh
+                     * 重置大小
+                     * @param width 屏幕宽度
+                     * @param height 屏幕高度
+                     */ resize(width: number, height: number): void;
+            /**
+                     * @zh
+                     * 激活指定窗口为当前窗口
+                     * @param window GFX窗口
+                     */ activeWindow(window: cocos_gfx_window_GFXWindow): void;
+            /**
+                     * @zh
+                     * 重置累计时间
+                     */ resetCumulativeTime(): void;
+            /**
+                     * @zh
+                     * 每帧执行函数
+                     * @param deltaTime 间隔时间
+                     */ frameMove(deltaTime: number): void;
+            /**
+                     * @zh
+                     * 创建窗口
+                     * @param info GFX窗口描述信息
+                     */ createWindow(info: cocos_gfx_window_IGFXWindowInfo): cocos_gfx_window_GFXWindow | null;
+            /**
+                     * @zh
+                     * 销毁指定的窗口
+                     * @param window GFX窗口
+                     */ destroyWindow(window: cocos_gfx_window_GFXWindow): void;
+            /**
+                     * @zh
+                     * 销毁全部窗口
+                     */ destroyWindows(): void;
+            /**
+                     * @zh
+                     * 创建渲染场景
+                     * @param info 渲染场景描述信息
+                     */ createScene(info: cocos_renderer_scene_render_scene_IRenderSceneInfo): cocos_renderer_scene_render_scene_RenderScene;
+            /**
+                     * @zh
+                     * 销毁指定的渲染场景
+                     * @param scene 渲染场景
+                     */ destroyScene(scene: cocos_renderer_scene_render_scene_RenderScene): void;
+            /**
+                     * @zh
+                     * 销毁全部场景
+                     */ destroyScenes(): void;
+            /**
+                     * @zh
+                     * 创建渲染视图
+                     * @param info 渲染视图描述信息
+                     */ createView(info: cocos_pipeline_render_view_IRenderViewInfo): cocos_pipeline_render_view_RenderView;
+            /**
+                     * @zh
+                     * 销毁指定的渲染视图
+                     * @param view 渲染视图
+                     */ destroyView(view: cocos_pipeline_render_view_RenderView): void;
+            /**
+                     * @zh
+                     * 销毁全部渲染视图
+                     */ destroyViews(): void;
+        }
+        /**
+             * @zh
+             * 渲染对象。
+             */ export interface cocos_pipeline_define_IRenderObject {
+            model: renderer.Model;
+            depth: number;
+        }
+        /**
+             * @zh
+             * 全局 UBO。
+             */ export class cocos_pipeline_define_UBOGlobal {
+            static TIME_OFFSET: number;
+            static SCREEN_SIZE_OFFSET: number;
+            static SCREEN_SCALE_OFFSET: number;
+            static NATIVE_SIZE_OFFSET: number;
+            static MAT_VIEW_OFFSET: number;
+            static MAT_VIEW_INV_OFFSET: number;
+            static MAT_PROJ_OFFSET: number;
+            static MAT_PROJ_INV_OFFSET: number;
+            static MAT_VIEW_PROJ_OFFSET: number;
+            static MAT_VIEW_PROJ_INV_OFFSET: number;
+            static CAMERA_POS_OFFSET: number;
+            static EXPOSURE_OFFSET: number;
+            static MAIN_LIT_DIR_OFFSET: number;
+            static MAIN_LIT_COLOR_OFFSET: number;
+            static AMBIENT_SKY_OFFSET: number;
+            static AMBIENT_GROUND_OFFSET: number;
+            static COUNT: number;
+            static SIZE: number;
+            static BLOCK: cocos_gfx_shader_GFXUniformBlock;
+            view: Float32Array;
+        }
+        /**
+             * @zh
+             * 渲染流程描述信息。
+             */ export interface cocos_pipeline_render_pipeline_IRenderPipelineInfo {
+            enablePostProcess?: boolean;
+            enableHDR?: boolean;
+            enableMSAA?: boolean;
+            enableSMAA?: boolean;
+            enableIBL?: boolean;
+        }
+        /**
+             * @zh
+             * 渲染流程。
+             */ export abstract class cocos_pipeline_render_pipeline_RenderPipeline {
+            /**
+                     * @zh
+                     * Root类对象。
+                     */ readonly root: cocos_core_root_Root;
+            /**
+                     * @zh
+                     * GFX设备。
+                     */ readonly device: cocos_gfx_device_GFXDevice;
+            /**
+                     * @zh
+                     * 名称。
+                     */ readonly name: string;
+            /**
+                     * @zh
+                     * 渲染对象数组。
+                     */ readonly renderObjects: cocos_pipeline_define_IRenderObject[];
+            /**
+                     * @zh
+                     * 渲染流程数组。
+                     */ readonly flows: cocos_pipeline_render_flow_RenderFlow[];
+            /**
+                     * @zh
+                     * 启用后期处理。
+                     */ readonly usePostProcess: boolean;
+            /**
+                     * @zh
+                     * 是否支持HDR。
+                     */ readonly isHDRSupported: boolean;
+            /**
+                     * @zh
+                     * 是否为HDR管线。
+                     */ readonly isHDR: boolean;
+            /**
+                     * @zh
+                     * 着色尺寸缩放。
+                     */ readonly shadingScale: number;
+            /**
+                     * @zh
+                     * 灯光距离缩放系数（以米为单位）。
+                     */ lightMeterScale: number;
+            /**
+                     * @zh
+                     * 深度模板纹理视图。
+                     */ readonly depthStencilTexView: cocos_gfx_texture_view_GFXTextureView;
+            /**
+                     * @zh
+                     * 着色纹理视图数组的当前帧缓冲索引。
+                     */ readonly curShadingTexView: cocos_gfx_texture_view_GFXTextureView;
+            /**
+                     * @zh
+                     * 着色纹理视图数组的上一帧缓冲索引。
+                     */ readonly prevShadingTexView: cocos_gfx_texture_view_GFXTextureView;
+            /**
+                     * @zh
+                     * 着色帧缓冲数组的当前帧缓冲索引。
+                     */ readonly curShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer;
+            /**
+                     * @zh
+                     * 着色帧缓冲数组的上一帧缓冲索引。
+                     */ readonly prevShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer;
+            /**
+                     * @zh
+                     * MSAA着色帧缓冲。
+                     */ readonly msaaShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer;
+            /**
+                     * @zh
+                     * 启用MSAA。
+                     */ readonly useMSAA: boolean;
+            /**
+                     * @zh
+                     * 启用SMAA。
+                     */ readonly useSMAA: boolean;
+            /**
+                     * @zh
+                     * SMAA边缘纹理视图。
+                     */ readonly smaaEdgeTexView: cocos_gfx_texture_view_GFXTextureView;
+            /**
+                     * @zh
+                     * SMAA边缘帧缓冲。
+                     */ readonly smaaEdgeFBO: cocos_gfx_framebuffer_GFXFramebuffer;
+            /**
+                     * @zh
+                     * SMAA混合纹理视图。
+                     */ readonly smaaBlendTexView: cocos_gfx_texture_view_GFXTextureView;
+            /**
+                     * @zh
+                     * SMAA混合帧缓冲。
+                     */ readonly smaaBlendFBO: cocos_gfx_framebuffer_GFXFramebuffer;
+            /**
+                     * @zh
+                     * 四边形输入汇集器。
+                     */ readonly quadIA: cocos_gfx_input_assembler_GFXInputAssembler;
+            /**
+                     * @zh
+                     * 默认的全局绑定表。
+                     */ readonly globalBindings: Map<string, cocos_pipeline_define_IInternalBindingInst>;
+            /**
+                     * @zh
+                     * 默认纹理。
+                     */ readonly defaultTexture: cocos_gfx_texture_GFXTexture;
+            /**
+                     * @zh
+                     * 浮点精度缩放。
+                     */ readonly fpScale: number;
+            /**
+                     * @zh
+                     * 浮点精度缩放的倒数。
+                     */ readonly fpScaleInv: number;
+            /**
+                     * @zh
+                     * 管线宏定义。
+                     */ readonly macros: cocos_renderer_core_pass_IDefineMap;
+            /**
+                     * @zh
+                     * 默认的全局UBO。
+                     */ readonly defaultGlobalUBOData: Float32Array;
+            /**
+                     * @zh
+                     * Root类对象。
+                     */ protected _root: cocos_core_root_Root;
+            /**
+                     * @zh
+                     * GFX设备。
+                     */ protected _device: cocos_gfx_device_GFXDevice;
+            /**
+                     * @zh
+                     * 名称。
+                     */ protected _name: string;
+            /**
+                     * @zh
+                     * 渲染对象数组。
+                     */ protected _renderObjects: cocos_pipeline_define_IRenderObject[];
+            /**
+                     * @zh
+                     * 渲染过程数组。
+                     */ protected _renderPasses: Map<number, cocos_gfx_render_pass_GFXRenderPass>;
+            /**
+                     * @zh
+                     * 渲染流程数组。
+                     */ protected _flows: cocos_pipeline_render_flow_RenderFlow[];
+            /**
+                     * @zh
+                     * 是否支持 HDR。
+                     */ protected _isHDRSupported: boolean;
+            /**
+                     * @zh
+                     * 是否为 HDR 管线。
+                     */ protected _isHDR: boolean;
+            /**
+                     * @zh
+                     * 灯光距离缩放系数（以米为单位）。
+                     */ protected _lightMeterScale: number;
+            /**
+                     * @zh
+                     * 着色渲染过程。
+                     */ protected _shadingPass: cocos_gfx_render_pass_GFXRenderPass | null;
+            /**
+                     * @zh
+                     * 帧缓冲数量。
+                     */ protected _fboCount: number;
+            /**
+                     * @zh
+                     * MSAA着色纹理。
+                     */ protected _msaaShadingTex: cocos_gfx_texture_GFXTexture | null;
+            /**
+                     * @zh
+                     * MSAA着色纹理视图。
+                     */ protected _msaaShadingTexView: cocos_gfx_texture_view_GFXTextureView | null;
+            /**
+                     * @zh
+                     * MSAA深度模板纹理。
+                     */ protected _msaaDepthStencilTex: cocos_gfx_texture_GFXTexture | null;
+            /**
+                     * @zh
+                     * MSAA深度模板纹理视图。
+                     */ protected _msaaDepthStencilTexView: cocos_gfx_texture_view_GFXTextureView | null;
+            /**
+                     * @zh
+                     * MSAA着色帧缓冲。
+                     */ protected _msaaShadingFBO: cocos_gfx_framebuffer_GFXFramebuffer | null;
+            /**
+                     * @zh
+                     * 颜色格式。
+                     */ protected _colorFmt: GFXFormat;
+            /**
+                     * @zh
+                     * 深度模板格式。
+                     */ protected _depthStencilFmt: GFXFormat;
+            /**
+                     * @zh
+                     * 着色纹理数组。
+                     */ protected _shadingTextures: cocos_gfx_texture_GFXTexture[];
+            /**
+                     * @zh
+                     * 着色纹理视图数组。
+                     */ protected _shadingTexViews: cocos_gfx_texture_view_GFXTextureView[];
+            /**
+                     * @zh
+                     * 深度模板纹理。
+                     */ protected _depthStencilTex: cocos_gfx_texture_GFXTexture | null;
+            /**
+                     * @zh
+                     * 深度模板纹理视图。
+                     */ protected _depthStencilTexView: cocos_gfx_texture_view_GFXTextureView | null;
+            /**
+                     * @zh
+                     * 着色帧缓冲数组。
+                     */ protected _shadingFBOs: cocos_gfx_framebuffer_GFXFramebuffer[];
+            /**
+                     * @zh
+                     * 着色尺寸宽度。
+                     */ protected _shadingWidth: number;
+            /**
+                     * @zh
+                     * 着色尺寸高度。
+                     */ protected _shadingHeight: number;
+            /**
+                     * @zh
+                     * 着色尺寸缩放。
+                     */ protected _shadingScale: number;
+            /**
+                     * @zh
+                     * 当前帧缓冲索引。
+                     */ protected _curIdx: number;
+            /**
+                     * @zh
+                     * 上一帧缓冲索引。
+                     */ protected _prevIdx: number;
+            /**
+                     * @zh
+                     * 启用后期处理。
+                     */ protected _usePostProcess: boolean;
+            /**
+                     * @zh
+                     * 启用MSAA。
+                     */ protected _useMSAA: boolean;
+            /**
+                     * @zh
+                     * 启用SMAA。
+                     */ protected _useSMAA: boolean;
+            /**
+                     * @zh
+                     * SMAA渲染过程。
+                     */ protected _smaaPass: cocos_gfx_render_pass_GFXRenderPass | null;
+            /**
+                     * @zh
+                     * SMAA边缘帧缓冲。
+                     */ protected _smaaEdgeFBO: cocos_gfx_framebuffer_GFXFramebuffer | null;
+            /**
+                     * @zh
+                     * SMAA边缘纹理。
+                     */ protected _smaaEdgeTex: cocos_gfx_texture_GFXTexture | null;
+            /**
+                     * @zh
+                     * SMAA边缘纹理视图。
+                     */ protected _smaaEdgeTexView: cocos_gfx_texture_view_GFXTextureView | null;
+            /**
+                     * @zh
+                     * SMAA混合帧缓冲。
+                     */ protected _smaaBlendFBO: cocos_gfx_framebuffer_GFXFramebuffer | null;
+            /**
+                     * @zh
+                     * SMAA混合纹理。
+                     */ protected _smaaBlendTex: cocos_gfx_texture_GFXTexture | null;
+            /**
+                     * @zh
+                     * SMAA混合纹理视图。
+                     */ protected _smaaBlendTexView: cocos_gfx_texture_view_GFXTextureView | null;
+            /**
+                     * @zh
+                     * 四边形顶点缓冲。
+                     */ protected _quadVB: cocos_gfx_buffer_GFXBuffer | null;
+            /**
+                     * @zh
+                     * 四边形索引缓冲。
+                     */ protected _quadIB: cocos_gfx_buffer_GFXBuffer | null;
+            /**
+                     * @zh
+                     * 四边形输入汇集器。
+                     */ protected _quadIA: cocos_gfx_input_assembler_GFXInputAssembler | null;
+            /**
+                     * @zh
+                     * 默认的全局UBO。
+                     */ protected _uboGlobal: cocos_pipeline_define_UBOGlobal;
+            /**
+                     * @zh
+                     * 默认的全局绑定表。
+                     */ protected _globalBindings: Map<string, cocos_pipeline_define_IInternalBindingInst>;
+            /**
+                     * @zh
+                     * 默认纹理。
+                     */ protected _defaultTex: cocos_gfx_texture_GFXTexture | null;
+            /**
+                     * @zh
+                     * 默认纹理视图。
+                     */ protected _defaultTexView: cocos_gfx_texture_view_GFXTextureView | null;
+            /**
+                     * @zh
+                     * 浮点精度缩放。
+                     */ protected _fpScale: number;
+            /**
+                     * @zh
+                     * 浮点精度缩放的倒数。
+                     */ protected _fpScaleInv: number;
+            /**
+                     * @zh
+                     * 管线宏定义。
+                     */ protected _macros: cocos_renderer_core_pass_IDefineMap;
+            /**
+                     * 构造函数。
+                     * @param root Root类实例。
+                     */ constructor(root: cocos_core_root_Root);
+            /**
+                     * @zh
+                     * 初始化函数。
+                     * @param info 渲染管线描述信息。
+                     */ abstract initialize(info: cocos_pipeline_render_pipeline_IRenderPipelineInfo): boolean;
+            /**
+                     * @zh
+                     * 销毁函数。
+                     */ abstract destroy(): any;
+            /**
+                     * @zh
+                     * 渲染函数。
+                     * @param view 渲染视图。
+                     */ render(view: cocos_pipeline_render_view_RenderView): void;
+            /**
+                     * @zh
+                     * 重构函数。
+                     */ rebuild(): void;
+            /**
+                     * @zh
+                     * 重置大小。
+                     * @param width 屏幕宽度。
+                     * @param height 屏幕高度。
+                     */ resize(width: number, height: number): void;
+            /**
+                     * @zh
+                     * 交换帧缓冲。
+                     */ swapFBOs(): void;
+            /**
+                     * @zh
+                     * 添加渲染过程。
+                     * @param stage 渲染阶段。
+                     * @param renderPass 渲染过程。
+                     */ addRenderPass(stage: number, renderPass: cocos_gfx_render_pass_GFXRenderPass): void;
+            /**
+                     * @zh
+                     * 得到指定阶段的渲染过程。
+                     * @param stage 渲染阶段。
+                     */ getRenderPass(stage: number): cocos_gfx_render_pass_GFXRenderPass | null;
+            /**
+                     * @zh
+                     * 移除指定阶段的渲染过程。
+                     * @param stage 渲染阶段。
+                     */ removeRenderPass(stage: number): void;
+            /**
+                     * @zh
+                     * 清空渲染过程。
+                     */ clearRenderPasses(): void;
+            /**
+                     * @zh
+                     * 创建渲染流程。
+                     */ createFlow<T extends cocos_pipeline_render_flow_RenderFlow>(clazz: new (pipeline: cocos_pipeline_render_pipeline_RenderPipeline) => T, info: cocos_pipeline_render_flow_IRenderFlowInfo): cocos_pipeline_render_flow_RenderFlow | null;
+            /**
+                     * @zh
+                     * 销毁全部渲染流程。
+                     */ destroyFlows(): void;
+            /**
+                     * @zh
+                     * 得到指定名称的渲染流程。
+                     * @param name 名称。
+                     */ getFlow(name: string): cocos_pipeline_render_flow_RenderFlow | null;
+            /**
+                     * @zh
+                     * 更新宏定义。
+                     */ updateMacros(): void;
+            /**
+                     * @zh
+                     * 内部初始化函数。
+                     * @param info 渲染流程描述信息。
+                     */ protected _initialize(info: cocos_pipeline_render_pipeline_IRenderPipelineInfo): boolean;
+            /**
+                     * @zh
+                     * 内部销毁函数。
+                     */ protected _destroy(): void;
+            /**
+                     * @zh
+                     * 重置帧缓冲大小。
+                     * @param width 屏幕宽度。
+                     * @param height 屏幕高度。
+                     */ protected resizeFBOs(width: number, height: number): void;
+            /**
+                     * @zh
+                     * 创建四边形输入汇集器。
+                     */ protected createQuadInputAssembler(): boolean;
+            /**
+                     * @zh
+                     * 销毁四边形输入汇集器。
+                     */ protected destroyQuadInputAssembler(): void;
+            /**
+                     * @zh
+                     * 创建所有UBO。
+                     */ protected createUBOs(): boolean;
+            /**
+                     * @zh
+                     * 销毁全部UBO。
+                     */ protected destroyUBOs(): void;
+            /**
+                     * @zh
+                     * 更新指定渲染视图的UBO。
+                     * @param view 渲染视图。
+                     */ protected updateUBOs(view: cocos_pipeline_render_view_RenderView): void;
+            /**
+                     * @zh
+                     * 场景裁剪。
+                     * @param view 渲染视图。
+                     */ protected sceneCulling(view: cocos_pipeline_render_view_RenderView): void;
+            /**
+                     * @zh
+                     * 添加可见对象。
+                     * @param model 模型。
+                     * @param camera 相机。
+                     */ protected addVisibleModel(model: renderer.Model, camera: renderer.Camera): void;
+        }
+        /**
+             * @zh
+             * 维护 shader 资源实例的全局管理器。
+             */ class cocos_renderer_core_program_lib_ProgramLib {
+            protected _templates: Record<string, cocos_renderer_core_program_lib_IProgramInfo>;
+            protected _cache: Record<string, cocos_gfx_shader_GFXShader>;
+            constructor();
+            /**
+                     * @zh
+                     * 根据 effect 信息注册 shader 模板。
+                     * @example
+                     * ```typescript
+                     *   // this object is auto-generated from your actual shaders
+                     *   let program = {
+                     *     name: 'foobar',
+                     *     glsl1: { vert: '...', frag: '...' },
+                     *     glsl3: { vert: '...', frag: '...' },
+                     *     defines: [
+                     *       { name: 'shadow', type: 'boolean', defines: [] },
+                     *       { name: 'lightCount', type: 'number', range: [1, 4], defines: [] }
+                     *     ],
+                     *     blocks: [{ name: 'Constants', binding: 0, members: [
+                     *       { name: 'color', type: 'vec4', count: 1, size: 16 }], defines: [], size: 16 }
+                     *     ],
+                     *     samplers: [],
+                     *     dependencies: { 'USE_NORMAL_TEXTURE': 'OES_standard_derivatives' },
+                     *   };
+                     *   programLib.define(program);
+                     * ```
+                     */ define(prog: cocos_3d_assets_effect_asset_IShaderInfo): void;
+            getTemplate(name: string): cocos_renderer_core_program_lib_IProgramInfo;
+            /**
+                     * @en
+                     * Does this library has the specified program?
+                     * @zh
+                     * 当前是否有已注册的指定名字的 shader？
+                     * @param name 目标 shader 名
+                     */ hasProgram(name: string): boolean;
+            /**
+                     * @zh
+                     * 根据 shader 名和预处理宏列表获取 shader key。
+                     * @param name 目标 shader 名
+                     * @param defines 目标预处理宏列表
+                     */ getKey(name: string, defines: cocos_renderer_core_pass_IDefineMap): number;
+            /**
+                     * @zh
+                     * 销毁所有完全满足指定预处理宏特征的 shader 实例。
+                     * @param defines 用于筛选的预处理宏列表
+                     */ destroyShaderByDefines(defines: cocos_renderer_core_pass_IDefineMap): void;
+            /**
+                     * @zh
+                     * 获取指定 shader 的渲染资源实例
+                     * @param device 渲染设备 [[GFXDevice]]
+                     * @param name shader 名字
+                     * @param defines 预处理宏列表
+                     * @param pipeline 实际渲染命令执行时所属的 [[RenderPipeline]]
+                     */ getGFXShader(device: cocos_gfx_device_GFXDevice, name: string, defines: cocos_renderer_core_pass_IDefineMap, pipeline: cocos_pipeline_render_pipeline_RenderPipeline): cocos_gfx_shader_GFXShader;
+        }
+        /**
+             * @zh
+             * 维护 sampler 资源实例的全局管理器。
+             */ class cocos_renderer_core_sampler_lib_SamplerLib {
+            protected _cache: Record<number, cocos_gfx_sampler_GFXSampler>;
+            /**
+                     * @zh
+                     * 获取指定属性的 sampler 资源。
+                     * @param device 渲染设备 [GFXDevice]
+                     * @param info 目标 sampler 属性
+                     */ getSampler(device: cocos_gfx_device_GFXDevice, hash: number): cocos_gfx_sampler_GFXSampler;
+        }
+        export enum cocos_renderer_scene_light_LightType {
+            DIRECTIONAL = 0,
+            SPHERE = 1,
+            SPOT = 2,
+            UNKNOWN = 3
+        }
+        export enum cocos_renderer_scene_camera_CameraAperture {
+            F1_8 = 0,
+            F2_0 = 1,
+            F2_2 = 2,
+            F2_5 = 3,
+            F2_8 = 4,
+            F3_2 = 5,
+            F3_5 = 6,
+            F4_0 = 7,
+            F4_5 = 8,
+            F5_0 = 9,
+            F5_6 = 10,
+            F6_3 = 11,
+            F7_1 = 12,
+            F8_0 = 13,
+            F9_0 = 14,
+            F10_0 = 15,
+            F11_0 = 16,
+            F13_0 = 17,
+            F14_0 = 18,
+            F16_0 = 19,
+            F18_0 = 20,
+            F20_0 = 21,
+            F22_0 = 22
+        }
+        export enum cocos_renderer_scene_camera_CameraShutter {
+            D1 = 0,
+            D2 = 1,
+            D4 = 2,
+            D8 = 3,
+            D15 = 4,
+            D30 = 5,
+            D60 = 6,
+            D125 = 7,
+            D250 = 8,
+            D500 = 9,
+            D1000 = 10,
+            D2000 = 11,
+            D4000 = 12
+        }
+        export enum cocos_renderer_scene_camera_CameraISO {
+            ISO100 = 0,
+            ISO200 = 1,
+            ISO400 = 2,
+            ISO800 = 3
+        }
+        /**
+             * @zh
+             * 本地 UBO。
+             */ export class cocos_pipeline_define_UBOLocal {
+            static MAT_WORLD_OFFSET: number;
+            static MAT_WORLD_IT_OFFSET: number;
+            static COUNT: number;
+            static SIZE: number;
+            static BLOCK: cocos_gfx_shader_GFXUniformBlock;
+            view: Float32Array;
+        }
+        /**
+             * 允许存储索引的数组视图。
+             */ export type cocos_3d_assets_mesh_IBArray = Uint8Array | Uint16Array | Uint32Array;
+        /**
+             * 几何信息。
+             */ export interface cocos_3d_assets_mesh_IGeometricInfo {
+            /**
+                     * 顶点位置。
+                     */ positions: Float32Array;
+            /**
+                     * 索引数据。
+                     */ indices: cocos_3d_assets_mesh_IBArray;
+            /**
+                     * 是否将图元按双面对待。
+                     */ doubleSided?: boolean;
+        }
+        /**
+             * 渲染子网格。
+             */ export interface cocos_3d_assets_mesh_IRenderingSubmesh {
+            /**
+                     * 使用的所有顶点缓冲区。
+                     */ vertexBuffers: cocos_gfx_buffer_GFXBuffer[];
+            /**
+                     * 使用的索引缓冲区，若未使用则为 `null`。
+                     */ indexBuffer: cocos_gfx_buffer_GFXBuffer | null;
+            /**
+                     * 间接绘制缓冲区。
+                     */ indirectBuffer?: cocos_gfx_buffer_GFXBuffer;
+            /**
+                     * 所有顶点属性。
+                     */ attributes: cocos_gfx_input_assembler_IGFXAttribute[];
+            /**
+                     * 图元类型。
+                     */ primitiveMode: GFXPrimitiveMode;
+            /**
+                     * （用于射线检测的）几何信息。
+                     */ geometricInfo?: cocos_3d_assets_mesh_IGeometricInfo;
+        }
+        export class cocos_renderer_scene_submodel_SubModel {
+            protected _subMeshObject: cocos_3d_assets_mesh_IRenderingSubmesh | null;
+            protected _inputAssembler: cocos_gfx_input_assembler_GFXInputAssembler | null;
+            constructor();
+            initialize(subMesh: cocos_3d_assets_mesh_IRenderingSubmesh, mat: Material, psos: cocos_gfx_pipeline_state_GFXPipelineState[]): void;
+            destroy(): void;
+            priority: cocos_pipeline_define_RenderPriority;
+            subMeshData: cocos_3d_assets_mesh_IRenderingSubmesh;
+            psos: cocos_gfx_pipeline_state_GFXPipelineState[] | null;
+            material: Material | null;
+            readonly inputAssembler: cocos_gfx_input_assembler_GFXInputAssembler | null;
+            updateCommandBuffer(): void;
+            protected recordCommandBuffer(index: number): void;
+            readonly passes: renderer.Pass[];
+            readonly commandBuffers: cocos_gfx_command_buffer_GFXCommandBuffer[];
+        }
+        /**
+             * @zh
+             * 立方体参数选项。
+             */ interface cocos_3d_primitive_box_IBoxOptions extends RecursivePartial<primitives.IGeometryOptions> {
+            /**
+                     * @en
+                     * Box extent on X-axis.
+                     * @zh
+                     * 立方体宽度。
+                     */ width?: number;
+            /**
+                     * @en
+                     * Box extent on Y-axis.
+                     * @zh
+                     * 立方体高度。
+                     */ height?: number;
+            /**
+                     * @en
+                     * Box extent on Z-axis.
+                     * @zh
+                     * 立方体长度。
+                     */ length?: number;
+            /**
+                     * @en
+                     * Segment count on X-axis.
+                     * @zh
+                     * 宽度线段数。
+                     */ widthSegments?: number;
+            /**
+                     * @en
+                     * Segment count on Y-axis.
+                     * @zh
+                     * 高度线段数。
+                     */ heightSegments?: number;
+            /**
+                     * @en
+                     * Segment count on Z-axis.
+                     * @zh
+                     * 长度线段数。
+                     */ lengthSegments?: number;
+        }
+        /**
+             * @zh
+             * 圆柱参数选项。
+             */ export interface cocos_3d_primitive_cylinder_ICylinderOptions extends primitives.IGeometryOptions {
+            radialSegments: number;
+            heightSegments: number;
+            capped: boolean;
+            arc: number;
+        }
+        type cocos_3d_primitive_cone_IConeOptions = cocos_3d_primitive_cylinder_ICylinderOptions;
+        /**
+             * @zh
+             * 生成一个圆锥。
+             * @param radius 圆锥半径。
+             * @param height 圆锥高度。
+             * @param opts 圆锥参数选项。
+             */ interface cocos_3d_primitive_plane_IPlaneOptions extends RecursivePartial<primitives.IGeometryOptions> {
+            /**
+                     * Plane extent on X-axis.
+                     */ width: number;
+            /**
+                     * Plane extent on Z-axis.
+                     */ length: number;
+            /**
+                     * Segment count on X-axis.
+                     */ widthSegments: number;
+            /**
+                     * Segment count on Z-axis.
+                     */ lengthSegments: number;
+        }
+        /**
+             * @zh
+             * 球参数选项。
+             */ interface cocos_3d_primitive_sphere_ISphereOptions extends primitives.IGeometryOptions {
+            segments: number;
+        }
+        /**
+             * @zh
+             * 环面参数选项。
+             */ interface cocos_3d_primitive_torus_ITorusOptions extends primitives.IGeometryOptions {
+            radialSegments: number;
+            tubularSegments: number;
+            arc: number;
+        }
+        /**
+             * @zh
+             * 胶囊体参数选项。
+             */ export interface cocos_3d_primitive_capsule_ICapsuteOptions {
+            sides: number;
+            heightSegments: number;
+            capped: boolean;
+            arc: number;
+        }
+        /**
+             * @zh
+             * 圆形参数选项。
+             */ interface cocos_3d_primitive_circle_ICircleOptions extends primitives.IGeometryOptions {
+            segments: number;
+        }
+        /**
+             *
+             */ type cocos_scene_graph_base_node_Constructor<T = {}> = new (...args: any[]) => T;
+        /**
+             * @zh 场景的环境光照相关信息
+             */ export class cocos_scene_graph_scene_globals_AmbientInfo {
+            protected _skyColor: Color;
+            protected _skyIllum: number;
+            protected _groundAlbedo: Color;
+            protected _resource: cocos_renderer_scene_ambient_Ambient | null;
+            /**
+                     * @zh 天空颜色
+                     */ skyColor: Color;
+            /**
+                     * @zh 天空亮度
+                     */ skyIllum: number;
+            /**
+                     * @zh 地面颜色
+                     */ groundAlbedo: Color;
+            renderScene: cocos_renderer_scene_render_scene_RenderScene;
+        }
+        /**
+             * @zh 天空盒相关信息
+             */ export class cocos_scene_graph_scene_globals_SkyboxInfo {
+            protected _envmap: cocos_3d_assets_texture_cube_TextureCube | null;
+            protected _isRGBE: boolean;
+            protected _enabled: boolean;
+            protected _useIBL: boolean;
+            protected _resource: cocos_renderer_scene_skybox_Skybox | null;
+            /**
+                     * @zh 是否启用天空盒？
+                     */ enabled: any;
+            /**
+                     * @zh 是否启用天空盒？
+                     */ useIBL: any;
+            /**
+                     * @zh 使用的立方体贴图
+                     */ envmap: any;
+            /**
+                     * @zh 是否需要开启 shader 内的 RGBE 数据支持？
+                     */ isRGBE: any;
+            renderScene: cocos_renderer_scene_render_scene_RenderScene;
+        }
+        /**
+             * @zh 平面阴影相关信息
+             */ export class cocos_scene_graph_scene_globals_PlanarShadowInfo {
+            protected _enabled: boolean;
+            protected _normal: Vec3;
+            protected _distance: number;
+            protected _shadowColor: Color;
+            protected _resource: cocos_renderer_scene_planar_shadows_PlanarShadows | null;
+            /**
+                     * @zh 是否启用平面阴影？
+                     */ enabled: boolean;
+            /**
+                     * @zh 阴影接收平面的法线
+                     */ normal: Vec3;
+            /**
+                     * @zh 阴影接收平面与原点的距离
+                     */ distance: number;
+            /**
+                     * @zh 阴影颜色
+                     */ shadowColor: Color;
+            /**
+                     * @zh 根据指定节点的世界变换设置阴影接收平面的信息
+                     * @param node 阴影接收平面的世界变换
+                     */ setPlaneFromNode(node: Node): void;
+            renderScene: cocos_renderer_scene_render_scene_RenderScene;
+        }
+        /**
+             * @zh 各类场景级别的渲染参数，将影响全场景的所有物体
+             */ export class cocos_scene_graph_scene_globals_SceneGlobals {
+            ambient: cocos_scene_graph_scene_globals_AmbientInfo;
+            skybox: cocos_scene_graph_scene_globals_SkyboxInfo;
+            planarShadows: cocos_scene_graph_scene_globals_PlanarShadowInfo;
+            renderScene: cocos_renderer_scene_render_scene_RenderScene;
+        }
+        export interface cocos_core_math_type_define_IVec2Like {
+            x: number;
+            y: number;
+        }
+        export interface cocos_core_math_type_define_IMat3Like {
+            m00: number;
+            m01: number;
+            m02: number;
+            m03: number;
+            m04: number;
+            m05: number;
+            m06: number;
+            m07: number;
+            m08: number;
+        }
+        export interface cocos_core_math_type_define_IMat4Like {
+            m00: number;
+            m01: number;
+            m02: number;
+            m03: number;
+            m04: number;
+            m05: number;
+            m06: number;
+            m07: number;
+            m08: number;
+            m09: number;
+            m10: number;
+            m11: number;
+            m12: number;
+            m13: number;
+            m14: number;
+            m15: number;
+        }
+        export interface cocos_core_math_type_define_IVec3Like {
+            x: number;
+            y: number;
+            z: number;
+        }
+        export interface cocos_core_math_type_define_IQuatLike {
+            x: number;
+            y: number;
+            z: number;
+            w: number;
+        }
+        export interface cocos_core_math_type_define_IVec4Like {
+            x: number;
+            y: number;
+            z: number;
+            w: number;
+        }
+        export interface cocos_core_math_type_define_ISizeLike {
+            width: number;
+            height: number;
+        }
+        export interface cocos_core_math_type_define_IRectLike {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        }
+        /**
+             * @category core/math
+             */ /**
+             * @hidden
+             */ export interface cocos_core_math_type_define_IColorLike {
+            r: number;
+            g: number;
+            b: number;
+            a: number;
+            _val: number;
+        }
+        type cocos_core_utils_pool_CleanUpFunction<T> = (value: T) => boolean | void;
+        export interface cocos_core_data_utils_attribute_defines_IExposedAttributes {
+            /**
+                     * 指定属性的类型。
+                     */ type?: any;
+            /**
+                     *
+                     */ url?: string;
+            /**
+                     * 控制是否在编辑器中显示该属性。
+                     */ visible?: boolean | (() => boolean);
+            /**
+                     * 该属性在编辑器中的显示名称。
+                     */ displayName?: string;
+            /**
+                     *
+                     */ displayOrder?: number;
+            /**
+                     * 该属性在编辑器中的工具提示内容。
+                     */ tooltip?: string;
+            /**
+                     *
+                     */ multiline?: boolean;
+            /**
+                     * 指定该属性是否为可读的。
+                     */ readonly?: boolean;
+            /**
+                     * 当该属性为数值类型时，指定了该属性允许的最小值。
+                     */ min?: number;
+            /**
+                     * 当该属性为数值类型时，指定了该属性允许的最大值。
+                     */ max?: number;
+            /**
+                     * 当该属性为数值类型时并在编辑器中提供了滑动条时，指定了滑动条的步长。
+                     */ step?: number;
+            /**
+                     * 当该属性为数值类型时，指定了该属性允许的范围。
+                     */ range?: number[];
+            /**
+                     * 当该属性为数值类型时，是否在编辑器中提供滑动条来调节值。
+                     */ slide?: boolean;
+            /**
+                     * 该属性是否参与序列化和反序列化。
+                     */ serializable?: boolean;
+            /**
+                     * 该属性的曾用名。
+                     */ formerlySerializedAs?: string;
+            /**
+                     * 该属性是否仅仅在编辑器环境中生效。
+                     */ editorOnly?: boolean;
+            /**
+                     * 是否覆盖基类中的同名属性。
+                     */ override?: boolean;
+            /**
+                     *
+                     */ animatable?: boolean;
+            /**
+                     *
+                     */ unit?: string;
+            /**
+                     * 转换为弧度
+                     */ radian?: boolean;
+        }
+        /**
+             * Tag the class with any meta attributes, then return all current attributes assigned to it.
+             * This function holds only the attributes, not their implementations.
+             * @param constructor The class or instance. If instance, the attribute will be dynamic and only available for the specified instance.
+             * @param propertyName The name of property or function, used to retrieve the attributes.
+             * @param [newAttributes] The attribute table to mark, new attributes will merged with existed attributes.
+             * Attribute whose key starts with '_' will be ignored.
+             * @private
+             */ export function cocos_core_data_utils_attribute_attr(constructor: any, propertyName: string): {};
+        export function cocos_core_data_utils_attribute_attr(constructor: any, propertyName: string, newAttributes: Object): void;
+        /**
+             * @en
+             * Do instantiate object, the object to instantiate must be non-nil.
+             * @zh
+             * 这是一个通用的 instantiate 方法，可能效率比较低。
+             * 之后可以给各种类型重写快速实例化的特殊实现，但应该在单元测试中将结果和这个方法的结果进行对比。
+             * 值得注意的是，这个方法不可重入。
+             *
+             * @param {Object} obj - 该方法仅供内部使用，用户需负责保证参数合法。什么参数是合法的请参考 cc.instantiate 的实现。
+             * @param {Node} [parent] - 只有在该对象下的场景物体会被克隆。
+             * @return {Object}
+             * @private
+             */ function cocos_core_data_instantiate_doInstantiate(obj: any, parent?: any): any;
+        export class cocos_core_data_utils_attribute_PrimitiveType<T> {
+            name: string;
+            default: T;
+            constructor(name: string, defaultValue: T);
+            toString(): string;
+        }
+        export interface cocos_core_event_callbacks_invoker_ICallbackTable {
+        }
+        /**
+             * @zh
+             * CallbacksInvoker 用来根据 Key 管理事件监听器列表并调用回调方法。
+             * @class CallbacksInvoker
+             */ export class cocos_core_event_callbacks_invoker_CallbacksInvoker {
+            _callbackTable: cocos_core_event_callbacks_invoker_ICallbackTable;
+            /**
+                     * @zh
+                     * 事件添加管理
+                     *
+                     * @param key - 一个监听事件类型的字符串。
+                     * @param callback - 事件分派时将被调用的回调函数。
+                     * @param arget - 调用回调的目标。可以为空。
+                     * @param once - 是否只调用一次。
+                     */ on(key: string, callback: Function, target?: Object, once?: boolean): void;
+            /**
+                     * @zh
+                     * 检查指定事件是否已注册回调。
+                     *
+                     * @param key - 一个监听事件类型的字符串。
+                     * @param callback - 事件分派时将被调用的回调函数。
+                     * @param target - 调用回调的目标。
+                     * @return - 指定事件是否已注册回调。
+                     */ hasEventListener(key: string, callback?: Function, target?: Object | null): boolean;
+            /**
+                     * @zh
+                     * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+                     *
+                     * @param keyOrTarget - 要删除的事件键或要删除的目标。
+                     */ removeAll(keyOrTarget?: string | Object): void;
+            /**
+                     * @zh
+                     * 删除之前与同类型，回调，目标注册的回调。
+                     *
+                     * @param key - 一个监听事件类型的字符串。
+                     * @param callback - 移除指定注册回调。如果没有给，则删除全部同事件类型的监听。
+                     * @param target - 调用回调的目标。
+                     */ off(key: string, callback?: Function, target?: Object): void;
+            /**
+                     * @zh
+                     * 事件派发
+                     *
+                     * @param key - 一个监听事件类型的字符串
+                     * @param p1 - 派发的第一个参数。
+                     * @param p2 - 派发的第二个参数。
+                     * @param p3 - 派发的第三个参数。
+                     * @param p4 - 派发的第四个参数。
+                     * @param p5 - 派发的第五个参数。
+                     */ emit(key: string, ...args: any[]): void;
+        }
         class cocos_core_platform_event_manager_event_manager_EventManager {
             /**
                      * @en Pauses all listeners which are associated the specified target.
                      * @zh 暂停传入的 node 相关的所有监听器的事件响应。
                      * @param node - 暂停目标节点
                      * @param recursive - 是否往子节点递归暂停。默认为 false。
-                     */ pauseTarget(node: Node, recursive?: boolean): void;
+                     */ pauseTarget(node: cocos_core_utils_interfaces_INode, recursive?: boolean): void;
             /**
                      * @en
                      * Resumes all listeners which are associated the specified target.
@@ -17199,7 +21882,7 @@ declare module "Cocos3D" {
                      *
                      * @param node - 监听器节点。
                      * @param recursive - 是否往子节点递归。默认为 false。
-                     */ resumeTarget(node: Node, recursive?: boolean): void;
+                     */ resumeTarget(node: cocos_core_utils_interfaces_INode, recursive?: boolean): void;
             frameUpdateListeners(): void;
             /**
                      * @en
@@ -17419,86 +22102,431 @@ declare module "Cocos3D" {
             _setPrevPoint(point: Vec2): void;
             _setPrevPoint(x: number, y: number): void;
         }
+        export interface cocos_gfx_webgl2_webgl2_state_cache_IWebGL2TexUnit {
+            glTexture: WebGLTexture | null;
+        }
+        export class cocos_gfx_webgl2_webgl2_state_cache_WebGL2StateCache {
+            glArrayBuffer: WebGLBuffer | null;
+            glElementArrayBuffer: WebGLBuffer | null;
+            glUniformBuffer: WebGLBuffer | null;
+            glBindUBOs: Array<WebGLBuffer | null>;
+            glVAO: WebGLVertexArrayObject | null;
+            texUnit: number;
+            glTex2DUnits: cocos_gfx_webgl2_webgl2_state_cache_IWebGL2TexUnit[];
+            glTexCubeUnits: cocos_gfx_webgl2_webgl2_state_cache_IWebGL2TexUnit[];
+            glSamplerUnits: Array<WebGLSampler | null>;
+            glRenderbuffer: WebGLRenderbuffer | null;
+            glFramebuffer: WebGLFramebuffer | null;
+            glReadFramebuffer: WebGLFramebuffer | null;
+            viewport: cocos_gfx_define_IGFXViewport;
+            scissorRect: cocos_gfx_define_IGFXRect;
+            rs: cocos_gfx_pipeline_state_GFXRasterizerState;
+            dss: cocos_gfx_pipeline_state_GFXDepthStencilState;
+            bs: cocos_gfx_pipeline_state_GFXBlendState;
+            glProgram: WebGLProgram | null;
+            glEnabledAttribLocs: boolean[];
+            glCurrentAttribLocs: boolean[];
+            constructor();
+        }
+        export class cocos_gfx_webgl2_webgl2_gpu_objects_WebGL2GPUTexture {
+            type: cocos_gfx_define_GFXTextureType;
+            viewType: cocos_gfx_define_GFXTextureViewType;
+            format: GFXFormat;
+            usage: cocos_gfx_define_GFXTextureUsage;
+            width: number;
+            height: number;
+            depth: number;
+            size: number;
+            arrayLayer: number;
+            mipLevel: number;
+            samples: cocos_gfx_define_GFXSampleCount;
+            flags: cocos_gfx_define_GFXTextureFlags;
+            isPowerOf2: boolean;
+            glTarget: GLenum;
+            glInternelFmt: GLenum;
+            glFormat: GLenum;
+            glType: GLenum;
+            glUsage: GLenum;
+            glTexture: WebGLTexture | null;
+            glRenderbuffer: WebGLRenderbuffer | null;
+            glWrapS: GLenum;
+            glWrapT: GLenum;
+            glMinFilter: GLenum;
+            glMagFilter: GLenum;
+        }
+        export class cocos_gfx_webgl2_webgl2_texture_WebGL2GFXTexture extends cocos_gfx_texture_GFXTexture {
+            readonly gpuTexture: cocos_gfx_webgl2_webgl2_gpu_objects_WebGL2GPUTexture;
+            constructor(device: cocos_gfx_device_GFXDevice);
+            initialize(info: cocos_gfx_texture_IGFXTextureInfo): boolean;
+            destroy(): void;
+            resize(width: number, height: number): void;
+        }
+        export class cocos_gfx_webgl2_webgl2_device_WebGL2GFXDevice extends cocos_gfx_device_GFXDevice {
+            readonly gl: WebGL2RenderingContext;
+            readonly isAntialias: boolean;
+            readonly isPremultipliedAlpha: boolean;
+            readonly useVAO: boolean;
+            readonly EXT_texture_filter_anisotropic: EXT_texture_filter_anisotropic | null;
+            readonly OES_texture_float_linear: OES_texture_float_linear | null;
+            readonly EXT_color_buffer_float: EXT_color_buffer_float | null;
+            readonly EXT_disjoint_timer_query_webgl2: EXT_disjoint_timer_query_webgl2 | null;
+            readonly WEBGL_compressed_texture_etc1: WEBGL_compressed_texture_etc1 | null;
+            readonly WEBGL_compressed_texture_etc: WEBGL_compressed_texture_etc | null;
+            readonly WEBGL_compressed_texture_pvrtc: WEBGL_compressed_texture_pvrtc | null;
+            readonly WEBGL_compressed_texture_s3tc: WEBGL_compressed_texture_s3tc | null;
+            readonly WEBGL_compressed_texture_s3tc_srgb: WEBGL_compressed_texture_s3tc_srgb | null;
+            stateCache: cocos_gfx_webgl2_webgl2_state_cache_WebGL2StateCache;
+            nullTex2D: cocos_gfx_webgl2_webgl2_texture_WebGL2GFXTexture | null;
+            nullTexCube: cocos_gfx_webgl2_webgl2_texture_WebGL2GFXTexture | null;
+            constructor();
+            initialize(info: cocos_gfx_device_IGFXDeviceInfo): boolean;
+            destroy(): void;
+            resize(width: number, height: number): void;
+            createBuffer(info: cocos_gfx_buffer_IGFXBufferInfo): cocos_gfx_buffer_GFXBuffer;
+            createTexture(info: cocos_gfx_texture_IGFXTextureInfo): cocos_gfx_texture_GFXTexture;
+            createTextureView(info: cocos_gfx_texture_view_IGFXTextureViewInfo): cocos_gfx_texture_view_GFXTextureView;
+            createSampler(info: cocos_gfx_sampler_IGFXSamplerInfo): cocos_gfx_sampler_GFXSampler;
+            createBindingLayout(info: cocos_gfx_binding_layout_IGFXBindingLayoutInfo): cocos_gfx_binding_layout_GFXBindingLayout;
+            createShader(info: cocos_gfx_shader_IGFXShaderInfo): cocos_gfx_shader_GFXShader;
+            createInputAssembler(info: cocos_gfx_input_assembler_IGFXInputAssemblerInfo): cocos_gfx_input_assembler_GFXInputAssembler;
+            createRenderPass(info: cocos_gfx_render_pass_IGFXRenderPassInfo): cocos_gfx_render_pass_GFXRenderPass;
+            createFramebuffer(info: cocos_gfx_framebuffer_IGFXFramebufferInfo): cocos_gfx_framebuffer_GFXFramebuffer;
+            createPipelineLayout(info: cocos_gfx_pipeline_layout_IGFXPipelineLayoutInfo): cocos_gfx_pipeline_layout_GFXPipelineLayout;
+            createPipelineState(info: cocos_gfx_pipeline_state_IGFXPipelineStateInfo): cocos_gfx_pipeline_state_GFXPipelineState;
+            createCommandAllocator(info: cocos_gfx_command_allocator_IGFXCommandAllocatorInfo): cocos_gfx_command_allocator_GFXCommandAllocator;
+            createCommandBuffer(info: cocos_gfx_command_buffer_IGFXCommandBufferInfo): cocos_gfx_command_buffer_GFXCommandBuffer;
+            createQueue(info: cocos_gfx_queue_IGFXQueueInfo): cocos_gfx_queue_GFXQueue;
+            createWindow(info: cocos_gfx_window_IGFXWindowInfo): cocos_gfx_window_GFXWindow;
+            present(): void;
+            copyBuffersToTexture(buffers: ArrayBuffer[], texture: cocos_gfx_texture_GFXTexture, regions: cocos_gfx_define_GFXBufferTextureCopy[]): void;
+            copyTexImagesToTexture(texImages: TexImageSource[], texture: cocos_gfx_texture_GFXTexture, regions: cocos_gfx_define_GFXBufferTextureCopy[]): void;
+            copyFramebufferToBuffer(srcFramebuffer: cocos_gfx_framebuffer_GFXFramebuffer, dstBuffer: ArrayBuffer, regions: cocos_gfx_define_GFXBufferTextureCopy[]): void;
+            blitFramebuffer(src: cocos_gfx_framebuffer_GFXFramebuffer, dst: cocos_gfx_framebuffer_GFXFramebuffer, srcRect: cocos_gfx_define_IGFXRect, dstRect: cocos_gfx_define_IGFXRect, filter: cocos_gfx_define_GFXFilter): void;
+        }
+        export class cocos_gfx_webgl_webgl_queue_WebGLGFXQueue extends cocos_gfx_queue_GFXQueue {
+            numDrawCalls: number;
+            numTris: number;
+            constructor(device: cocos_gfx_device_GFXDevice);
+            initialize(info: cocos_gfx_queue_IGFXQueueInfo): boolean;
+            destroy(): void;
+            submit(cmdBuffs: cocos_gfx_command_buffer_GFXCommandBuffer[], fence?: any): void;
+            clear(): void;
+        }
+        export interface cocos_gfx_webgl_webgl_state_cache_IWebGLTexUnit {
+            glTexture: WebGLTexture | null;
+        }
+        export class cocos_gfx_webgl_webgl_state_cache_WebGLStateCache {
+            glArrayBuffer: WebGLBuffer | null;
+            glElementArrayBuffer: WebGLBuffer | null;
+            glVAO: WebGLVertexArrayObjectOES | null;
+            texUnit: number;
+            glTex2DUnits: cocos_gfx_webgl_webgl_state_cache_IWebGLTexUnit[];
+            glTexCubeUnits: cocos_gfx_webgl_webgl_state_cache_IWebGLTexUnit[];
+            glRenderbuffer: WebGLRenderbuffer | null;
+            glFramebuffer: WebGLFramebuffer | null;
+            viewport: cocos_gfx_define_IGFXViewport;
+            scissorRect: cocos_gfx_define_IGFXRect;
+            rs: cocos_gfx_pipeline_state_GFXRasterizerState;
+            dss: cocos_gfx_pipeline_state_GFXDepthStencilState;
+            bs: cocos_gfx_pipeline_state_GFXBlendState;
+            glProgram: WebGLProgram | null;
+            glEnabledAttribLocs: boolean[];
+            glCurrentAttribLocs: boolean[];
+            constructor();
+        }
+        export class cocos_gfx_webgl_webgl_gpu_objects_WebGLGPUTexture {
+            type: cocos_gfx_define_GFXTextureType;
+            viewType: cocos_gfx_define_GFXTextureViewType;
+            format: GFXFormat;
+            usage: cocos_gfx_define_GFXTextureUsage;
+            width: number;
+            height: number;
+            depth: number;
+            size: number;
+            arrayLayer: number;
+            mipLevel: number;
+            samples: cocos_gfx_define_GFXSampleCount;
+            flags: cocos_gfx_define_GFXTextureFlags;
+            isPowerOf2: boolean;
+            glTarget: GLenum;
+            glInternelFmt: GLenum;
+            glFormat: GLenum;
+            glType: GLenum;
+            glUsage: GLenum;
+            glTexture: WebGLTexture | null;
+            glRenderbuffer: WebGLRenderbuffer | null;
+            glWrapS: GLenum;
+            glWrapT: GLenum;
+            glMinFilter: GLenum;
+            glMagFilter: GLenum;
+        }
+        export class cocos_gfx_webgl_webgl_texture_WebGLGFXTexture extends cocos_gfx_texture_GFXTexture {
+            readonly gpuTexture: cocos_gfx_webgl_webgl_gpu_objects_WebGLGPUTexture;
+            constructor(device: cocos_gfx_device_GFXDevice);
+            initialize(info: cocos_gfx_texture_IGFXTextureInfo): boolean;
+            destroy(): void;
+            resize(width: number, height: number): void;
+        }
+        export class cocos_gfx_webgl_webgl_device_WebGLGFXDevice extends cocos_gfx_device_GFXDevice {
+            readonly gl: WebGLRenderingContext;
+            readonly webGLQueue: cocos_gfx_webgl_webgl_queue_WebGLGFXQueue;
+            readonly isAntialias: boolean;
+            readonly isPremultipliedAlpha: boolean;
+            readonly useVAO: boolean;
+            readonly EXT_texture_filter_anisotropic: EXT_texture_filter_anisotropic | null;
+            readonly EXT_frag_depth: EXT_frag_depth | null;
+            readonly EXT_shader_texture_lod: EXT_shader_texture_lod | null;
+            readonly EXT_sRGB: EXT_sRGB | null;
+            readonly OES_vertex_array_object: OES_vertex_array_object | null;
+            readonly WEBGL_color_buffer_float: WEBGL_color_buffer_float | null;
+            readonly WEBGL_compressed_texture_etc1: WEBGL_compressed_texture_etc1 | null;
+            readonly WEBGL_compressed_texture_pvrtc: WEBGL_compressed_texture_pvrtc | null;
+            readonly WEBGL_compressed_texture_astc: WEBGL_compressed_texture_astc | null;
+            readonly WEBGL_compressed_texture_s3tc: WEBGL_compressed_texture_s3tc | null;
+            readonly WEBGL_compressed_texture_s3tc_srgb: WEBGL_compressed_texture_s3tc_srgb | null;
+            readonly WEBGL_debug_shaders: WEBGL_debug_shaders | null;
+            readonly WEBGL_draw_buffers: WEBGL_draw_buffers | null;
+            readonly WEBGL_lose_context: WEBGL_lose_context | null;
+            readonly WEBGL_depth_texture: WEBGL_depth_texture | null;
+            readonly WEBGL_debug_renderer_info: WEBGL_debug_renderer_info | null;
+            readonly OES_texture_half_float: OES_texture_half_float | null;
+            readonly OES_texture_half_float_linear: OES_texture_half_float_linear | null;
+            readonly OES_texture_float: OES_texture_float | null;
+            readonly OES_standard_derivatives: OES_standard_derivatives | null;
+            readonly OES_element_index_uint: OES_element_index_uint | null;
+            readonly ANGLE_instanced_arrays: ANGLE_instanced_arrays | null;
+            stateCache: cocos_gfx_webgl_webgl_state_cache_WebGLStateCache;
+            nullTex2D: cocos_gfx_webgl_webgl_texture_WebGLGFXTexture | null;
+            nullTexCube: cocos_gfx_webgl_webgl_texture_WebGLGFXTexture | null;
+            constructor();
+            initialize(info: cocos_gfx_device_IGFXDeviceInfo): boolean;
+            destroy(): void;
+            resize(width: number, height: number): void;
+            createBuffer(info: cocos_gfx_buffer_IGFXBufferInfo): cocos_gfx_buffer_GFXBuffer;
+            createTexture(info: cocos_gfx_texture_IGFXTextureInfo): cocos_gfx_texture_GFXTexture;
+            createTextureView(info: cocos_gfx_texture_view_IGFXTextureViewInfo): cocos_gfx_texture_view_GFXTextureView;
+            createSampler(info: cocos_gfx_sampler_IGFXSamplerInfo): cocos_gfx_sampler_GFXSampler;
+            createBindingLayout(info: cocos_gfx_binding_layout_IGFXBindingLayoutInfo): cocos_gfx_binding_layout_GFXBindingLayout;
+            createShader(info: cocos_gfx_shader_IGFXShaderInfo): cocos_gfx_shader_GFXShader;
+            createInputAssembler(info: cocos_gfx_input_assembler_IGFXInputAssemblerInfo): cocos_gfx_input_assembler_GFXInputAssembler;
+            createRenderPass(info: cocos_gfx_render_pass_IGFXRenderPassInfo): cocos_gfx_render_pass_GFXRenderPass;
+            createFramebuffer(info: cocos_gfx_framebuffer_IGFXFramebufferInfo): cocos_gfx_framebuffer_GFXFramebuffer;
+            createPipelineLayout(info: cocos_gfx_pipeline_layout_IGFXPipelineLayoutInfo): cocos_gfx_pipeline_layout_GFXPipelineLayout;
+            createPipelineState(info: cocos_gfx_pipeline_state_IGFXPipelineStateInfo): cocos_gfx_pipeline_state_GFXPipelineState;
+            createCommandAllocator(info: cocos_gfx_command_allocator_IGFXCommandAllocatorInfo): cocos_gfx_command_allocator_GFXCommandAllocator;
+            createCommandBuffer(info: cocos_gfx_command_buffer_IGFXCommandBufferInfo): cocos_gfx_command_buffer_GFXCommandBuffer;
+            createQueue(info: cocos_gfx_queue_IGFXQueueInfo): cocos_gfx_queue_GFXQueue;
+            createWindow(info: cocos_gfx_window_IGFXWindowInfo): cocos_gfx_window_GFXWindow;
+            present(): void;
+            copyBuffersToTexture(buffers: ArrayBuffer[], texture: cocos_gfx_texture_GFXTexture, regions: cocos_gfx_define_GFXBufferTextureCopy[]): void;
+            copyTexImagesToTexture(texImages: TexImageSource[], texture: cocos_gfx_texture_GFXTexture, regions: cocos_gfx_define_GFXBufferTextureCopy[]): void;
+            copyFramebufferToBuffer(srcFramebuffer: cocos_gfx_framebuffer_GFXFramebuffer, dstBuffer: ArrayBuffer, regions: cocos_gfx_define_GFXBufferTextureCopy[]): void;
+            blitFramebuffer(src: cocos_gfx_framebuffer_GFXFramebuffer, dst: cocos_gfx_framebuffer_GFXFramebuffer, srcRect: cocos_gfx_define_IGFXRect, dstRect: cocos_gfx_define_IGFXRect, filter: cocos_gfx_define_GFXFilter): void;
+        }
         /**
+             * @en
+             * Scheduler is responsible of triggering the scheduled callbacks.<br>
+             * You should not use NSTimer. Instead use this class.<br>
+             * <br>
+             * There are 2 different types of callbacks (selectors):<br>
+             *     - update callback: the 'update' callback will be called every frame. You can customize the priority.<br>
+             *     - custom callback: A custom callback will be called every frame, or with a custom interval of time<br>
+             * <br>
+             * The 'custom selectors' should be avoided when possible. It is faster,<br>
+             * and consumes less memory to use the 'update callback'. *
+             * @zh
+             * Scheduler 是负责触发回调函数的类。<br>
+             * 通常情况下，建议使用 cc.director.getScheduler() 来获取系统定时器。<br>
+             * 有两种不同类型的定时器：<br>
+             *     - update 定时器：每一帧都会触发。您可以自定义优先级。<br>
+             *     - 自定义定时器：自定义定时器可以每一帧或者自定义的时间间隔触发。<br>
+             * 如果希望每帧都触发，应该使用 update 定时器，使用 update 定时器更快，而且消耗更少的内存。
              *
-             */ type cocos_scene_graph_base_node_Constructor<T = {}> = new (...args: any[]) => T;
-        enum cocos_scene_graph_node_NodeSpace {
-            LOCAL = 0,
-            WORLD = 1
-        }
-        /**
-             * @zh 场景的环境光照相关信息
-             */ export class cocos_scene_graph_scene_globals_AmbientInfo {
-            protected _skyColor: Color;
-            protected _skyIllum: number;
-            protected _groundAlbedo: Color;
-            protected _resource: cocos_renderer_scene_ambient_Ambient | null;
+             * @class Scheduler
+             */ class cocos_core_scheduler_Scheduler {
             /**
-                     * @zh 天空颜色
-                     */ skyColor: Color;
+                     * @en Priority level reserved for system services.
+                     * @zh 系统服务的优先级。
+                     * @property PRIORITY_SYSTEM
+                     */ static PRIORITY_SYSTEM: number;
             /**
-                     * @zh 天空亮度
-                     */ skyIllum: number;
+                     * @en Minimum priority level for user scheduling.
+                     * @zh 用户调度最低优先级。
+                     * @property PRIORITY_NON_SYSTEM
+                     */ static PRIORITY_NON_SYSTEM: number;
+            constructor();
             /**
-                     * @zh 地面颜色
-                     */ groundAlbedo: Color;
-            renderScene: cocos_renderer_scene_render_scene_RenderScene;
-        }
-        /**
-             * @zh 天空盒相关信息
-             */ export class cocos_scene_graph_scene_globals_SkyboxInfo {
-            protected _envmap: cocos_3d_assets_texture_cube_TextureCube | null;
-            protected _isRGBE: boolean;
-            protected _enabled: boolean;
-            protected _useIBL: boolean;
-            protected _resource: cocos_renderer_scene_skybox_Skybox | null;
+                     * @en This method should be called for any target which needs to schedule tasks, and this method should be called before any scheduler API usage.<bg>
+                     * This method will add a `_id` property if it doesn't exist.
+                     * @zh 任何需要用 Scheduler 管理任务的对象主体都应该调用这个方法，并且应该在调用任何 Scheduler API 之前调用这个方法。<bg>
+                     * 这个方法会给对象添加一个 `_id` 属性，如果这个属性不存在的话。
+                     * @param {Object} target
+                     */ enableForTarget(target: any): void;
             /**
-                     * @zh 是否启用天空盒？
-                     */ enabled: any;
+                     * @en
+                     * Modifies the time of all scheduled callbacks.<br>
+                     * You can use this property to create a 'slow motion' or 'fast forward' effect.<br>
+                     * Default is 1.0. To create a 'slow motion' effect, use values below 1.0.<br>
+                     * To create a 'fast forward' effect, use values higher than 1.0.<br>
+                     * Note：It will affect EVERY scheduled selector / action.
+                     * @zh
+                     * 设置时间间隔的缩放比例。<br>
+                     * 您可以使用这个方法来创建一个 “slow motion（慢动作）” 或 “fast forward（快进）” 的效果。<br>
+                     * 默认是 1.0。要创建一个 “slow motion（慢动作）” 效果,使用值低于 1.0。<br>
+                     * 要使用 “fast forward（快进）” 效果，使用值大于 1.0。<br>
+                     * 注意：它影响该 Scheduler 下管理的所有定时器。
+                     * @param {Number} timeScale
+                     */ setTimeScale(timeScale: any): void;
             /**
-                     * @zh 是否启用天空盒？
-                     */ useIBL: any;
+                     * @en Returns time scale of scheduler.
+                     * @zh 获取时间间隔的缩放比例。
+                     * @return {Number}
+                     */ getTimeScale(): number;
             /**
-                     * @zh 使用的立方体贴图
-                     */ envmap: any;
+                     * @en 'update' the scheduler. (You should NEVER call this method, unless you know what you are doing.)
+                     * @zh update 调度函数。(不应该直接调用这个方法，除非完全了解这么做的结果)
+                     * @param {Number} dt delta time
+                     */ update(dt: any): void;
             /**
-                     * @zh 是否需要开启 shader 内的 RGBE 数据支持？
-                     */ isRGBE: any;
-            renderScene: cocos_renderer_scene_render_scene_RenderScene;
-        }
-        /**
-             * @zh 平面阴影相关信息
-             */ export class cocos_scene_graph_scene_globals_PlanarShadowInfo {
-            protected _enabled: boolean;
-            protected _normal: Vec3;
-            protected _distance: number;
-            protected _shadowColor: Color;
-            protected _resource: cocos_renderer_scene_planar_shadow_PlanarShadow | null;
+                     * @en
+                     * <p>
+                     *   The scheduled method will be called every 'interval' seconds.<br/>
+                     *   If paused is YES, then it won't be called until it is resumed.<br/>
+                     *   If 'interval' is 0, it will be called every frame, but if so, it recommended to use 'scheduleUpdateForTarget:' instead.<br/>
+                     *   If the callback function is already scheduled, then only the interval parameter will be updated without re-scheduling it again.<br/>
+                     *   repeat let the action be repeated repeat + 1 times, use cc.macro.REPEAT_FOREVER to let the action run continuously<br/>
+                     *   delay is the amount of time the action will wait before it'll start<br/>
+                     * </p>
+                     * @zh
+                     * 指定回调函数，调用对象等信息来添加一个新的定时器。<br/>
+                     * 如果 paused 值为 true，那么直到 resume 被调用才开始计时。<br/>
+                     * 当时间间隔达到指定值时，设置的回调函数将会被调用。<br/>
+                     * 如果 interval 值为 0，那么回调函数每一帧都会被调用，但如果是这样，
+                     * 建议使用 scheduleUpdateForTarget 代替。<br/>
+                     * 如果回调函数已经被定时器使用，那么只会更新之前定时器的时间间隔参数，不会设置新的定时器。<br/>
+                     * repeat 值可以让定时器触发 repeat + 1 次，使用 cc.macro.REPEAT_FOREVER
+                     * 可以让定时器一直循环触发。<br/>
+                     * delay 值指定延迟时间，定时器会在延迟指定的时间之后开始计时。
+                     * @param {Function} callback
+                     * @param {Object} target
+                     * @param {Number} interval
+                     * @param {Number} [repeat=cc.macro.REPEAT_FOREVER]
+                     * @param {Number} [delay=0]
+                     * @param {Boolean} [paused=fasle]
+                     */ schedule(callback: Function, target: any, interval: number, repeat: number, delay: number, paused?: boolean): void;
             /**
-                     * @zh 是否启用平面阴影？
-                     */ enabled: boolean;
+                     * @en
+                     * Schedules the update callback for a given target,
+                     * During every frame after schedule started, the "update" function of target will be invoked.
+                     * @zh
+                     * 使用指定的优先级为指定的对象设置 update 定时器。<br>
+                     * update 定时器每一帧都会被触发，触发时自动调用指定对象的 "update" 函数。<br>
+                     * 优先级的值越低，定时器被触发的越早。
+                     * @param {Object} target
+                     * @param {Number} priority
+                     * @param {Boolean} paused
+                     */ scheduleUpdate(target: any, priority: Number, paused: Boolean): void;
             /**
-                     * @zh 阴影接收平面的法线
-                     */ normal: Vec3;
+                     * @en
+                     * Unschedules a callback for a callback and a given target.<br>
+                     * If you want to unschedule the "update", use `unscheduleUpdate()`
+                     * @zh
+                     * 根据指定的回调函数和调用对象。<br>
+                     * 如果需要取消 update 定时器，请使用 unscheduleUpdate()。
+                     * @param {Function} callback The callback to be unscheduled
+                     * @param {Object} target The target bound to the callback.
+                     */ unschedule(callback: any, target: any): void;
             /**
-                     * @zh 阴影接收平面与原点的距离
-                     */ distance: number;
+                     * @en Unschedules the update callback for a given target.
+                     * @zh 取消指定对象的 update 定时器。
+                     * @param {Object} target The target to be unscheduled.
+                     */ unscheduleUpdate(target: any): void;
             /**
-                     * @zh 阴影颜色
-                     */ shadowColor: Color;
+                     * @en
+                     * Unschedules all scheduled callbacks for a given target.
+                     * This also includes the "update" callback.
+                     * @zh 取消指定对象的所有定时器，包括 update 定时器。
+                     * @param {Object} target The target to be unscheduled.
+                     */ unscheduleAllForTarget(target: any): void;
             /**
-                     * @zh 根据指定节点的世界变换设置阴影接收平面的信息
-                     * @param node 阴影接收平面的世界变换
-                     */ setPlaneFromNode(node: Node): void;
-            renderScene: cocos_renderer_scene_render_scene_RenderScene;
-        }
-        /**
-             * @zh 各类场景级别的渲染参数，将影响全场景的所有物体
-             */ export class cocos_scene_graph_scene_globals_SceneGlobals {
-            ambient: cocos_scene_graph_scene_globals_AmbientInfo;
-            skybox: cocos_scene_graph_scene_globals_SkyboxInfo;
-            planarShadow: cocos_scene_graph_scene_globals_PlanarShadowInfo;
-            renderScene: cocos_renderer_scene_render_scene_RenderScene;
+                     * @en
+                     * Unschedules all scheduled callbacks from all targets including the system callbacks.<br/>
+                     * You should NEVER call this method, unless you know what you are doing.
+                     * @zh
+                     * 取消所有对象的所有定时器，包括系统定时器。<br/>
+                     * 不用调用此函数，除非你确定你在做什么。
+                     */ unscheduleAll(): void;
+            /**
+                     * @en
+                     * Unschedules all callbacks from all targets with a minimum priority.<br/>
+                     * You should only call this with `PRIORITY_NON_SYSTEM_MIN` or higher.
+                     * @zh
+                     * 取消所有优先级的值大于指定优先级的定时器。<br/>
+                     * 你应该只取消优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
+                     * @param {Number} minPriority The minimum priority of selector to be unscheduled. Which means, all selectors which
+                     *        priority is higher than minPriority will be unscheduled.
+                     */ unscheduleAllWithMinPriority(minPriority: number): void;
+            /**
+                     * @en Checks whether a callback for a given target is scheduled.
+                     * @zh 检查指定的回调函数和回调对象组合是否存在定时器。
+                     * @param {Function} callback The callback to check.
+                     * @param {Object} target The target of the callback.
+                     * @return {Boolean} True if the specified callback is invoked, false if not.
+                     */ isScheduled(callback: any, target: any): boolean;
+            /**
+                     * @en
+                     * Pause all selectors from all targets.<br/>
+                     * You should NEVER call this method, unless you know what you are doing.
+                     * @zh
+                     * 暂停所有对象的所有定时器。<br/>
+                     * 不要调用这个方法，除非你知道你正在做什么。
+                     */ pauseAllTargets(): any;
+            /**
+                     * @en
+                     * Pause all selectors from all targets with a minimum priority. <br/>
+                     * You should only call this with kCCPriorityNonSystemMin or higher.
+                     * @zh
+                     * 暂停所有优先级的值大于指定优先级的定时器。<br/>
+                     * 你应该只暂停优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
+                     * @param {Number} minPriority
+                     */ pauseAllTargetsWithMinPriority(minPriority: number): any;
+            /**
+                     * @en
+                     * Resume selectors on a set of targets.<br/>
+                     * This can be useful for undoing a call to pauseAllCallbacks.
+                     * @zh
+                     * 恢复指定数组中所有对象的定时器。<br/>
+                     * 这个函数是 pauseAllCallbacks 的逆操作。
+                     * @param {Array} targetsToResume
+                     */ resumeTargets(targetsToResume: any): void;
+            /**
+                     * @en
+                     * Pauses the target.<br/>
+                     * All scheduled selectors/update for a given target won't be 'ticked' until the target is resumed.<br/>
+                     * If the target is not present, nothing happens.
+                     * @zh
+                     * 暂停指定对象的定时器。<br/>
+                     * 指定对象的所有定时器都会被暂停。<br/>
+                     * 如果指定的对象没有定时器，什么也不会发生。
+                     * @param {Object} target
+                     */ pauseTarget(target: any): void;
+            /**
+                     * @en
+                     * Resumes the target.<br/>
+                     * The 'target' will be unpaused, so all schedule selectors/update will be 'ticked' again.<br/>
+                     * If the target is not present, nothing happens.
+                     * @zh
+                     * 恢复指定对象的所有定时器。<br/>
+                     * 指定对象的所有定时器将继续工作。<br/>
+                     * 如果指定的对象没有定时器，什么也不会发生。
+                     * @param {Object} target
+                     */ resumeTarget(target: any): void;
+            /**
+                     * @en Returns whether or not the target is paused.
+                     * @zh 返回指定对象的定时器是否处于暂停状态。
+                     * @param {Object} target
+                     * @return {Boolean}
+                     */ isTargetPaused(target: any): any;
         }
         /**
              * @param error - null or the error info
@@ -17522,129 +22550,146 @@ declare module "Cocos3D" {
              */ export type cocos_assets_image_asset_ImageSource = HTMLCanvasElement | HTMLImageElement | cocos_assets_image_asset_IMemoryImageSource;
         export interface cocos_assets_bitmap_font_IConfig {
         }
-        export type cocos_animation_animation_blend_state_PropertyBlendState<T = any> = {
-            name: string;
-            weight: number;
-            value?: T;
-            refCount: number;
-        };
         /**
-             * 动画使用的循环模式。
-             */ export enum cocos_animation_types_WrapMode {
-            Default = 0,
-            Normal = 1,
-            Reverse = 36,
-            Loop = 2,
-            LoopReverse = 38,
-            PingPong = 22,
-            PingPongReverse = 54
+             * @en
+             * The texture wrap mode.
+             * @zh
+             * 纹理环绕方式。
+             */ export enum cocos_assets_asset_enum_WrapMode {
+            REPEAT = 0,
+            CLAMP_TO_EDGE = 2,
+            MIRRORED_REPEAT = 1,
+            CLAMP_TO_BORDER = 3
         }
-        export class cocos_animation_animation_blend_state_AnimationBlendState {
-            refPropertyBlendTarget(target: CurveTarget, propertyName: string): cocos_animation_animation_blend_state_PropertyBlendState<any>;
-            derefPropertyBlendTarget(target: CurveTarget, propertyName: string): void;
-            apply(): void;
-            clear(): void;
-        }
-        export class cocos_animation_playable_Playable {
-            /**
-                     * @en Is playing or paused in play mode?
-                     * @zh 当前是否正在播放。
-                     * @default false
-                     */ readonly isPlaying: boolean;
-            /**
-                     * @en Is currently paused? This can be true even if in edit mode(isPlaying == false).
-                     * @zh 当前是否正在暂停。
-                     * @default false
-                     */ readonly isPaused: boolean;
-            /**
-                     * @en Play this animation.
-                     * @zh 播放动画。
-                     */ play(): void;
-            /**
-                     * @en Stop this animation.
-                     * @zh 停止动画播放。
-                     */ stop(): void;
-            /**
-                     * @en Pause this animation.
-                     * @zh 暂停动画。
-                     */ pause(): void;
-            /**
-                     * @en Resume this animation.
-                     * @zh 重新播放动画。
-                     */ resume(): void;
-            /**
-                     * @en Perform a single frame step.
-                     * @zh 执行一帧动画。
-                     */ step(): void;
-            update(deltaTime: number): void;
-            protected onPlay(): void;
-            protected onPause(): void;
-            protected onResume(): void;
-            protected onStop(): void;
-            protected onError(message: string): void;
-        }
-        export class cocos_animation_cross_fade_CrossFade extends cocos_animation_playable_Playable {
-            constructor();
-            update(deltaTime: number): void;
-            /**
-                     * 在指定时间内将从当前动画状态切换到指定的动画状态。
-                     * @param state 指定的动画状态。
-                     * @param duration 切换时间。
-                     */ crossFade(state: AnimationState | null, duration: number): void;
-            /**
-                     * 停止我们淡入淡出的所有动画状态并停止淡入淡出。
-                     */ onPause(): void;
-            /**
-                     * 恢复我们淡入淡出的所有动画状态并继续淡入淡出。
-                     */ onResume(): void;
-            /**
-                     * 停止所有淡入淡出的动画状态并移除最后一个动画状态之外的所有动画状态。
-                     */ onStop(): void;
-            clear(): void;
-        }
-        export type cocos_core_event_defines_EventArgumentsOf<K extends string, Map extends any, AllowCustomEvents extends boolean = false> = K extends (keyof Map) ? Parameters<Map[K]> : (AllowCustomEvents extends true ? any[] : never);
-        export type cocos_core_event_defines_EventCallbackOf<K extends string, Map extends any, AllowCustomEvents extends boolean = false> = K extends (keyof Map) ? (...args: Parameters<Map[K]>) => void : (AllowCustomEvents extends true ? (...args: any[]) => void : never);
         /**
-             * For internal
-             */ export class cocos_animation_types_WrappedInfo {
-            ratio: number;
-            time: number;
-            direction: number;
-            stopped: boolean;
-            iterations: number;
-            frameIndex: number;
-            constructor(info?: cocos_animation_types_WrappedInfo);
-            set(info: cocos_animation_types_WrappedInfo): void;
+             * @en
+             * The texture filter mode
+             * @zh
+             * 纹理过滤模式。
+             */ export enum cocos_assets_asset_enum_Filter {
+            NONE = 0,
+            LINEAR = 2,
+            NEAREST = 1
         }
-        export interface cocos_animation_types_ILerpable {
+        /**
+             * 贴图资源基类。它定义了所有贴图共用的概念。
+             */ export class cocos_assets_texture_base_TextureBase extends Asset {
             /**
-                     * 在当前曲线值与目标曲线值之间插值。
-                     * @param to 目标曲线值。
-                     * @param t 插值比率。
-                     * @param dt 当前曲线值与目标曲线值的时间间隔，单位为秒。
-                     * @returns 插值结果。
-                     */ lerp(to: any, t: number, dt: number): any;
+                     * 此贴图是否为压缩的像素格式。
+                     */ readonly isCompressed: boolean;
             /**
-                     * 当直接使用曲线值作为采样结果时的结果值，它应该等同于插值比率为 0 时的插值结果。
-                     * @returns 插值比率为 0 时的插值结果。
-                     */ getNoLerp?(): any;
+                     * 此贴图的像素宽度。
+                     */ readonly width: number;
+            /**
+                     * 此贴图的像素高度。
+                     */ readonly height: number;
+            static PixelFormat: typeof cocos_assets_asset_enum_PixelFormat;
+            static WrapMode: typeof cocos_assets_asset_enum_WrapMode;
+            static Filter: typeof cocos_assets_asset_enum_Filter;
+            protected _format: number;
+            protected _premultiplyAlpha: boolean;
+            protected _flipY: boolean;
+            protected _minFilter: number;
+            protected _magFilter: number;
+            protected _mipFilter: number;
+            protected _wrapS: number;
+            protected _wrapT: number;
+            protected _wrapR: number;
+            protected _anisotropy: number;
+            protected _width: number;
+            protected _height: number;
+            constructor(flipY?: boolean);
+            /**
+                     * 获取标识符。
+                     * @returns 此贴图的标识符。
+                     */ getId(): string;
+            /**
+                     * 获取像素格式。
+                     * @returns 此贴图的像素格式。
+                     */ getPixelFormat(): number;
+            /**
+                     * 返回是否开启了预乘透明通道功能。
+                     * @returns 此贴图是否开启了预乘透明通道功能。
+                     */ hasPremultipliedAlpha(): boolean;
+            /**
+                     * 获取各向异性。
+                     * @returns 此贴图的各向异性。
+                     */ getAnisotropy(): number;
+            /**
+                     * 设置此贴图的缠绕模式。
+                     * 注意，若贴图尺寸不是 2 的整数幂，缠绕模式仅允许 `WrapMode.CLAMP_TO_EDGE`。
+                     * @param wrapS S(U) 坐标的采样模式。
+                     * @param wrapT T(V) 坐标的采样模式。
+                     * @param wrapR R(W) 坐标的采样模式。
+                     */ setWrapMode(wrapS: cocos_assets_asset_enum_WrapMode, wrapT: cocos_assets_asset_enum_WrapMode, wrapR?: cocos_assets_asset_enum_WrapMode): void;
+            /**
+                     * 设置此贴图的过滤算法。
+                     * @param minFilter 缩小过滤算法。
+                     * @param magFilter 放大过滤算法。
+                     */ setFilters(minFilter: cocos_assets_asset_enum_Filter, magFilter: cocos_assets_asset_enum_Filter): void;
+            /**
+                     * 设置此贴图的 mip 过滤算法。
+                     * @param mipFilter mip 过滤算法。
+                     */ setMipFilter(mipFilter: cocos_assets_asset_enum_Filter): void;
+            /**
+                     * 设置渲染时是否运行将此贴图进行翻转。
+                     * @param flipY 翻转则为 `true`，否则为 `false`。
+                     */ setFlipY(flipY: boolean): void;
+            /**
+                     * 设置此贴图是否预乘透明通道。
+                     * @param premultiply
+                     */ setPremultiplyAlpha(premultiply: boolean): void;
+            /**
+                     * 设置此贴图的各向异性。
+                     * @param anisotropy 各向异性。
+                     */ setAnisotropy(anisotropy: number): void;
+            /**
+                     * 销毁此贴图，并释放占有的所有 GPU 资源。
+                     */ destroy(): boolean;
+            /**
+                     * 获取此贴图底层的 GFX 贴图视图对象。
+                     */ getGFXTextureView(): cocos_gfx_texture_view_GFXTextureView | null;
+            /**
+                     * 获取此贴图内部使用的 GFX 采样器信息。
+                     * @private
+                     */ getSamplerHash(): number;
+            /**
+                     * @return
+                     */ _serialize(exporting?: any): any;
+            /**
+                     *
+                     * @param data
+                     */ _deserialize(serializedData: any, handle: any): void;
+            protected _getGFXDevice(): cocos_gfx_device_GFXDevice | null;
+            protected _getGFXFormat(): number;
+            protected _setGFXFormat(format?: cocos_assets_asset_enum_PixelFormat): void;
+        }
+        export enum cocos_assets_asset_enum_DepthStencilFormat {
+            NONE = 0,
+            DEPTH_16 = 53,
+            DEPTH_24 = 55,
+            DEPTH_32 = 57,
+            DEPTH_16_STENCIL_8 = 54,
+            DEPTH_24_STENCIL_8 = 56,
+            DEPTH_32_STENCIL_8 = 58
+        }
+        export interface cocos_assets_render_texture_IRenderTextureCreateInfo {
+            name?: string;
+            width: number;
+            height: number;
+            depthStencilFormat: cocos_assets_asset_enum_DepthStencilFormat;
         }
         /**
              * @en
              * Loader for resource loading process. It's a singleton object.
              * @zh
              * 资源加载程序，这是一个单例对象。
-             * @class loader
-             * @extends Pipeline
-             * @static
              */ class cocos_load_pipeline_CCLoader_CCLoader extends Pipeline {
             /**
                      * @en
                      * Gets a new XMLHttpRequest instance.
                      * @zh
                      * 获取一个新的 XMLHttpRequest 的实例。
-                     * @method getXMLHttpRequest
-                     * @returns {XMLHttpRequest}
                      */ getXMLHttpRequest: Function;
             /**
                      * @en
@@ -18071,120 +23116,9 @@ declare module "Cocos3D" {
              */ class cocos_components_missing_script_MissingClass {
             _$erialized: null;
         }
-        /**
-             * @en The event type supported by Animation
-             * @zh Animation 支持的事件类型。
-             */ export enum cocos_components_animation_component_EventType {
-            PLAY = "play",
-            STOP = "stop",
-            PAUSE = "pause",
-            RESUME = "resume",
-            LASTFRAME = "lastframe",
-            FINISHED = "finished"
-        }
-        /**
-             * @zh
-             * 立方体参数选项。
-             */ interface cocos_3d_primitive_box_IBoxOptions extends RecursivePartial<primitives.IGeometryOptions> {
-            /**
-                     * @en
-                     * Box extent on X-axis.
-                     * @zh
-                     * 立方体宽度。
-                     */ width?: number;
-            /**
-                     * @en
-                     * Box extent on Y-axis.
-                     * @zh
-                     * 立方体高度。
-                     */ height?: number;
-            /**
-                     * @en
-                     * Box extent on Z-axis.
-                     * @zh
-                     * 立方体长度。
-                     */ length?: number;
-            /**
-                     * @en
-                     * Segment count on X-axis.
-                     * @zh
-                     * 宽度线段数。
-                     */ widthSegments?: number;
-            /**
-                     * @en
-                     * Segment count on Y-axis.
-                     * @zh
-                     * 高度线段数。
-                     */ heightSegments?: number;
-            /**
-                     * @en
-                     * Segment count on Z-axis.
-                     * @zh
-                     * 长度线段数。
-                     */ lengthSegments?: number;
-        }
-        /**
-             * @zh
-             * 圆柱参数选项。
-             */ export interface cocos_3d_primitive_cylinder_ICylinderOptions extends primitives.IGeometryOptions {
-            radialSegments: number;
-            heightSegments: number;
-            capped: boolean;
-            arc: number;
-        }
-        type cocos_3d_primitive_cone_IConeOptions = cocos_3d_primitive_cylinder_ICylinderOptions;
-        /**
-             * @zh
-             * 生成一个圆锥。
-             * @param radius 圆锥半径。
-             * @param height 圆锥高度。
-             * @param opts 圆锥参数选项。
-             */ interface cocos_3d_primitive_plane_IPlaneOptions extends RecursivePartial<primitives.IGeometryOptions> {
-            /**
-                     * Plane extent on X-axis.
-                     */ width: number;
-            /**
-                     * Plane extent on Z-axis.
-                     */ length: number;
-            /**
-                     * Segment count on X-axis.
-                     */ widthSegments: number;
-            /**
-                     * Segment count on Z-axis.
-                     */ lengthSegments: number;
-        }
-        /**
-             * @zh
-             * 球参数选项。
-             */ interface cocos_3d_primitive_sphere_ISphereOptions extends primitives.IGeometryOptions {
-            segments: number;
-        }
-        /**
-             * @zh
-             * 环面参数选项。
-             */ interface cocos_3d_primitive_torus_ITorusOptions extends primitives.IGeometryOptions {
-            radialSegments: number;
-            tubularSegments: number;
-            arc: number;
-        }
-        /**
-             * @zh
-             * 胶囊体参数选项。
-             */ export interface cocos_3d_primitive_capsule_ICapsuteOptions {
-            sides: number;
-            heightSegments: number;
-            capped: boolean;
-            arc: number;
-        }
-        /**
-             * @zh
-             * 圆形参数选项。
-             */ interface cocos_3d_primitive_circle_ICircleOptions extends primitives.IGeometryOptions {
-            segments: number;
-        }
         class cocos_3d_geom_utils_octree_OctreeBlock {
-            minPos: vmath.vec3;
-            maxPos: vmath.vec3;
+            minPos: Vec3;
+            maxPos: Vec3;
             boundingBox: geometry.aabb;
             capacity: number;
             depth: number;
@@ -18208,6 +23142,8 @@ declare module "Cocos3D" {
         export interface cocos_3d_assets_effect_asset_ITechniqueInfo {
             passes: cocos_3d_assets_effect_asset_IPassInfo[];
             name?: string;
+        }
+        export interface cocos_3d_assets_effect_asset_IPreCompileInfo {
         }
         /**
              * @zh
@@ -18288,6 +23224,14 @@ declare module "Cocos3D" {
                      * （各分量都）大于等于此网格任何顶点位置的最小位置。
                      */ maxPosition?: Vec3;
         }
+        export interface cocos_3d_assets_mesh_IMeshCreateInfo {
+            /**
+                     * 网格结构。
+                     */ struct: cocos_3d_assets_mesh_IMeshStruct;
+            /**
+                     * 网格二进制数据。
+                     */ data: Uint8Array;
+        }
         /**
              * 渲染网格。
              */ export class cocos_3d_assets_mesh_RenderingMesh {
@@ -18310,6 +23254,11 @@ declare module "Cocos3D" {
                      */ destroy(): void;
         }
         type cocos_3d_assets_mesh_Storage = Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | Int32Array | Float32Array | Float64Array;
+        export interface cocos_3d_assets_skeleton_IBindTRS {
+            position: Vec3;
+            rotation: Quat;
+            scale: Vec3;
+        }
         class cocos_3d_builtin_init_BuiltinResMgr {
             protected _device: cocos_gfx_device_GFXDevice | null;
             protected _resources: Record<string, Asset>;
@@ -18339,6 +23288,9 @@ declare module "Cocos3D" {
             randomColor(): Color;
         }
         export class cocos_3d_framework_particle_animator_gradient_range_default {
+            /**
+                     * @zh 渐变色类型 [[Mode]]。
+                     */ mode: number;
             static Mode: {
                 Color: number;
                 Gradient: number;
@@ -18346,9 +23298,6 @@ declare module "Cocos3D" {
                 TwoGradients: number;
                 RandomColor: number;
             };
-            /**
-                     * @zh 渐变色类型 [[Mode]]。
-                     */ mode: number;
             /**
                      * @zh 当mode为Color时的颜色。
                      */ color: any;
@@ -18406,15 +23355,15 @@ declare module "Cocos3D" {
         }
         export class cocos_3d_framework_particle_particle_default {
             particleSystem: ParticleSystemComponent;
-            position: vmath.vec3;
-            velocity: vmath.vec3;
-            animatedVelocity: vmath.vec3;
-            ultimateVelocity: vmath.vec3;
-            angularVelocity: vmath.vec3;
-            axisOfRotation: vmath.vec3;
-            rotation: vmath.vec3;
-            startSize: vmath.vec3;
-            size: vmath.vec3;
+            position: Vec3;
+            velocity: Vec3;
+            animatedVelocity: Vec3;
+            ultimateVelocity: Vec3;
+            angularVelocity: Vec3;
+            axisOfRotation: Vec3;
+            rotation: Vec3;
+            startSize: Vec3;
+            size: Vec3;
             startColor: Color;
             color: any;
             randomSeed: number;
@@ -18436,15 +23385,6 @@ declare module "Cocos3D" {
         }
         export class cocos_3d_framework_particle_emitter_shape_module_default {
             /**
-                     * @zh 是否启用。
-                     */ enable: boolean;
-            /**
-                     * @zh 粒子发射器类型 [[ShapeType]]。
-                     */ shapeType: number;
-            /**
-                     * @zh 粒子从发射器哪个部位发射 [[EmitLocation]]。
-                     */ emitFrom: number;
-            /**
                      * @zh 粒子发射器位置。
                      */ position: Vec3;
             /**
@@ -18453,6 +23393,22 @@ declare module "Cocos3D" {
             /**
                      * @zh 粒子发射器缩放比例。
                      */ scale: Vec3;
+            /**
+                     * @zh 粒子发射器在一个扇形范围内发射。
+                     */ arc: number;
+            /**
+                     * @zh 圆锥的轴与母线的夹角<bg>。
+                     * 决定圆锥发射器的开合程度。
+                     */ angle: number;
+            /**
+                     * @zh 是否启用。
+                     */ enable: boolean;
+            /**
+                     * @zh 粒子发射器类型 [[ShapeType]]。
+                     */ shapeType: number;
+            /**
+                     * @zh 粒子从发射器哪个部位发射 [[EmitLocation]]。
+                     */ emitFrom: number;
             /**
                      * @zh 根据粒子的初始方向决定粒子的移动方向。
                      */ alignToDirection: boolean;
@@ -18475,9 +23431,6 @@ declare module "Cocos3D" {
                      * - 0 ~ 1 之间表示在中心到表面之间发射。
                      */ radiusThickness: number;
             /**
-                     * @zh 粒子发射器在一个扇形范围内发射。
-                     */ arc: number;
-            /**
                      * @zh 粒子在扇形范围内的发射方式 [[ArcMode]]。
                      */ arcMode: number;
             /**
@@ -18486,10 +23439,6 @@ declare module "Cocos3D" {
             /**
                      * @zh 粒子沿圆周发射的速度。
                      */ arcSpeed: cocos_3d_framework_particle_animator_curve_range_default;
-            /**
-                     * @zh 圆锥的轴与母线的夹角<bg>。
-                     * 决定圆锥发射器的开合程度。
-                     */ angle: number;
             /**
                      * @zh 圆锥顶部截面距离底部的轴长<bg>。
                      * 决定圆锥发射器的高度。
@@ -18542,7 +23491,7 @@ declare module "Cocos3D" {
                      * @zh 速度计算时采用的坐标系[[Space]]。
                      */ space: number;
             constructor();
-            update(space: number, worldTransform: vmath.mat4): void;
+            update(space: number, worldTransform: Mat4): void;
             animate(p: cocos_3d_framework_particle_particle_default): void;
         }
         export class cocos_3d_framework_particle_animator_force_overtime_default {
@@ -18668,10 +23617,10 @@ declare module "Cocos3D" {
             /**
                      * 轨迹存在的生命周期。
                      */ lifeTime: cocos_3d_framework_particle_animator_curve_range_default;
+            _minParticleDistance: number;
             /**
                      * 每个轨迹粒子之间的最小间距。
                      */ minParticleDistance: number;
-            _minParticleDistance: number;
             space: number;
             /**
                      * 粒子本身是否存在。
@@ -18687,7 +23636,7 @@ declare module "Cocos3D" {
             colorOverTrail: cocos_3d_framework_particle_animator_gradient_range_default;
             colorOvertime: cocos_3d_framework_particle_animator_gradient_range_default;
             constructor();
-            init(ps: any): void;
+            onInit(ps: any): void;
             onEnable(): void;
             onDisable(): void;
             destroy(): void;
@@ -18719,7 +23668,7 @@ declare module "Cocos3D" {
                      * @zh 拖尾使用的材质。
                      */ trailMaterial: any;
             constructor();
-            onInit(ps: any): void;
+            onInit(ps: Component): void;
             onEnable(): void;
             onDisable(): void;
             onDestroy(): void;
@@ -18733,221 +23682,25 @@ declare module "Cocos3D" {
             _onMaterialModified(index: number, material: Material): void;
             _onRebuildPSO(index: number, material: Material): void;
         }
-        export type cocos_3d_physics_api_ITriggerEventType = 'onTriggerEnter' | 'onTriggerStay' | 'onTriggerExit';
-        export interface cocos_3d_physics_api_ITriggerEvent {
-            type: cocos_3d_physics_api_ITriggerEventType;
-            selfCollider: any;
-            otherCollider: any;
-        }
-        export type cocos_3d_physics_api_ITriggerCallback = (event: cocos_3d_physics_api_ITriggerEvent) => void;
-        export interface cocos_3d_physics_api_ShapeBase {
-            setCenter(center: Vec3): void;
-            setScale(scale: Vec3): void;
-            setRotation(rotation: Quat): void;
-            getUserData(): any;
-            setUserData(data: any): void;
-            getCollisionResponse(): boolean;
-            setCollisionResponse(value: boolean): void;
-            addTriggerCallback(callback: cocos_3d_physics_api_ITriggerCallback): void;
-            removeTriggerCallback(callback: cocos_3d_physics_api_ITriggerCallback): void;
-        }
-        export type cocos_3d_physics_api_BeforeStepCallback = () => void;
-        export type cocos_3d_physics_api_AfterStepCallback = () => void;
-        export interface cocos_3d_physics_api_IRaycastOptions {
-            collisionFilterMask?: number;
-            collisionFilterGroup?: number;
-            queryTriggerInteraction?: boolean;
-        }
-        export class cocos_3d_physics_raycast_result_RaycastResult {
-            readonly hitPoint: Vec3;
-            readonly distance: number;
-            readonly collider: Component;
-            readonly node: Node;
-            _assign(hitPoint: vmath.vec3, distance: number, shape: cocos_3d_physics_api_ShapeBase, body: cocos_3d_physics_api_RigidBodyBase): void;
-        }
-        export interface cocos_3d_physics_api_PhysicsWorldBase {
-            step(deltaTime: number, ...args: any): void;
-            addBeforeStep(cb: cocos_3d_physics_api_BeforeStepCallback): void;
-            removeBeforeStep(cb: cocos_3d_physics_api_BeforeStepCallback): void;
-            addAfterStep(cb: cocos_3d_physics_api_AfterStepCallback): void;
-            removeAfterStep(cb: cocos_3d_physics_api_AfterStepCallback): void;
-            /**
-                     * Ray cast, and return information of the closest hit.
-                     * @return True if any body was hit.
-                     */ raycastClosest(from: Vec3, to: Vec3, options: cocos_3d_physics_api_IRaycastOptions, result: cocos_3d_physics_raycast_result_RaycastResult): boolean;
-            /**
-                     * Ray cast, and stop at the first result. Note that the order is random - but the method is fast.
-                     * @return True if any body was hit.
-                     */ raycastAny(from: Vec3, to: Vec3, options: cocos_3d_physics_api_IRaycastOptions, result: cocos_3d_physics_raycast_result_RaycastResult): boolean;
-            /**
-                     * Ray cast against all bodies. The provided callback will be executed for each hit with a RaycastResult as single argument.
-                     * @return True if any body was hit.
-                     */ raycastAll(from: Vec3, to: Vec3, options: cocos_3d_physics_api_IRaycastOptions, callback: (result: cocos_3d_physics_raycast_result_RaycastResult) => void): boolean;
-        }
-        export interface cocos_3d_physics_api_BuiltInRigidBodyBase {
-            getGroup(): number;
-            setGroup(v: number): void;
-            addGroup(v: number): void;
-            removeGroup(v: number): void;
-            setMask(v: number): void;
-            getMask(): number;
-            addMask(v: number): void;
-            removeMask(v: number): void;
-            addShape(shape: cocos_3d_physics_api_ShapeBase, offset?: Vec3): void;
-            removeShape(shape: cocos_3d_physics_api_ShapeBase): void;
-            getPosition(out: Vec3): void;
-            setPosition(value: Vec3): void;
-            getRotation(out: Quat): void;
-            setRotation(out: Quat): void;
-            translateAndRotate(m: vmath.mat4, rot: vmath.quat): void;
-            scaleAllShapes(scale: Vec3): void;
-            getUserData(): any;
-            setUserData(data: any): void;
-            setWorld(world: cocos_3d_physics_api_PhysicsWorldBase | null): void;
-        }
-        export enum cocos_3d_physics_physic_enum_ERigidBodyType {
-            DYNAMIC = 1,
-            STATIC = 2,
-            KINEMATIC = 4
-        }
-        export type cocos_3d_physics_api_ICollisionEventType = 'onCollisionEnter' | 'onCollisionStay' | 'onCollisionExit';
-        export interface cocos_3d_physics_api_ICollisionEvent {
-            type: cocos_3d_physics_api_ICollisionEventType;
-            selfCollider: any;
-            otherCollider: any;
-            contacts: any;
-        }
-        export type cocos_3d_physics_api_ICollisionCallback = (event: cocos_3d_physics_api_ICollisionEvent) => void;
-        export interface cocos_3d_physics_api_RigidBodyBase extends cocos_3d_physics_api_BuiltInRigidBodyBase {
-            /** the body type */ getType(): cocos_3d_physics_physic_enum_ERigidBodyType;
-            setType(v: cocos_3d_physics_physic_enum_ERigidBodyType): void;
-            wakeUp(): void;
-            sleep(): void;
-            isAwake(): boolean;
-            isSleepy(): boolean;
-            isSleeping(): boolean;
-            getMass(): number;
-            setMass(value: number): void;
-            addCollisionCallback(callback: cocos_3d_physics_api_ICollisionCallback): void;
-            removeCollisionCllback(callback: cocos_3d_physics_api_ICollisionCallback): void;
-            /**
-                     * force
-                     */ applyForce(force: Vec3, worldPoint?: Vec3): void;
-            applyLocalForce(force: Vec3, localPoint?: Vec3): void;
-            /**
-                     * impulse
-                     */ applyImpulse(impulse: Vec3, worldPoint?: Vec3): void;
-            applyLocalImpulse(impulse: Vec3, localPoint?: Vec3): void;
-            getIsKinematic(): boolean;
-            setIsKinematic(value: boolean): void;
-            /**
-                     * linear damping
-                     */ getLinearDamping(): number;
-            setLinearDamping(value: number): void;
-            /**
-                     * angular damping
-                     */ getAngularDamping(): number;
-            setAngularDamping(value: number): void;
-            getUseGravity(): boolean;
-            setUseGravity(value: boolean): void;
-            getCollisionResponse(): boolean;
-            setCollisionResponse(value: boolean): void;
-            /**
-                     * linear velocity
-                     */ getLinearVelocity(out?: Vec3): Vec3;
-            setLinearVelocity(value: Vec3): void;
-            /**
-                     * angular velocity
-                     */ getAngularVelocity(out?: Vec3): Vec3;
-            setAngularVelocity(value: Vec3): void;
-            /**
-                     * linear factor
-                     */ getLinearFactor(out?: Vec3): Vec3;
-            setLinearFactor(value: Vec3): void;
-            /**
-                     * angular factor
-                     */ getAngularFactor(out?: Vec3): Vec3;
-            setAngularFactor(value: Vec3): void;
-            getFreezeRotation(): boolean;
-            setFreezeRotation(value: boolean): void;
-        }
-        export enum cocos_3d_physics_physic_enum_ETransformSource {
-            SCENE = 0,
-            PHYSIC = 1
-        }
-        class cocos_3d_framework_physics_detail_physics_based_component_SharedRigidBody {
-            readonly isShapeOnly: boolean;
-            readonly body: cocos_3d_physics_api_RigidBodyBase;
-            /** the source to manage body transfrom */ transfromSource: cocos_3d_physics_physic_enum_ETransformSource;
-            readonly rigidBody: object | null;
-            constructor(node: Node, rigidBody: object | null, world: cocos_3d_physics_api_PhysicsWorldBase);
-            ref(): void;
-            deref(): void;
-            enable(): void;
-            disable(): void;
-            destroy(): void;
-            syncPhysWithScene(node: Node): void;
-        }
-        export class cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent extends Component {
-            protected readonly _body: cocos_3d_physics_api_RigidBodyBase;
-            protected readonly sharedBody: cocos_3d_framework_physics_detail_physics_based_component_SharedRigidBody;
-            protected readonly _assertPreload: boolean;
-            constructor();
-            /**
-                     * @zh
-                     * 设置分组值。
-                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
-                     */ setGroup(v: number): void;
-            /**
-                     * @zh
-                     * 获取分组值。
-                     * @returns 整数，范围为 2 的 0 次方 到 2 的 31 次方
-                     */ getGroup(): number;
-            /**
-                     * @zh
-                     * 添加分组值，可填要加入的 group。
-                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
-                     */ addGroup(v: number): void;
-            /**
-                     * @zh
-                     * 减去分组值，可填要移除的 group。
-                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
-                     */ removeGroup(v: number): void;
-            /**
-                     * @zh
-                     * 获取掩码值。
-                     * @returns 整数，范围为 2 的 0 次方 到 2 的 31 次方
-                     */ getMask(): number;
-            /**
-                     * @zh
-                     * 设置掩码值。
-                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
-                     */ setMask(v: number): void;
-            /**
-                     * @zh
-                     * 添加掩码值，可填入需要检查的 group。
-                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
-                     */ addMask(v: number): void;
-            /**
-                     * @zh
-                     * 减去掩码值，可填入不需要检查的 group。
-                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
-                     */ removeMask(v: number): void;
-            protected __preload(): void;
-            protected onEnable(): void;
-            protected onDisable(): void;
-            protected onDestroy(): void;
-        }
         interface cocos_3d_memop_linked_array_INode {
             _prev: cocos_3d_memop_linked_array_INode;
             _next: cocos_3d_memop_linked_array_INode;
         }
         type cocos_3d_memop_linked_array_NodeAllocator = () => cocos_3d_memop_linked_array_INode;
-        export interface cocos_3d_ui_assembler_label_font_utils_ISharedLabelData {
+        export enum cocos_3d_ui_assembler_mask_stencil_manager_Stage {
+            DISABLED = 0,
+            CLEAR = 1,
+            ENTER_LEVEL = 2,
+            ENABLED = 3,
+            EXIT_LEVEL = 4
+        }
+        /**
+             * @hidden
+             */ export interface cocos_3d_ui_assembler_label_font_utils_ISharedLabelData {
             canvas: HTMLCanvasElement;
             context: CanvasRenderingContext2D | null;
         }
-        interface cocos_3d_ui_assembler_label_bmfontUtils_ILetterDefinition {
+        export interface cocos_3d_ui_assembler_base_IAssembler {
         }
         export interface cocos_renderer_ui_renderData_IRenderData {
             x: number;
@@ -18963,17 +23716,18 @@ declare module "Cocos3D" {
             indiceCount: number;
         }
         export class cocos_renderer_ui_renderData_RenderData extends cocos_renderer_ui_renderData_BaseRenderData {
+            vData: Float32Array | null;
             dataLength: number;
             readonly datas: cocos_renderer_ui_renderData_IRenderData[];
-            static add(): {
-                pooID: number;
-                data: cocos_renderer_ui_renderData_RenderData;
-            };
-            static remove(idx: number): void;
+            static add(): cocos_renderer_ui_renderData_RenderData;
+            static remove(data: cocos_renderer_ui_renderData_RenderData): void;
             uvDirty: boolean;
             vertDirty: boolean;
             updateSizeNPivot(width: number, height: number, pivotX: number, pivotY: number): void;
             clear(): void;
+        }
+        export interface cocos_3d_ui_assembler_base_IAssemblerManager {
+            getAssembler(component: UIRenderComponent): cocos_3d_ui_assembler_base_IAssembler;
         }
         /**
              * @zh
@@ -19031,7 +23785,7 @@ declare module "Cocos3D" {
             _placeholderText: string;
             _alwaysOnTop: boolean;
             _size: Size;
-            _node: Node | null;
+            _node: cocos_core_utils_interfaces_INode | null;
             _editing: boolean;
             __eventListeners: any;
             __fullscreen: boolean;
@@ -19067,7 +23821,7 @@ declare module "Cocos3D" {
             setFontSize(fontSize: number): void;
             setFontColor(color: Color): void;
             setSize(width: number, height: number): void;
-            setNode(node: Node): void;
+            setNode(node: cocos_core_utils_interfaces_INode): void;
             update(): void;
             clear(): void;
             _onTouchBegan(touch: any): void;
@@ -19148,7 +23902,7 @@ declare module "Cocos3D" {
         /**
              * @zh
              * 滚动视图事件类型。
-             */ enum cocos_3d_ui_components_scroll_view_component_EventType {
+             */ enum cocos_3d_ui_components_scroll_view_component_ScrollViewEventType {
             SCROLL_TO_TOP = 0,
             SCROLL_TO_BOTTOM = 1,
             SCROLL_TO_LEFT = 2,
@@ -19210,6 +23964,7 @@ declare module "Cocos3D" {
         /**
              * @zh
              * Widget 的对齐模式，表示 Widget 应该何时刷新。
+             * 可通过 cc.WidgetComponent 获得此组件
              */ export enum cocos_3d_ui_components_widget_component_AlignMode {
             ONCE = 0,
             ALWAYS = 1
@@ -19309,14 +24064,46 @@ declare module "Cocos3D" {
             addPoint(x: number, y: number, flags: cocos_3d_ui_assembler_graphics_types_PointFlags): void;
         }
         /**
+             * @en The Page View Size Mode
+             * @zh 页面视图每个页面统一的大小类型
+             * @enum PageView.SizeMode
+             */ enum cocos_3d_ui_components_page_view_component_SizeMode {
+            Unified = 0,
+            Free = 1
+        }
+        /**
+             * @en The Page View Direction
+             * @zh 页面视图滚动类型
+             */ enum cocos_3d_ui_components_page_view_component_Direction {
+            Horizontal = 0,
+            Vertical = 1
+        }
+        /**
+             * @en Enum for ScrollView event type.
+             * @zh 滚动视图事件类型
+             * @enum PageView.EventType
+             */ enum cocos_3d_ui_components_page_view_component_PageViewEventType {
+            PAGE_TURNING = 0
+        }
+        /**
+             * @en Enum for PageView Indicator direction
+             * @zh 页面视图指示器的摆放方向
+             * @enum PageViewIndicator.Direction
+             */ enum cocos_3d_ui_components_page_view_indicator_component_Direction {
+            HORIZONTAL = 0,
+            VERTICAL = 1
+        }
+        /**
              * @class js.array.MutableForwardIterator
              * @example
+             * ```
              * var array = [0, 1, 2, 3, 4];
              * var iterator = new cc.js.array.MutableForwardIterator(array);
              * for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
              *     var item = array[iterator.i];
              *     ...
              * }
+             * ```
              */ export class cocos_core_utils_mutable_forward_iterator_default<T> {
             array: T[];
             i: number;
@@ -19328,7 +24115,7 @@ declare module "Cocos3D" {
             fastRemoveAt(i: number): void;
             push(item: T): void;
         }
-        function cocos_3d_ui_components_widget_manager_updateAlignment(node: Node): void;
+        function cocos_3d_ui_components_widget_manager_updateAlignment(node: cocos_core_utils_interfaces_INode): void;
         export class cocos_3d_ui_assembler_label_letter_font_LetterRenderTexture extends Texture2D {
             /**
                      * @en
@@ -19338,8 +24125,7 @@ declare module "Cocos3D" {
                      * @param [width]
                      * @param [height]
                      * @param [string]
-                     * @method initWithSize
-                     */ initWithSize(width: number, height: number, format?: GFXFormat): void;
+                     */ initWithSize(width: number, height: number, format?: number): void;
             /**
                      * @en Draw a texture to the specified position
                      * @zh 将指定的图片渲染到指定的位置上。
@@ -19347,6 +24133,8 @@ declare module "Cocos3D" {
                      * @param {Number} x
                      * @param {Number} y
                      */ drawTextureAt(texture: SpriteFrame, x: number, y: number): void;
+        }
+        interface cocos_3d_ui_assembler_label_bmfontUtils_ILetterDefinition {
         }
         class cocos_3d_ui_assembler_label_bmfontUtils_FontLetterDefinition {
             u: number;
@@ -19367,6 +24155,362 @@ declare module "Cocos3D" {
             assignLetterDefinitions(letterDefinition: cocos_3d_ui_assembler_label_bmfontUtils_ILetterDefinition): void;
             scaleFontLetterDefinition(scaleFactor: number): void;
             getLetterDefinitionForChar(char: string): any;
+        }
+        export interface cocos_animation_target_modifier_ICustomTargetModifier {
+            get(target: any): any;
+        }
+        export type cocos_animation_target_modifier_PropertyModifier = string;
+        export type cocos_animation_target_modifier_ElementModifier = number;
+        export type cocos_animation_target_modifier_TargetModifier = cocos_animation_target_modifier_PropertyModifier | cocos_animation_target_modifier_ElementModifier | cocos_animation_target_modifier_ICustomTargetModifier;
+        /**
+             * 动画使用的循环模式。
+             */ export enum cocos_animation_types_WrapMode {
+            Default = 0,
+            Normal = 1,
+            Reverse = 36,
+            Loop = 2,
+            LoopReverse = 38,
+            PingPong = 22,
+            PingPongReverse = 54
+        }
+        export type cocos_animation_animation_blend_state_PropertyBlendState<T = any> = {
+            name: string;
+            weight: number;
+            value?: T;
+            refCount: number;
+        };
+        export class cocos_animation_animation_blend_state_AnimationBlendState {
+            refPropertyBlendTarget(target: CurveTarget, property: string): cocos_animation_animation_blend_state_PropertyBlendState<any>;
+            derefPropertyBlendTarget(target: CurveTarget, property: string): void;
+            apply(): void;
+            clear(): void;
+        }
+        export class cocos_animation_playable_Playable {
+            /**
+                     * @en Is playing or paused in play mode?
+                     * @zh 当前是否正在播放。
+                     * @default false
+                     */ readonly isPlaying: boolean;
+            /**
+                     * @en Is currently paused? This can be true even if in edit mode(isPlaying == false).
+                     * @zh 当前是否正在暂停。
+                     * @default false
+                     */ readonly isPaused: boolean;
+            /**
+                     * @en Play this animation.
+                     * @zh 播放动画。
+                     */ play(): void;
+            /**
+                     * @en Stop this animation.
+                     * @zh 停止动画播放。
+                     */ stop(): void;
+            /**
+                     * @en Pause this animation.
+                     * @zh 暂停动画。
+                     */ pause(): void;
+            /**
+                     * @en Resume this animation.
+                     * @zh 重新播放动画。
+                     */ resume(): void;
+            /**
+                     * @en Perform a single frame step.
+                     * @zh 执行一帧动画。
+                     */ step(): void;
+            update(deltaTime: number): void;
+            protected onPlay(): void;
+            protected onPause(): void;
+            protected onResume(): void;
+            protected onStop(): void;
+            protected onError(message: string): void;
+        }
+        export class cocos_animation_cross_fade_CrossFade extends cocos_animation_playable_Playable {
+            constructor();
+            update(deltaTime: number): void;
+            /**
+                     * 在指定时间内将从当前动画状态切换到指定的动画状态。
+                     * @param state 指定的动画状态。
+                     * @param duration 切换时间。
+                     */ crossFade(state: AnimationState | null, duration: number): void;
+            /**
+                     * 停止我们淡入淡出的所有动画状态并停止淡入淡出。
+                     */ onPause(): void;
+            /**
+                     * 恢复我们淡入淡出的所有动画状态并继续淡入淡出。
+                     */ onResume(): void;
+            /**
+                     * 停止所有淡入淡出的动画状态并移除最后一个动画状态之外的所有动画状态。
+                     */ onStop(): void;
+            clear(): void;
+        }
+        /**
+             * For internal
+             */ export class cocos_animation_types_WrappedInfo {
+            ratio: number;
+            time: number;
+            direction: number;
+            stopped: boolean;
+            iterations: number;
+            frameIndex: number;
+            constructor(info?: cocos_animation_types_WrappedInfo);
+            set(info: cocos_animation_types_WrappedInfo): void;
+        }
+        /**
+             * @hidden
+             */ export type cocos_core_event_defines_EventArgumentsOf<K extends string, Map extends any, AllowCustomEvents extends boolean = false> = K extends (keyof Map) ? Parameters<Map[K]> : (AllowCustomEvents extends true ? any[] : never);
+        export type cocos_core_event_defines_EventCallbackOf<K extends string, Map extends any, AllowCustomEvents extends boolean = false> = K extends (keyof Map) ? (...args: Parameters<Map[K]>) => void : (AllowCustomEvents extends true ? (...args: any[]) => void : never);
+        export interface cocos_animation_types_ILerpable {
+            /**
+                     * 在当前曲线值与目标曲线值之间插值。
+                     * @param to 目标曲线值。
+                     * @param t 插值比率。
+                     * @param dt 当前曲线值与目标曲线值的时间间隔，单位为秒。
+                     * @returns 插值结果。
+                     */ lerp(to: any, t: number, dt: number): any;
+            /**
+                     * 当直接使用曲线值作为采样结果时的结果值，它应该等同于插值比率为 0 时的插值结果。
+                     * @returns 插值比率为 0 时的插值结果。
+                     */ getNoLerp?(): any;
+        }
+        export type cocos_3d_physics_api_ITriggerEventType = "onTriggerEnter" | "onTriggerStay" | "onTriggerExit";
+        export interface cocos_3d_physics_api_ITriggerEvent {
+            type: cocos_3d_physics_api_ITriggerEventType;
+            selfCollider: any;
+            otherCollider: any;
+        }
+        export type cocos_3d_physics_api_ITriggerCallback = (event: cocos_3d_physics_api_ITriggerEvent) => void;
+        export interface cocos_3d_physics_api_ShapeBase {
+            setCenter(center: Vec3): void;
+            setScale(scale: Vec3): void;
+            setRotation(rotation: Quat): void;
+            getUserData(): any;
+            setUserData(data: any): void;
+            getCollisionResponse(): boolean;
+            setCollisionResponse(value: boolean): void;
+            addTriggerCallback(callback: cocos_3d_physics_api_ITriggerCallback): void;
+            removeTriggerCallback(callback: cocos_3d_physics_api_ITriggerCallback): void;
+        }
+        export type cocos_3d_physics_api_BeforeStepCallback = () => void;
+        export type cocos_3d_physics_api_AfterStepCallback = () => void;
+        export interface cocos_3d_physics_api_IRaycastOptions {
+            collisionFilterMask?: number;
+            collisionFilterGroup?: number;
+            queryTriggerInteraction?: boolean;
+        }
+        export class cocos_3d_physics_raycast_result_RaycastResult {
+            readonly hitPoint: Vec3;
+            readonly distance: number;
+            readonly collider: Component;
+            readonly node: cocos_core_utils_interfaces_INode;
+            _assign(hitPoint: any, distance: number, shape: cocos_3d_physics_api_ShapeBase, body: cocos_3d_physics_api_RigidBodyBase): void;
+        }
+        export interface cocos_3d_physics_api_BuiltInWorldBase {
+            step(deltaTime: number, ...args: any): void;
+            addBeforeStep(cb: cocos_3d_physics_api_BeforeStepCallback): void;
+            removeBeforeStep(cb: cocos_3d_physics_api_BeforeStepCallback): void;
+            addAfterStep(cb: cocos_3d_physics_api_AfterStepCallback): void;
+            removeAfterStep(cb: cocos_3d_physics_api_AfterStepCallback): void;
+            /**
+                     * Ray cast, and return information of the closest hit.
+                     * @return True if any body was hit.
+                     */ raycastClosest(from: Vec3, to: Vec3, options: cocos_3d_physics_api_IRaycastOptions, result: cocos_3d_physics_raycast_result_RaycastResult): boolean;
+            /**
+                     * Ray cast, and stop at the first result. Note that the order is random - but the method is fast.
+                     * @return True if any body was hit.
+                     */ raycastAny(from: Vec3, to: Vec3, options: cocos_3d_physics_api_IRaycastOptions, result: cocos_3d_physics_raycast_result_RaycastResult): boolean;
+            /**
+                     * Ray cast against all bodies. The provided callback will be executed for each hit with a RaycastResult as single argument.
+                     * @return True if any body was hit.
+                     */ raycastAll(from: Vec3, to: Vec3, options: cocos_3d_physics_api_IRaycastOptions, callback: (result: cocos_3d_physics_raycast_result_RaycastResult) => void): boolean;
+        }
+        export interface cocos_3d_physics_api_PhysicsWorldBase extends cocos_3d_physics_api_BuiltInWorldBase {
+            setGravity(gravity: Vec3): void;
+            getGravity(out: Vec3): void;
+            getAllowSleep(): boolean;
+            setAllowSleep(v: boolean): void;
+        }
+        export interface cocos_3d_physics_api_BuiltInRigidBodyBase {
+            getGroup(): number;
+            setGroup(v: number): void;
+            addGroup(v: number): void;
+            removeGroup(v: number): void;
+            setMask(v: number): void;
+            getMask(): number;
+            addMask(v: number): void;
+            removeMask(v: number): void;
+            addShape(shape: cocos_3d_physics_api_ShapeBase, offset?: Vec3): void;
+            removeShape(shape: cocos_3d_physics_api_ShapeBase): void;
+            getPosition(out: Vec3): void;
+            setPosition(value: Vec3): void;
+            getRotation(out: Quat): void;
+            setRotation(out: Quat): void;
+            translateAndRotate(m: Mat4, rot: Quat): void;
+            scaleAllShapes(scale: Vec3): void;
+            getUserData(): any;
+            setUserData(data: any): void;
+            setWorld(world: cocos_3d_physics_api_PhysicsWorldBase | null): void;
+        }
+        /**
+             * @hidden
+             */ export enum cocos_3d_physics_physic_enum_ERigidBodyType {
+            DYNAMIC = 1,
+            STATIC = 2,
+            KINEMATIC = 4
+        }
+        export type cocos_3d_physics_api_ICollisionEventType = "onCollisionEnter" | "onCollisionStay" | "onCollisionExit";
+        export interface cocos_3d_physics_api_ICollisionEvent {
+            type: cocos_3d_physics_api_ICollisionEventType;
+            selfCollider: any;
+            otherCollider: any;
+            contacts: any;
+        }
+        export type cocos_3d_physics_api_ICollisionCallback = (event: cocos_3d_physics_api_ICollisionEvent) => void;
+        export interface cocos_3d_physics_api_RigidBodyBase extends cocos_3d_physics_api_BuiltInRigidBodyBase {
+            /** the body type */ getType(): cocos_3d_physics_physic_enum_ERigidBodyType;
+            setType(v: cocos_3d_physics_physic_enum_ERigidBodyType): void;
+            wakeUp(): void;
+            sleep(): void;
+            isAwake(): boolean;
+            isSleepy(): boolean;
+            isSleeping(): boolean;
+            getMass(): number;
+            setMass(value: number): void;
+            addCollisionCallback(callback: cocos_3d_physics_api_ICollisionCallback): void;
+            removeCollisionCllback(callback: cocos_3d_physics_api_ICollisionCallback): void;
+            /**
+                     * force
+                     */ applyForce(force: Vec3, worldPoint?: Vec3): void;
+            applyLocalForce(force: Vec3, localPoint?: Vec3): void;
+            /**
+                     * impulse
+                     */ applyImpulse(impulse: Vec3, worldPoint?: Vec3): void;
+            applyLocalImpulse(impulse: Vec3, localPoint?: Vec3): void;
+            getIsKinematic(): boolean;
+            setIsKinematic(value: boolean): void;
+            /**
+                     * linear damping
+                     */ getLinearDamping(): number;
+            setLinearDamping(value: number): void;
+            /**
+                     * angular damping
+                     */ getAngularDamping(): number;
+            setAngularDamping(value: number): void;
+            getUseGravity(): boolean;
+            setUseGravity(value: boolean): void;
+            getCollisionResponse(): boolean;
+            setCollisionResponse(value: boolean): void;
+            /**
+                     * linear velocity
+                     */ getLinearVelocity(out?: Vec3): Vec3;
+            setLinearVelocity(value: Vec3): void;
+            /**
+                     * angular velocity
+                     */ getAngularVelocity(out?: Vec3): Vec3;
+            setAngularVelocity(value: Vec3): void;
+            /**
+                     * linear factor
+                     */ getLinearFactor(out?: Vec3): Vec3;
+            setLinearFactor(value: Vec3): void;
+            /**
+                     * angular factor
+                     */ getAngularFactor(out?: Vec3): Vec3;
+            setAngularFactor(value: Vec3): void;
+            getFreezeRotation(): boolean;
+            setFreezeRotation(value: boolean): void;
+            /**
+                     * allow sleep
+                     */ getAllowSleep(): boolean;
+            setAllowSleep(v: boolean): void;
+        }
+        export enum cocos_3d_physics_physic_enum_ETransformSource {
+            SCENE = 0,
+            PHYSIC = 1
+        }
+        class cocos_3d_framework_physics_detail_physics_based_component_SharedRigidBody {
+            readonly isShapeOnly: boolean;
+            readonly body: cocos_3d_physics_api_RigidBodyBase;
+            /** the source to manage body transfrom */ transfromSource: cocos_3d_physics_physic_enum_ETransformSource;
+            readonly rigidBody: object | null;
+            constructor(node: cocos_core_utils_interfaces_INode, rigidBody: object | null, world: cocos_3d_physics_api_PhysicsWorldBase);
+            ref(): void;
+            deref(): void;
+            enable(): void;
+            disable(): void;
+            destroy(): void;
+            syncPhysWithScene(): void;
+        }
+        export class cocos_3d_framework_physics_detail_physics_based_component_PhysicsBasedComponent extends Component {
+            protected readonly _body: cocos_3d_physics_api_RigidBodyBase;
+            protected readonly sharedBody: cocos_3d_framework_physics_detail_physics_based_component_SharedRigidBody;
+            protected readonly _assertPreload: boolean;
+            constructor();
+            /**
+                     * @zh
+                     * 设置分组值。
+                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+                     */ setGroup(v: number): void;
+            /**
+                     * @zh
+                     * 获取分组值。
+                     * @returns 整数，范围为 2 的 0 次方 到 2 的 31 次方
+                     */ getGroup(): number;
+            /**
+                     * @zh
+                     * 添加分组值，可填要加入的 group。
+                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+                     */ addGroup(v: number): void;
+            /**
+                     * @zh
+                     * 减去分组值，可填要移除的 group。
+                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+                     */ removeGroup(v: number): void;
+            /**
+                     * @zh
+                     * 获取掩码值。
+                     * @returns 整数，范围为 2 的 0 次方 到 2 的 31 次方
+                     */ getMask(): number;
+            /**
+                     * @zh
+                     * 设置掩码值。
+                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+                     */ setMask(v: number): void;
+            /**
+                     * @zh
+                     * 添加掩码值，可填入需要检查的 group。
+                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+                     */ addMask(v: number): void;
+            /**
+                     * @zh
+                     * 减去掩码值，可填入不需要检查的 group。
+                     * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+                     */ removeMask(v: number): void;
+            protected __preload(): void;
+            protected onEnable(): void;
+            protected onDisable(): void;
+            protected onDestroy(): void;
+        }
+        export interface cocos_3d_assets_audio_player_IAudioInfo {
+            clip: any;
+            duration: number;
+            eventTarget: any;
+        }
+        export abstract class cocos_3d_assets_audio_player_AudioPlayer {
+            protected _state: number;
+            protected _duration: number;
+            protected _eventTarget: any;
+            constructor(info: cocos_3d_assets_audio_player_IAudioInfo);
+            abstract play(): void;
+            abstract pause(): void;
+            abstract stop(): void;
+            abstract playOneShot(volume: number): void;
+            abstract setCurrentTime(val: number): void;
+            abstract getCurrentTime(): number;
+            abstract setVolume(val: number, immediate: boolean): void;
+            abstract getVolume(): number;
+            abstract setLoop(val: boolean): void;
+            abstract getLoop(): boolean;
+            getState(): number;
+            getDuration(): number;
+            destroy(): void;
         }
     }
 }

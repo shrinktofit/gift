@@ -362,7 +362,7 @@ class BundleGenerator {
 
     private _dumpMethodSignature(methodSignature: ts.MethodSignature) {
         return this._copyComments(methodSignature, ts.createMethodSignature(
-            undefined,
+            this._dumpTypeParameterArray(methodSignature.typeParameters),
             methodSignature.parameters.map((p) => this._dumpParameter(p)),
             this._dumpType(methodSignature.type),
             this._dumpPropertyName(methodSignature.name),
@@ -577,6 +577,23 @@ class BundleGenerator {
         const fallthrough = () => {
             return ts.createTypeReferenceNode(type.getText(), undefined);
         };
+
+        switch (type.kind) {
+        case ts.SyntaxKind.NumberKeyword:
+        case ts.SyntaxKind.BooleanKeyword:
+        case ts.SyntaxKind.StringKeyword:
+        case ts.SyntaxKind.VoidKeyword:
+        case ts.SyntaxKind.AnyKeyword:
+        case ts.SyntaxKind.NullKeyword:
+        case ts.SyntaxKind.NeverKeyword:
+        case ts.SyntaxKind.ObjectKeyword:
+        case ts.SyntaxKind.SymbolKeyword:
+        case ts.SyntaxKind.UndefinedKeyword:
+        case ts.SyntaxKind.UnknownKeyword:
+        case ts.SyntaxKind.BigIntKeyword:
+        // case ts.SyntaxKind.ThisKeyword:
+            return ts.createKeywordTypeNode(type.kind);
+        }
         if (ts.isTypeReferenceNode(type)) {
             return ts.createTypeReferenceNode(
                 this._dumpEntityName(type.typeName),
@@ -609,25 +626,74 @@ class BundleGenerator {
                 this._dumpType(type.type),
             );
         } else if (ts.isImportTypeNode(type)) {
+            let symbol: ts.Symbol | undefined;
             const typetype = this._typeChecker.getTypeAtLocation(type);
             if (typetype) {
-                const symbol = typetype.symbol;
-                if (symbol) {
-                    const inf = this._getInf(symbol);
-                    if (inf) {
-                        const mainTypeName = this._resolveSymbolPath(inf);
-                        return ts.createTypeReferenceNode(
-                            mainTypeName,
-                            type.typeArguments ? type.typeArguments.map((ta) => this._dumpType(ta)!) : undefined,
-                        );
-                    }
+                symbol = typetype.symbol;
+            }
+            if (!symbol) {
+                console.warn(`Failed to resolve type ${type.getText()}, There is no symbol info.`);
+                if (this._typeChecker.getSymbolAtLocation(type.argument)) {
+                    console.warn(`BTW`);
+                }
+            } else {
+                const inf = this._getInf(symbol);
+                if (inf) {
+                    const mainTypeName = this._resolveSymbolPath(inf);
+                    return ts.createTypeReferenceNode(
+                        mainTypeName,
+                        type.typeArguments ? type.typeArguments.map((ta) => this._dumpType(ta)!) : undefined,
+                    );
                 }
             }
         } else if (ts.isIntersectionTypeNode(type)) {
-            return ts.createIntersectionTypeNode(type.types.map((t) => this._dumpType(t)!));
+            return ts.createIntersectionTypeNode(type.types.map((t) => this._dumpType(t)));
         } else if (ts.isIndexedAccessTypeNode(type)) {
             return ts.createIndexedAccessTypeNode(
                 this._dumpType(type.objectType), this._dumpType(type.indexType));
+        } else if (ts.isThisTypeNode(type)) {
+            return ts.createThisTypeNode();
+        } else if (ts.isTypePredicateNode(type)) {
+            const dumpedParameterName = ts.isIdentifier(type.parameterName) ?
+                this._dumpIdentifier(type.parameterName) : ts.createThisTypeNode();
+            return ts.createTypePredicateNode(dumpedParameterName, this._dumpType(type.type));
+        } else if (ts.isConditionalTypeNode(type)) {
+            return ts.createConditionalTypeNode(
+                this._dumpType(type.checkType),
+                this._dumpType(type.extendsType),
+                this._dumpType(type.trueType),
+                this._dumpType(type.falseType),
+            );
+        } else if (ts.isTupleTypeNode(type)) {
+            return ts.createTupleTypeNode(type.elementTypes.map((elementType) => this._dumpType(elementType)));
+        } else if (ts.isLiteralTypeNode(type)) {
+            const literal = type.literal;
+            let dumpedLiteral: typeof literal | undefined;
+            if (ts.isStringLiteral(literal)) {
+                dumpedLiteral = ts.createStringLiteral(literal.text);
+            } else if (literal.kind === ts.SyntaxKind.TrueKeyword) {
+                dumpedLiteral = ts.createTrue();
+            } else if (literal.kind === ts.SyntaxKind.FalseKeyword) {
+                dumpedLiteral = ts.createFalse();
+            } else if (ts.isNumericLiteral(literal)) {
+                dumpedLiteral = ts.createNumericLiteral(literal.text);
+            } else if (ts.isBigIntLiteral(literal)) {
+                dumpedLiteral = ts.createBigIntLiteral(literal.text);
+            } else if (ts.isRegularExpressionLiteral(literal)) {
+                dumpedLiteral = ts.createRegularExpressionLiteral(literal.text);
+            } else if (ts.isNoSubstitutionTemplateLiteral(literal)) {
+                dumpedLiteral = ts.createNoSubstitutionTemplateLiteral(literal.text);
+            } else if (ts.isPrefixUnaryExpression(literal)) {
+                dumpedLiteral = ts.createPrefix(literal.operator, this._dumpExpression(literal.operand));
+            } else {
+                console.warn(`Don't know how to handle literal type ${type.getText()}(${printNode(type)})`);
+            }
+            if (dumpedLiteral) {
+                return ts.createLiteralTypeNode(dumpedLiteral);
+            }
+        }
+        else {
+            console.warn(`Don't know how to handle type ${type.getText()}(${printNode(type)})`);
         }
         return type ? ts.createTypeReferenceNode(type.getText(), undefined) : undefined;
     }
@@ -667,6 +733,14 @@ class BundleGenerator {
         } else {
             return ts.createComputedPropertyName(this._dumpExpression(propertyName.expression));
         }
+    }
+
+    private _dumpBooleanLiteral(node: ts.BooleanLiteral) {
+        return ts.createToken(node.kind);
+    }
+
+    private _dumpStringLiteral(node: ts.StringLiteral) {
+        return ts.createStringLiteral(node.text);
     }
 
     private _dumpExpression(expression: ts.Expression): ts.Expression;
