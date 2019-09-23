@@ -19004,7 +19004,7 @@ declare module "Cocos3D" {
          * Toggle 是一个 CheckBox，当它和 ToggleGroup 一起使用的时候，可以变成 RadioButton。
          * 可通过 cc.ToggleComponent 获得该组件。
          */ export class ToggleComponent extends ButtonComponent {
-        static TestEventType: keyof __internal.cocos_ui_components_button_component_TestButtonEventType & typeof __internal.cocos_ui_components_toggle_component_TestToggleEventType;
+        static TestEventType: typeof __internal.cocos_ui_components_button_component_TestButtonEventType & typeof __internal.cocos_ui_components_toggle_component_TestToggleEventType;
         /**
                  * @zh
                  * 如果这个设置为 true，则 check mark 组件会处于 enabled 状态，否则处于 disabled 状态。

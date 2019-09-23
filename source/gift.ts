@@ -640,12 +640,18 @@ class BundleGenerator {
                 const inf = this._getInf(symbol);
                 if (inf) {
                     const mainTypeName = this._resolveSymbolPath(inf);
-                    const remadeImportType = ts.createTypeReferenceNode(
-                        mainTypeName,
-                        type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)!) : undefined,
-                    );
-                    // Note: `typeof import("")` is treated as a single importType with `isTypeOf` set to true
-                    return type.isTypeOf ? ts.createTypeOperatorNode(remadeImportType) : remadeImportType;
+                    if (type.isTypeOf) {
+                        // Note: `typeof import("")` is treated as a single importType with `isTypeOf` set to true
+                        if (type.typeArguments) {
+                            console.error(`Unexpected: typeof import("...") should not have arguments.`);
+                        }
+                        return ts.createTypeQueryNode(ts.createIdentifier(mainTypeName));
+                    } else {
+                        return ts.createTypeReferenceNode(
+                            mainTypeName,
+                            type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)!) : undefined,
+                        );
+                    }
                 }
             }
         } else if (ts.isIntersectionTypeNode(type)) {
