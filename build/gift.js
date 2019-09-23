@@ -457,7 +457,9 @@ class BundleGenerator {
                 const inf = this._getInf(symbol);
                 if (inf) {
                     const mainTypeName = this._resolveSymbolPath(inf);
-                    return typescript_1.default.createTypeReferenceNode(mainTypeName, type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)) : undefined);
+                    const remadeImportType = typescript_1.default.createTypeReferenceNode(mainTypeName, type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)) : undefined);
+                    // Note: `typeof import("")` is treated as a single importType with `isTypeOf` set to true
+                    return type.isTypeOf ? typescript_1.default.createTypeOperatorNode(remadeImportType) : remadeImportType;
                 }
             }
         }

@@ -8,7 +8,8 @@ declare namespace wx {
     const onTouchMove: IWXEventManager<TouchEvent>;
     const onTouchEnd: IWXEventManager<TouchEvent>;
     const onTouchCancel: IWXEventManager<TouchEvent>;
-    function getSystemInfoSync(): any;
+	function getSystemInfoSync(): any;
+	function createInnerAudioContext(): InnerAudioContext;
 
     class FileSystemManager {
 
@@ -19,8 +20,13 @@ declare namespace wx {
     function getOpenDataContext(): any;
 
     function onShow(callback: Function): any;
+    function offShow(callback: Function): any;
     function onHide(callback: Function): any;
+    function offHide(callback: Function): any;
+    function onAudioInterruptionBegin(callback: Function): any;
+    function offAudioInterruptionBegin(callback: Function): any;
     function onAudioInterruptionEnd(callback: Function): any;
+    function offAudioInterruptionEnd(callback: Function): any;
 }
 
 declare class InnerAudioContext {

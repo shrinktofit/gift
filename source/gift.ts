@@ -640,10 +640,12 @@ class BundleGenerator {
                 const inf = this._getInf(symbol);
                 if (inf) {
                     const mainTypeName = this._resolveSymbolPath(inf);
-                    return ts.createTypeReferenceNode(
+                    const remadeImportType = ts.createTypeReferenceNode(
                         mainTypeName,
                         type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)!) : undefined,
                     );
+                    // Note: `typeof import("")` is treated as a single importType with `isTypeOf` set to true
+                    return type.isTypeOf ? ts.createTypeOperatorNode(remadeImportType) : remadeImportType;
                 }
             }
         } else if (ts.isIntersectionTypeNode(type)) {
