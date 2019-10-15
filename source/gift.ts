@@ -48,8 +48,18 @@ interface IExportedSymbolInfo {
     children?: IExportedSymbolInfo[];
     fullPrefix: string[];
 
-    // unexported symbols only
-    dumpedDeclarations?: ts.Statement[];
+    // For unexported symbols only
+    isModuleSelf?: boolean;
+}
+
+interface ModuleRegistry {
+    name: string;
+    parent: ModuleRegistry | null;
+    statements: ts.Statement[];
+    directoryTraits?: {
+        nameMap: Record<string, string>;
+        files: Record<string, ModuleRegistry>;
+    };
 }
 
 class BundleGenerator {
@@ -67,10 +77,16 @@ class BundleGenerator {
     };
     private _scopeStack: string[] = [];
     private _referencedSourceFiles = new Set<ts.SourceFile>();
+    private _rootUnexportedDirectory: ModuleRegistry;
 
     constructor(options: IOptions) {
         this._options = options;
         this._shelterName = options.shelterName || '__internal';
+        this._rootUnexportedDirectory = {
+            name: this._shelterName,
+            parent: null,
+            statements: [],
+        };
         this._tsCompilerOptions = {
             rootDir: path.dirname(options.input),
         };
@@ -92,10 +108,36 @@ class BundleGenerator {
 
         const rootModuleSymbolInf = this._collectExportedSymbols(rootModule, '');
         this._completePath(rootModuleSymbolInf);
-
         const bundledRootModule = this._emitExportedSymbol(rootModuleSymbolInf, true);
         if (!bundledRootModule) {
-            return { error: GiftErrors.Fatal };
+            return {
+                error: GiftErrors.Fatal
+            };
+        }
+        const statements = [
+            ...bundledRootModule, 
+        ];
+
+        // const rootModuleStatements = this._remakeExportsOfModule(rootModule.declarations[0] as ts.ModuleDeclaration, true);
+        // const unexportedNs = this._createDeclarationForUnexportedModuleRegistry(this._rootUnexportedDirectory, this._shelterName);
+        // const newRootModule = ts.createModuleDeclaration(
+        //     undefined,
+        //     [ts.createModifier(ts.SyntaxKind.DeclareKeyword)],
+        //     ts.createStringLiteral(this._options.name),
+        //     ts.createModuleBlock(rootModuleStatements.concat([unexportedNs])),
+        // );
+        // const statements: ts.Statement[] = [ newRootModule ];
+
+        return this._emit(outputPath, statements, rootModule);
+    }
+
+    private _emit(outputPath: string, statements: ts.Statement[], rootModule: ts.Symbol) {
+        if (this._options.verbose) {
+            console.log(`Referenced source files:[`);
+            for (const referencedSourceFile of this._referencedSourceFiles) {
+                console.log(`  ${referencedSourceFile.fileName},`);
+            }
+            console.log(`]`);
         }
 
         const printer = ts.createPrinter({
@@ -108,18 +150,6 @@ class BundleGenerator {
             false,
             ts.ScriptKind.TS,
         );
-
-        const statements = [
-            ...bundledRootModule,
-        ];
-
-        if (this._options.verbose) {
-            console.log(`Referenced source files:[`);
-            for (const referencedSourceFile of this._referencedSourceFiles) {
-                console.log(`  ${referencedSourceFile.fileName},`);
-            }
-            console.log(`]`);
-        }
 
         const lines: string[] = [];
         const typeReferencePaths: string[] = [];
@@ -191,6 +221,21 @@ class BundleGenerator {
 //         }
         const code = lines.join('\n');
         return { error: GiftErrors.Ok, code, typeReferencePaths };
+    }
+
+    private _remakeExportsOfModule(moduleDeclaration: ts.ModuleDeclaration, noDefault: boolean) {
+        let result: ts.Statement[] = [];
+        if (moduleDeclaration.body && ts.isModuleBlock(moduleDeclaration.body)) {
+            for (const statement of moduleDeclaration.body.statements) {
+                const stmt = this._remakeStatement(statement);
+                if (Array.isArray(stmt)) {
+                    result.push(...stmt);
+                } else if (stmt) {
+                    result.push(stmt);
+                }
+            }
+        }
+        return result;
     }
 
     private _collectExportedSymbols(symbol: ts.Symbol, name: string): IExportedSymbolInfo {
@@ -296,22 +341,23 @@ class BundleGenerator {
             this._scopeStack.pop();
         }
         if (topLevel) {
-            const unexportedDecls: ts.Statement[] = [];
-            this._scopeStack.push(this._shelterName);
-            for (const unexportedSymbolInf of this._unexportedSymbolsDetail.pending) {
-                const decl = unexportedSymbolInf.dumpedDeclarations;
-                if (decl) {
-                    unexportedDecls.push(...decl);
-                }
-            }
-            this._scopeStack.pop();
-            const unexportedNs = ts.createModuleDeclaration(
-                undefined,
-                undefined,
-                ts.createIdentifier(this._shelterName),
-                ts.createModuleBlock(unexportedDecls),
-                ts.NodeFlags.Namespace,
-            );
+            // const unexportedDecls: ts.Statement[] = [];
+            // this._scopeStack.push(this._shelterName);
+            // for (const unexportedSymbolInf of this._unexportedSymbolsDetail.pending) {
+            //     const decl = unexportedSymbolInf.dumpedDeclarations;
+            //     if (decl) {
+            //         unexportedDecls.push(...decl);
+            //     }
+            // }
+            // this._scopeStack.pop();
+            // const unexportedNs = ts.createModuleDeclaration(
+            //     undefined,
+            //     undefined,
+            //     ts.createIdentifier(this._shelterName),
+            //     ts.createModuleBlock(unexportedDecls),
+            //     ts.NodeFlags.Namespace,
+            // );
+            const unexportedNs = this._createDeclarationForUnexportedModuleRegistry(this._rootUnexportedDirectory, this._shelterName);
             const moduleDeclaration = ts.createModuleDeclaration(
                 undefined,
                 [ts.createModifier(ts.SyntaxKind.DeclareKeyword)],
@@ -320,6 +366,9 @@ class BundleGenerator {
             );
             return [moduleDeclaration];
         } else {
+            if (symbolInf.name === '"cocos/core/utils/array"') {
+                debugger;
+            }
             const namespaceDeclaration = ts.createModuleDeclaration(
                 undefined,
                 undefined,
@@ -328,6 +377,27 @@ class BundleGenerator {
                 ts.NodeFlags.Namespace,
             );
             return [namespaceDeclaration];
+        }
+    }
+
+    private _remakeStatement(statement: ts.Statement) {
+        if (ts.isClassDeclaration(statement)) {
+            return !statement.name ? null : this._remakeClassDeclaration(statement, statement.name.text);
+        } else if (ts.isFunctionDeclaration(statement)) {
+            return !statement.name ? null : this._remakeFunctionDeclaration(statement, statement.name.text);
+        } else if (ts.isInterfaceDeclaration(statement)) {
+            return !statement.name ? null : this._remakeInterfaceDeclaration(statement, statement.name.text);
+        } else if (ts.isEnumDeclaration(statement)) {
+            return !statement.name ? null : this._remakeEnumDeclaration(statement, statement.name.text);
+        } else if (ts.isTypeAliasDeclaration(statement)) {
+            return !statement.name ? null : this._remakeTypeAliasDeclaration(statement, statement.name.text);
+        } else if (ts.isVariableDeclaration(statement)) {
+            return !(statement.name && ts.isIdentifier(statement.name)) ? null :
+                this._remakeVariableDeclaration(statement, statement.name.text);
+        } else if (ts.isImportDeclaration(statement)) {
+            return this._remakeImportDeclaration(statement);
+        } else {
+            return null;
         }
     }
 
@@ -360,22 +430,22 @@ class BundleGenerator {
 
     private _remakeDeclarationNoComment(declaration: ts.Declaration, symbol: ts.Symbol, newName: string) {
         if (ts.isClassDeclaration(declaration)) {
-            return this._remakeClassDeclaration(declaration, symbol, newName);
+            return this._remakeClassDeclaration(declaration, newName);
         } else if (ts.isFunctionDeclaration(declaration)) {
-            return this._remakeFunctionDeclaration(declaration, symbol, newName);
+            return this._remakeFunctionDeclaration(declaration, newName);
         } else if (ts.isInterfaceDeclaration(declaration)) {
-            return this._remakeInterfaceDeclaration(declaration, symbol, newName);
+            return this._remakeInterfaceDeclaration(declaration, newName);
         } else if (ts.isEnumDeclaration(declaration)) {
-            return this._remakeEnumDeclaration(declaration, symbol, newName);
+            return this._remakeEnumDeclaration(declaration, newName);
         } else if (ts.isTypeAliasDeclaration(declaration)) {
-            return this._remakeTypeAliasDeclaration(declaration, symbol, newName);
+            return this._remakeTypeAliasDeclaration(declaration, newName);
         } else if (ts.isVariableDeclaration(declaration)) {
-            return this._remakeVariableDeclaration(declaration, symbol, newName);
+            return this._remakeVariableDeclaration(declaration, newName);
         }
         return null;
     }
 
-    private _remakeFunctionDeclaration(functionDeclaration: ts.FunctionDeclaration, symbol: ts.Symbol, newName: string) {
+    private _remakeFunctionDeclaration(functionDeclaration: ts.FunctionDeclaration, newName: string) {
         return ts.createFunctionDeclaration(
             undefined,
             this._remakeModifiers(functionDeclaration.modifiers),
@@ -383,17 +453,17 @@ class BundleGenerator {
             newName,
             this._remakeTypeParameterArray(functionDeclaration.typeParameters),
             this._remakeParameterArray(functionDeclaration.parameters), // parameters
-            this._remakeType(functionDeclaration.type),
+            this._remakeTypeNode(functionDeclaration.type),
             undefined,
         );
     }
 
-    private _remakeVariableDeclaration(variableDeclaration: ts.VariableDeclaration, symbol: ts.Symbol, newName: string) {
+    private _remakeVariableDeclaration(variableDeclaration: ts.VariableDeclaration, newName: string) {
         return ts.createVariableStatement(
             this._remakeModifiers(variableDeclaration.modifiers),
             [ts.createVariableDeclaration(
                 newName,
-                this._remakeType(variableDeclaration.type),
+                this._remakeTypeNode(variableDeclaration.type),
             )],
         );
     }
@@ -403,7 +473,7 @@ class BundleGenerator {
             undefined,
             this._remakePropertyName(propertySignature.name),
             this._remakeToken(propertySignature.questionToken),
-            this._remakeType(propertySignature.type),
+            this._remakeTypeNode(propertySignature.type),
             undefined,
         ));
     }
@@ -412,7 +482,7 @@ class BundleGenerator {
         return this._copyComments(methodSignature, ts.createMethodSignature(
             this._remakeTypeParameterArray(methodSignature.typeParameters),
             this._remakeParameterArray(methodSignature.parameters), // parameters
-            this._remakeType(methodSignature.type),
+            this._remakeTypeNode(methodSignature.type),
             this._remakePropertyName(methodSignature.name),
             this._remakeToken(methodSignature.questionToken),
         ));
@@ -423,7 +493,7 @@ class BundleGenerator {
             undefined, // decorators
             this._remakeModifiers(indexSignature.modifiers), // modifiers
             this._remakeParameterArray(indexSignature.parameters), // parameters
-            this._remakeType(indexSignature.type) || ts.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword), // type
+            this._remakeTypeNode(indexSignature.type) || ts.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword), // type
         ));
     }
 
@@ -431,7 +501,7 @@ class BundleGenerator {
         return this._copyComments(callSignature, ts.createCallSignature(
             this._remakeTypeParameterArray(callSignature.typeParameters), // typeParameters
             this._remakeParameterArray(callSignature.parameters), // parameters
-            this._remakeType(callSignature.type), // type
+            this._remakeTypeNode(callSignature.type), // type
         ));
     }
 
@@ -439,7 +509,7 @@ class BundleGenerator {
         return this._copyComments(constructSignature, ts.createConstructSignature(
             this._remakeTypeParameterArray(constructSignature.typeParameters),
             this._remakeParameterArray(constructSignature.parameters), // parameters
-            this._remakeType(constructSignature.type),
+            this._remakeTypeNode(constructSignature.type),
         ));
     }
 
@@ -449,7 +519,7 @@ class BundleGenerator {
             this._remakeModifiers(propertyDeclaration.modifiers),
             this._remakePropertyName(propertyDeclaration.name),
             this._remakeToken(propertyDeclaration.questionToken),
-            this._remakeType(propertyDeclaration.type),
+            this._remakeTypeNode(propertyDeclaration.type),
             undefined,
         ));
     }
@@ -463,7 +533,7 @@ class BundleGenerator {
             this._remakeToken(methodDeclaration.questionToken),
             this._remakeTypeParameterArray(methodDeclaration.typeParameters),
             this._remakeParameterArray(methodDeclaration.parameters), // parameters
-            this._remakeType(methodDeclaration.type),
+            this._remakeTypeNode(methodDeclaration.type),
             undefined,
         )));
     }
@@ -484,7 +554,7 @@ class BundleGenerator {
             this._remakeToken(parameter.dotDotDotToken),
             parameter.name.getText(),
             this._remakeToken(parameter.questionToken),
-            this._remakeType(parameter.type),
+            this._remakeTypeNode(parameter.type),
         );
     }
 
@@ -506,8 +576,8 @@ class BundleGenerator {
     private _remakeTypeParameter(typeParameter: ts.TypeParameterDeclaration) {
         return ts.createTypeParameterDeclaration(
             typeParameter.name.getText(),
-            this._remakeType(typeParameter.constraint),
-            this._remakeType(typeParameter.default),
+            this._remakeTypeNode(typeParameter.constraint),
+            this._remakeTypeNode(typeParameter.default),
         );
     }
 
@@ -523,8 +593,53 @@ class BundleGenerator {
         }
     }
 
+    private _remakeImportDeclaration(importDeclaration: ts.ImportDeclaration): ts.Statement[] | null {
+        if (!ts.isStringLiteral(importDeclaration.moduleSpecifier) ||
+            !importDeclaration.importClause) {
+            return null;
+        }
+        const moduleRegistry = this._getOrCreateModuleRegistry(importDeclaration.moduleSpecifier.text);
+        const moduleFullName = getModuleRegistryFullNameArray(moduleRegistry);
+        const moduleEntity = createEntityName(moduleFullName);
+        const { namedBindings } = importDeclaration.importClause;
+        if (namedBindings) {
+            if (ts.isNamespaceImport(namedBindings)) {
+                return [ts.createVariableStatement(
+                    undefined,
+                    [ts.createVariableDeclaration(
+                        ts.createIdentifier(
+                            namedBindings.name.text,
+                        ),
+                        ts.createTypeQueryNode(
+                            moduleEntity,
+                        ))])];
+            } else {
+                for (const element of namedBindings.elements) {
+                    
+                }
+            }
+        }
+        return [];
+    }
+
+    private _remakeExportDeclaration(exportDeclaration: ts.ExportDeclaration): ts.Statement[] | null {
+        if (exportDeclaration.moduleSpecifier) {
+            if (!ts.isStringLiteral(exportDeclaration.moduleSpecifier)) {
+                return null;
+            }
+            const moduleRegistry = this._getOrCreateModuleRegistry(exportDeclaration.moduleSpecifier.text);
+            const moduleFullName = getModuleRegistryFullNameArray(moduleRegistry);
+            const moduleEntity = createEntityName(moduleFullName);
+
+            if (!exportDeclaration.exportClause) {
+                
+            }
+        }
+        return null;
+    }
+
     private _remakeClassDeclaration(
-        classDeclaration: ts.ClassDeclaration, symbol: ts.Symbol, newName: string) {
+        classDeclaration: ts.ClassDeclaration, newName: string) {
         const classElements: ts.ClassElement[] = [];
         // console.log(`Dump class ${newName}`);
         for (const element of classDeclaration.members) {
@@ -564,7 +679,7 @@ class BundleGenerator {
     }
 
     private _remakeInterfaceDeclaration(
-        interfaceDeclaration: ts.InterfaceDeclaration, symbol: ts.Symbol, newName: string) {
+        interfaceDeclaration: ts.InterfaceDeclaration, newName: string) {
         return ts.createInterfaceDeclaration(
             undefined,
             this._remakeModifiers(interfaceDeclaration.modifiers),
@@ -604,7 +719,7 @@ class BundleGenerator {
         const validClauses: ts.ExpressionWithTypeArguments[] = [];
         for (const type of heritageClause.types) {
             validClauses.push(ts.createExpressionWithTypeArguments(
-                type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)!) : undefined,
+                type.typeArguments ? type.typeArguments.map((ta) => this._remakeTypeNode(ta)!) : undefined,
                 this._remakeExpression(type.expression)));
         }
         return ts.createHeritageClause(
@@ -625,7 +740,7 @@ class BundleGenerator {
         }
     }
 
-    private _remakeEnumDeclaration(enumDeclaration: ts.EnumDeclaration, symbol: ts.Symbol, newName: string) {
+    private _remakeEnumDeclaration(enumDeclaration: ts.EnumDeclaration, newName: string) {
         return ts.createEnumDeclaration(
             undefined,
             this._remakeModifiers(enumDeclaration.modifiers),
@@ -640,13 +755,13 @@ class BundleGenerator {
     }
 
     private _remakeTypeAliasDeclaration(
-        typeAliasDeclaration: ts.TypeAliasDeclaration, symbol: ts.Symbol, newName: string) {
+        typeAliasDeclaration: ts.TypeAliasDeclaration, newName: string) {
         return ts.createTypeAliasDeclaration(
             undefined,
             this._remakeModifiers(typeAliasDeclaration.modifiers),
             newName,
             this._remakeTypeParameterArray(typeAliasDeclaration.typeParameters),
-            this._remakeType(typeAliasDeclaration.type)!,
+            this._remakeTypeNode(typeAliasDeclaration.type)!,
         );
     }
 
@@ -667,14 +782,18 @@ class BundleGenerator {
         return result;
     }
 
-    private _remakeType(type: ts.TypeNode): ts.TypeNode;
+    private _remakeTypeNode(type: ts.TypeNode): ts.TypeNode;
 
-    private _remakeType(type?: ts.TypeNode): ts.TypeNode | undefined;
+    private _remakeTypeNode(type?: ts.TypeNode): ts.TypeNode | undefined;
 
-    private _remakeType(type?: ts.TypeNode): ts.TypeNode | undefined {
+    private _remakeTypeNode(type?: ts.TypeNode): ts.TypeNode | undefined {
         if (!type) {
             return undefined;
         }
+
+        // if (type.getText() === 'Pass[]') {
+        //     debugger;
+        // }
 
         const fallthrough = () => {
             return ts.createTypeReferenceNode(type.getText(), undefined);
@@ -700,82 +819,71 @@ class BundleGenerator {
             return ts.createTypeReferenceNode(
                 this._remakeEntityName(type.typeName),
                 type.typeArguments ?
-                type.typeArguments.map((ta) => this._remakeType(ta)!) : undefined,
+                type.typeArguments.map((ta) => this._remakeTypeNode(ta)!) : undefined,
             );
         } else if (isUnionTypeNode(type)) {
             return ts.createUnionTypeNode(
-                type.types.map((t) => this._remakeType(t)!));
+                type.types.map((t) => this._remakeTypeNode(t)!));
         } else if (ts.isTypeLiteralNode(type)) {
             return ts.createTypeLiteralNode(this._remakeTypeElements(type.members));
         } else if (ts.isArrayTypeNode(type)) {
-            return ts.createArrayTypeNode(this._remakeType(type.elementType)!);
+            return ts.createArrayTypeNode(this._remakeTypeNode(type.elementType)!);
         } else if (ts.isParenthesizedTypeNode(type)) {
-            return ts.createParenthesizedType(this._remakeType(type.type)!);
+            return ts.createParenthesizedType(this._remakeTypeNode(type.type)!);
         } else if (ts.isTypeQueryNode(type)) {
+            // typeof Entity
             return ts.createTypeQueryNode(this._remakeEntityName(type.exprName));
         } else if (ts.isTypeOperatorNode(type)) {
-            return ts.createTypeOperatorNode(this._remakeType(type.type)!);
+            return ts.createTypeOperatorNode(this._remakeTypeNode(type.type)!);
         } else if (ts.isFunctionTypeNode(type)) {
             return ts.createFunctionTypeNode(
                 this._remakeTypeParameterArray(type.typeParameters),
                 this._remakeParameterArray(type.parameters), // parameters
-                this._remakeType(type.type),
+                this._remakeTypeNode(type.type),
             );
         } else if (ts.isConstructorTypeNode(type)) {
             return ts.createConstructorTypeNode(
                 this._remakeTypeParameterArray(type.typeParameters),
                 this._remakeParameterArray(type.parameters), // parameters
-                this._remakeType(type.type),
+                this._remakeTypeNode(type.type),
             );
         } else if (ts.isImportTypeNode(type)) {
-            let symbol: ts.Symbol | undefined;
-            const typetype = this._typeChecker.getTypeAtLocation(type);
-            if (typetype) {
-                symbol = typetype.symbol;
-            }
-            if (!symbol) {
-                console.warn(`Failed to resolve type ${type.getText()}, There is no symbol info.`);
-                if (this._typeChecker.getSymbolAtLocation(type.argument)) {
-                    console.warn(`BTW`);
-                }
-            } else {
-                const inf = this._getInf(symbol);
-                if (inf) {
-                    const mainTypeName = this._resolveSymbolPath(inf);
-                    if (type.isTypeOf) {
-                        // Note: `typeof import("")` is treated as a single importType with `isTypeOf` set to true
-                        if (type.typeArguments) {
-                            console.error(`Unexpected: typeof import("...") should not have arguments.`);
-                        }
-                        return ts.createTypeQueryNode(ts.createIdentifier(mainTypeName));
-                    } else {
-                        return ts.createTypeReferenceNode(
-                            mainTypeName,
-                            type.typeArguments ? type.typeArguments.map((ta) => this._remakeType(ta)!) : undefined,
-                        );
+            // import(ImportSpecifier)
+            const resolvedTypeName = this._resolveImportTypeOrTypeQueryNode(type);
+            if (resolvedTypeName) {
+                if (type.isTypeOf) {
+                    // Note: `typeof import("")` is treated as a single importType with `isTypeOf` set to true
+                    if (type.typeArguments) {
+                        console.error(`Unexpected: typeof import("...") should not have arguments.`);
                     }
+                    return ts.createTypeQueryNode(ts.createIdentifier(resolvedTypeName));
+                } else {
+                    return ts.createTypeReferenceNode(
+                        resolvedTypeName,
+                        type.typeArguments ? type.typeArguments.map((ta) => this._remakeTypeNode(ta)!) : undefined,
+                    );
                 }
             }
         } else if (ts.isIntersectionTypeNode(type)) {
-            return ts.createIntersectionTypeNode(type.types.map((t) => this._remakeType(t)));
+            return ts.createIntersectionTypeNode(type.types.map((t) => this._remakeTypeNode(t)));
         } else if (ts.isIndexedAccessTypeNode(type)) {
             return ts.createIndexedAccessTypeNode(
-                this._remakeType(type.objectType), this._remakeType(type.indexType));
+                this._remakeTypeNode(type.objectType), this._remakeTypeNode(type.indexType));
         } else if (ts.isThisTypeNode(type)) {
             return ts.createThisTypeNode();
         } else if (ts.isTypePredicateNode(type)) {
             const dumpedParameterName = ts.isIdentifier(type.parameterName) ?
                 this._remakeIdentifier(type.parameterName) : ts.createThisTypeNode();
-            return ts.createTypePredicateNode(dumpedParameterName, this._remakeType(type.type));
+            return ts.createTypePredicateNode(dumpedParameterName, this._remakeTypeNode(type.type));
         } else if (ts.isConditionalTypeNode(type)) {
             return ts.createConditionalTypeNode(
-                this._remakeType(type.checkType),
-                this._remakeType(type.extendsType),
-                this._remakeType(type.trueType),
-                this._remakeType(type.falseType),
+                this._remakeTypeNode(type.checkType),
+                this._remakeTypeNode(type.extendsType),
+                this._remakeTypeNode(type.trueType),
+                this._remakeTypeNode(type.falseType),
             );
         } else if (ts.isTupleTypeNode(type)) {
-            return ts.createTupleTypeNode(type.elementTypes.map((elementType) => this._remakeType(elementType)));
+            return ts.createTupleTypeNode(type.elementTypes.map((elementType) => this._remakeTypeNode(elementType)));
         } else if (ts.isLiteralTypeNode(type)) {
             const literal = type.literal;
             let dumpedLiteral: typeof literal | undefined;
@@ -801,11 +909,47 @@ class BundleGenerator {
             if (dumpedLiteral) {
                 return ts.createLiteralTypeNode(dumpedLiteral);
             }
-        }
-        else {
+        } else {
             console.warn(`Don't know how to handle type ${type.getText()}(${printNode(type)})`);
         }
         return type ? ts.createTypeReferenceNode(type.getText(), undefined) : undefined;
+    }
+
+    private _resolveImportTypeOrTypeQueryNode(type: ts.ImportTypeNode | ts.TypeQueryNode): string | undefined {
+        let symbol: ts.Symbol | undefined;
+        const typetype = this._typeChecker.getTypeAtLocation(type);
+        if (typetype) {
+            symbol = typetype.symbol;
+        }
+        if (!symbol) {
+            console.warn(`Failed to resolve type ${type.getText()}, There is no symbol info.`);
+        } else {
+            // if (type.getText() === 'typeof CCString') {
+            //     debugger;
+            // }
+            // if (type.getText() === 'typeof attributeUtils') {
+            //     // if (symbol.getFlags() & ts.SymbolFlags.Module) {
+            //     //     const exportSymbols = this._typeChecker.getExportsOfModule(symbol);
+            //     //     const typeElements: ts.TypeElement[] = [];
+            //     //     for (const exportSymbol of exportSymbols) {
+                        
+            //     //     }
+            //     //     return ts.createTypeLiteralNode(typeElements);
+            //     // }
+            //     debugger;
+            // }
+            const inf = this._getInf(symbol);
+            if (inf) {
+                const mainTypeName = this._resolveSymbolPath(inf);
+                const result = {
+                    typeName: mainTypeName,
+                };
+                if (typetype.aliasTypeArguments) {
+                    const typeArguments: ts.TypeParameter[] = [];
+                }
+                return mainTypeName;
+            }
+        }
     }
 
     private _remakeToken<TKind extends ts.SyntaxKind>(token?: Token<TKind>) {
@@ -814,23 +958,25 @@ class BundleGenerator {
 
     private _remakeEntityName(name: ts.EntityName) {
         const identifiers: ts.Identifier[] = [];
-        while (ts.isQualifiedName(name)) {
-            identifiers.unshift(name.right);
-            name = name.left;
+        let n = name;
+        while (ts.isQualifiedName(n)) {
+            identifiers.unshift(n.right);
+            n = n.left;
         }
-        identifiers.unshift(name);
+        identifiers.unshift(n);
 
         let result: ts.EntityName | null = null;
-        for (const id of identifiers) {
-            const newID = ts.createIdentifier(this._getDumpedNameOfSymbolAt(id));
-            if (!result) {
-                result = newID;
-            } else {
-                result = ts.createQualifiedName(result, newID);
+        for (let i = identifiers.length - 1; i >= 0; --i) {
+            const id = identifiers[i];
+            const symbolInf = this._getSymbolInfAt(id);
+            if (symbolInf) {
+                const newName = this._resolveSymbolPath(symbolInf);
+                const following = identifiers.slice(i + 1).map((id) => id.text);
+                result = createEntityName(newName.split('.').concat(following));
+                break;
             }
         }
-
-        return result!;
+        return result || createEntityName(identifiers.map((id) => id.text));
     }
 
     private _remakePropertyName(propertyName: ts.PropertyName) {
@@ -918,6 +1064,10 @@ class BundleGenerator {
             return null;
         }
 
+        if (originalSymbol.flags & ts.SymbolFlags.PropertyOrAccessor) {
+            return null;
+        }
+
         if (originalSymbol.flags & ts.SymbolFlags.ModuleMember) {
             const declaration = originalSymbol.valueDeclaration ||
                 (originalSymbol.declarations && originalSymbol.declarations.length > 0 ?
@@ -925,12 +1075,19 @@ class BundleGenerator {
             if (declaration) {
                 this._referencedSourceFiles.add(declaration.getSourceFile());
                 let isTopLevelModuleMember = false;
+                // if (ts.isModuleDeclaration(declaration.parent)) {
+                //     isTopLevelModuleMember = true;
+                // }
                 if (ts.isModuleDeclaration(declaration.parent) &&
                     ts.isSourceFile(declaration.parent.parent)) {
                     isTopLevelModuleMember = true;
                 } else if (
                     ts.isModuleBlock(declaration.parent) &&
                     ts.isSourceFile(declaration.parent.parent.parent)) {
+                    isTopLevelModuleMember = true;
+                }
+                else if (ts.isModuleDeclaration(declaration) &&
+                    ts.isSourceFile(declaration.parent)) {
                     isTopLevelModuleMember = true;
                 }
                 if (!isTopLevelModuleMember) {
@@ -971,14 +1128,23 @@ class BundleGenerator {
         if (!moduleSymbol) {
             return null;
         }
-        const name = `${moduleSymbol.name}_${symbol.name}`.split('"').join('').replace(/[\/-]/g, '_');
+
+        const unexportedModuleCollector = this._getOrCreateModuleRegistry(moduleSymbol.name);
+        let newName = symbol.name;
+        if (newName === 'default') {
+            newName = '$default';
+        }
+
         const backupStack = this._scopeStack;
         this._scopeStack = [ this._shelterName ];
         const result: IExportedSymbolInfo = {
-            name,
+            name: newName,
             symbol,
-            fullPrefix: [this._shelterName],
+            fullPrefix: getModuleRegistryFullNameArray(unexportedModuleCollector),
         };
+        if (symbol === moduleSymbol) {
+            result.isModuleSelf = true;
+        }
         this._unexportedSymbolsDetail.map.set(symbol, result);
 
         if (declaration0.kind === ts.SyntaxKind.ModuleDeclaration) {
@@ -993,13 +1159,62 @@ class BundleGenerator {
             }
         }
 
-        const decls = this._emitExportedSymbol(result);
-        this._scopeStack = backupStack;
-        if (decls) {
-            result.dumpedDeclarations = decls;
+        for (const declaration of symbol.declarations) {
+            const decl = this._remakeDeclaration(declaration, symbol, newName);
+            if (decl) {
+                unexportedModuleCollector.statements.push(decl);
+            }
         }
-        this._unexportedSymbolsDetail.pending.push(result);
+        this._scopeStack = backupStack;
         return result;
+    }
+
+    private _getOrCreateModuleRegistry(name: string) {
+        const path = name.replace(/["']/g, '');
+        const segments = path.split(/[\\\/]/g);
+        let currentCollector = this._rootUnexportedDirectory;
+        for (const segment of segments) {
+            const directoryTraits = currentCollector.directoryTraits || (currentCollector.directoryTraits = {
+                nameMap: {},
+                files: {},
+            });
+            if (!(segment in directoryTraits.nameMap)) {
+                directoryTraits.nameMap[segment] = mapFileNameToNamespaceName(segment);
+            }
+            const moduleName = directoryTraits.nameMap[segment];
+            const files = directoryTraits.files || (directoryTraits.files = {});
+            currentCollector = files[moduleName] || (files[moduleName] = {
+                name: moduleName,
+                parent: currentCollector,
+                statements: [],
+            });
+        }
+        return currentCollector;
+
+        function mapFileNameToNamespaceName(fileName: string) {
+            let result = fileName.replace(/[\/-]/g, '_');
+            // if (!result.match(/\b[$a-zA-Z_].*\b/g)) {
+            //     result = `\$${result}`;
+            // }
+            return `\$${result}`;
+        }
+    }
+
+    private _createDeclarationForUnexportedModuleRegistry(registry: ModuleRegistry, name: string): ts.ModuleDeclaration {
+        let children: ts.ModuleDeclaration[] | undefined;
+        if (registry.directoryTraits) {
+            children = Object.keys(registry.directoryTraits.files).map((fileName) => {
+                return this._createDeclarationForUnexportedModuleRegistry(registry.directoryTraits!.files[fileName], fileName);
+            });
+        }
+        const moduleDeclaration = ts.createModuleDeclaration(
+            undefined,
+            undefined, // [ts.createModifier(ts.SyntaxKind.DeclareKeyword)],
+            ts.createIdentifier(name),
+            ts.createModuleBlock(children ? registry.statements.concat(children) : registry.statements),
+            ts.NodeFlags.Namespace,
+        );
+        return moduleDeclaration;
     }
 
     private _getModuleSymbol(declaration: ts.Node) {
@@ -1024,7 +1239,7 @@ class BundleGenerator {
         if (i >= to.fullPrefix.length) {
             return to.name;
         }
-        return to.fullPrefix.slice(i).join('.') + '.' + to.name;
+        return to.fullPrefix.slice(i).join('.') + (to.isModuleSelf ? '' : ('.' + to.name));
     }
 }
 
@@ -1052,4 +1267,27 @@ function printSymbolFlags(flags: ts.SymbolFlags) {
 
 function printNode(node: ts.Node) {
     return `Syntax Kind: ${ts.SyntaxKind[node.kind]}`;
+}
+
+function getModuleRegistryFullNameArray(registry: ModuleRegistry) {
+    const result: string[] = [];
+    let current: ModuleRegistry | null = registry;
+    while (current) {
+        result.unshift(current.name);
+        current = current.parent;
+    }
+    return result;
+}
+
+function createEntityName(identifiers: string[]): ts.EntityName {
+    let result: ts.EntityName | null = null;
+    for (const id of identifiers) {
+        const newID = ts.createIdentifier(id);
+        if (!result) {
+            result = newID;
+        } else {
+            result = ts.createQualifiedName(result, newID);
+        }
+    }
+    return result!;
 }
