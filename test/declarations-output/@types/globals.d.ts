@@ -1,4 +1,4 @@
-/****************************************************************************
+/*
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
@@ -22,7 +22,7 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
- ****************************************************************************/
+*/
 
 declare const CC_BUILD: boolean;
 declare const CC_TEST: boolean;
@@ -37,7 +37,50 @@ declare const CC_QQPLAY: boolean;
 declare const CC_RUNTIME: boolean;
 declare const CC_SUPPORT_JIT: boolean;
 
-declare const cc : {
+declare const jsb: any;
+
+declare const CC_PHYSICS_CANNON: boolean;
+declare const CC_PHYSICS_AMMO: boolean;
+declare const CC_PHYSICS_BUILTIN: boolean;
+interface Window {
+
+    [x: string]: any;
+    
+    WebGL2RenderingContext: any;
+
+    sharedCanvas: any;
+    __canvas: any;
+    canvas: any;
+
+    XMLHttpRequest: any;
+    mozRequestAnimationFrame (callback: any, element?: any): any;
+    oRequestAnimationFrame (callback: any, element?: any): any;
+    msRequestAnimationFrame (callback: any, element?: any): any;
+    cancelRequestAnimationFrame (callback: any, element?: any): any;
+    msCancelRequestAnimationFrame (callback: any, element?: any): any;
+    mozCancelRequestAnimationFrame (callback: any, element?: any): any;
+    oCancelRequestAnimationFrame (callback: any, element?: any): any;
+    webkitCancelRequestAnimationFrame (callback: any, element?: any): any;
+    msCancelAnimationFrame (callback: any, element?: any): any;
+    mozCancelAnimationFrame (callback: any, element?: any): any;
+    ocancelAnimationFrame (callback: any, element?: any): any;
+}
+
+interface Document{
+    mozHidden: any;
+    msHidden: any;
+    webkitHidden: any;
+}
+
+interface HTMLElement{
+    content: any;
+    name: any;
+}
+
+type ActiveXObject = new (s: string) => any;
+declare var ActiveXObject: ActiveXObject;
+
+declare const cc: {
     // polyfills: {
     //     destroyObject? (object: any): void;
     // };
@@ -57,9 +100,20 @@ declare interface IWritableArrayLike<T> {
     [index: number]: T;
 }
 
+declare type Constructor<T = {}> = new(...args: any[]) => T;
+
+declare type Mutable<T> = { -readonly [P in keyof T]: T[P] };
+
+declare type Getter = () => any;
+
+declare type Setter = (value: any) => void;
+
 declare namespace Editor {
-    function log (message?: any, ...optionalParams: any[]): void;
-    function error (message?: any, ...optionalParams: any[]): void;
-    function warn (message?: any, ...optionalParams: any[]): void;
+    function require (str: string): any;
     const isMainProcess: boolean | undefined;
+    const Utils: any;
+    const serialize: any;
+    const Selection: any;
 }
+
+declare const Buffer: any;

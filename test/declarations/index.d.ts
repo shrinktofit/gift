@@ -1,6 +1,6 @@
 /// <reference types="./@types/globals" />
-/// <reference types="./cocos/core/gfx/webgl/WebGL" />
-/// <reference types="./cocos/core/gfx/webgl2/WebGL2" />
+/// <reference types="./@types/webGL.extras" />
+/// <reference types="./@types/webGL2.extras" />
 /// <reference types="./@types/wx" />
 /// <reference types="./node_modules/tween.js/TWEEN" />
 declare module "predefine" {
@@ -182,74 +182,80 @@ declare module "cocos/core/math/bits" {
     export const INT_MIN: number;
     /**
      * @en Returns -1, 0, +1 depending on sign of x.
+     * @zh 根据x的符号返回 -1，0，+1。
      */
     export function sign(v: number): number;
     /**
      * @en Computes absolute value of integer.
+     * @zh 计算整数的绝对值。
      */
     export function abs(v: number): number;
     /**
      * @en Computes minimum of integers x and y.
+     * @zh 计算整数x和y中的最小值。
      */
     export function min(x: number, y: number): number;
     /**
      * @en Computes maximum of integers x and y.
+     * @zh 计算整数x和y中的最大值。
      */
     export function max(x: number, y: number): number;
     /**
      * @en Checks if a number is a power of two.
+     * @zh 检查一个数字是否是2的幂。
      */
     export function isPow2(v: number): boolean;
     /**
-     * @en Computes log base 2 of v.
+     * Computes log base 2 of v.
      */
     export function log2(v: number): number;
     /**
-     * @en Computes log base 10 of v.
+     * Computes log base 10 of v.
      */
     export function log10(v: number): 1 | 0 | 2 | 4 | 3 | 9 | 8 | 7 | 6 | 5;
     /**
-     * @en Counts number of bits.
+     * Counts number of bits.
      */
     export function popCount(v: number): number;
     /**
      * @en Counts number of trailing zeros.
+     * @zh 计算数字后面零的数量。
      */
     export function countTrailingZeros(v: number): number;
     /**
-     * @en Rounds to next power of 2.
+     * Rounds to next power of 2.
      */
     export function nextPow2(v: number): number;
     /**
-     * @en Rounds down to previous power of 2.
+     * Rounds down to previous power of 2.
      */
     export function prevPow2(v: number): number;
     /**
-     * @en Computes parity of word.
+     * Computes parity of word.
      */
     export function parity(v: number): number;
     /**
-     * @en Reverse bits in a 32 bit word.
+     * Reverse bits in a 32 bit word.
      */
     export function reverse(v: number): number;
     /**
-     * @en Interleave bits of 2 coordinates with 16 bits. Useful for fast quadtree codes.
+     * Interleave bits of 2 coordinates with 16 bits. Useful for fast quadtree codes.
      */
     export function interleave2(x: number, y: number): number;
     /**
-     * @en Extracts the nth interleaved component.
+     * Extracts the nth interleaved component.
      */
     export function deinterleave2(v: number, n: number): number;
     /**
-     * @en Interleave bits of 3 coordinates, each with 10 bits.  Useful for fast octree codes.
+     * Interleave bits of 3 coordinates, each with 10 bits.  Useful for fast octree codes.
      */
     export function interleave3(x: number, y: number, z: number): number;
     /**
-     * @en Extracts nth interleaved component of a 3-tuple.
+     * Extracts nth interleaved component of a 3-tuple.
      */
     export function deinterleave3(v: number, n: number): number;
     /**
-     * @en Computes next combination in colexicographic order (this is
+     * Computes next combination in colexicographic order (this is
      * mistakenly called nextPermutation on the bit twiddling hacks page).
      */
     export function nextCombination(v: number): number;
@@ -463,7 +469,7 @@ declare module "cocos/core/utils/js-typed" {
     /**
      * Derive the class from the supplied base class.
      * Both classes are just native javascript constructors, not created by cc.Class, so
-     * usually you will want to inherit using {{#crossLink "cc/Class:method"}}cc.Class {{/crossLink}} instead.
+     * usually you will want to inherit using [[Class]] instead.
      * @param base The baseclass to inherit.
      * @return The result class.
      */
@@ -1013,11 +1019,8 @@ declare module "cocos/core/data/utils/requiring-frame" {
 declare module "cocos/core/data/class" {
     import * as attributeUtils from "cocos/core/data/utils/attribute";
     /**
-     * @module cc
-     */
-    /**
-     * @en Defines a CCClass using the given specification, please see [Class](/docs/editors_and_tools/creator-chapters/scripting/class.html) for details.
-     * @zh 定义一个 CCClass，传入参数必须是一个包含类型参数的字面量对象，具体用法请查阅[类型定义](/docs/creator/scripting/class.html)。
+     * @en Defines a CCClass using the given specification
+     * @zh 定义一个 CCClass，传入参数必须是一个包含类型参数的字面量对象
      *
      * @method Class
      *
@@ -1197,18 +1200,19 @@ declare module "cocos/core/math/type-define" {
 declare module "cocos/core/math/utils" {
     export const EPSILON = 0.000001;
     /**
-     * Tests whether or not the arguments have approximately the same value, within an absolute
-     * or relative tolerance of glMatrix.EPSILON (an absolute tolerance is used for values less
+     * @en Tests whether or not the arguments have approximately the same value, within an absolute<br/>
+     * or relative tolerance of glMatrix.EPSILON (an absolute tolerance is used for values less<br/>
      * than or equal to 1.0, and a relative tolerance is used for larger values)
-     *
+     * @zh 在glMatrix的绝对或相对容差范围内，测试参数是否具有近似相同的值。<br/>
+     * EPSILON(小于等于1.0的值采用绝对公差，大于1.0的值采用相对公差)
      * @param a The first number to test.
      * @param b The second number to test.
      * @return True if the numbers are approximately equal, false otherwise.
      */
     export function equals(a: number, b: number): boolean;
     /**
-     * Tests whether or not the arguments have approximately the same value by given maxDiff
-     *
+     * @en Tests whether or not the arguments have approximately the same value by given maxDiff<br/>
+     * @zh 通过给定的最大差异，测试参数是否具有近似相同的值。
      * @param a The first number to test.
      * @param b The second number to test.
      * @param maxDiff Maximum difference.
@@ -1216,16 +1220,16 @@ declare module "cocos/core/math/utils" {
      */
     export function approx(a: number, b: number, maxDiff: number): boolean;
     /**
-     * Clamps a value between a minimum float and maximum float value.
-     *
+     * @en Clamps a value between a minimum float and maximum float value.<br/>
+     * @zh 返回最小浮点数和最大浮点数之间的一个数值。可以使用 clamp 函数将不断变化的数值限制在范围内。
      * @param val
      * @param min
      * @param max
      */
     export function clamp(val: number, min: number, max: number): number;
     /**
-     * Clamps a value between 0 and 1.
-     *
+     * @en Clamps a value between 0 and 1.<br/>
+     * @zh 将值限制在0和1之间。
      * @param val
      */
     export function clamp01(val: number): number;
@@ -1236,14 +1240,14 @@ declare module "cocos/core/math/utils" {
      */
     export function lerp(from: number, to: number, ratio: number): number;
     /**
-     * Convert Degree To Radian
-     *
+     * @en Convert Degree To Radian<br/>
+     * @zh 把角度换算成弧度。
      * @param {Number} a Angle in Degrees
      */
     export function toRadian(a: number): number;
     /**
-     * Convert Radian To Degree
-     *
+     * @en Convert Radian To Degree<br/>
+     * @zh 把弧度换算成角度。
      * @param {Number} a Angle in Radian
      */
     export function toDegree(a: number): number;
@@ -1252,8 +1256,8 @@ declare module "cocos/core/math/utils" {
      */
     export const random: () => number;
     /**
-     * Returns a floating-point random number between min (inclusive) and max (exclusive).
-     *
+     * @en Returns a floating-point random number between min (inclusive) and max (exclusive).<br/>
+     * @zh 返回最小(包含)和最大(不包含)之间的浮点随机数。
      * @method randomRange
      * @param min
      * @param max
@@ -1261,8 +1265,8 @@ declare module "cocos/core/math/utils" {
      */
     export function randomRange(min: number, max: number): number;
     /**
-     * Returns a random integer between min (inclusive) and max (exclusive).
-     *
+     * @en Returns a random integer between min (inclusive) and max (exclusive).<br/>
+     * @zh 返回最小(包含)和最大(不包含)之间的随机整数。
      * @param min
      * @param max
      * @return The random integer.
@@ -1285,8 +1289,8 @@ declare module "cocos/core/math/utils" {
      */
     export function pseudoRandomRange(seed: number, min: number, max: number): number;
     /**
-     * Returns a pseudo-random integer between min (inclusive) and max (exclusive).
-     *
+     * @en Returns a pseudo-random integer between min (inclusive) and max (exclusive).<br/>
+     * @zh 返回最小(包含)和最大(不包含)之间的浮点伪随机数。
      * @param seed
      * @param min
      * @param max
@@ -1294,15 +1298,15 @@ declare module "cocos/core/math/utils" {
      */
     export function pseudoRandomRangeInt(seed: number, min: number, max: number): number;
     /**
-     * Returns the next power of two for the value.
+     * Returns the next power of two for the value.<br/>
      *
      * @param val
      * @return The the next power of two.
      */
     export function nextPow2(val: number): number;
     /**
-     * Returns float remainder for t / length.
-     *
+     * @en Returns float remainder for t / length.<br/>
+     * @zh 返回t / length的浮点余数。
      * @param t Time start at 0.
      * @param length Time of one cycle.
      * @return The Time wrapped in the first cycle.
@@ -1317,8 +1321,8 @@ declare module "cocos/core/math/utils" {
      */
     export function pingPong(t: number, length: number): number;
     /**
-     * Returns ratio of a value within a given range.
-     *
+     * @en Returns ratio of a value within a given range.<br/>
+     * @zh 返回给定范围内的值的比率。
      * @param from Start value.
      * @param to End value.
      * @param value Given value.
@@ -1547,17 +1551,17 @@ declare module "cocos/core/math/vec3" {
         constructor(v: Vec3);
         constructor(x?: number, y?: number, z?: number);
         /**
-         * 克隆当前向量。
+         * @zh 克隆当前向量。
          */
         clone(): Vec3;
         /**
-         * 设置当前向量使其与指定向量相等。
+         * @zh 设置当前向量使其与指定向量相等。
          * @param other 相比较的向量。
          * @returns `this`
          */
         set(other: Vec3): any;
         /**
-         * 设置当前向量的具体分量值。
+         * @zh 设置当前向量的具体分量值。
          * @param x 要设置的 x 分量的值
          * @param y 要设置的 y 分量的值
          * @param z 要设置的 z 分量的值
@@ -1565,14 +1569,14 @@ declare module "cocos/core/math/vec3" {
          */
         set(x?: number, y?: number, z?: number): any;
         /**
-         * 判断当前向量是否在误差范围内与指定向量相等。
+         * @zh 判断当前向量是否在误差范围内与指定向量相等。
          * @param other 相比较的向量。
          * @param epsilon 允许的误差，应为非负数。
          * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
          */
         equals(other: Vec3, epsilon?: number): boolean;
         /**
-         * 判断当前向量是否在误差范围内与指定分量的向量相等。
+         * @zh 判断当前向量是否在误差范围内与指定分量的向量相等。
          * @param x 相比较的向量的 x 分量。
          * @param y 相比较的向量的 y 分量。
          * @param z 相比较的向量的 z 分量。
@@ -1581,13 +1585,13 @@ declare module "cocos/core/math/vec3" {
          */
         equals3f(x: number, y: number, z: number, epsilon?: number): boolean;
         /**
-         * 判断当前向量是否与指定向量相等。
+         * @zh 判断当前向量是否与指定向量相等。
          * @param other 相比较的向量。
          * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
          */
         strictEquals(other: Vec3): boolean;
         /**
-         * 判断当前向量是否与指定分量的向量相等。
+         * @zh 判断当前向量是否与指定分量的向量相等。
          * @param x 指定向量的 x 分量。
          * @param y 指定向量的 y 分量。
          * @param z 指定向量的 z 分量。
@@ -1595,108 +1599,107 @@ declare module "cocos/core/math/vec3" {
          */
         strictEquals3f(x: number, y: number, z: number): boolean;
         /**
-         * 返回当前向量的字符串表示。
+         * @zh 返回当前向量的字符串表示。
          * @returns 当前向量的字符串表示。
          */
         toString(): string;
         /**
-         * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+         * @zh 根据指定的插值比率，从当前向量到目标向量之间做插值。
          * @param to 目标向量。
          * @param ratio 插值比率，范围为 [0,1]。
          */
         lerp(to: Vec3, ratio: number): this;
         /**
-         * 向量加法。将当前向量与指定向量的相加
+         * @zh 向量加法。将当前向量与指定向量的相加
          * @param other 指定的向量。
          */
         add(other: Vec3): this;
         /**
-         * 向量加法。将当前向量与指定分量的向量相加
+         * @zh 向量加法。将当前向量与指定分量的向量相加
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          * @param z 指定的向量的 z 分量。
          */
         add3f(x: number, y: number, z: number): this;
         /**
-         * 向量减法。将当前向量减去指定向量的结果。
+         * @zh 向量减法。将当前向量减去指定向量的结果。
          * @param other 减数向量。
          */
         subtract(other: Vec3): this;
         /**
-         * 向量减法。将当前向量减去指定分量的向量
+         * @zh 向量减法。将当前向量减去指定分量的向量
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          * @param z 指定的向量的 z 分量。
          */
         subtract3f(x: number, y: number, z: number): this;
         /**
-         * 向量数乘。将当前向量数乘指定标量
+         * @zh 向量数乘。将当前向量数乘指定标量
          * @param scalar 标量乘数。
          */
         multiplyScalar(scalar: number): this;
         /**
-         * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
+         * @zh 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
          * @param other 指定的向量。
          */
         multiply(other: Vec3): this;
         /**
-         * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+         * @zh 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          * @param z 指定的向量的 z 分量。
          */
         multiply3f(x: number, y: number, z: number): this;
         /**
-         * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+         * @zh 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
          * @param other 指定的向量
          */
         divide(other: Vec3): this;
         /**
-         * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+         * @zh 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          * @param z 指定的向量的 z 分量。
          */
         divide3f(x: number, y: number, z: number): this;
         /**
-         * 将当前向量的各个分量取反
+         * @zh 将当前向量的各个分量取反
          */
         negative(): this;
         /**
-         * 设置当前向量的值，使其各个分量都处于指定的范围内。
+         * @zh 设置当前向量的值，使其各个分量都处于指定的范围内。
          * @param minInclusive 每个分量都代表了对应分量允许的最小值。
          * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
          * @returns `this`
          */
         clampf(minInclusive: Vec3, maxInclusive: Vec3): this;
         /**
-         * 向量点乘。
+         * @zh 向量点乘。
          * @param other 指定的向量。
          * @returns 当前向量与指定向量点乘的结果。
          */
         dot(other: Vec3): number;
         /**
-         * 向量叉乘。将当前向量左叉乘指定向量
+         * @zh 向量叉乘。将当前向量左叉乘指定向量
          * @param other 指定的向量。
          */
         cross(other: Vec3): this;
         /**
-         * 计算向量的长度（模）。
+         * @zh 计算向量的长度（模）。
          * @returns 向量的长度（模）。
          */
         length(): number;
         /**
-         * 计算向量长度（模）的平方。
+         * @zh 计算向量长度（模）的平方。
          * @returns 向量长度（模）的平方。
          */
         lengthSqr(): number;
         /**
-         * 将当前向量归一化
+         * @zh 将当前向量归一化
          */
         normalize(): this;
         /**
-         * 将当前向量视为 w 分量为 1 的四维向量，
-         * 应用四维矩阵变换到当前矩阵
+         * @zh 将当前向量视为 w 分量为 1 的四维向量，应用四维矩阵变换到当前矩阵
          * @param matrix 变换矩阵。
          */
         transformMat4(matrix: Mat4): this;
@@ -1855,8 +1858,7 @@ declare module "cocos/core/math/quat" {
          */
         static toAxisZ<Out extends IQuatLike, VecLike extends IVec3Like>(out: VecLike, q: Out): VecLike;
         /**
-         * @zh
-         * 根据四元数计算欧拉角，返回角度 x, y 在 [-180, 180] 区间内, z 默认在 [-90, 90] 区间内，旋转顺序为 YZX
+         * @zh 根据四元数计算欧拉角，返回角度 x, y 在 [-180, 180] 区间内, z 默认在 [-90, 90] 区间内，旋转顺序为 YZX
          * @param outerZ z 取值范围区间改为 [-180, -90] U [90, 180]
          */
         static toEuler<Out extends IVec3Like>(out: Out, q: IQuatLike, outerZ?: boolean): Out;
@@ -1897,17 +1899,17 @@ declare module "cocos/core/math/quat" {
         constructor(other: Quat);
         constructor(x?: number, y?: number, z?: number, w?: number);
         /**
-         * 克隆当前四元数。
+         * @zh 克隆当前四元数。
          */
         clone(): Quat;
         /**
-         * 设置当前四元数使其与指定四元数相等。
+         * @zh 设置当前四元数使其与指定四元数相等。
          * @param other 相比较的四元数。
          * @returns `this`
          */
         set(other: Quat): Quat;
         /**
-         * 设置当前四元数指定元素值。
+         * @zh 设置当前四元数指定元素值。
          * @param x 四元数 x 元素值
          * @param y 四元数 y 元素值
          * @param z 四元数 z 元素值
@@ -1916,25 +1918,25 @@ declare module "cocos/core/math/quat" {
          */
         set(x?: number, y?: number, z?: number, w?: number): Quat;
         /**
-         * 判断当前向量是否在误差范围内与指定向量相等。
+         * @zh 判断当前向量是否在误差范围内与指定向量相等。
          * @param other 相比较的向量。
          * @param epsilon 允许的误差，应为非负数。
          * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
          */
         equals(other: Quat, epsilon?: number): boolean;
         /**
-         * 判断当前四元数是否与指定四元数相等。
+         * @zh 判断当前四元数是否与指定四元数相等。
          * @param other 相比较的四元数。
          * @returns 两四元数的各分量都相等时返回 `true`；否则返回 `false`。
          */
         strictEquals(other: Quat): boolean;
         /**
-         * 将当前四元数转化为欧拉角（x-y-z）并赋值给出口向量。
+         * @zh 将当前四元数转化为欧拉角（x-y-z）并赋值给出口向量。
          * @param out 出口向量。
          */
         getEulerAngles(out: Vec3): Vec3;
         /**
-         * 根据指定的插值比率，从当前四元数到目标四元数之间做插值。
+         * @zh 根据指定的插值比率，从当前四元数到目标四元数之间做插值。
          * @param to 目标四元数。
          * @param ratio 插值比率，范围为 [0,1]。
          */
@@ -1994,7 +1996,7 @@ declare module "cocos/core/math/mat3" {
          */
         static multiply<Out extends IMat3Like>(out: Out, a: Out, b: Out): Out;
         /**
-         * 取四阶矩阵的前三阶，与三阶矩阵相乘
+         * @zh 取四阶矩阵的前三阶，与三阶矩阵相乘
          */
         static multiplyMat4<Out extends IMat3Like>(out: Out, a: Out, b: IMat4Like): Out;
         /**
@@ -2113,91 +2115,91 @@ declare module "cocos/core/math/mat3" {
         constructor(other: Mat3);
         constructor(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number);
         /**
-         * 克隆当前矩阵。
+         * @zh 克隆当前矩阵。
          */
         clone(): Mat3;
         /**
-         * 设置当前矩阵使其与指定矩阵相等。
+         * @zh 设置当前矩阵使其与指定矩阵相等。
          * @param other 相比较的矩阵。
-         * @returns `this`
+         * @return this
          */
         set(other: Mat3): any;
         /**
          * 设置当前矩阵指定元素值。
-         * @returns `this`
+         * @return this
          */
         set(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number): any;
         /**
-         * 判断当前矩阵是否在误差范围内与指定矩阵相等。
+         * @zh 判断当前矩阵是否在误差范围内与指定矩阵相等。
          * @param other 相比较的矩阵。
          * @param epsilon 允许的误差，应为非负数。
-         * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+         * @return 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
          */
         equals(other: Mat3, epsilon?: number): boolean;
         /**
-         * 判断当前矩阵是否与指定矩阵相等。
+         * @zh 判断当前矩阵是否与指定矩阵相等。
          * @param other 相比较的矩阵。
-         * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+         * @return 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
          */
         strictEquals(other: Mat3): boolean;
         /**
          * 返回当前矩阵的字符串表示。
-         * @returns 当前矩阵的字符串表示。
+         * @return 当前矩阵的字符串表示。
          */
         toString(): string;
         /**
          * 将当前矩阵设为单位矩阵。
-         * @returns `this`
+         * @return `this`
          */
         identity(): this;
         /**
-         * 计算当前矩阵的转置矩阵。
+         * @zh 计算当前矩阵的转置矩阵。
          */
         transpose(): this;
         /**
-         * 计算当前矩阵的逆矩阵。
+         * @zh 计算当前矩阵的逆矩阵。
          */
         invert(): this | null;
         /**
          * 计算当前矩阵的行列式。
-         * @returns 当前矩阵的行列式。
+         * @return 当前矩阵的行列式。
          */
         determinant(): number;
         /**
-         * 矩阵加法。将当前矩阵与指定矩阵的相加，结果返回给当前矩阵。
+         * @zh 矩阵加法。将当前矩阵与指定矩阵的相加，结果返回给当前矩阵。
          * @param mat 相加的矩阵
          */
         add(mat: Mat3): this;
         /**
-         * 计算矩阵减法。将当前矩阵减去指定矩阵的结果赋值给当前矩阵。
+         * @zh 计算矩阵减法。将当前矩阵减去指定矩阵的结果赋值给当前矩阵。
          * @param mat 减数矩阵。
          */
         subtract(mat: Mat3): this;
         /**
-         * 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给当前矩阵。
+         * @zh 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给当前矩阵。
          * @param mat 指定的矩阵。
          */
         multiply(mat: Mat3): this;
         /**
-         * 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给当前矩阵。
+         * @zh 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给当前矩阵。
          * @param scalar 指定的标量。
          */
         multiplyScalar(scalar: number): this;
         /**
-         * 将当前矩阵左乘缩放矩阵的结果赋值给当前矩阵，缩放矩阵由各个轴的缩放给出。
+         * @zh 将当前矩阵左乘缩放矩阵的结果赋值给当前矩阵，缩放矩阵由各个轴的缩放给出。
          * @param vec 各个轴的缩放。
          */
         scale(vec: Vec3): this;
         /**
-         * 将当前矩阵左乘旋转矩阵的结果赋值给当前矩阵，旋转矩阵由旋转轴和旋转角度给出。
+         * @zh 将当前矩阵左乘旋转矩阵的结果赋值给当前矩阵，旋转矩阵由旋转轴和旋转角度给出。
          * @param mat 矩阵
          * @param rad 旋转角度（弧度制）
          */
         rotate(rad: number): this;
         /**
-         * 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
+         * @zh 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
          * @param q 四元数表示的旋转变换。
-         * @returns `this`
+         * @returns this
          */
         fromQuat(q: Quat): this;
     }
@@ -2477,120 +2479,120 @@ declare module "cocos/core/math/mat4" {
         constructor(other: Mat4);
         constructor(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number);
         /**
-         * 克隆当前矩阵。
+         * @zh 克隆当前矩阵。
          */
         clone(): Mat4;
         /**
-         * 设置当前矩阵使其与指定矩阵相等。
+         * @zh 设置当前矩阵使其与指定矩阵相等。
          * @param other 相比较的矩阵。
-         * @returns `this`
+         * @return this
          */
         set(other: Mat4): any;
         /**
          * 设置当前矩阵指定元素值。
-         * @returns `this`
+         * @return this
          */
         set(m00?: number, m01?: number, m02?: number, m03?: number, m04?: number, m05?: number, m06?: number, m07?: number, m08?: number, m09?: number, m10?: number, m11?: number, m12?: number, m13?: number, m14?: number, m15?: number): any;
         /**
-         * 判断当前矩阵是否在误差范围内与指定矩阵相等。
+         * @zh 判断当前矩阵是否在误差范围内与指定矩阵相等。
          * @param other 相比较的矩阵。
          * @param epsilon 允许的误差，应为非负数。
-         * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+         * @return 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
          */
         equals(other: Mat4, epsilon?: number): boolean;
         /**
-         * 判断当前矩阵是否与指定矩阵相等。
+         * @zh 判断当前矩阵是否与指定矩阵相等。
          * @param other 相比较的矩阵。
-         * @returns 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
+         * @return 两矩阵的各元素都分别相等时返回 `true`；否则返回 `false`。
          */
         strictEquals(other: Mat4): boolean;
         /**
          * 返回当前矩阵的字符串表示。
-         * @returns 当前矩阵的字符串表示。
+         * @return 当前矩阵的字符串表示。
          */
         toString(): string;
         /**
          * 将当前矩阵设为单位矩阵。
-         * @returns `this`
+         * @return `this`
          */
         identity(): this;
         /**
-         * 计算当前矩阵的转置矩阵。
+         * @zh 计算当前矩阵的转置矩阵。
          */
         transpose(): this;
         /**
-         * 计算当前矩阵的逆矩阵。
+         * @zh 计算当前矩阵的逆矩阵。
          */
         invert(): this | null;
         /**
          * 计算当前矩阵的行列式。
-         * @returns 当前矩阵的行列式。
+         * @return 当前矩阵的行列式。
          */
         determinant(): number;
         /**
-         * 矩阵加法。将当前矩阵与指定矩阵的相加，结果返回给当前矩阵。
+         * @zh 矩阵加法。将当前矩阵与指定矩阵的相加，结果返回给当前矩阵。
          * @param mat 相加的矩阵
          */
         add(mat: Mat4): this;
         /**
-         * 计算矩阵减法。将当前矩阵减去指定矩阵的结果赋值给当前矩阵。
+         * @zh 计算矩阵减法。将当前矩阵减去指定矩阵的结果赋值给当前矩阵。
          * @param mat 减数矩阵。
          */
         subtract(mat: Mat4): this;
         /**
-         * 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给当前矩阵。
+         * @zh 矩阵乘法。将当前矩阵左乘指定矩阵的结果赋值给当前矩阵。
          * @param mat 指定的矩阵。
          */
         multiply(mat: Mat4): this;
         /**
-         * 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给当前矩阵。
+         * @zh 矩阵数乘。将当前矩阵与指定标量的数乘结果赋值给当前矩阵。
          * @param scalar 指定的标量。
          */
         multiplyScalar(scalar: number): this;
         /**
-         * 将当前矩阵左乘位移矩阵的结果赋值给当前矩阵，位移矩阵由各个轴的位移给出。
+         * @zh 将当前矩阵左乘位移矩阵的结果赋值给当前矩阵，位移矩阵由各个轴的位移给出。
          * @param vec 位移向量。
          */
         translate(vec: Vec3): this;
         /**
-         * 将当前矩阵左乘缩放矩阵的结果赋值给当前矩阵，缩放矩阵由各个轴的缩放给出。
+         * @zh 将当前矩阵左乘缩放矩阵的结果赋值给当前矩阵，缩放矩阵由各个轴的缩放给出。
          * @param vec 各个轴的缩放。
          */
         scale(vec: Vec3): this;
         /**
-         * 将当前矩阵左乘旋转矩阵的结果赋值给当前矩阵，旋转矩阵由旋转轴和旋转角度给出。
+         * @zh 将当前矩阵左乘旋转矩阵的结果赋值给当前矩阵，旋转矩阵由旋转轴和旋转角度给出。
          * @param mat 矩阵
          * @param rad 旋转角度（弧度制）
          * @param axis 旋转轴
          */
         rotate(rad: number, axis: Vec3): this | null;
         /**
-         * 从当前矩阵中计算出位移变换的部分，并以各个轴上位移的形式赋值给出口向量。
+         * @zh 从当前矩阵中计算出位移变换的部分，并以各个轴上位移的形式赋值给出口向量。
          * @param out 返回向量，当未指定时将创建为新的向量。
          */
         getTranslation(out: Vec3): Vec3;
         /**
-         * 从当前矩阵中计算出缩放变换的部分，并以各个轴上缩放的形式赋值给出口向量。
+         * @zh 从当前矩阵中计算出缩放变换的部分，并以各个轴上缩放的形式赋值给出口向量。
          * @param out 返回值，当未指定时将创建为新的向量。
          */
         getScale(out: Vec3): Vec3;
         /**
-         * 从当前矩阵中计算出旋转变换的部分，并以四元数的形式赋值给出口四元数。
+         * @zh 从当前矩阵中计算出旋转变换的部分，并以四元数的形式赋值给出口四元数。
          * @param out 返回值，当未指定时将创建为新的四元数。
          */
         getRotation(out: Quat): Quat;
         /**
-         * 重置当前矩阵的值，使其表示指定的旋转、缩放、位移依次组合的变换。
+         * @zh 重置当前矩阵的值，使其表示指定的旋转、缩放、位移依次组合的变换。
          * @param q 四元数表示的旋转变换。
          * @param v 位移变换，表示为各个轴的位移。
          * @param s 缩放变换，表示为各个轴的缩放。
-         * @returns `this`
+         * @return `this`
          */
         fromRTS(q: Quat, v: Vec3, s: Vec3): this;
         /**
-         * 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
+         * @zh 重置当前矩阵的值，使其表示指定四元数表示的旋转变换。
          * @param q 四元数表示的旋转变换。
-         * @returns `this`
+         * @return `this`
          */
         fromQuat(q: Quat): this;
     }
@@ -2761,173 +2763,173 @@ declare module "cocos/core/math/vec2" {
         constructor(other: Vec2);
         constructor(x?: number, y?: number);
         /**
-         * 克隆当前向量。
+         * @zh 克隆当前向量。
          */
         clone(): Vec2;
         /**
-         * 设置当前向量使其与指定向量相等。
+         * @zh 设置当前向量使其与指定向量相等。
          * @param other 相比较的向量。
-         * @returns `this`
+         * @return `this`
          */
         set(other: Vec2): any;
         /**
-         * 设置当前向量的具体分量值。
+         * @zh 设置当前向量的具体分量值。
          * @param x 要设置的 x 分量的值
          * @param y 要设置的 y 分量的值
-         * @returns `this`
+         * @return `this`
          */
         set(x?: number, y?: number): any;
         /**
-         * 判断当前向量是否在误差范围内与指定向量相等。
+         * @zh 判断当前向量是否在误差范围内与指定向量相等。
          * @param other 相比较的向量。
          * @param epsilon 允许的误差，应为非负数。
-         * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+         * @return 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
          */
         equals(other: Vec2, epsilon?: number): boolean;
         /**
-         * 判断当前向量是否在误差范围内与指定分量的向量相等。
+         * @zh 判断当前向量是否在误差范围内与指定分量的向量相等。
          * @param x 相比较的向量的 x 分量。
          * @param y 相比较的向量的 y 分量。
          * @param epsilon 允许的误差，应为非负数。
-         * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
+         * @return 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
          */
         equals2f(x: number, y: number, epsilon?: number): boolean;
         /**
-         * 判断当前向量是否与指定向量相等。
+         * @zh 判断当前向量是否与指定向量相等。
          * @param other 相比较的向量。
-         * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+         * @return 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
          */
         strictEquals(other: Vec2): boolean;
         /**
-         * 判断当前向量是否与指定分量的向量相等。
+         * @zh 判断当前向量是否与指定分量的向量相等。
          * @param x 指定向量的 x 分量。
          * @param y 指定向量的 y 分量。
-         * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
+         * @return 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
          */
         strictEquals2f(x: number, y: number): boolean;
         /**
-         * 返回当前向量的字符串表示。
+         * @zh 返回当前向量的字符串表示。
          * @returns 当前向量的字符串表示。
          */
         toString(): string;
         /**
-         * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+         * @zh 根据指定的插值比率，从当前向量到目标向量之间做插值。
          * @param to 目标向量。
          * @param ratio 插值比率，范围为 [0,1]。
          */
         lerp(to: Vec2, ratio: number): this;
         /**
-         * 设置当前向量的值，使其各个分量都处于指定的范围内。
+         * @zh 设置当前向量的值，使其各个分量都处于指定的范围内。
          * @param minInclusive 每个分量都代表了对应分量允许的最小值。
          * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
-         * @returns `this`
+         * @return `this`
          */
         clampf(minInclusive: Vec2, maxInclusive: Vec2): this;
         /**
-         * 向量加法。将当前向量与指定向量的相加
+         * @zh 向量加法。将当前向量与指定向量的相加
          * @param other 指定的向量。
          */
         add(other: Vec2): this;
         /**
-         * 向量加法。将当前向量与指定分量的向量相加
+         * @zh 向量加法。将当前向量与指定分量的向量相加
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          */
         add2f(x: number, y: number): this;
         /**
-         * 向量减法。将当前向量减去指定向量
+         * @zh 向量减法。将当前向量减去指定向量
          * @param other 减数向量。
          */
         subtract(other: Vec2): this;
         /**
-         * 向量减法。将当前向量减去指定分量的向量
+         * @zh 向量减法。将当前向量减去指定分量的向量
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          */
         subtract2f(x: number, y: number): this;
         /**
-         * 向量数乘。将当前向量数乘指定标量
+         * @zh 向量数乘。将当前向量数乘指定标量
          * @param scalar 标量乘数。
          */
         multiplyScalar(scalar: number): this;
         /**
-         * 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
+         * @zh 向量乘法。将当前向量乘以与指定向量的结果赋值给当前向量。
          * @param other 指定的向量。
          */
         multiply(other: Vec2): this;
         /**
-         * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+         * @zh 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          */
         multiply2f(x: number, y: number): this;
         /**
-         * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+         * @zh 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
          * @param other 指定的向量
          */
         divide(other: Vec2): this;
         /**
-         * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+         * @zh 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          */
         divide2f(x: number, y: number): this;
         /**
-         * 将当前向量的各个分量取反
+         * @zh 将当前向量的各个分量取反
          */
         negative(): this;
         /**
-         * 向量点乘。
+         * @zh 向量点乘。
          * @param other 指定的向量。
-         * @returns 当前向量与指定向量点乘的结果。
+         * @return 当前向量与指定向量点乘的结果。
          */
         dot(other: Vec2): number;
         /**
-         * 向量叉乘。
+         * @zh 向量叉乘。
          * @param other 指定的向量。
-         * @returns `out`
+         * @return `out`
          */
         cross(other: Vec2): number;
         /**
          * 计算向量的长度（模）。
-         * @returns 向量的长度（模）。
+         * @return 向量的长度（模）。
          */
         length(): number;
         /**
          * 计算向量长度（模）的平方。
-         * @returns 向量长度（模）的平方。
+         * @return 向量长度（模）的平方。
          */
         lengthSqr(): number;
         /**
-         * 将当前向量归一化。
+         * @zh 将当前向量归一化。
          */
         normalize(): this;
         /**
-         * 获取当前向量和指定向量之间的角度。
+         * @zh 获取当前向量和指定向量之间的角度。
          * @param other 指定的向量。
-         * @returns 当前向量和指定向量之间的角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
+         * @return 当前向量和指定向量之间的角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
          */
         angle(other: Vec2): number;
         /**
-         * 获取当前向量和指定向量之间的有符号角度。
-         * 有符号角度的取值范围为 (-180, 180]，当前向量可以通过逆时针旋转有符号角度与指定向量同向。
+         * @zh 获取当前向量和指定向量之间的有符号角度。<br/>
+         * 有符号角度的取值范围为 (-180, 180]，当前向量可以通过逆时针旋转有符号角度与指定向量同向。<br/>
          * @param other 指定的向量。
-         * @returns 当前向量和指定向量之间的有符号角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
+         * @return 当前向量和指定向量之间的有符号角度（弧度制）；若当前向量和指定向量中存在零向量，将返回 0。
          */
         signAngle(other: Vec2): number;
         /**
-         * 将当前向量的旋转
+         * @zh 将当前向量的旋转
          * @param radians 旋转角度（弧度制）。
          */
         rotate(radians: number): this;
         /**
-         * 计算当前向量在指定向量上的投影向量。
+         * @zh 计算当前向量在指定向量上的投影向量。
          * @param other 指定的向量。
          */
         project(other: Vec2): this;
         /**
-         * 将当前向量视为 z 分量为 0、w 分量为 1 的四维向量，
-         * 应用四维矩阵变换到当前矩阵
+         * @zh 将当前向量视为 z 分量为 0、w 分量为 1 的四维向量，<br/>
+         * 应用四维矩阵变换到当前矩阵<br/>
          * @param matrix 变换矩阵。
          */
         transformMat4(matrix: Mat4): this;
@@ -3096,17 +3098,17 @@ declare module "cocos/core/math/vec4" {
         constructor(other: Vec4);
         constructor(x?: number, y?: number, z?: number, w?: number);
         /**
-         * 克隆当前向量。
+         * @zh 克隆当前向量。
          */
         clone(): Vec4;
         /**
-         * 设置当前向量使其与指定向量相等。
+         * @zh 设置当前向量使其与指定向量相等。
          * @param other 相比较的向量。
          * @returns `this`
          */
         set(other: Vec4): any;
         /**
-         * 设置当前向量的具体分量值。
+         * @zh 设置当前向量的具体分量值。
          * @param x 要设置的 x 分量的值
          * @param y 要设置的 y 分量的值
          * @param z 要设置的 z 分量的值
@@ -3115,14 +3117,14 @@ declare module "cocos/core/math/vec4" {
          */
         set(x?: number, y?: number, z?: number, w?: number): any;
         /**
-         * 判断当前向量是否在误差范围内与指定向量相等。
+         * @zh 判断当前向量是否在误差范围内与指定向量相等。
          * @param other 相比较的向量。
          * @param epsilon 允许的误差，应为非负数。
          * @returns 当两向量的各分量都在指定的误差范围内分别相等时，返回 `true`；否则返回 `false`。
          */
         equals(other: Vec4, epsilon?: number): boolean;
         /**
-         * 判断当前向量是否在误差范围内与指定分量的向量相等。
+         * @zh 判断当前向量是否在误差范围内与指定分量的向量相等。
          * @param x 相比较的向量的 x 分量。
          * @param y 相比较的向量的 y 分量。
          * @param z 相比较的向量的 z 分量。
@@ -3132,13 +3134,13 @@ declare module "cocos/core/math/vec4" {
          */
         equals4f(x: number, y: number, z: number, w: number, epsilon?: number): boolean;
         /**
-         * 判断当前向量是否与指定向量相等。
+         * @zh 判断当前向量是否与指定向量相等。
          * @param other 相比较的向量。
          * @returns 两向量的各分量都分别相等时返回 `true`；否则返回 `false`。
          */
         strictEquals(other: Vec4): boolean;
         /**
-         * 判断当前向量是否与指定分量的向量相等。
+         * @zh 判断当前向量是否与指定分量的向量相等。
          * @param x 指定向量的 x 分量。
          * @param y 指定向量的 y 分量。
          * @param z 指定向量的 z 分量。
@@ -3147,30 +3149,30 @@ declare module "cocos/core/math/vec4" {
          */
         strictEquals4f(x: number, y: number, z: number, w: number): boolean;
         /**
-         * 根据指定的插值比率，从当前向量到目标向量之间做插值。
+         * @zh 根据指定的插值比率，从当前向量到目标向量之间做插值。
          * @param to 目标向量。
          * @param ratio 插值比率，范围为 [0,1]。
          */
         lerp(to: Vec4, ratio: number): this;
         /**
-         * 返回当前向量的字符串表示。
+         * @zh 返回当前向量的字符串表示。
          * @returns 当前向量的字符串表示。
          */
         toString(): string;
         /**
-         * 设置当前向量的值，使其各个分量都处于指定的范围内。
+         * @zh 设置当前向量的值，使其各个分量都处于指定的范围内。
          * @param minInclusive 每个分量都代表了对应分量允许的最小值。
          * @param maxInclusive 每个分量都代表了对应分量允许的最大值。
          * @returns `this`
          */
         clampf(minInclusive: Vec4, maxInclusive: Vec4): this;
         /**
-         * 向量加法。将当前向量与指定向量的相加
+         * @zh 向量加法。将当前向量与指定向量的相加
          * @param other 指定的向量。
          */
         add(other: Vec4): this;
         /**
-         * 向量加法。将当前向量与指定分量的向量相加
+         * @zh 向量加法。将当前向量与指定分量的向量相加
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          * @param z 指定的向量的 z 分量。
@@ -3178,12 +3180,12 @@ declare module "cocos/core/math/vec4" {
          */
         add4f(x: number, y: number, z: number, w: number): this;
         /**
-         * 向量减法。将当前向量减去指定向量
+         * @zh 向量减法。将当前向量减去指定向量
          * @param other 减数向量。
          */
         subtract(other: Vec4): this;
         /**
-         * 向量减法。将当前向量减去指定分量的向量
+         * @zh 向量减法。将当前向量减去指定分量的向量
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          * @param z 指定的向量的 z 分量。
@@ -3191,17 +3193,17 @@ declare module "cocos/core/math/vec4" {
          */
         subtract4f(x: number, y: number, z: number, w: number): this;
         /**
-         * 向量数乘。将当前向量数乘指定标量
+         * @zh 向量数乘。将当前向量数乘指定标量
          * @param scalar 标量乘数。
          */
         multiplyScalar(scalar: number): this;
         /**
-         * 向量乘法。将当前向量乘以指定向量
+         * @zh 向量乘法。将当前向量乘以指定向量
          * @param other 指定的向量。
          */
         multiply(other: Vec4): this;
         /**
-         * 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
+         * @zh 向量乘法。将当前向量与指定分量的向量相乘的结果赋值给当前向量。
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          * @param z 指定的向量的 z 分量。
@@ -3209,12 +3211,12 @@ declare module "cocos/core/math/vec4" {
          */
         multiply4f(x: number, y: number, z: number, w: number): this;
         /**
-         * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+         * @zh 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
          * @param other 指定的向量
          */
         divide(other: Vec4): this;
         /**
-         * 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
+         * @zh 向量逐元素相除。将当前向量与指定分量的向量相除的结果赋值给当前向量。
          * @param x 指定的向量的 x 分量。
          * @param y 指定的向量的 y 分量。
          * @param z 指定的向量的 z 分量。
@@ -3222,36 +3224,36 @@ declare module "cocos/core/math/vec4" {
          */
         divide4f(x: number, y: number, z: number, w: number): this;
         /**
-         * 将当前向量的各个分量取反
+         * @zh 将当前向量的各个分量取反
          */
         negative(): this;
         /**
-         * 向量点乘。
+         * @zh 向量点乘。
          * @param other 指定的向量。
          * @returns 当前向量与指定向量点乘的结果。
          */
         dot(vector: Vec4): number;
         /**
-         * 向量叉乘。视当前向量和指定向量为三维向量（舍弃 w 分量），将当前向量左叉乘指定向量
+         * @zh 向量叉乘。视当前向量和指定向量为三维向量（舍弃 w 分量），将当前向量左叉乘指定向量
          * @param other 指定的向量。
          */
         cross(vector: Vec4): this;
         /**
-         * 计算向量的长度（模）。
+         * @zh 计算向量的长度（模）。
          * @returns 向量的长度（模）。
          */
         length(): number;
         /**
-         * 计算向量长度（模）的平方。
+         * @zh 计算向量长度（模）的平方。
          * @returns 向量长度（模）的平方。
          */
         lengthSqr(): number;
         /**
-         * 将当前向量归一化
+         * @zh 将当前向量归一化
          */
         normalize(): this;
         /**
-         * 应用四维矩阵变换到当前矩阵
+         * @zh 应用四维矩阵变换到当前矩阵
          * @param matrix 变换矩阵。
          */
         transformMat4(matrix: Mat4): this;
@@ -3624,8 +3626,8 @@ declare module "cocos/core/math/color" {
     import { ValueType } from "cocos/core/value-types/value-type";
     import { IColorLike } from "cocos/core/math/type-define";
     /**
-     * 通过 Red、Green、Blue 颜色通道表示颜色，并通过 Alpha 通道表示不透明度。
-     * 每个通道都为取值范围 [0, 255] 的整数。
+     * @zh 通过 Red、Green、Blue 颜色通道表示颜色，并通过 Alpha 通道表示不透明度。<br/>
+     * 每个通道都为取值范围 [0, 255] 的整数。<br/>
      */
     export class Color extends ValueType {
         static WHITE: Readonly<Color>;
@@ -3701,19 +3703,19 @@ declare module "cocos/core/math/color" {
          */
         static hex<Out extends IColorLike>(a: Out): number;
         /**
-         * 获取或设置当前颜色的 Red 通道。
+         * @zh 获取或设置当前颜色的 Red 通道。
          */
         r: number;
         /**
-         * 获取或设置当前颜色的 Green 通道。
+         * @zh 获取或设置当前颜色的 Green 通道。
          */
         g: number;
         /**
-         * 获取或设置当前颜色的 Blue 通道。
+         * @zh 获取或设置当前颜色的 Blue 通道。
          */
         b: number;
         /**
-         * 获取或设置当前颜色的 Alpha 通道。
+         * @zh 获取或设置当前颜色的 Alpha 通道。
          */
         a: number;
         x: number;
@@ -3727,12 +3729,12 @@ declare module "cocos/core/math/color" {
          */
         constructor(other: Color);
         /**
-         * 用十六进制颜色字符串中构造颜色。
+         * @zh 用十六进制颜色字符串中构造颜色。
          * @param hexString 十六进制颜色字符串。
          */
         constructor(hexString: string);
         /**
-         * 构造具有指定通道的颜色。
+         * @zh 构造具有指定通道的颜色。
          * @param [r=0] 指定的 Red 通道。
          * @param [g=0] 指定的 Green 通道。
          * @param [b=0] 指定的 Blue 通道。
@@ -3740,43 +3742,43 @@ declare module "cocos/core/math/color" {
          */
         constructor(r?: number, g?: number, b?: number, a?: number);
         /**
-         * 克隆当前颜色。
+         * @zh 克隆当前颜色。
          */
         clone(): Color;
         /**
-         * 判断当前颜色是否与指定颜色相等。
+         * @zh 判断当前颜色是否与指定颜色相等。
          * @param other 相比较的颜色。
          * @returns 两颜色的各通道都相等时返回 `true`；否则返回 `false`。
          */
         equals(other: Color): boolean;
         /**
-         * 根据指定的插值比率，从当前颜色到目标颜色之间做插值。
+         * @zh 根据指定的插值比率，从当前颜色到目标颜色之间做插值。
          * @param to 目标颜色。
          * @param ratio 插值比率，范围为 [0,1]。
          */
         lerp(to: Color, ratio: number): this;
         /**
-         * 返回当前颜色的字符串表示。
+         * @zh 返回当前颜色的字符串表示。
          * @returns 当前颜色的字符串表示。
          */
         toString(): string;
         /**
-         * 将当前颜色转换为 CSS 格式。
+         * @zh 将当前颜色转换为 CSS 格式。
          * @param opt 格式选项。
          * @returns 当前颜色的 CSS 格式。
          */
         toCSS(opt: 'rgba' | 'rgb' | '#rrggbb' | '#rrggbbaa'): string;
         /**
-         * 从十六进制颜色字符串中读入当前颜色。
-         * 十六进制颜色字符串应该以可选的 "#" 开头，紧跟最多 8 个代表十六进制数字的字符；
-         * 每两个连续字符代表的数值依次作为 Red、Green、Blue 和 Alpha 通道；
-         * 缺省的颜色通道将视为 0；缺省的透明通道将视为 255。
+         * @zh 从十六进制颜色字符串中读入当前颜色。<br/>
+         * 十六进制颜色字符串应该以可选的 "#" 开头，紧跟最多 8 个代表十六进制数字的字符；<br/>
+         * 每两个连续字符代表的数值依次作为 Red、Green、Blue 和 Alpha 通道；<br/>
+         * 缺省的颜色通道将视为 0；缺省的透明通道将视为 255。<br/>
          * @param hexString 十六进制颜色字符串。
          * @returns `this`
          */
         fromHEX(hexString: string): this;
         /**
-         * 转换当前颜色为十六进制颜色字符串。
+         * @zh 转换当前颜色为十六进制颜色字符串。
          * @param fmt 格式选项。
          * - `'#rrggbbaa'` 获取Red、Green、Blue、Alpha通道的十六进制值（**两位**，高位补 0）并依次连接；
          * - `'#rrggbb` 与 `'#rrggbbaa'` 类似但不包括 Alpha 通道。
@@ -3790,7 +3792,7 @@ declare module "cocos/core/math/color" {
          */
         toHEX(fmt: '#rrggbb' | '#rrggbbaa'): string;
         /**
-         * 将当前颜色转换为 RGB 整数值。
+         * @zh 将当前颜色转换为 RGB 整数值。
          * @returns RGB 整数值。从最低有效位开始，每8位分别是 Red、Green、Blue 通道的值。
          * @example
          * ```
@@ -3800,7 +3802,7 @@ declare module "cocos/core/math/color" {
          */
         toRGBValue(): number;
         /**
-         * 从 HSV 颜色中读入当前颜色。
+         * @zh 从 HSV 颜色中读入当前颜色。
          * @param h H 通道。
          * @param s S 通道。
          * @param v V 通道。
@@ -3813,7 +3815,7 @@ declare module "cocos/core/math/color" {
          */
         fromHSV(h: number, s: number, v: number): this;
         /**
-         * 转换当前颜色为 HSV 颜色。
+         * @zh 转换当前颜色为 HSV 颜色。
          * @returns HSV 颜色。成员 `h`、`s`、`v` 分别代表 HSV 颜色的 H、S、V 通道。
          * @example
          * ```
@@ -3827,13 +3829,13 @@ declare module "cocos/core/math/color" {
             v: number;
         };
         /**
-         * 设置当前颜色使其与指定颜色相等。
+         * @zh 设置当前颜色使其与指定颜色相等。
          * @param other 相比较的颜色。
          * @returns 当前颜色。
          */
         set(other: Color): any;
         /**
-         * 设置当前颜色使其与指定通道值相等。
+         * @zh 设置当前颜色使其与指定通道值相等。
          * @param [r=0] 指定的 Red 通道。
          * @param [g=0] 指定的 Green 通道。
          * @param [b=0] 指定的 Blue 通道。
@@ -3842,7 +3844,7 @@ declare module "cocos/core/math/color" {
          */
         set(r?: number, g?: number, b?: number, a?: number): any;
         /**
-         * 将当前颜色乘以与指定颜色
+         * @zh 将当前颜色乘以与指定颜色
          * @param other 指定的颜色。
          */
         multiply(other: Color): this;
@@ -4672,7 +4674,8 @@ declare module "cocos/core/geom-utils/sphere" {
          */
         static fromPoints(out: sphere, minPos: Vec3, maxPos: Vec3): sphere;
         /**
-         * Set the components of a sphere to the given values
+         * @en Set the components of a sphere to the given values
+         * @zh 将球体的属性设置为给定的值。
          *
          * @param {sphere} out 接受操作的 sphere。
          * @param cx 形状的相对于原点的 X 坐标。
@@ -4696,9 +4699,9 @@ declare module "cocos/core/geom-utils/sphere" {
         protected _type: number;
         /**
          * 构造一个球。
-         * @param cx 形状的相对于原点的 X 坐标。
-         * @param cy 形状的相对于原点的 Y 坐标。
-         * @param cz 形状的相对于原点的 Z 坐标。
+         * @param cx 该球的世界坐标的 X 坐标。
+         * @param cy 该球的世界坐标的 Y 坐标。
+         * @param cz 该球的世界坐标的 Z 坐标。
          * @param {number} r 半径。
          */
         constructor(cx?: number, cy?: number, cz?: number, r?: number);
@@ -5228,7 +5231,8 @@ declare module "cocos/core/geom-utils/octree" {
      */
     export default class Octree {
         /**
-         * Create sub blocks and populate them with given entries
+         * @en Create sub blocks and populate them with given entries
+         * @zh 创建子块，并用给定的条目填充它们
          * @param {Vec3} worldMin - min position of the parent bounding box
          * @param {Vec3} worldMax - max position of the parent bounding box
          * @param {Array<Object>} entries - the entries to be inserted
@@ -5254,25 +5258,29 @@ declare module "cocos/core/geom-utils/octree" {
          */
         constructor(blockCapacity?: number, maxDepth?: number);
         /**
-         * Build this octree from given entries.
+         * @en Build this octree from given entries.<br/>
          * Root Boundary is the bounding box of all the entries.
+         * @zh 从给定的项中构建这个八叉树。根边界是所有这些条目的边界框。
          * @param {Array<Object>} entries - a collection of entries to be queried later
          * @param {function(entry: Object): Object} getBoundingShape
          *  - a function takes an entry and returns its primitive info
          */
         build(entries: any, getBoundingShape: any): void;
         /**
-         * Add an entry to this tree. Should be called after `build`.
+         * @en Add an entry to this tree. Should be called after `build`.
+         * @zh 在这个树中添加一个条目。应该在构建之后调用。
          * @param {Object} entry - the new entry
          */
         addEntry(entry: any): void;
         /**
-         * Remove an entry from this tree. Should be called after `build`.
+         * @en Remove an entry from this tree. Should be called after `build`.
+         * @zh 从这个树中删除一个条目。应该在构建之后调用。
          * @param {Object} entry - the entry to be removed
          */
         removeEntry(entry: any): void;
         /**
-         * Select all the entries overlapping the given primitive
+         * @en Select all the entries overlapping the given primitive
+         * @zh 选择与给定原始项重叠的所有项
          * @param {Object} shape - the selecting primitive
          * @return {Set<Object>} the resulting set of entries
          */
@@ -5464,33 +5472,31 @@ declare module "cocos/core/data/class-decorator" {
     export type SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
     export type PropertyType = SimplePropertyType | SimplePropertyType[];
     /**
-     * cc 属性选项。
+     * @zh cc 属性选项。
      */
     export interface IPropertyOptions extends IExposedAttributes {
     }
     /**
-     * 标注属性为 cc 属性。
+     * @zh 标注属性为 cc 属性。
      * @param options 选项。
      */
     export function property(options?: IPropertyOptions): PropertyDecorator;
     /**
-     * 标注属性为 cc 属性。
+     * @zh 标注属性为 cc 属性。<br/>
      * 等价于`@property({type})`。
      * @param type cc 属性的类型。
      */
     export function property(type: PropertyType): PropertyDecorator;
     /**
-     * 标注属性为 cc 属性。
+     * @zh 标注属性为 cc 属性。<br/>
      * 等价于`@property()`。
      */
     export function property(target: Object, propertyKey: string | symbol): void;
     /**
-     * @en
-     * Makes a CCClass that inherit from component execute in edit mode.<br>
-     * By default, all components are only executed in play mode,
-     * which means they will not have their callback functions executed while the Editor is in edit mode.
-     * @zh
-     * 允许继承自 Component 的 CCClass 在编辑器里执行。<br>
+     * Makes a CCClass that inherit from component execute in edit mode.<br/>
+     * By default, all components are only executed in play mode,<br/>
+     * which means they will not have their callback functions executed while the Editor is in edit mode.<br/>
+     * 允许继承自 Component 的 CCClass 在编辑器里执行。<br/>
      * 默认情况下，所有 Component 都只会在运行时才会执行，也就是说它们的生命周期回调不会在编辑器里触发。
      *
      * @method executeInEditMode
@@ -8955,7 +8961,8 @@ declare module "cocos/core/assets/simple-texture" {
          */
         protected _setMipmapLevel(value: number): void;
         /**
-         * This method is overrided by derived classes to provide GFX texture info.
+         * @en This method is overrided by derived classes to provide GFX texture info.
+         * @zh 这个方法被派生类重写以提供GFX纹理信息。
          * @param presumed The presumed GFX texture info.
          */
         protected _getGfxTextureCreateInfo(presumed: PresumedGFXTextureInfo): IGFXTextureInfo | null;
@@ -9217,7 +9224,7 @@ declare module "cocos/core/assets/sprite-frame" {
          * Right border of the sprite.
          *
          * @zh
-         * sprite 的左边边框。
+         * sprite 的右边边框。
          */
         insetRight: number;
         /**
@@ -9524,9 +9531,6 @@ declare module "cocos/core/3d/builtin/effects" {
                     };
                     "tintColor": {
                         "value": number[];
-                        "inspector": {
-                            "type": string;
-                        };
                         "type": number;
                     };
                 };
@@ -9562,7 +9566,6 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": {
                 "name": string;
                 "type": string;
-                "defines": never[];
             }[];
             "blocks": {
                 "name": string;
@@ -9581,7 +9584,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": never[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -9620,9 +9622,6 @@ declare module "cocos/core/3d/builtin/effects" {
                     };
                     "tintColor": {
                         "value": number[];
-                        "inspector": {
-                            "type": string;
-                        };
                         "type": number;
                     };
                 };
@@ -9658,7 +9657,6 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": {
                 "name": string;
                 "type": string;
-                "defines": never[];
             }[];
             "blocks": {
                 "name": string;
@@ -9677,7 +9675,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": never[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -9738,7 +9735,6 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": {
                 "name": string;
                 "type": string;
-                "defines": never[];
             }[];
             "blocks": never[];
             "samplers": {
@@ -9748,7 +9744,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": string[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -9763,9 +9758,6 @@ declare module "cocos/core/3d/builtin/effects" {
                     };
                     "albedo": {
                         "value": number[];
-                        "inspector": {
-                            "type": string;
-                        };
                         "type": number;
                     };
                     "albedoScale": {
@@ -9782,9 +9774,6 @@ declare module "cocos/core/3d/builtin/effects" {
                     };
                     "emissive": {
                         "value": number[];
-                        "inspector": {
-                            "type": string;
-                        };
                         "type": number;
                     };
                     "emissiveScale": {
@@ -9854,19 +9843,16 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": ({
                 "name": string;
                 "type": string;
-                "defines": never[];
-                "range": number[];
-                "options"?: undefined;
-            } | {
-                "name": string;
-                "type": string;
-                "defines": never[];
                 "range"?: undefined;
                 "options"?: undefined;
             } | {
                 "name": string;
                 "type": string;
-                "defines": string[];
+                "range": number[];
+                "options"?: undefined;
+            } | {
+                "name": string;
+                "type": string;
                 "options": string[];
                 "range"?: undefined;
             })[];
@@ -9887,7 +9873,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": string[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -9953,12 +9938,10 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": ({
                 "name": string;
                 "type": string;
-                "defines": never[];
                 "range"?: undefined;
             } | {
                 "name": string;
                 "type": string;
-                "defines": never[];
                 "range": number[];
             })[];
             "blocks": {
@@ -9978,7 +9961,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": never[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -9989,9 +9971,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "properties": {
                     "color": {
                         "value": number[];
-                        "inspector": {
-                            "type": string;
-                        };
                         "type": number;
                     };
                     "tilingOffset": {
@@ -10038,12 +10017,10 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": ({
                 "name": string;
                 "type": string;
-                "defines": never[];
                 "range": number[];
             } | {
                 "name": string;
                 "type": string;
-                "defines": string[];
                 "range"?: undefined;
             })[];
             "blocks": {
@@ -10063,7 +10040,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": string[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -10125,7 +10101,6 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": {
                 "name": string;
                 "type": string;
-                "defines": never[];
             }[];
             "blocks": {
                 "name": string;
@@ -10138,7 +10113,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 }[];
             }[];
             "samplers": never[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -10160,12 +10134,12 @@ declare module "cocos/core/3d/builtin/effects" {
                     "stencilTestFront": boolean;
                     "stencilFuncFront": number;
                     "stencilPassOpFront": number;
-                    "stencilWriteMaskBack": number;
-                    "stencilWriteMaskFront": number;
-                    "stencilReadMaskBack": number;
-                    "stencilReadMaskFront": number;
                     "stencilRefBack": number;
                     "stencilRefFront": number;
+                    "stencilReadMaskBack": number;
+                    "stencilReadMaskFront": number;
+                    "stencilWriteMaskBack": number;
+                    "stencilWriteMaskFront": number;
                 };
             }[];
         }[];
@@ -10202,17 +10176,14 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": ({
                 "name": string;
                 "type": string;
-                "defines": never[];
                 "range": number[];
             } | {
                 "name": string;
                 "type": string;
-                "defines": never[];
                 "range"?: undefined;
             })[];
             "blocks": never[];
             "samplers": never[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -10259,11 +10230,9 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": {
                 "name": string;
                 "type": string;
-                "defines": never[];
             }[];
             "blocks": never[];
             "samplers": never[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -10334,7 +10303,6 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": {
                 "name": string;
                 "type": string;
-                "defines": never[];
             }[];
             "blocks": never[];
             "samplers": {
@@ -10344,7 +10312,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": never[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -10395,7 +10362,6 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": {
                 "name": string;
                 "type": string;
-                "defines": never[];
             }[];
             "blocks": never[];
             "samplers": {
@@ -10405,7 +10371,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": never[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     } | {
         "name": string;
@@ -10462,7 +10427,6 @@ declare module "cocos/core/3d/builtin/effects" {
             "defines": {
                 "name": string;
                 "type": string;
-                "defines": never[];
             }[];
             "blocks": {
                 "name": string;
@@ -10481,7 +10445,6 @@ declare module "cocos/core/3d/builtin/effects" {
                 "defines": never[];
                 "binding": number;
             }[];
-            "dependencies": {};
         }[];
     })[];
     export default _default_3;
@@ -10709,7 +10672,6 @@ declare module "cocos/core/scene-graph/layers" {
             SCENE_GIZMO: number;
             UI_2D: number;
             PROFILER: number;
-            ALWAYS: number;
             DEFAULT: number;
             ALL: number;
         };
@@ -10722,7 +10684,6 @@ declare module "cocos/core/scene-graph/layers" {
             SCENE_GIZMO: number;
             UI_2D: number;
             PROFILER: number;
-            ALWAYS: number;
             DEFAULT: number;
             ALL: number;
         };
@@ -10745,8 +10706,7 @@ declare module "cocos/core/scene-graph/layers" {
          */
         static makeMaskExclude(excludes: number[]): number;
         /**
-         *  @zh
-         * 添加一个新层，用户可编辑 0 - 19 位为用户自定义层
+         * @zh 添加一个新层，用户可编辑 0 - 19 位为用户自定义层
          * @param name 层名字
          * @param bitNum 层序号
          */
@@ -11147,33 +11107,6 @@ declare module "cocos/core/3d/framework/renderable-component" {
         protected _onVisiblityChange(val: any): void;
     }
 }
-declare module "cocos/core/pipeline/batched-buffer" {
-    import { GFXBuffer } from "cocos/core/gfx/buffer";
-    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
-    import { GFXPipelineState } from "cocos/core/gfx/pipeline-state";
-    import { Pass } from "cocos/core/renderer/index";
-    import { SubModel } from "cocos/core/renderer/scene/submodel";
-    import { IRenderObject, UBOLocal } from "cocos/core/pipeline/define";
-    export interface IBatchedItem {
-        vbs: GFXBuffer[];
-        vbIdx: GFXBuffer;
-        vbCount: number;
-        mergeCount: number;
-        ia: GFXInputAssembler;
-        uboLocal: UBOLocal;
-    }
-    export class BatchedBuffer {
-        batches: IBatchedItem[];
-        pso: GFXPipelineState | null;
-        ubo: GFXBuffer;
-        pass: Pass;
-        private _limitCount;
-        constructor(pass: Pass);
-        destroy(): void;
-        merge(subModel: SubModel, ro: IRenderObject): void;
-        clear(): void;
-    }
-}
 declare module "cocos/core/renderer/scene/light" {
     import { Vec3 } from "cocos/core/math/index";
     import { INode } from "cocos/core/utils/interfaces";
@@ -11336,7 +11269,6 @@ declare module "cocos/core/renderer/core/program-lib" {
          *       { name: 'color', type: 'vec4', count: 1, size: 16 }], defines: [], size: 16 }
          *     ],
          *     samplers: [],
-         *     dependencies: { 'USE_NORMAL_TEXTURE': 'OES_standard_derivatives' },
          *   };
          *   programLib.define(program);
          * ```
@@ -11491,8 +11423,7 @@ declare module "cocos/core/pipeline/render-view" {
          */
         private _flows;
         /**
-         * @zh
-         * 构造函数。
+         * 构造函数。<br/>
          * @param root Root类实例。
          * @param camera 相机。
          */
@@ -12359,52 +12290,49 @@ declare module "cocos/core/platform/event-manager/event-listener" {
         node: INode;
     }
     /**
-     * @en
-     * <p>
+     * <p><br/>
      *     The base class of event listener.                                                                        <br/>
      *     If you need custom listener which with different callback, you need to inherit this class.               <br/>
      *     For instance, you could refer to EventListenerAcceleration, EventListenerKeyboard,                       <br/>
-     *      EventListenerTouchOneByOne, EventListenerCustom.
-     * </p>
-     *
-     * @zh
+     *      EventListenerTouchOneByOne, EventListenerCustom.<br/>
+     * </p><br/>
      * 封装用户的事件处理逻辑。<br/>
-     * 注意：这是一个抽象类，开发者不应该直接实例化这个类，请参考 [[cc.EventListener.create]] 。
+     * 注意：这是一个抽象类，开发者不应该直接实例化这个类，请参考 [[create]] 。
      */
     export class EventListener {
         readonly onEvent: ((...args: any[]) => any) | null;
         /**
-         * @en The type code of unknown event listener.
+         * @en The type code of unknown event listener.<br/>
          * @zh 未知的事件监听器类型
          */
         static UNKNOWN: number;
         /**
-         * @en The type code of one by one touch event listener.
+         * @en The type code of one by one touch event listener.<br/>
          * @zh 触摸事件监听器类型，触点会一个一个得分开被派发
          */
         static TOUCH_ONE_BY_ONE: number;
         /**
-         * @en The type code of all at once touch event listener.
+         * @en The type code of all at once touch event listener.<br/>
          * @zh 触摸事件监听器类型，触点会被一次性全部派发
          */
         static TOUCH_ALL_AT_ONCE: number;
         /**
-         * @en The type code of keyboard event listener.
+         * @en The type code of keyboard event listener.<br/>
          * @zh 键盘事件监听器类型
          */
         static KEYBOARD: number;
         /**
-         * @en The type code of mouse event listener.
+         * @en The type code of mouse event listener.<br/>
          * @zh 鼠标事件监听器类型
          */
         static MOUSE: number;
         /**
-         * @en The type code of acceleration event listener.
+         * @en The type code of acceleration event listener.<br/>
          * @zh 加速器事件监听器类型
          */
         static ACCELERATION: number;
         /**
-         * @en The type code of custom event listener.
+         * @en The type code of custom event listener.<br/>
          * @zh 自定义事件监听器类型
          */
         static CUSTOM: number;
@@ -12416,11 +12344,10 @@ declare module "cocos/core/platform/event-manager/event-listener" {
             ACCELERATION: string;
         };
         /**
-         * @en
-         * Create a EventListener object with configuration including the event type, handlers and other parameters.
-         * In handlers, this refer to the event listener object itself.
-         * You can also pass custom parameters in the configuration object,
-         * all custom parameters will be polyfilled into the event listener object and can be accessed in handlers.
+         * @en Create a EventListener object with configuration including the event type, handlers and other parameters.<br/>
+         * In handlers, this refer to the event listener object itself.<br/>
+         * You can also pass custom parameters in the configuration object,<br/>
+         * all custom parameters will be polyfilled into the event listener object and can be accessed in handlers.<br/>
          * @zh 通过指定不同的 Event 对象来设置想要创建的事件监听器。
          * @param {Object} argObj a json object
          */
@@ -12440,128 +12367,112 @@ declare module "cocos/core/platform/event-manager/event-listener" {
         constructor(type: number, listenerID: string, callback: ((...args: any[]) => any) | null);
         /**
          * @en
-         * <p>
-         *     Sets paused state for the listener
-         *     The paused state is only used for scene graph priority listeners.
-         *     `EventDispatcher::resumeAllEventListenersForTarget(node)` will set the paused state to `true`,
-         *     while `EventDispatcher::pauseAllEventListenersForTarget(node)` will set it to `false`.
-         *     @note 1) Fixed priority listeners will never get paused. If a fixed priority doesn't want to receive events,
-         *              call `setEnabled(false)` instead.
-         *            2) In `Node`'s onEnter and onExit, the `paused state` of the listeners
-         *              which associated with that node will be automatically updated.
-         * </p>
+         * <p><br/>
+         *     Sets paused state for the listener<br/>
+         *     The paused state is only used for scene graph priority listeners.<br/>
+         *     `EventDispatcher::resumeAllEventListenersForTarget(node)` will set the paused state to `true`,<br/>
+         *     while `EventDispatcher::pauseAllEventListenersForTarget(node)` will set it to `false`.<br/>
+         *     @note 1) Fixed priority listeners will never get paused. If a fixed priority doesn't want to receive events,<br/>
+         *              call `setEnabled(false)` instead.<br/>
+         *            2) In `Node`'s onEnter and onExit, the `paused state` of the listeners<br/>
+         *              which associated with that node will be automatically updated.<br/>
+         * </p><br/>
          * @zh
-         * *为侦听器设置暂停状态
-         * 暂停状态仅用于场景图优先级侦听器。
-         * `EventDispatcher :: resumeAllEventListenersForTarget（node）`将暂停状态设置为`true`，
-         * 而`EventDispatcher :: pauseAllEventListenersForTarget（node）`将它设置为`false`。
-         * 注意：
-         * - 固定优先级侦听器永远不会被暂停。 如果固定优先级不想接收事件，改为调用`setEnabled（false）`。
+         * *为侦听器设置暂停状态<br/>
+         * 暂停状态仅用于场景图优先级侦听器。<br/>
+         * `EventDispatcher :: resumeAllEventListenersForTarget（node）`将暂停状态设置为`true`，<br/>
+         * 而`EventDispatcher :: pauseAllEventListenersForTarget（node）`将它设置为`false`。<br/>
+         * 注意：<br/>
+         * - 固定优先级侦听器永远不会被暂停。 如果固定优先级不想接收事件，改为调用`setEnabled（false）`。<br/>
          * - 在“Node”的onEnter和onExit中，监听器的“暂停状态”与该节点关联的*将自动更新。
          */
         _setPaused(paused: boolean): void;
         /**
-         * @en
-         * Checks whether the listener is paused.
-         * @zh
-         * 检查侦听器是否已暂停。
+         * @en Checks whether the listener is paused.<br/>
+         * @zh 检查侦听器是否已暂停。
          */
         _isPaused(): boolean;
         /**
-         * @en
-         * Marks the listener was registered by EventDispatcher.
-         * @zh
-         * 标记监听器已由 EventDispatcher 注册。
+         * @en Marks the listener was registered by EventDispatcher.<br/>
+         * @zh 标记监听器已由 EventDispatcher 注册。
          */
         _setRegistered(registered: boolean): void;
         /**
-         * @en
-         * Checks whether the listener was registered by EventDispatcher
-         * @zh
-         * 检查监听器是否已由 EventDispatcher 注册。
+         * @en Checks whether the listener was registered by EventDispatcher<br/>
+         * @zh 检查监听器是否已由 EventDispatcher 注册。
          * @private
          */
         _isRegistered(): boolean;
         /**
-         * @en
-         * Gets the type of this listener
-         * note： It's different from `EventType`, e.g.
-         * TouchEvent has two kinds of event listeners - EventListenerOneByOne, EventListenerAllAtOnce
-         * @zh
-         * 获取此侦听器的类型
-         * 注意：它与`EventType`不同，例如
+         * @en Gets the type of this listener<br/>
+         * note： It's different from `EventType`, e.g.<br/>
+         * TouchEvent has two kinds of event listeners - EventListenerOneByOne, EventListenerAllAtOnce<br/>
+         * @zh 获取此侦听器的类型<br/>
+         * 注意：它与`EventType`不同，例如<br/>
          * TouchEvent 有两种事件监听器 -  EventListenerOneByOne，EventListenerAllAtOnce
          */
         _getType(): number;
         /**
-         * @en
-         * Gets the listener ID of this listener
-         * When event is being dispatched, listener ID is used as key for searching listeners according to event type.
-         * @zh
-         * 获取此侦听器的侦听器 ID。
+         * @en Gets the listener ID of this listener<br/>
+         * When event is being dispatched, listener ID is used as key for searching listeners according to event type.<br/>
+         * @zh 获取此侦听器的侦听器 ID。<br/>
          * 调度事件时，侦听器 ID 用作根据事件类型搜索侦听器的键。
          */
         _getListenerID(): string;
         /**
-         * @en
-         * Sets the fixed priority for this listener
-         * note: This method is only used for `fixed priority listeners`,
-         *   it needs to access a non-zero value. 0 is reserved for scene graph priority listeners
-         * @zh
-         * 设置此侦听器的固定优先级。
-         * 注意：此方法仅用于“固定优先级侦听器”，
+         * @en Sets the fixed priority for this listener<br/>
+         * note: This method is only used for `fixed priority listeners`,<br/>
+         *   it needs to access a non-zero value. 0 is reserved for scene graph priority listeners<br/>
+         * @zh 设置此侦听器的固定优先级。<br/>
+         * 注意：此方法仅用于“固定优先级侦听器”，<br/>
          * 它需要访问非零值。 0保留给场景图优先级侦听器。
          */
         _setFixedPriority(fixedPriority: number): void;
         /**
-         * @en
-         * Gets the fixed priority of this listener
-         * @zh
-         * 获取此侦听器的固定优先级。
+         * @en Gets the fixed priority of this listener<br/>
+         * @zh 获取此侦听器的固定优先级。
          * @return 如果它是场景图优先级侦听器则返回 0 ，则对于固定优先级侦听器则不为零
          */
         _getFixedPriority(): number;
         /**
-         * @en
-         * Sets scene graph priority for this listener
-         * @zh
-         * 设置此侦听器的场景图优先级。
+         * @en Sets scene graph priority for this listener<br/>
+         * @zh 设置此侦听器的场景图优先级。
          * @param {Node} node
          */
         _setSceneGraphPriority(node: any): void;
         /**
-         * @en
-         * Gets scene graph priority of this listener
-         * @zh
-         * 获取此侦听器的场景图优先级。
+         * @en Gets scene graph priority of this listener<br/>
+         * @zh 获取此侦听器的场景图优先级。
          * @return 如果它是固定优先级侦听器，则为场景图优先级侦听器非 null 。
          */
         _getSceneGraphPriority(): any;
         /**
-         * @en Checks whether the listener is available.
+         * @en Checks whether the listener is available.<br/>
          * @zh 检测监听器是否有效
          */
         checkAvailable(): boolean;
         /**
-         * @en Clones the listener, its subclasses have to override this method.
+         * @en Clones the listener, its subclasses have to override this method.<br/>
          * @zh 克隆监听器,它的子类必须重写此方法。
          */
         clone(): EventListener | null;
         /**
-         *  @en Enables or disables the listener
-         *  note: Only listeners with `enabled` state will be able to receive events.
-         *          When an listener was initialized, it's enabled by default.
-         *          An event listener can receive events when it is enabled and is not paused.
-         *          paused state is always false when it is a fixed priority listener.
-         *  @zh 启用或禁用监听器。
-         *  注意：只有处于“启用”状态的侦听器才能接收事件。
-         *  初始化侦听器时，默认情况下启用它。
-         *  事件侦听器可以在启用且未暂停时接收事件。
-         *  当固定优先级侦听器时，暂停状态始终为false。
+         * @en
+         * Enables or disables the listener<br/>
+         * note: Only listeners with `enabled` state will be able to receive events.<br/>
+         * When an listener was initialized, it's enabled by default.<br/>
+         * An event listener can receive events when it is enabled and is not paused.<br/>
+         * paused state is always false when it is a fixed priority listener.<br/>
+         * @zh
+         * 启用或禁用监听器。<br/>
+         * 注意：只有处于“启用”状态的侦听器才能接收事件。<br/>
+         * 初始化侦听器时，默认情况下启用它。<br/>
+         * 事件侦听器可以在启用且未暂停时接收事件。<br/>
+         * 当固定优先级侦听器时，暂停状态始终为false。<br/>
          */
         setEnabled(enabled: boolean): void;
         /**
-         * @en Checks whether the listener is enabled
+         * @en Checks whether the listener is enabled<br/>
          * @zh 检查监听器是否可用。
          */
         isEnabled(): boolean;
@@ -14470,31 +14381,6 @@ declare module "cocos/core/gfx/webgl/webgl-define" {
         COMPRESSED_SRGB8_ALPHA8_ETC2_EAC = 37497
     }
 }
-declare module "cocos/core/gfx/webgl/webgl-state-cache" {
-    import { IGFXRect, IGFXViewport } from "cocos/core/gfx/define";
-    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
-    export interface IWebGLTexUnit {
-        glTexture: WebGLTexture | null;
-    }
-    export class WebGLStateCache {
-        glArrayBuffer: WebGLBuffer | null;
-        glElementArrayBuffer: WebGLBuffer | null;
-        glVAO: WebGLVertexArrayObjectOES | null;
-        texUnit: number;
-        glTexUnits: IWebGLTexUnit[];
-        glRenderbuffer: WebGLRenderbuffer | null;
-        glFramebuffer: WebGLFramebuffer | null;
-        viewport: IGFXViewport;
-        scissorRect: IGFXRect;
-        rs: GFXRasterizerState;
-        dss: GFXDepthStencilState;
-        bs: GFXBlendState;
-        glProgram: WebGLProgram | null;
-        glEnabledAttribLocs: boolean[];
-        glCurrentAttribLocs: boolean[];
-        constructor();
-    }
-}
 declare module "cocos/core/gfx/webgl/webgl-commands" {
     import { CachedArray } from "cocos/core/memop/cached-array";
     import { GFXBufferSource, IGFXDrawInfo } from "cocos/core/gfx/buffer";
@@ -14660,6 +14546,31 @@ declare module "cocos/core/gfx/webgl/webgl-queue" {
         clear(): void;
     }
 }
+declare module "cocos/core/gfx/webgl/webgl-state-cache" {
+    import { IGFXRect, IGFXViewport } from "cocos/core/gfx/define";
+    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
+    export interface IWebGLTexUnit {
+        glTexture: WebGLTexture | null;
+    }
+    export class WebGLStateCache {
+        glArrayBuffer: WebGLBuffer | null;
+        glElementArrayBuffer: WebGLBuffer | null;
+        glVAO: WebGLVertexArrayObjectOES | null;
+        texUnit: number;
+        glTexUnits: IWebGLTexUnit[];
+        glRenderbuffer: WebGLRenderbuffer | null;
+        glFramebuffer: WebGLFramebuffer | null;
+        viewport: IGFXViewport;
+        scissorRect: IGFXRect;
+        rs: GFXRasterizerState;
+        dss: GFXDepthStencilState;
+        bs: GFXBlendState;
+        glProgram: WebGLProgram | null;
+        glEnabledAttribLocs: boolean[];
+        glCurrentAttribLocs: boolean[];
+        constructor();
+    }
+}
 declare module "cocos/core/gfx/webgl/webgl-window" {
     import { GFXDevice } from "cocos/core/gfx/device";
     import { GFXWindow, IGFXWindowInfo } from "cocos/core/gfx/window";
@@ -14779,6 +14690,703 @@ declare module "cocos/core/gfx/webgl/webgl-device" {
         private getExtension;
         private initStates;
     }
+}
+declare module "cocos/core/platform/visible-rect" {
+    import { Rect } from "cocos/core/math/index";
+    /**
+     * cc.visibleRect is a singleton object which defines the actual visible rect of the current view,
+     * it should represent the same rect as cc.view.getViewportRect()
+     */
+    const visibleRect: {
+        /**
+         * Top left coordinate of the screen related to the game scene.
+         */
+        topLeft: any;
+        /**
+         * Top right coordinate of the screen related to the game scene.
+         */
+        topRight: any;
+        /**
+         * Top center coordinate of the screen related to the game scene.
+         */
+        top: any;
+        /**
+         * Bottom left coordinate of the screen related to the game scene.
+         */
+        bottomLeft: any;
+        /**
+         * Bottom right coordinate of the screen related to the game scene.
+         */
+        bottomRight: any;
+        /**
+         * Bottom center coordinate of the screen related to the game scene.
+         */
+        bottom: any;
+        /**
+         * Center coordinate of the screen related to the game scene.
+         */
+        center: any;
+        /**
+         * Left center coordinate of the screen related to the game scene.
+         */
+        left: any;
+        /**
+         * Right center coordinate of the screen related to the game scene.
+         */
+        right: any;
+        /**
+         * Width of the screen.
+         */
+        width: number;
+        /**
+         * Height of the screen.
+         */
+        height: number;
+        /**
+         * initialize
+         */
+        init(visibleRect_: Rect): void;
+    };
+    export default visibleRect;
+}
+declare module "cocos/core/platform/view" {
+    import "cocos/core/data/class";
+    import { EventTarget } from "cocos/core/event/event-target";
+    import { Rect, Size } from "cocos/core/math/index";
+    import "cocos/core/game";
+    /**
+     * cc.view is the singleton object which represents the game window.<br/>
+     * It's main task include: <br/>
+     *  - Apply the design resolution policy<br/>
+     *  - Provide interaction with the window, like resize event on web, retina display support, etc...<br/>
+     *  - Manage the game view port which can be different with the window<br/>
+     *  - Manage the content scale and translation<br/>
+     * <br/>
+     * Since the cc.view is a singleton, you don't need to call any constructor or create functions,<br/>
+     * the standard way to use it is by calling:<br/>
+     *  - cc.view.methodName(); <br/>
+     *
+     * @class View
+     */
+    export class View extends EventTarget {
+        private _frameSize;
+        private _scaleX;
+        private _scaleY;
+        private _viewportRect;
+        private _visibleRect;
+        private _autoFullScreen;
+        private _devicePixelRatio;
+        private _retinaEnabled;
+        private _resizeCallback;
+        private _resizing;
+        private _orientationChanging;
+        private _isRotated;
+        private _orientation;
+        private _isAdjustViewport;
+        private _antiAliasEnabled;
+        private _resolutionPolicy;
+        private _rpExactFit;
+        private _rpShowAll;
+        private _rpNoBorder;
+        private _rpFixedHeight;
+        private _rpFixedWidth;
+        _resizeWithBrowserSize: boolean;
+        _designResolutionSize: Size;
+        _originalDesignResolutionSize: Size;
+        static instance: View;
+        constructor();
+        init(): void;
+        /**
+         * @en
+         * Sets view's target-densitydpi for android mobile browser. it can be set to:           <br/>
+         *   1. macro.DENSITYDPI_DEVICE, value is "device-dpi"                                      <br/>
+         *   2. macro.DENSITYDPI_HIGH, value is "high-dpi"  (default value)                         <br/>
+         *   3. macro.DENSITYDPI_MEDIUM, value is "medium-dpi" (browser's default value)            <br/>
+         *   4. macro.DENSITYDPI_LOW, value is "low-dpi"                                            <br/>
+         *   5. Custom value, e.g: "480"                                                         <br/>
+         * @zh 设置目标内容的每英寸像素点密度。
+         *
+         * @method setTargetDensityDPI
+         * @param {String} densityDPI
+         * @deprecated since v2.0
+         */
+        /**
+         * @en
+         * Returns the current target-densitydpi value of cc.view.
+         * @zh 获取目标内容的每英寸像素点密度。
+         * @method getTargetDensityDPI
+         * @returns {String}
+         * @deprecated since v2.0
+         */
+        /**
+         * @en
+         * Sets whether resize canvas automatically when browser's size changed.<br/>
+         * Useful only on web.
+         * @zh 设置当发现浏览器的尺寸改变时，是否自动调整 canvas 尺寸大小。
+         * 仅在 Web 模式下有效。
+         * @method resizeWithBrowserSize
+         * @param {Boolean} enabled - Whether enable automatic resize with browser's resize event
+         */
+        resizeWithBrowserSize(enabled: any): void;
+        /**
+         * @en
+         * Sets the callback function for cc.view's resize action,<br/>
+         * this callback will be invoked before applying resolution policy, <br/>
+         * so you can do any additional modifications within the callback.<br/>
+         * Useful only on web.
+         * @zh 设置 cc.view 调整视窗尺寸行为的回调函数，
+         * 这个回调函数会在应用适配模式之前被调用，
+         * 因此你可以在这个回调函数内添加任意附加改变，
+         * 仅在 Web 平台下有效。
+         * @method setResizeCallback
+         * @param {Function|Null} callback - The callback function
+         */
+        setResizeCallback(callback: any): void;
+        /**
+         * @en
+         * Sets the orientation of the game, it can be landscape, portrait or auto.
+         * When set it to landscape or portrait, and screen w/h ratio doesn't fit,
+         * cc.view will automatically rotate the game canvas using CSS.
+         * Note that this function doesn't have any effect in native,
+         * in native, you need to set the application orientation in native project settings
+         * @zh 设置游戏屏幕朝向，它能够是横版，竖版或自动。
+         * 当设置为横版或竖版，并且屏幕的宽高比例不匹配时，
+         * cc.view 会自动用 CSS 旋转游戏场景的 canvas，
+         * 这个方法不会对 native 部分产生任何影响，对于 native 而言，你需要在应用设置中的设置排版。
+         * @method setOrientation
+         * @param {Number} orientation - Possible values: macro.ORIENTATION_LANDSCAPE | macro.ORIENTATION_PORTRAIT | macro.ORIENTATION_AUTO
+         */
+        setOrientation(orientation: any): void;
+        /**
+         * @en
+         * Sets whether the engine modify the "viewport" meta in your web page.<br/>
+         * It's enabled by default, we strongly suggest you not to disable it.<br/>
+         * And even when it's enabled, you can still set your own "viewport" meta, it won't be overridden<br/>
+         * Only useful on web
+         * @zh 设置引擎是否调整 viewport meta 来配合屏幕适配。
+         * 默认设置为启动，我们强烈建议你不要将它设置为关闭。
+         * 即使当它启动时，你仍然能够设置你的 viewport meta，它不会被覆盖。
+         * 仅在 Web 模式下有效
+         * @method adjustViewportMeta
+         * @param {Boolean} enabled - Enable automatic modification to "viewport" meta
+         */
+        adjustViewportMeta(enabled: any): void;
+        /**
+         * @en
+         * Retina support is enabled by default for Apple device but disabled for other devices,<br/>
+         * it takes effect only when you called setDesignResolutionPolicy<br/>
+         * Only useful on web
+         * @zh 对于 Apple 这种支持 Retina 显示的设备上默认进行优化而其他类型设备默认不进行优化，
+         * 它仅会在你调用 setDesignResolutionPolicy 方法时有影响。
+         * 仅在 Web 模式下有效。
+         * @method enableRetina
+         * @param {Boolean} enabled - Enable or disable retina display
+         */
+        enableRetina(enabled: any): void;
+        /**
+         * @en
+         * Check whether retina display is enabled.<br/>
+         * Only useful on web
+         * @zh 检查是否对 Retina 显示设备进行优化。
+         * 仅在 Web 模式下有效。
+         * @method isRetinaEnabled
+         * @return {Boolean}
+         */
+        isRetinaEnabled(): boolean;
+        /**
+         * @en Whether to Enable on anti-alias
+         * @zh 控制抗锯齿是否开启
+         * @method enableAntiAlias
+         * @param {Boolean} enabled - Enable or not anti-alias
+         */
+        enableAntiAlias(enabled: any): void;
+        /**
+         * @en Returns whether the current enable on anti-alias
+         * @zh 返回当前是否抗锯齿
+         * @method isAntiAliasEnabled
+         * @return {Boolean}
+         */
+        isAntiAliasEnabled(): boolean;
+        /**
+         * @en
+         * If enabled, the application will try automatically to enter full screen mode on mobile devices<br/>
+         * You can pass true as parameter to enable it and disable it by passing false.<br/>
+         * Only useful on web
+         * @zh 启动时，移动端游戏会在移动端自动尝试进入全屏模式。
+         * 你能够传入 true 为参数去启动它，用 false 参数来关闭它。
+         * @method enableAutoFullScreen
+         * @param {Boolean} enabled - Enable or disable auto full screen on mobile devices
+         */
+        enableAutoFullScreen(enabled: any): void;
+        /**
+         * @en
+         * Check whether auto full screen is enabled.<br/>
+         * Only useful on web
+         * @zh 检查自动进入全屏模式是否启动。
+         * 仅在 Web 模式下有效。
+         * @method isAutoFullScreenEnabled
+         * @return {Boolean} Auto full screen enabled or not
+         */
+        isAutoFullScreenEnabled(): boolean;
+        setCanvasSize(width: any, height: any): void;
+        /**
+         * @en
+         * Returns the canvas size of the view.<br/>
+         * On native platforms, it returns the screen size since the view is a fullscreen view.<br/>
+         * On web, it returns the size of the canvas element.
+         * @zh 返回视图中 canvas 的尺寸。
+         * 在 native 平台下，它返回全屏视图下屏幕的尺寸。
+         * 在 Web 平台下，它返回 canvas 元素尺寸。
+         * @method getCanvasSize
+         * @return {Size}
+         */
+        getCanvasSize(): any;
+        /**
+         * @en
+         * Returns the frame size of the view.<br/>
+         * On native platforms, it returns the screen size since the view is a fullscreen view.<br/>
+         * On web, it returns the size of the canvas's outer DOM element.
+         * @zh 返回视图中边框尺寸。
+         * 在 native 平台下，它返回全屏视图下屏幕的尺寸。
+         * 在 web 平台下，它返回 canvas 元素的外层 DOM 元素尺寸。
+         * @method getFrameSize
+         * @return {Size}
+         */
+        getFrameSize(): any;
+        /**
+         * @en
+         * On native, it sets the frame size of view.<br/>
+         * On web, it sets the size of the canvas's outer DOM element.
+         * @zh 在 native 平台下，设置视图框架尺寸。
+         * 在 web 平台下，设置 canvas 外层 DOM 元素尺寸。
+         * @method setFrameSize
+         * @param {Number} width
+         * @param {Number} height
+         */
+        setFrameSize(width: any, height: any): void;
+        /**
+         * @en
+         * Returns the visible area size of the view port.
+         * @zh 返回视图窗口可见区域尺寸。
+         * @method getVisibleSize
+         * @return {Size}
+         */
+        getVisibleSize(): any;
+        /**
+         * @en
+         * Returns the visible area size of the view port.
+         * @zh 返回视图窗口可见区域像素尺寸。
+         * @method getVisibleSizeInPixel
+         * @return {Size}
+         */
+        getVisibleSizeInPixel(): any;
+        /**
+         * @en
+         * Returns the visible origin of the view port.
+         * @zh 返回视图窗口可见区域原点。
+         * @method getVisibleOrigin
+         * @return {Vec2}
+         */
+        getVisibleOrigin(): any;
+        /**
+         * @en
+         * Returns the visible origin of the view port.
+         * @zh 返回视图窗口可见区域像素原点。
+         * @method getVisibleOriginInPixel
+         * @return {Vec2}
+         */
+        getVisibleOriginInPixel(): any;
+        /**
+         * @en
+         * Returns the current resolution policy
+         * @zh 返回当前分辨率方案
+         * @see ResolutionPolicy
+         * @method getResolutionPolicy
+         * @return {ResolutionPolicy}
+         */
+        getResolutionPolicy(): any;
+        /**
+         * @en
+         * Sets the current resolution policy
+         * @zh 设置当前分辨率模式
+         * @see ResolutionPolicy
+         * @method setResolutionPolicy
+         * @param {ResolutionPolicy|Number} resolutionPolicy
+         */
+        setResolutionPolicy(resolutionPolicy: any): void;
+        /**
+         * @en
+         * Sets the resolution policy with designed view size in points.<br/>
+         * The resolution policy include: <br/>
+         * [1] ResolutionExactFit       Fill screen by stretch-to-fit: if the design resolution ratio of width to height is different from the screen resolution ratio, your game view will be stretched.<br/>
+         * [2] ResolutionNoBorder       Full screen without black border: if the design resolution ratio of width to height is different from the screen resolution ratio, two areas of your game view will be cut.<br/>
+         * [3] ResolutionShowAll        Full screen with black border: if the design resolution ratio of width to height is different from the screen resolution ratio, two black borders will be shown.<br/>
+         * [4] ResolutionFixedHeight    Scale the content's height to screen's height and proportionally scale its width<br/>
+         * [5] ResolutionFixedWidth     Scale the content's width to screen's width and proportionally scale its height<br/>
+         * [ResolutionPolicy]        [Web only feature] Custom resolution policy, constructed by ResolutionPolicy<br/>
+         * @zh 通过设置设计分辨率和匹配模式来进行游戏画面的屏幕适配。
+         * @method setDesignResolutionSize
+         * @param {Number} width Design resolution width.
+         * @param {Number} height Design resolution height.
+         * @param {ResolutionPolicy|Number} resolutionPolicy The resolution policy desired
+         */
+        setDesignResolutionSize(width: any, height: any, resolutionPolicy: any): void;
+        /**
+         * @en
+         * Returns the designed size for the view.
+         * Default resolution size is the same as 'getFrameSize'.
+         * @zh 返回视图的设计分辨率。
+         * 默认下分辨率尺寸同 `getFrameSize` 方法相同
+         * @method getDesignResolutionSize
+         * @return {Size}
+         */
+        getDesignResolutionSize(): any;
+        /**
+         * @en
+         * Sets the container to desired pixel resolution and fit the game content to it.
+         * This function is very useful for adaptation in mobile browsers.
+         * In some HD android devices, the resolution is very high, but its browser performance may not be very good.
+         * In this case, enabling retina display is very costy and not suggested, and if retina is disabled, the image may be blurry.
+         * But this API can be helpful to set a desired pixel resolution which is in between.
+         * This API will do the following:
+         *     1. Set viewport's width to the desired width in pixel
+         *     2. Set body width to the exact pixel resolution
+         *     3. The resolution policy will be reset with designed view size in points.
+         * @zh 设置容器（container）需要的像素分辨率并且适配相应分辨率的游戏内容。
+         * @method setRealPixelResolution
+         * @param {Number} width Design resolution width.
+         * @param {Number} height Design resolution height.
+         * @param {ResolutionPolicy|Number} resolutionPolicy The resolution policy desired
+         */
+        setRealPixelResolution(width: any, height: any, resolutionPolicy: any): void;
+        /**
+         * @en
+         * Sets view port rectangle with points.
+         * @zh 用设计分辨率下的点尺寸来设置视窗。
+         * @method setViewportInPoints
+         * @deprecated since v2.0
+         * @param {Number} x
+         * @param {Number} y
+         * @param {Number} w width
+         * @param {Number} h height
+         */
+        setViewportInPoints(x: any, y: any, w: any, h: any): void;
+        /**
+         * @en
+         * Sets Scissor rectangle with points.
+         * @zh 用设计分辨率下的点的尺寸来设置 scissor 剪裁区域。
+         * @method setScissorInPoints
+         * @deprecated since v2.0
+         * @param {Number} x
+         * @param {Number} y
+         * @param {Number} w
+         * @param {Number} h
+         */
+        setScissorInPoints(x: any, y: any, w: any, h: any): void;
+        /**
+         * @en
+         * Returns whether GL_SCISSOR_TEST is enable
+         * @zh 检查 scissor 是否生效。
+         * @method isScissorEnabled
+         * @deprecated since v2.0
+         * @return {Boolean}
+         */
+        isScissorEnabled(): any;
+        /**
+         * @en
+         * Returns the current scissor rectangle
+         * @zh 返回当前的 scissor 剪裁区域。
+         * @method getScissorRect
+         * @deprecated since v2.0
+         * @return {Rect}
+         */
+        getScissorRect(): Rect;
+        /**
+         * @en
+         * Returns the view port rectangle.
+         * @zh 返回视窗剪裁区域。
+         * @method getViewportRect
+         * @return {Rect}
+         */
+        getViewportRect(): Rect;
+        /**
+         * @en
+         * Returns scale factor of the horizontal direction (X axis).
+         * @zh 返回横轴的缩放比，这个缩放比是将画布像素分辨率放到设计分辨率的比例。
+         * @method getScaleX
+         * @return {Number}
+         */
+        getScaleX(): number;
+        /**
+         * @en
+         * Returns scale factor of the vertical direction (Y axis).
+         * @zh 返回纵轴的缩放比，这个缩放比是将画布像素分辨率缩放到设计分辨率的比例。
+         * @method getScaleY
+         * @return {Number}
+         */
+        getScaleY(): number;
+        /**
+         * @en
+         * Returns device pixel ratio for retina display.
+         * @zh 返回设备或浏览器像素比例。
+         * @method getDevicePixelRatio
+         * @return {Number}
+         */
+        getDevicePixelRatio(): number;
+        /**
+         * @en
+         * Returns the real location in view for a translation based on a related position
+         * @zh 将屏幕坐标转换为游戏视图下的坐标。
+         * @method convertToLocationInView
+         * @param {Number} tx - The X axis translation
+         * @param {Number} ty - The Y axis translation
+         * @param {Object} relatedPos - The related position object including "left", "top", "width", "height" informations
+         * @return {Vec2}
+         */
+        convertToLocationInView(tx: any, ty: any, relatedPos: any, out: any): any;
+        private _resizeEvent;
+        private _orientationChange;
+        private _initFrameSize;
+        private _adjustSizeKeepCanvasSize;
+        private _setViewportMeta;
+        private _adjustViewportMeta;
+        private _convertMouseToLocation;
+        _convertPointWithScale(point: any): void;
+        private _convertTouchWidthScale;
+        private _convertTouchesWithScale;
+    }
+    /**
+     * !en
+     * Emit when design resolution changed.
+     * !zh
+     * 当设计分辨率改变时发送。
+     * @event design-resolution-changed
+     * <p>cc.game.containerStrategy class is the root strategy class of container's scale strategy,
+     * it controls the behavior of how to scale the cc.game.container and cc.game.canvas object</p>
+     *
+     * @class ContainerStrategy
+     */
+    class ContainerStrategy {
+        static EQUAL_TO_FRAME: any;
+        static PROPORTION_TO_FRAME: any;
+        name: string;
+        /**
+         * @en
+         * Manipulation before appling the strategy
+         * @zh 在应用策略之前的操作
+         * @method preApply
+         * @param {View} view - The target view
+         */
+        preApply(view: any): void;
+        /**
+         * @en
+         * Function to apply this strategy
+         * @zh 策略应用方法
+         * @method apply
+         * @param {View} view
+         * @param {Size} designedResolution
+         */
+        apply(view: any, designedResolution: any): void;
+        /**
+         * @en
+         * Manipulation after applying the strategy
+         * @zh 策略调用之后的操作
+         * @method postApply
+         * @param {View} view  The target view
+         */
+        postApply(view: any): void;
+        protected _setupContainer(view: any, w: any, h: any): void;
+        protected _fixContainer(): void;
+    }
+    /**
+     * <p>ContentStrategy class is the root strategy class of content's scale strategy,
+     * it controls the behavior of how to scale the scene and setup the viewport for the game</p>
+     *
+     * @class ContentStrategy
+     */
+    class ContentStrategy {
+        static EXACT_FIT: any;
+        static SHOW_ALL: any;
+        static NO_BORDER: any;
+        static FIXED_HEIGHT: any;
+        static FIXED_WIDTH: any;
+        name: string;
+        private _result;
+        constructor();
+        /**
+         * @en
+         * Manipulation before applying the strategy
+         * @zh 策略应用前的操作
+         * @method preApply
+         * @param {View} view - The target view
+         */
+        preApply(view: any): void;
+        /**
+         * @en Function to apply this strategy
+         * The return value is {scale: [scaleX, scaleY], viewport: {new Rect}},
+         * The target view can then apply these value to itself, it's preferred not to modify directly its private variables
+         * @zh 调用策略方法
+         * @method apply
+         * @param {View} view
+         * @param {Size} designedResolution
+         * @return {Object} scaleAndViewportRect
+         */
+        apply(view: any, designedResolution: any): {
+            scale: number[];
+        };
+        /**
+         * @en
+         * Manipulation after applying the strategy
+         * @zh 策略调用之后的操作
+         * @method postApply
+         * @param {View} view - The target view
+         */
+        postApply(view: any): void;
+        _buildResult(containerW: any, containerH: any, contentW: any, contentH: any, scaleX: any, scaleY: any): {
+            scale: number[];
+            viewport: Rect | null;
+        };
+    }
+    /**
+     * <p>ResolutionPolicy class is the root strategy class of scale strategy,
+     * its main task is to maintain the compatibility with Cocos2d-x</p>
+     *
+     * @class ResolutionPolicy
+     */
+    /**
+     * @method constructor
+     * @param {ContainerStrategy} containerStg The container strategy
+     * @param {ContentStrategy} contentStg The content strategy
+     */
+    export class ResolutionPolicy {
+        static EXACT_FIT: number;
+        static SHOW_ALL: number;
+        static NO_BORDER: number;
+        static FIXED_HEIGHT: number;
+        static FIXED_WIDTH: number;
+        static UNKNOWN: number;
+        static ContainerStrategy: typeof ContainerStrategy;
+        static ContentStrategy: typeof ContentStrategy;
+        name: string;
+        private _containerStrategy;
+        private _contentStrategy;
+        /**
+         * Constructor of ResolutionPolicy
+         * @param {ContainerStrategy} containerStg
+         * @param {ContentStrategy} contentStg
+         */
+        constructor(containerStg: any, contentStg: any);
+        readonly canvasSize: any;
+        /**
+         * @en Manipulation before applying the resolution policy
+         * @zh 策略应用前的操作
+         * @method preApply
+         * @param {View} view The target view
+         */
+        preApply(view: any): void;
+        /**
+         * @en Function to apply this resolution policy
+         * The return value is {scale: [scaleX, scaleY], viewport: {new Rect}},
+         * The target view can then apply these value to itself, it's preferred not to modify directly its private variables
+         * @zh 调用策略方法
+         * @method apply
+         * @param {View} view - The target view
+         * @param {Size} designedResolution - The user defined design resolution
+         * @return {Object} An object contains the scale X/Y values and the viewport rect
+         */
+        apply(view: any, designedResolution: any): {
+            scale: number[];
+        };
+        /**
+         * @en Manipulation after appyling the strategy
+         * @zh 策略应用之后的操作
+         * @method postApply
+         * @param {View} view - The target view
+         */
+        postApply(view: any): void;
+        /**
+         * @en
+         * Setup the container's scale strategy
+         * @zh 设置容器的适配策略
+         * @method setContainerStrategy
+         * @param {ContainerStrategy} containerStg
+         */
+        setContainerStrategy(containerStg: any): void;
+        /**
+         * @en
+         * Setup the content's scale strategy
+         * @zh 设置内容的适配策略
+         * @method setContentStrategy
+         * @param {ContentStrategy} contentStg
+         */
+        setContentStrategy(contentStg: any): void;
+    }
+    /**
+     * @module cc
+     */
+    /**
+     * @en cc.view is the shared view object.
+     * @zh cc.view 是全局的视图对象。
+     * @property view
+     * @static
+     * @type {View}
+     */
+    export const view: View;
+}
+declare module "cocos/core/platform/screen" {
+    /**
+     * The fullscreen API provides an easy way for web content to be presented using the user's entire screen.
+     * It's invalid on safari, QQbrowser and android browser
+     * @class screen
+     */
+    const screen: {
+        _supportsFullScreen: boolean;
+        _preOnFullScreenChange: any;
+        _touchEvent: string;
+        _fn: any;
+        _fnMap: string[][];
+        /**
+         * initialize
+         * @method init
+         */
+        init(): void;
+        /**
+         * return true if it's full now.
+         * @method fullScreen
+         * @returns {Boolean}
+         */
+        fullScreen(): boolean;
+        /**
+         * change the screen to full mode.
+         * @method requestFullScreen
+         * @param {Element} element
+         * @param {Function} onFullScreenChange
+         */
+        requestFullScreen(element: any, onFullScreenChange: any): any;
+        /**
+         * exit the full mode.
+         * @method exitFullScreen
+         * @return {Boolean}
+         */
+        exitFullScreen(): any;
+        /**
+         * Automatically request full screen with a touch/click event
+         * @method autoFullScreen
+         * @param {Element} element
+         * @param {Function} onFullScreenChange
+         */
+        autoFullScreen(element: any, onFullScreenChange: any): void;
+    };
+    export { screen };
+}
+declare module "cocos/core/platform/index" {
+    export * from "cocos/core/platform/sys";
+    export * from "cocos/core/platform/macro";
+    export * from "cocos/core/platform/visible-rect";
+    export * from "cocos/core/platform/view";
+    export * from "cocos/core/platform/event-manager/index";
+    export { log, error, warn, assert, logID, errorID, warnID, assertID, isDisplayStats, setDisplayStats, } from "cocos/core/platform/debug";
+    export { screen } from "cocos/core/platform/screen";
 }
 declare module "cocos/core/gfx/webgl2/webgl2-command-allocator" {
     import { CachedArray } from "cocos/core/memop/cached-array";
@@ -15169,35 +15777,6 @@ declare module "cocos/core/gfx/webgl2/webgl2-command-buffer" {
         private bindStates;
     }
 }
-declare module "cocos/core/gfx/webgl2/webgl2-state-cache" {
-    import { IGFXRect, IGFXViewport } from "cocos/core/gfx/define";
-    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
-    export interface IWebGL2TexUnit {
-        glTexture: WebGLTexture | null;
-    }
-    export class WebGL2StateCache {
-        glArrayBuffer: WebGLBuffer | null;
-        glElementArrayBuffer: WebGLBuffer | null;
-        glUniformBuffer: WebGLBuffer | null;
-        glBindUBOs: Array<WebGLBuffer | null>;
-        glVAO: WebGLVertexArrayObject | null;
-        texUnit: number;
-        glTexUnits: IWebGL2TexUnit[];
-        glSamplerUnits: Array<WebGLSampler | null>;
-        glRenderbuffer: WebGLRenderbuffer | null;
-        glFramebuffer: WebGLFramebuffer | null;
-        glReadFramebuffer: WebGLFramebuffer | null;
-        viewport: IGFXViewport;
-        scissorRect: IGFXRect;
-        rs: GFXRasterizerState;
-        dss: GFXDepthStencilState;
-        bs: GFXBlendState;
-        glProgram: WebGLProgram | null;
-        glEnabledAttribLocs: boolean[];
-        glCurrentAttribLocs: boolean[];
-        constructor();
-    }
-}
 declare module "cocos/core/gfx/webgl2/webgl2-commands" {
     import { CachedArray } from "cocos/core/memop/cached-array";
     import { GFXBufferSource, IGFXDrawInfo } from "cocos/core/gfx/buffer";
@@ -15365,6 +15944,35 @@ declare module "cocos/core/gfx/webgl2/webgl2-queue" {
         clear(): void;
     }
 }
+declare module "cocos/core/gfx/webgl2/webgl2-state-cache" {
+    import { IGFXRect, IGFXViewport } from "cocos/core/gfx/define";
+    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
+    export interface IWebGL2TexUnit {
+        glTexture: WebGLTexture | null;
+    }
+    export class WebGL2StateCache {
+        glArrayBuffer: WebGLBuffer | null;
+        glElementArrayBuffer: WebGLBuffer | null;
+        glUniformBuffer: WebGLBuffer | null;
+        glBindUBOs: Array<WebGLBuffer | null>;
+        glVAO: WebGLVertexArrayObject | null;
+        texUnit: number;
+        glTexUnits: IWebGL2TexUnit[];
+        glSamplerUnits: Array<WebGLSampler | null>;
+        glRenderbuffer: WebGLRenderbuffer | null;
+        glFramebuffer: WebGLFramebuffer | null;
+        glReadFramebuffer: WebGLFramebuffer | null;
+        viewport: IGFXViewport;
+        scissorRect: IGFXRect;
+        rs: GFXRasterizerState;
+        dss: GFXDepthStencilState;
+        bs: GFXBlendState;
+        glProgram: WebGLProgram | null;
+        glEnabledAttribLocs: boolean[];
+        glCurrentAttribLocs: boolean[];
+        constructor();
+    }
+}
 declare module "cocos/core/gfx/webgl2/webgl2-window" {
     import { GFXDevice } from "cocos/core/gfx/device";
     import { GFXWindow, IGFXWindowInfo } from "cocos/core/gfx/window";
@@ -15509,6 +16117,9 @@ declare module "cocos/core/animation/easing" {
     export const bounceOutIn: (k: number) => number;
 }
 declare module "cocos/core/splash-image" {
+    /**
+     * @hidden
+     */
     import { GFXDevice } from "cocos/core/gfx/device";
     export type SplashEffectType = "none" | "Fade-in-out";
     export interface SplashSetting {
@@ -16036,6 +16647,26 @@ declare module "cocos/core/platform/event-manager/system-event" {
     import { EventAcceleration, EventKeyboard, EventMouse, EventTouch } from "cocos/core/platform/event-manager/events";
     import { SystemEventType } from "cocos/core/platform/event-manager/event-enum";
     import { Touch } from "cocos/core/platform/event-manager/touch";
+    /**
+    * @en
+    * The System event, it currently supports keyboard events and accelerometer events.<br/>
+    * You can get the SystemEvent instance with cc.systemEvent.<br/>
+    * @example
+    * ```
+    * cc.systemEvent.on(cc.SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
+    * cc.systemEvent.off(cc.SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
+    * ```
+    * @zh
+    * 系统事件，它目前支持按键事件和重力感应事件。<br/>
+    * 你可以通过 cc.systemEvent 获取到 SystemEvent 的实例。<br/>
+    * @example
+    * ```
+    * cc.systemEvent.on(cc.SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
+    * cc.systemEvent.off(cc.SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
+    * ```
+    * @class SystemEvent
+    * @extends EventTarget
+    */
     export class SystemEvent extends EventTarget {
         static EventType: typeof SystemEventType;
         constructor();
@@ -16137,7 +16768,7 @@ declare module "cocos/core/scene-graph/node-event-processor" {
          * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：<br/>
          * 1. 捕获阶段：派发事件给捕获目标（通过 `getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。<br/>
          * 2. 目标阶段：派发给目标节点的监听器。<br/>
-         * 3. 冒泡阶段：派发事件给冒泡目标（通过 `getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发知道根节点。<br/>
+         * 3. 冒泡阶段：派发事件给冒泡目标（通过 `getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发直到根节点。<br/>
          * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。<br/>
          * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 cc.eventManager。<br/>
          * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器。<br/>
@@ -16562,12 +17193,15 @@ declare module "cocos/core/scene-graph/base-node" {
      */
     export class BaseNode extends CCObject implements IBaseNode, ISchedulable {
         /**
-         * Gets all components attached to this node.
+         * @en Gets all components attached to this node.
+         * @zh 获取附加到此节点的所有组件。
          */
         readonly components: ReadonlyArray<Component>;
         /**
-         * If true, the node is an persist node which won't be destroyed during scene transition.
+         * @en If true, the node is an persist node which won't be destroyed during scene transition.<br/>
          * If false, the node will be destroyed automatically when loading a new scene. Default is false.
+         * @zh 如果为true，则该节点是一个常驻节点，不会在场景转换期间被销毁。<br/>
+         * 如果为false，节点将在加载新场景时自动销毁。默认为false。
          * @property _persistNode
          * @type {Boolean}
          * @default false
@@ -16617,12 +17251,12 @@ declare module "cocos/core/scene-graph/base-node" {
          * @en
          * The local active state of this node.<br/>
          * Note that a Node may be inactive because a parent is not active, even if this returns true.<br/>
-         * Use {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}
+         * Use [[activeInHierarchy]]
          * if you want to check if the Node is actually treated as active in the scene.
          * @zh
          * 当前节点的自身激活状态。<br/>
          * 值得注意的是，一个节点的父节点如果不被激活，那么即使它自身设为激活，它仍然无法激活。<br/>
-         * 如果你想检查节点在场景中实际的激活状态可以使用 {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}。
+         * 如果你想检查节点在场景中实际的激活状态可以使用 [[activeInHierarchy]]
          * @property active
          * @type {Boolean}
          * @default true
@@ -16640,6 +17274,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * @example
          * ```
          * cc.log("activeInHierarchy: " + node.activeInHierarchy);
+         * ```
          */
         readonly activeInHierarchy: boolean;
         parent: this | null;
@@ -16764,7 +17399,9 @@ declare module "cocos/core/scene-graph/base-node" {
          * @zh
          * 插入子节点到指定位置
          * @param child - the child node to be inserted
+         * 要插入的子节点
          * @param siblingIndex - the sibling index to place the child in
+         * 用于放置子节点的同级索引
          * @example
          * ```
          * node.insertChild(child, 2);
@@ -16831,6 +17468,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * @zh
          * 移除节点中指定的子节点。
          * @param child - The child node which will be removed.
+         * 将被移除的子节点
          * @example
          * ```
          * node.removeChild(newNode);
@@ -16852,6 +17490,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * @en Is this node a child of the given node?
          * @zh 是否是指定节点的子节点？
          * @return True if this node is a child, deep child or identical to the given node.
+         * @return 如果此节点是子节点、深度子节点或与给定节点相同，则为True。
          * @example
          * ```
          * node.isChildOf(newNode);
@@ -16966,6 +17605,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
          * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
          * @deprecated please destroy the component to remove it.
+         * 请销毁组件以移除它。
          * @example
          * ```
          * node.removeComponent(cc.SpriteComponent);
@@ -17026,7 +17666,7 @@ declare module "cocos/core/scene-graph/private-node" {
     import { Node } from "cocos/core/scene-graph/node";
     /**
      * @en
-     * Class of private entities in Cocos Creator scenes.<br/>
+     * Class of private entities in Cocos Creator 3d scenes.<br/>
      * The PrivateNode is hidden in editor, and completely transparent to users.<br/>
      * It's normally used as Node's private content created by components in parent node.<br/>
      * So in theory private nodes are not children, they are part of the parent node.<br/>
@@ -17036,7 +17676,7 @@ declare module "cocos/core/scene-graph/private-node" {
      *    In this way, they can be easily kept inside the bounding box.<br/>
      * Currently, it's used by RichText component and TileMap component.
      * @zh
-     * Cocos Creator 场景中的私有节点类。<br/>
+     * Cocos Creator 3d场景中的私有节点类。<br/>
      * 私有节点在编辑器中不可见，对用户透明。<br/>
      * 通常私有节点是被一些特殊的组件创建出来作为父节点的一部分而存在的，理论上来说，它们不是子节点，而是父节点的组成部分。<br/>
      * 私有节点有两个非常重要的特性：<br/>
@@ -17106,7 +17746,8 @@ declare module "cocos/core/scene-graph/component-scheduler" {
 }
 declare module "cocos/core/scene-graph/node-activator" {
     /**
-     * The class used to perform activating and deactivating operations of node and component.
+     * @en The class used to perform activating and deactivating operations of node and component.
+     * @zh 用于执行节点和组件的激活和停用操作的类。
      */
     export default class NodeActivator {
         resetComp: any;
@@ -17843,14 +18484,14 @@ declare module "cocos/core/pipeline/render-queue" {
      * @en
      * Comparison sorting function. Opaque objects are sorted by depth priority -> depth front to back -> shader id.
      * @zh
-     * 比较排序函数。不透对象按优先级 -> 深度由前向后 -> ShaderId 顺序排序。
+     * 比较排序函数。不透明对象按优先级 -> 深度由前向后 -> ShaderId 顺序排序。
      */
     export function opaqueCompareFn(a: IRenderPass, b: IRenderPass): number;
     /**
      * @en
      * Comparison sorting function. Transparent objects are sorted by pass priority -> depth back to front -> shader id.
      * @zh
-     * 比较排序函数。半透对象按优先级 -> 深度由后向前 -> ShaderId 顺序排序。
+     * 比较排序函数。半透明对象按优先级 -> 深度由后向前 -> ShaderId 顺序排序。
      */
     export function transparentCompareFn(a: IRenderPass, b: IRenderPass): number;
     /**
@@ -17951,6 +18592,33 @@ declare module "cocos/core/pipeline/pipeline-funcs" {
      * @param linear 线性空间下的颜色值。
      */
     export function LinearToSRGB(linear: IGFXColor): IGFXColor;
+}
+declare module "cocos/core/pipeline/batched-buffer" {
+    import { GFXBuffer } from "cocos/core/gfx/buffer";
+    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
+    import { GFXPipelineState } from "cocos/core/gfx/pipeline-state";
+    import { Pass } from "cocos/core/renderer/index";
+    import { SubModel } from "cocos/core/renderer/scene/submodel";
+    import { IRenderObject, UBOLocal } from "cocos/core/pipeline/define";
+    export interface IBatchedItem {
+        vbs: GFXBuffer[];
+        vbIdx: GFXBuffer;
+        vbCount: number;
+        mergeCount: number;
+        ia: GFXInputAssembler;
+        uboLocal: UBOLocal;
+    }
+    export class BatchedBuffer {
+        batches: IBatchedItem[];
+        pso: GFXPipelineState | null;
+        ubo: GFXBuffer;
+        pass: Pass;
+        private _limitCount;
+        constructor(pass: Pass);
+        destroy(): void;
+        merge(subModel: SubModel, ro: IRenderObject): void;
+        clear(): void;
+    }
 }
 declare module "cocos/core/pipeline/render-batched-queue" {
     /**
@@ -18620,8 +19288,9 @@ declare module "cocos/core/assets/effect-asset" {
     import { Asset } from "cocos/core/assets/asset";
     export interface IPropertyInfo {
         type: number;
-        value?: number[] | string;
+        handleInfo?: [string, number, number];
         samplerHash?: number;
+        value?: number[] | string;
     }
     export interface IPassStates {
         priority?: number;
@@ -18682,7 +19351,6 @@ declare module "cocos/core/assets/effect-asset" {
         defines: IDefineInfo[];
         blocks: IBlockInfo[];
         samplers: ISamplerInfo[];
-        dependencies: Record<string, string>;
     }
     export interface IPreCompileInfo {
         [name: string]: boolean[] | number[] | string[];
@@ -19131,15 +19799,15 @@ declare module "cocos/core/director" {
          */
         static readonly EVENT_AFTER_DRAW = "director_after_draw";
         /**
-         * @en The event which will be triggered before the physics process.
-         * @zh 物理过程之前所触发的事件。
+         * The event which will be triggered before the physics process.<br/>
+         * 物理过程之前所触发的事件。
          * @event Director.EVENT_BEFORE_PHYSICS
          * @readonly
          */
         static readonly EVENT_BEFORE_PHYSICS = "director_before_physics";
         /**
-         * @en The event which will be triggered after the physics process.
-         * @zh 物理过程之后所触发的事件。
+         * The event which will be triggered after the physics process.<br/>
+         * 物理过程之后所触发的事件。
          * @event Director.EVENT_AFTER_PHYSICS
          * @readonly
          */
@@ -19345,8 +20013,8 @@ declare module "cocos/core/director" {
          */
         getScene(): Scene | null;
         /**
-         * @en Returns the FPS value. Please use {{#crossLink "Game.setFrameRate"}}cc.game.setFrameRate{{/crossLink}} to control animation interval.
-         * @zh 获取单位帧执行时间。请使用 {{#crossLink "Game.setFrameRate"}}cc.game.setFrameRate{{/crossLink}} 来控制游戏帧率。
+         * @en Returns the FPS value. Please use [[Game.setFrameRate]] to control animation interval.
+         * @zh 获取单位帧执行时间。请使用 [[Game.setFrameRate]] 来控制游戏帧率。
          * @deprecated since v2.0
          * @return {Number}
          */
@@ -19745,7 +20413,7 @@ declare module "cocos/core/load-pipeline/loading-items" {
     /**
      * @en
      * LoadingItems is the queue of items which can flow them into the loading pipeline.<br/>
-     * Please don't construct it directly, use {{#crossLink "LoadingItems.create"}}cc.LoadingItems.create{{/crossLink}} instead, because we use an internal pool to recycle the queues.<br/>
+     * Please don't construct it directly, use [[create]] instead, because we use an internal pool to recycle the queues.<br/>
      * It hold a map of items, each entry in the map is a url to object key value pair.<br/>
      * Each item always contains the following property:<br/>
      * - id: The identification of the item, usually it's identical to url<br/>
@@ -19761,7 +20429,7 @@ declare module "cocos/core/load-pipeline/loading-items" {
      * So please don't hold its reference for later usage, you can copy properties in it though.
      * @zh
      * LoadingItems 是一个加载对象队列，可以用来输送加载对象到加载管线中。<br/>
-     * 请不要直接使用 new 构造这个类的对象，你可以使用 {{#crossLink "LoadingItems.create"}}cc.LoadingItems.create{{/crossLink}} 来创建一个新的加载队列，这样可以允许我们的内部对象池回收并重利用加载队列。
+     * 请不要直接使用 new 构造这个类的对象，你可以使用 [[create]] 来创建一个新的加载队列，这样可以允许我们的内部对象池回收并重利用加载队列。
      * 它有一个 map 属性用来存放加载项，在 map 对象中已 url 为 key 值。<br/>
      * 每个对象都会包含下列属性：<br/>
      * - id：该对象的标识，通常与 url 相同。<br/>
@@ -19879,8 +20547,8 @@ declare module "cocos/core/load-pipeline/loading-items" {
          * @static
          * @param {Pipeline} pipeline The pipeline to process the queue.
          * @param {Array} urlList The items array.
-         * @param {Function} [onProgress] The progression callback, refer to {{#crossLink "LoadingItems.onProgress"}}{{/crossLink}}
-         * @param {Function} [onComplete] The completion callback, refer to {{#crossLink "LoadingItems.onComplete"}}{{/crossLink}}
+         * @param {Function} [onProgress] The progression callback, refer to [[onProgress]]
+         * @param {Function} [onComplete] The completion callback, refer to [[LoadingItems.onComplete]]
          * @return {LoadingItems} The LoadingItems queue object
          * @example
          * ```
@@ -19924,9 +20592,9 @@ declare module "cocos/core/load-pipeline/loading-items" {
          * @en Add urls to the LoadingItems queue.
          * @zh 向一个 LoadingItems 队列添加加载项。
          * @method append
-         * @param {Array} urlList The url list to be appended, the url can be object or string
+         * @param {Array} urlList 要追加的url列表，url可以是对象或字符串
          * @param {any} [owner]
-         * @return {Array} The accepted url list, some invalid items could be refused.
+         * @return {Array} 在已接受的url列表中，可以拒绝某些无效项
          */
         append(urlList: any, owner?: any): IItem[];
         _childOnProgress(item: any): void;
@@ -20204,10 +20872,10 @@ declare module "cocos/core/load-pipeline/pipeline" {
          * @en Removes an completed item in pipeline.
          * It will only remove the cache in the pipeline or loader, its dependencies won't be released.
          * cc.loader provided another method to completely cleanup the resource and its dependencies,
-         * please refer to {{#crossLink "loader/release:method"}}cc.loader.release{{/crossLink}}
+         * please refer to [[CCLoader.release]]
          * @zh 移除指定的已完成 item。
          * 这将仅仅从 pipeline 或者 loader 中删除其缓存，并不会释放它所依赖的资源。
-         * cc.loader 中提供了另一种删除资源及其依赖的清理方法，请参考 {{#crossLink "loader/release:method"}}cc.loader.release{{/crossLink}}
+         * cc.loader 中提供了另一种删除资源及其依赖的清理方法，请参考 [[CCLoader.release]]
          * @method removeItem
          * @param {Object} id The id of the item
          * @return {Boolean} succeed or not
@@ -20539,7 +21207,8 @@ declare module "cocos/core/load-pipeline/downloader" {
         private _subpackages;
         constructor(extMap?: any);
         /**
-         * Add custom supported types handler or modify existing type handler.
+         * @en Add custom supported types handler or modify existing type handler.
+         * @zh 添加自定义支持的类型处理程序或修改现有的类型处理程序。
          * @method addHandlers
          * @param {Object} extMap Custom supported types with corresponded handler
          */
@@ -20587,7 +21256,8 @@ declare module "cocos/core/load-pipeline/plist-parser" {
      */
     class PlistParser extends SAXParser {
         /**
-         * parse a xml string as plist object.
+         * @en parse a xml string as plist object.
+         * @zh 将xml字符串解析为plist对象。
          * @param {String} xmlTxt - plist xml contents
          * @return {*} plist object
          */
@@ -20970,14 +21640,14 @@ declare module "cocos/core/load-pipeline/CCLoader" {
          * For example, if you release a texture, the texture asset and its gl texture data will be freed up.<br>
          * In complexe project, you can use this function with [[getDependsRecursively]] to free up memory in critical circumstances.<br>
          * Notice, this method may cause the texture to be unusable, if there are still other nodes use the same texture, they may turn to black and report gl errors.<br>
-         * If you only want to remove the cache of an asset, please use [[pipeline.removeItem]]
+         * If you only want to remove the cache of an asset, please use [[Pipeline.removeItem]]
          * @zh
          * 通过 id（通常是资源 url）来释放一个资源或者一个资源数组。<br>
          * 从 v1.3 开始，这个方法不仅会从 loader 中删除资源的缓存引用，还会清理它的资源内容。<br>
          * 比如说，当你释放一个 texture 资源，这个 texture 和它的 gl 贴图数据都会被释放。<br>
          * 在复杂项目中，我们建议你结合 [[getDependsRecursively]] 来使用，便于在设备内存告急的情况下更快地释放不再需要的资源的内存。<br>
          * 注意，这个函数可能会导致资源贴图或资源所依赖的贴图不可用，如果场景中存在节点仍然依赖同样的贴图，它们可能会变黑并报 GL 错误。<br>
-         * 如果你只想删除一个资源的缓存引用，请使用 [[pipeline.removeItem]]
+         * 如果你只想删除一个资源的缓存引用，请使用 [[Pipeline.removeItem]]
          *
          * @example
          * ```typescript
@@ -21122,7 +21792,7 @@ declare module "cocos/core/load-pipeline/CCLoader" {
          * @zh
          * 获取资源的 uuid
          */
-        _getResUuid(url: any, type: any, mount: any, quiet: any): any;
+        _getResUuid(url: any, type: any, mount: any, quiet: any): string;
         /**
          * @en
          * Find the asset's reference id in loader, asset could be asset object, asset uuid or asset url
@@ -21671,25 +22341,25 @@ declare module "cocos/core/animation/animation-clip" {
          */
         static createWithSpriteFrames(spriteFrames: SpriteFrame[], sample: number): AnimationClip | null;
         /**
-         * 动画帧率，单位为帧/秒。
+         * @zh 动画帧率，单位为帧/秒。
          */
         sample: number;
         /**
-         * 动画的播放速度。
+         * @zh 动画的播放速度。
          */
         speed: number;
         /**
-         * 动画的循环模式。
+         * @zh 动画的循环模式。
          */
         wrapMode: AnimationWrapMode;
         /**
-         * 动画的曲线数据。
+         * @zh 动画的曲线数据。
          * @deprecated 请转用 `this.curves`
          */
         private curveDatas?;
         private _curves;
         /**
-         * 动画包含的事件数据。
+         * @zh 动画包含的事件数据。
          */
         events: AnimationClip.Event[];
         protected _duration: number;
@@ -21704,11 +22374,11 @@ declare module "cocos/core/animation/animation-clip" {
         protected _stepness: number;
         protected _hash: number;
         /**
-         * 动画的周期。
+         * @zh 动画的周期。
          */
         duration: number;
         /**
-         * 动画所有时间轴。
+         * @zh 动画所有时间轴。
          */
         keys: number[][];
         /**
@@ -21727,26 +22397,27 @@ declare module "cocos/core/animation/animation-clip" {
         onLoaded(): void;
         getPropertyCurves(root: INode): ReadonlyArray<IRuntimeCurve>;
         /**
-         * 提交曲线数据的修改。
-         * 当你修改了 `this.curveDatas`、`this.keys` 或 `this.duration`时，
+         * @zh 提交曲线数据的修改。<br/>
+         * 当你修改了 `this.curveDatas`、`this.keys` 或 `this.duration`时，<br/>
          * 必须调用 `this.updateCurveDatas()` 使修改生效。
          * @deprecated
          */
         updateCurveDatas(): void;
         /**
-         * 提交事件数据的修改。
+         * @zh 提交事件数据的修改。<br/>
          * 当你修改了 `this.events` 时，必须调用 `this.updateEventDatas()` 使修改生效。
          * @protected
          */
         updateEventDatas(): void;
         /**
-         * Gets the event group shall be processed at specified ratio.
+         * @en Gets the event group shall be processed at specified ratio.
+         * @zh 获取事件组应按指定比例处理。
          * @param ratio The ratio.
          * @protected
          */
         getEventGroupIndexAtRatio(ratio: number): number;
         /**
-         * 返回本动画是否包含事件数据。
+         * @zh 返回本动画是否包含事件数据。
          * @protected
          */
         hasEvents(): boolean;
@@ -22119,647 +22790,6 @@ declare module "cocos/core/renderer/index" {
     export * from "cocos/core/renderer/models/joints-texture-utils";
     import "cocos/core/renderer/scene/deprecated";
 }
-declare module "cocos/core/platform/view" {
-    import "cocos/core/data/class";
-    import { EventTarget } from "cocos/core/event/event-target";
-    import { Rect, Size } from "cocos/core/math/index";
-    /**
-     * cc.view is the singleton object which represents the game window.<br/>
-     * It's main task include: <br/>
-     *  - Apply the design resolution policy<br/>
-     *  - Provide interaction with the window, like resize event on web, retina display support, etc...<br/>
-     *  - Manage the game view port which can be different with the window<br/>
-     *  - Manage the content scale and translation<br/>
-     * <br/>
-     * Since the cc.view is a singleton, you don't need to call any constructor or create functions,<br/>
-     * the standard way to use it is by calling:<br/>
-     *  - cc.view.methodName(); <br/>
-     *
-     * @class View
-     */
-    export class View extends EventTarget {
-        private _frameSize;
-        private _scaleX;
-        private _scaleY;
-        private _viewportRect;
-        private _visibleRect;
-        private _autoFullScreen;
-        private _devicePixelRatio;
-        private _retinaEnabled;
-        private _resizeCallback;
-        private _resizing;
-        private _orientationChanging;
-        private _isRotated;
-        private _orientation;
-        private _isAdjustViewport;
-        private _antiAliasEnabled;
-        private _resolutionPolicy;
-        private _rpExactFit;
-        private _rpShowAll;
-        private _rpNoBorder;
-        private _rpFixedHeight;
-        private _rpFixedWidth;
-        _resizeWithBrowserSize: boolean;
-        _designResolutionSize: Size;
-        _originalDesignResolutionSize: Size;
-        static instance: View;
-        constructor();
-        init(): void;
-        /**
-         * @en
-         * Sets view's target-densitydpi for android mobile browser. it can be set to:           <br/>
-         *   1. macro.DENSITYDPI_DEVICE, value is "device-dpi"                                      <br/>
-         *   2. macro.DENSITYDPI_HIGH, value is "high-dpi"  (default value)                         <br/>
-         *   3. macro.DENSITYDPI_MEDIUM, value is "medium-dpi" (browser's default value)            <br/>
-         *   4. macro.DENSITYDPI_LOW, value is "low-dpi"                                            <br/>
-         *   5. Custom value, e.g: "480"                                                         <br/>
-         * @zh 设置目标内容的每英寸像素点密度。
-         *
-         * @method setTargetDensityDPI
-         * @param {String} densityDPI
-         * @deprecated since v2.0
-         */
-        /**
-         * @en
-         * Returns the current target-densitydpi value of cc.view.
-         * @zh 获取目标内容的每英寸像素点密度。
-         * @method getTargetDensityDPI
-         * @returns {String}
-         * @deprecated since v2.0
-         */
-        /**
-         * @en
-         * Sets whether resize canvas automatically when browser's size changed.<br/>
-         * Useful only on web.
-         * @zh 设置当发现浏览器的尺寸改变时，是否自动调整 canvas 尺寸大小。
-         * 仅在 Web 模式下有效。
-         * @method resizeWithBrowserSize
-         * @param {Boolean} enabled - Whether enable automatic resize with browser's resize event
-         */
-        resizeWithBrowserSize(enabled: any): void;
-        /**
-         * @en
-         * Sets the callback function for cc.view's resize action,<br/>
-         * this callback will be invoked before applying resolution policy, <br/>
-         * so you can do any additional modifications within the callback.<br/>
-         * Useful only on web.
-         * @zh 设置 cc.view 调整视窗尺寸行为的回调函数，
-         * 这个回调函数会在应用适配模式之前被调用，
-         * 因此你可以在这个回调函数内添加任意附加改变，
-         * 仅在 Web 平台下有效。
-         * @method setResizeCallback
-         * @param {Function|Null} callback - The callback function
-         */
-        setResizeCallback(callback: any): void;
-        /**
-         * @en
-         * Sets the orientation of the game, it can be landscape, portrait or auto.
-         * When set it to landscape or portrait, and screen w/h ratio doesn't fit,
-         * cc.view will automatically rotate the game canvas using CSS.
-         * Note that this function doesn't have any effect in native,
-         * in native, you need to set the application orientation in native project settings
-         * @zh 设置游戏屏幕朝向，它能够是横版，竖版或自动。
-         * 当设置为横版或竖版，并且屏幕的宽高比例不匹配时，
-         * cc.view 会自动用 CSS 旋转游戏场景的 canvas，
-         * 这个方法不会对 native 部分产生任何影响，对于 native 而言，你需要在应用设置中的设置排版。
-         * @method setOrientation
-         * @param {Number} orientation - Possible values: macro.ORIENTATION_LANDSCAPE | macro.ORIENTATION_PORTRAIT | macro.ORIENTATION_AUTO
-         */
-        setOrientation(orientation: any): void;
-        /**
-         * @en
-         * Sets whether the engine modify the "viewport" meta in your web page.<br/>
-         * It's enabled by default, we strongly suggest you not to disable it.<br/>
-         * And even when it's enabled, you can still set your own "viewport" meta, it won't be overridden<br/>
-         * Only useful on web
-         * @zh 设置引擎是否调整 viewport meta 来配合屏幕适配。
-         * 默认设置为启动，我们强烈建议你不要将它设置为关闭。
-         * 即使当它启动时，你仍然能够设置你的 viewport meta，它不会被覆盖。
-         * 仅在 Web 模式下有效
-         * @method adjustViewportMeta
-         * @param {Boolean} enabled - Enable automatic modification to "viewport" meta
-         */
-        adjustViewportMeta(enabled: any): void;
-        /**
-         * @en
-         * Retina support is enabled by default for Apple device but disabled for other devices,<br/>
-         * it takes effect only when you called setDesignResolutionPolicy<br/>
-         * Only useful on web
-         * @zh 对于 Apple 这种支持 Retina 显示的设备上默认进行优化而其他类型设备默认不进行优化，
-         * 它仅会在你调用 setDesignResolutionPolicy 方法时有影响。
-         * 仅在 Web 模式下有效。
-         * @method enableRetina
-         * @param {Boolean} enabled - Enable or disable retina display
-         */
-        enableRetina(enabled: any): void;
-        /**
-         * @en
-         * Check whether retina display is enabled.<br/>
-         * Only useful on web
-         * @zh 检查是否对 Retina 显示设备进行优化。
-         * 仅在 Web 模式下有效。
-         * @method isRetinaEnabled
-         * @return {Boolean}
-         */
-        isRetinaEnabled(): boolean;
-        /**
-         * @en Whether to Enable on anti-alias
-         * @zh 控制抗锯齿是否开启
-         * @method enableAntiAlias
-         * @param {Boolean} enabled - Enable or not anti-alias
-         */
-        enableAntiAlias(enabled: any): void;
-        /**
-         * @en Returns whether the current enable on anti-alias
-         * @zh 返回当前是否抗锯齿
-         * @method isAntiAliasEnabled
-         * @return {Boolean}
-         */
-        isAntiAliasEnabled(): boolean;
-        /**
-         * @en
-         * If enabled, the application will try automatically to enter full screen mode on mobile devices<br/>
-         * You can pass true as parameter to enable it and disable it by passing false.<br/>
-         * Only useful on web
-         * @zh 启动时，移动端游戏会在移动端自动尝试进入全屏模式。
-         * 你能够传入 true 为参数去启动它，用 false 参数来关闭它。
-         * @method enableAutoFullScreen
-         * @param {Boolean} enabled - Enable or disable auto full screen on mobile devices
-         */
-        enableAutoFullScreen(enabled: any): void;
-        /**
-         * @en
-         * Check whether auto full screen is enabled.<br/>
-         * Only useful on web
-         * @zh 检查自动进入全屏模式是否启动。
-         * 仅在 Web 模式下有效。
-         * @method isAutoFullScreenEnabled
-         * @return {Boolean} Auto full screen enabled or not
-         */
-        isAutoFullScreenEnabled(): boolean;
-        setCanvasSize(width: any, height: any): void;
-        /**
-         * @en
-         * Returns the canvas size of the view.<br/>
-         * On native platforms, it returns the screen size since the view is a fullscreen view.<br/>
-         * On web, it returns the size of the canvas element.
-         * @zh 返回视图中 canvas 的尺寸。
-         * 在 native 平台下，它返回全屏视图下屏幕的尺寸。
-         * 在 Web 平台下，它返回 canvas 元素尺寸。
-         * @method getCanvasSize
-         * @return {Size}
-         */
-        getCanvasSize(): any;
-        /**
-         * @en
-         * Returns the frame size of the view.<br/>
-         * On native platforms, it returns the screen size since the view is a fullscreen view.<br/>
-         * On web, it returns the size of the canvas's outer DOM element.
-         * @zh 返回视图中边框尺寸。
-         * 在 native 平台下，它返回全屏视图下屏幕的尺寸。
-         * 在 web 平台下，它返回 canvas 元素的外层 DOM 元素尺寸。
-         * @method getFrameSize
-         * @return {Size}
-         */
-        getFrameSize(): any;
-        /**
-         * @en
-         * On native, it sets the frame size of view.<br/>
-         * On web, it sets the size of the canvas's outer DOM element.
-         * @zh 在 native 平台下，设置视图框架尺寸。
-         * 在 web 平台下，设置 canvas 外层 DOM 元素尺寸。
-         * @method setFrameSize
-         * @param {Number} width
-         * @param {Number} height
-         */
-        setFrameSize(width: any, height: any): void;
-        /**
-         * @en
-         * Returns the visible area size of the view port.
-         * @zh 返回视图窗口可见区域尺寸。
-         * @method getVisibleSize
-         * @return {Size}
-         */
-        getVisibleSize(): any;
-        /**
-         * @en
-         * Returns the visible area size of the view port.
-         * @zh 返回视图窗口可见区域像素尺寸。
-         * @method getVisibleSizeInPixel
-         * @return {Size}
-         */
-        getVisibleSizeInPixel(): any;
-        /**
-         * @en
-         * Returns the visible origin of the view port.
-         * @zh 返回视图窗口可见区域原点。
-         * @method getVisibleOrigin
-         * @return {Vec2}
-         */
-        getVisibleOrigin(): any;
-        /**
-         * @en
-         * Returns the visible origin of the view port.
-         * @zh 返回视图窗口可见区域像素原点。
-         * @method getVisibleOriginInPixel
-         * @return {Vec2}
-         */
-        getVisibleOriginInPixel(): any;
-        /**
-         * @en
-         * Returns the current resolution policy
-         * @zh 返回当前分辨率方案
-         * @see ResolutionPolicy
-         * @method getResolutionPolicy
-         * @return {ResolutionPolicy}
-         */
-        getResolutionPolicy(): any;
-        /**
-         * @en
-         * Sets the current resolution policy
-         * @zh 设置当前分辨率模式
-         * @see ResolutionPolicy
-         * @method setResolutionPolicy
-         * @param {ResolutionPolicy|Number} resolutionPolicy
-         */
-        setResolutionPolicy(resolutionPolicy: any): void;
-        /**
-         * @en
-         * Sets the resolution policy with designed view size in points.<br/>
-         * The resolution policy include: <br/>
-         * [1] ResolutionExactFit       Fill screen by stretch-to-fit: if the design resolution ratio of width to height is different from the screen resolution ratio, your game view will be stretched.<br/>
-         * [2] ResolutionNoBorder       Full screen without black border: if the design resolution ratio of width to height is different from the screen resolution ratio, two areas of your game view will be cut.<br/>
-         * [3] ResolutionShowAll        Full screen with black border: if the design resolution ratio of width to height is different from the screen resolution ratio, two black borders will be shown.<br/>
-         * [4] ResolutionFixedHeight    Scale the content's height to screen's height and proportionally scale its width<br/>
-         * [5] ResolutionFixedWidth     Scale the content's width to screen's width and proportionally scale its height<br/>
-         * [ResolutionPolicy]        [Web only feature] Custom resolution policy, constructed by ResolutionPolicy<br/>
-         * @zh 通过设置设计分辨率和匹配模式来进行游戏画面的屏幕适配。
-         * @method setDesignResolutionSize
-         * @param {Number} width Design resolution width.
-         * @param {Number} height Design resolution height.
-         * @param {ResolutionPolicy|Number} resolutionPolicy The resolution policy desired
-         */
-        setDesignResolutionSize(width: any, height: any, resolutionPolicy: any): void;
-        /**
-         * @en
-         * Returns the designed size for the view.
-         * Default resolution size is the same as 'getFrameSize'.
-         * @zh 返回视图的设计分辨率。
-         * 默认下分辨率尺寸同 `getFrameSize` 方法相同
-         * @method getDesignResolutionSize
-         * @return {Size}
-         */
-        getDesignResolutionSize(): any;
-        /**
-         * @en
-         * Sets the container to desired pixel resolution and fit the game content to it.
-         * This function is very useful for adaptation in mobile browsers.
-         * In some HD android devices, the resolution is very high, but its browser performance may not be very good.
-         * In this case, enabling retina display is very costy and not suggested, and if retina is disabled, the image may be blurry.
-         * But this API can be helpful to set a desired pixel resolution which is in between.
-         * This API will do the following:
-         *     1. Set viewport's width to the desired width in pixel
-         *     2. Set body width to the exact pixel resolution
-         *     3. The resolution policy will be reset with designed view size in points.
-         * @zh 设置容器（container）需要的像素分辨率并且适配相应分辨率的游戏内容。
-         * @method setRealPixelResolution
-         * @param {Number} width Design resolution width.
-         * @param {Number} height Design resolution height.
-         * @param {ResolutionPolicy|Number} resolutionPolicy The resolution policy desired
-         */
-        setRealPixelResolution(width: any, height: any, resolutionPolicy: any): void;
-        /**
-         * @en
-         * Sets view port rectangle with points.
-         * @zh 用设计分辨率下的点尺寸来设置视窗。
-         * @method setViewportInPoints
-         * @deprecated since v2.0
-         * @param {Number} x
-         * @param {Number} y
-         * @param {Number} w width
-         * @param {Number} h height
-         */
-        setViewportInPoints(x: any, y: any, w: any, h: any): void;
-        /**
-         * @en
-         * Sets Scissor rectangle with points.
-         * @zh 用设计分辨率下的点的尺寸来设置 scissor 剪裁区域。
-         * @method setScissorInPoints
-         * @deprecated since v2.0
-         * @param {Number} x
-         * @param {Number} y
-         * @param {Number} w
-         * @param {Number} h
-         */
-        setScissorInPoints(x: any, y: any, w: any, h: any): void;
-        /**
-         * @en
-         * Returns whether GL_SCISSOR_TEST is enable
-         * @zh 检查 scissor 是否生效。
-         * @method isScissorEnabled
-         * @deprecated since v2.0
-         * @return {Boolean}
-         */
-        isScissorEnabled(): any;
-        /**
-         * @en
-         * Returns the current scissor rectangle
-         * @zh 返回当前的 scissor 剪裁区域。
-         * @method getScissorRect
-         * @deprecated since v2.0
-         * @return {Rect}
-         */
-        getScissorRect(): Rect;
-        /**
-         * @en
-         * Returns the view port rectangle.
-         * @zh 返回视窗剪裁区域。
-         * @method getViewportRect
-         * @return {Rect}
-         */
-        getViewportRect(): Rect;
-        /**
-         * @en
-         * Returns scale factor of the horizontal direction (X axis).
-         * @zh 返回横轴的缩放比，这个缩放比是将画布像素分辨率放到设计分辨率的比例。
-         * @method getScaleX
-         * @return {Number}
-         */
-        getScaleX(): number;
-        /**
-         * @en
-         * Returns scale factor of the vertical direction (Y axis).
-         * @zh 返回纵轴的缩放比，这个缩放比是将画布像素分辨率缩放到设计分辨率的比例。
-         * @method getScaleY
-         * @return {Number}
-         */
-        getScaleY(): number;
-        /**
-         * @en
-         * Returns device pixel ratio for retina display.
-         * @zh 返回设备或浏览器像素比例。
-         * @method getDevicePixelRatio
-         * @return {Number}
-         */
-        getDevicePixelRatio(): number;
-        /**
-         * @en
-         * Returns the real location in view for a translation based on a related position
-         * @zh 将屏幕坐标转换为游戏视图下的坐标。
-         * @method convertToLocationInView
-         * @param {Number} tx - The X axis translation
-         * @param {Number} ty - The Y axis translation
-         * @param {Object} relatedPos - The related position object including "left", "top", "width", "height" informations
-         * @return {Vec2}
-         */
-        convertToLocationInView(tx: any, ty: any, relatedPos: any, out: any): any;
-        private _resizeEvent;
-        private _orientationChange;
-        private _initFrameSize;
-        private _adjustSizeKeepCanvasSize;
-        private _setViewportMeta;
-        private _adjustViewportMeta;
-        private _convertMouseToLocation;
-        _convertPointWithScale(point: any): void;
-        private _convertTouchWidthScale;
-        private _convertTouchesWithScale;
-    }
-    /**
-     * !en
-     * Emit when design resolution changed.
-     * !zh
-     * 当设计分辨率改变时发送。
-     * @event design-resolution-changed
-     * <p>cc.game.containerStrategy class is the root strategy class of container's scale strategy,
-     * it controls the behavior of how to scale the cc.game.container and cc.game.canvas object</p>
-     *
-     * @class ContainerStrategy
-     */
-    class ContainerStrategy {
-        static EQUAL_TO_FRAME: any;
-        static PROPORTION_TO_FRAME: any;
-        name: string;
-        /**
-         * @en
-         * Manipulation before appling the strategy
-         * @zh 在应用策略之前的操作
-         * @method preApply
-         * @param {View} view - The target view
-         */
-        preApply(view: any): void;
-        /**
-         * @en
-         * Function to apply this strategy
-         * @zh 策略应用方法
-         * @method apply
-         * @param {View} view
-         * @param {Size} designedResolution
-         */
-        apply(view: any, designedResolution: any): void;
-        /**
-         * @en
-         * Manipulation after applying the strategy
-         * @zh 策略调用之后的操作
-         * @method postApply
-         * @param {View} view  The target view
-         */
-        postApply(view: any): void;
-        protected _setupContainer(view: any, w: any, h: any): void;
-        protected _fixContainer(): void;
-    }
-    /**
-     * <p>ContentStrategy class is the root strategy class of content's scale strategy,
-     * it controls the behavior of how to scale the scene and setup the viewport for the game</p>
-     *
-     * @class ContentStrategy
-     */
-    class ContentStrategy {
-        static EXACT_FIT: any;
-        static SHOW_ALL: any;
-        static NO_BORDER: any;
-        static FIXED_HEIGHT: any;
-        static FIXED_WIDTH: any;
-        name: string;
-        private _result;
-        constructor();
-        /**
-         * @en
-         * Manipulation before applying the strategy
-         * @zh 策略应用前的操作
-         * @method preApply
-         * @param {View} view - The target view
-         */
-        preApply(view: any): void;
-        /**
-         * @en Function to apply this strategy
-         * The return value is {scale: [scaleX, scaleY], viewport: {new Rect}},
-         * The target view can then apply these value to itself, it's preferred not to modify directly its private variables
-         * @zh 调用策略方法
-         * @method apply
-         * @param {View} view
-         * @param {Size} designedResolution
-         * @return {Object} scaleAndViewportRect
-         */
-        apply(view: any, designedResolution: any): {
-            scale: number[];
-        };
-        /**
-         * @en
-         * Manipulation after applying the strategy
-         * @zh 策略调用之后的操作
-         * @method postApply
-         * @param {View} view - The target view
-         */
-        postApply(view: any): void;
-        _buildResult(containerW: any, containerH: any, contentW: any, contentH: any, scaleX: any, scaleY: any): {
-            scale: number[];
-            viewport: Rect | null;
-        };
-    }
-    /**
-     * <p>ResolutionPolicy class is the root strategy class of scale strategy,
-     * its main task is to maintain the compatibility with Cocos2d-x</p>
-     *
-     * @class ResolutionPolicy
-     */
-    /**
-     * @method constructor
-     * @param {ContainerStrategy} containerStg The container strategy
-     * @param {ContentStrategy} contentStg The content strategy
-     */
-    export class ResolutionPolicy {
-        static EXACT_FIT: number;
-        static SHOW_ALL: number;
-        static NO_BORDER: number;
-        static FIXED_HEIGHT: number;
-        static FIXED_WIDTH: number;
-        static UNKNOWN: number;
-        static ContainerStrategy: typeof ContainerStrategy;
-        static ContentStrategy: typeof ContentStrategy;
-        name: string;
-        private _containerStrategy;
-        private _contentStrategy;
-        /**
-         * Constructor of ResolutionPolicy
-         * @param {ContainerStrategy} containerStg
-         * @param {ContentStrategy} contentStg
-         */
-        constructor(containerStg: any, contentStg: any);
-        readonly canvasSize: any;
-        /**
-         * @en Manipulation before applying the resolution policy
-         * @zh 策略应用前的操作
-         * @method preApply
-         * @param {View} view The target view
-         */
-        preApply(view: any): void;
-        /**
-         * @en Function to apply this resolution policy
-         * The return value is {scale: [scaleX, scaleY], viewport: {new Rect}},
-         * The target view can then apply these value to itself, it's preferred not to modify directly its private variables
-         * @zh 调用策略方法
-         * @method apply
-         * @param {View} view - The target view
-         * @param {Size} designedResolution - The user defined design resolution
-         * @return {Object} An object contains the scale X/Y values and the viewport rect
-         */
-        apply(view: any, designedResolution: any): {
-            scale: number[];
-        };
-        /**
-         * @en Manipulation after appyling the strategy
-         * @zh 策略应用之后的操作
-         * @method postApply
-         * @param {View} view - The target view
-         */
-        postApply(view: any): void;
-        /**
-         * @en
-         * Setup the container's scale strategy
-         * @zh 设置容器的适配策略
-         * @method setContainerStrategy
-         * @param {ContainerStrategy} containerStg
-         */
-        setContainerStrategy(containerStg: any): void;
-        /**
-         * @en
-         * Setup the content's scale strategy
-         * @zh 设置内容的适配策略
-         * @method setContentStrategy
-         * @param {ContentStrategy} contentStg
-         */
-        setContentStrategy(contentStg: any): void;
-    }
-    /**
-     * @module cc
-     */
-    /**
-     * @en cc.view is the shared view object.
-     * @zh cc.view 是全局的视图对象。
-     * @property view
-     * @static
-     * @type {View}
-     */
-    export const view: View;
-}
-declare module "cocos/core/platform/visible-rect" {
-    import { Rect } from "cocos/core/math/index";
-    /**
-     * cc.visibleRect is a singleton object which defines the actual visible rect of the current view,
-     * it should represent the same rect as cc.view.getViewportRect()
-     */
-    const visibleRect: {
-        /**
-         * Top left coordinate of the screen related to the game scene.
-         */
-        topLeft: any;
-        /**
-         * Top right coordinate of the screen related to the game scene.
-         */
-        topRight: any;
-        /**
-         * Top center coordinate of the screen related to the game scene.
-         */
-        top: any;
-        /**
-         * Bottom left coordinate of the screen related to the game scene.
-         */
-        bottomLeft: any;
-        /**
-         * Bottom right coordinate of the screen related to the game scene.
-         */
-        bottomRight: any;
-        /**
-         * Bottom center coordinate of the screen related to the game scene.
-         */
-        bottom: any;
-        /**
-         * Center coordinate of the screen related to the game scene.
-         */
-        center: any;
-        /**
-         * Left center coordinate of the screen related to the game scene.
-         */
-        left: any;
-        /**
-         * Right center coordinate of the screen related to the game scene.
-         */
-        right: any;
-        /**
-         * Width of the screen.
-         */
-        width: number;
-        /**
-         * Height of the screen.
-         */
-        height: number;
-        /**
-         * initialize
-         */
-        init(visibleRect_: Rect): void;
-    };
-    export default visibleRect;
-}
 declare module "cocos/core/3d/framework/camera-component" {
     /**
      * @category component/camera
@@ -22811,6 +22841,7 @@ declare module "cocos/core/3d/framework/camera-component" {
         protected _visibility: number;
         protected _targetTexture: RenderTexture | null;
         protected _camera: Camera | null;
+        protected _inEditorMode: boolean;
         /**
          * @en The projection type of the camera
          * @zh 相机的投影类型。
@@ -22880,6 +22911,7 @@ declare module "cocos/core/3d/framework/camera-component" {
          * @zh 设置摄像机 RenderTexture
          */
         targetTexture: RenderTexture | null;
+        inEditorMode: boolean;
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
@@ -22974,30 +23006,12 @@ declare module "cocos/core/components/ui-base/ui-component" {
         protected _priority: number;
         protected _followScreen: CanvasComponent | null;
         private _lastParent;
+        __preload(): void;
         onEnable(): void;
         onDisable(): void;
-        /**
-         * @zh
-         * 渲染数据收集。每个渲染组件都由此自身决定是否渲染以及渲染状态的更新。
-         *
-         * @param render 数据处理中转站。
-         */
+        onDestroy(): void;
         updateAssembler(render: UI): void;
-        /**
-         * @zh
-         * 后渲染数据收集。每个渲染组件都由此接口决定是否渲染以及渲染状态的更新。
-         * 一般是在自身子节点 updateAssembler 执行完调用。
-         *
-         * @param render 数据处理中转站。
-         */
         postUpdateAssembler(render: UI): void;
-        /**
-         * @zh
-         * 设置当前组件的可视编号。（我们不希望用户自行做处理，除非用户自己知道在做什么）
-         *
-         * @deprecated 会在 Cocos Creator 3D beta18 及之后的版本废除
-         */
-        setVisibility(value: number): void;
         _setScreen(value: CanvasComponent): void;
         protected _parentChanged(node: INode): boolean;
         private _sortSiblings;
@@ -23132,6 +23146,7 @@ declare module "cocos/core/components/ui-base/ui-render-component" {
         sharedMaterial: Material | null;
         readonly material: Material | null;
         readonly renderData: RenderData | null;
+        simulate: any;
         static BlendState: typeof GFXBlendFactor;
         static Assembler: IAssemblerManager | null;
         static PostAssembler: IAssemblerManager | null;
@@ -23156,6 +23171,7 @@ declare module "cocos/core/components/ui-base/ui-render-component" {
             depthStencilState: {};
             rasterizerState: {};
         };
+        protected _simulate: boolean;
         __preload(): void;
         onEnable(): void;
         onDisable(): void;
@@ -23194,6 +23210,7 @@ declare module "cocos/core/components/ui-base/ui-render-component" {
         protected _flushAssembler?(): void;
     }
 }
+declare module "cocos/core/components/ui-base/deprecated" { }
 declare module "cocos/core/components/ui-base/index" {
     /**
      * @hidden
@@ -23202,6 +23219,7 @@ declare module "cocos/core/components/ui-base/index" {
     export * from "cocos/core/components/ui-base/ui-component";
     export * from "cocos/core/components/ui-base/ui-render-component";
     export * from "cocos/core/components/ui-base/ui-transfrom-component";
+    import "cocos/core/components/ui-base/deprecated";
 }
 declare module "cocos/core/scene-graph/node" {
     /**
@@ -25560,6 +25578,7 @@ declare module "cocos/core/primitive/circle" {
         segments: number;
     }
     /**
+     * @en
      * Generate a circle with radius 1, centered at origin.
      * @zh
      * 生成一个圆，其半径是单位1，中心点在原点。
@@ -25975,12 +25994,12 @@ declare module "cocos/core/utils/interfaces" {
          * @en
          * The local active state of this node.<br/>
          * Note that a Node may be inactive because a parent is not active, even if this returns true.<br/>
-         * Use {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}
+         * Use [[activeInHierarchy]]
          * if you want to check if the Node is actually treated as active in the scene.
          * @zh
          * 当前节点的自身激活状态。<br/>
          * 值得注意的是，一个节点的父节点如果不被激活，那么即使它自身设为激活，它仍然无法激活。<br/>
-         * 如果你想检查节点在场景中实际的激活状态可以使用 {{#crossLink "Node/activeInHierarchy:property"}}{{/crossLink}}。
+         * 如果你想检查节点在场景中实际的激活状态可以使用 [[activeInHierarchy]]
          * @property active
          * @type {Boolean}
          * @default true
@@ -26956,7 +26975,7 @@ declare module "cocos/core/components/component" {
          * @en Schedules a callback function that runs only once, with a delay of 0 or larger.
          * @zh 调度一个只运行一次的回调函数，可以指定 0 让回调函数在下一帧立即执行或者在一定的延时之后执行。
          * @method scheduleOnce
-         * @see [[cc.Node.schedule]]
+         * @see [[schedule]]
          * @param {function} callback  回调函数。
          * @param {Number} delay  第一次执行前等待的时间（延时执行）。
          * @example
@@ -26971,8 +26990,6 @@ declare module "cocos/core/components/component" {
         /**
          * @en Unschedules a custom callback function.
          * @zh 取消调度一个自定义的回调函数。
-         * @method unschedule
-         * @see [[cc.Node.schedule]]
          * @param {function} callback_fn  回调函数。
          * @example
          * ```typescript
@@ -27011,10 +27028,14 @@ declare module "cocos/core/components/component" {
          */
         protected lateUpdate?(dt: number): void;
         /**
-         * `__preload` is called before every onLoad.
-         * It is used to initialize the builtin components internally,
-         * to avoid checking whether onLoad is called before every public method calls.
+         * @en `__preload` is called before every onLoad.<br/>
+         * It is used to initialize the builtin components internally,<br/>
+         * to avoid checking whether onLoad is called before every public method calls.<br/>
          * This method should be removed if script priority is supported.
+         * @zh `__preload` 在每次onLoad之前调用。<br/>
+         * 它用于在内部初始化内置组件，<br/>
+         * 以避免在每次公有方法调用之前检查是否调用了onLoad。<br/>
+         * 如果支持脚本优先级，则应删除此方法。
          * @private
          */
         protected __preload?(): void;
@@ -27311,61 +27332,6 @@ declare module "cocos/core/utils/index" {
     export * from "cocos/core/utils/prefab-helper";
     export { js, misc, path, };
     export * from "cocos/core/utils/coordinates-converts-utils";
-}
-declare module "cocos/core/platform/screen" {
-    /**
-     * The fullscreen API provides an easy way for web content to be presented using the user's entire screen.
-     * It's invalid on safari, QQbrowser and android browser
-     * @class screen
-     */
-    const screen: {
-        _supportsFullScreen: boolean;
-        _preOnFullScreenChange: any;
-        _touchEvent: string;
-        _fn: any;
-        _fnMap: string[][];
-        /**
-         * initialize
-         * @method init
-         */
-        init(): void;
-        /**
-         * return true if it's full now.
-         * @method fullScreen
-         * @returns {Boolean}
-         */
-        fullScreen(): boolean;
-        /**
-         * change the screen to full mode.
-         * @method requestFullScreen
-         * @param {Element} element
-         * @param {Function} onFullScreenChange
-         */
-        requestFullScreen(element: any, onFullScreenChange: any): any;
-        /**
-         * exit the full mode.
-         * @method exitFullScreen
-         * @return {Boolean}
-         */
-        exitFullScreen(): any;
-        /**
-         * Automatically request full screen with a touch/click event
-         * @method autoFullScreen
-         * @param {Element} element
-         * @param {Function} onFullScreenChange
-         */
-        autoFullScreen(element: any, onFullScreenChange: any): void;
-    };
-    export { screen };
-}
-declare module "cocos/core/platform/index" {
-    export * from "cocos/core/platform/sys";
-    export * from "cocos/core/platform/macro";
-    export * from "cocos/core/platform/visible-rect";
-    export * from "cocos/core/platform/view";
-    export * from "cocos/core/platform/event-manager/index";
-    export { log, error, warn, assert, logID, errorID, warnID, assertID, isDisplayStats, setDisplayStats, } from "cocos/core/platform/debug";
-    export { screen } from "cocos/core/platform/screen";
 }
 declare module "cocos/core/pipeline/index" {
     /**
@@ -27708,7 +27674,7 @@ declare module "cocos/core/animation/animation-state" {
          */
         /**
          * @en The iteration duration of this animation in seconds. (length)
-         * @zh 单次动画的持续时间，秒。
+         * @zh 单次动画的持续时间，秒。（动画长度）
          * @readOnly
          */
         duration: number;
@@ -27810,18 +27776,21 @@ declare module "cocos/core/animation/cross-fade" {
     }
 }
 declare module "cocos/core/animation/animation-manager" {
+    /**
+     * @category animation
+     */
+    import System from "cocos/core/components/system";
     import { Node } from "cocos/core/scene-graph/index";
     import { AnimationBlendState } from "cocos/core/animation/animation-blend-state";
     import { AnimationState } from "cocos/core/animation/animation-state";
     import { CrossFade } from "cocos/core/animation/cross-fade";
-    import System from "cocos/core/components/system";
     export class AnimationManager extends System {
+        readonly blendState: AnimationBlendState;
+        static ID: string;
         private _anims;
         private _delayEvents;
         private _blendState;
         private _crossFades;
-        static ID: string;
-        readonly blendState: AnimationBlendState;
         addCrossFade(crossFade: CrossFade): void;
         removeCrossFade(crossFade: CrossFade): void;
         update(dt: number): void;
@@ -28057,7 +28026,8 @@ declare module "cocos/core/animation/animation-component" {
          */
         off(type: string, callback: Function, target?: Object): void;
         /**
-         * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
+         * @en IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
+         * @zh IEventTarget 实现，它们将被 applyMixins 在 EventTarget 中用相同的实现覆盖。
          */
         targetOff(keyOrTarget?: string | Object | undefined): void;
         once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
@@ -29489,6 +29459,7 @@ declare module "cocos/particle/emitter/shape-module" {
         /**
          * @zh 粒子发射器类型 [[ShapeType]]。
          */
+        _shapeType: number;
         shapeType: number;
         /**
          * @zh 粒子从发射器哪个部位发射 [[EmitLocation]]。
@@ -29766,18 +29737,36 @@ declare module "cocos/particle/particle-system-component" {
          */
         startColor: GradientRange;
         scaleSpace: number;
+        startSize3D: boolean;
         /**
          * @zh 粒子初始大小。
          */
-        startSize: CurveRange;
+        startSizeX: CurveRange;
+        /**
+         * @zh 粒子初始大小。
+         */
+        startSizeY: CurveRange;
+        /**
+         * @zh 粒子初始大小。
+         */
+        startSizeZ: CurveRange;
         /**
          * @zh 粒子初始速度。
          */
         startSpeed: CurveRange;
+        startRotation3D: boolean;
         /**
          * @zh 粒子初始旋转角度。
          */
-        startRotation: CurveRange;
+        startRotationX: CurveRange;
+        /**
+         * @zh 粒子初始旋转角度。
+         */
+        startRotationY: CurveRange;
+        /**
+         * @zh 粒子初始旋转角度。
+         */
+        startRotationZ: CurveRange;
         /**
          * @zh 粒子系统开始运行后，延迟粒子发射的时间。
          */
@@ -29905,7 +29894,7 @@ declare module "cocos/particle/particle-system-component" {
          */
         clear(): void;
         /**
-         * @zh 获取当前。
+         * @zh 获取当前粒子数量
          */
         getParticleCount(): number;
         /**
@@ -30200,9 +30189,6 @@ declare module "cocos/ui/components/button-component" {
          */
         SCALE = 3
     }
-    export enum TestButtonEventType {
-        Click = "click"
-    }
     /**
      * @zh
      * 按钮组件。可以被按下,或者点击。<br/>
@@ -30242,7 +30228,6 @@ declare module "cocos/ui/components/button-component" {
      * ```
      */
     export class ButtonComponent extends Component {
-        static TestEventType: typeof TestButtonEventType;
         /**
          * @zh
          * 按钮事件是否被响应，如果为 false，则按钮将被禁用。
@@ -31641,12 +31626,12 @@ declare module "cocos/ui/components/graphics-component" {
         static LineCap: typeof LineCap;
         impl: Impl | null;
         model: Model | null;
-        private _lineWidth;
-        private _strokeColor;
-        private _lineJoin;
-        private _lineCap;
-        private _fillColor;
-        private _miterLimit;
+        protected _lineWidth: number;
+        protected _strokeColor: Color;
+        protected _lineJoin: LineJoin;
+        protected _lineCap: LineCap;
+        protected _fillColor: Color;
+        protected _miterLimit: number;
         constructor();
         onRestore(): void;
         __preload(): void;
@@ -31777,7 +31762,7 @@ declare module "cocos/ui/components/graphics-component" {
         fill(): void;
         /**
          * @zh
-         * 辅助材质实例化。可用于只取数据而无实体情况下渲染使用。特殊情况可参考：[[_instanceMaterial]]
+         * 辅助材质实例化。可用于只取数据而无实体情况下渲染使用。特殊情况可参考：[[instanceMaterial]]
          */
         helpInstanceMaterial(): void;
         protected _render(render: UI): void;
@@ -32280,7 +32265,7 @@ declare module "cocos/ui/components/scroll-view-component" {
         cancelInnerEvents: boolean;
         protected _autoScrolling: boolean;
         protected _scrolling: boolean;
-        private _content;
+        protected _content: INode | null;
         protected _horizontalScrollBar: ScrollBarComponent | null;
         protected _verticalScrollBar: ScrollBarComponent | null;
         private _topBoundary;
@@ -32525,29 +32510,18 @@ declare module "cocos/ui/components/scroll-view-component" {
         onDisable(): void;
         protected _registerEvent(): void;
         protected _unregisterEvent(): void;
-        /**
-         * @zh
-         * 鼠标滚轮事件。
-         *
-         * @param event - 鼠标事件信息。
-         * @param captureListeners
-         */
-        protected _onMouseWheel(event: EventMouse, captureListeners?: any): void;
-        protected _onTouchBegan(event: EventTouch, captureListeners?: any): void;
-        protected _onTouchMoved(event: EventTouch, captureListeners?: any): void;
-        protected _onTouchEnded(event: EventTouch, captureListeners?: any): void;
-        protected _onTouchCancelled(event: EventTouch, captureListeners?: any): void;
-        /**
-         * @zh
-         * 重新计算内容活动边界（view）
-         */
+        protected _onMouseWheel(event: EventMouse, captureListeners?: INode[]): void;
+        protected _onTouchBegan(event: EventTouch, captureListeners?: INode[]): void;
+        protected _onTouchMoved(event: EventTouch, captureListeners?: INode[]): void;
+        protected _onTouchEnded(event: EventTouch, captureListeners?: INode[]): void;
+        protected _onTouchCancelled(event: EventTouch, captureListeners?: INode[]): void;
         protected _calculateBoundary(): void;
-        protected _hasNestedViewGroup(event?: Event, captureListeners?: any): boolean | undefined;
-        protected _handleReleaseLogic(touch: any): void;
+        protected _hasNestedViewGroup(event: Event, captureListeners?: INode[]): boolean | undefined;
+        protected _handleReleaseLogic(touch: Touch): void;
         protected _startInertiaScroll(touchMoveVelocity: Vec3): void;
         protected _calculateAttenuatedFactor(distance: number): number;
         protected _startAttenuatingAutoScroll(deltaMove: Vec3, initialVelocity: Vec3): void;
-        protected _calculateAutoScrollTimeByInitalSpeed(initalSpeed: any): number;
+        protected _calculateAutoScrollTimeByInitalSpeed(initalSpeed: number): number;
         protected _startAutoScroll(deltaMove: Vec3, timeInSecond: number, attenuated?: boolean): void;
         protected _calculateTouchMoveVelocity(): Vec3;
         protected _flattenVectorByDirection(vector: Vec3): Vec3;
@@ -32560,11 +32534,11 @@ declare module "cocos/ui/components/scroll-view-component" {
         protected _updateScrollBar(outOfBoundary: Vec3): void;
         protected _onScrollBarTouchBegan(): void;
         protected _onScrollBarTouchEnded(): void;
-        protected _dispatchEvent(event: any): void;
+        protected _dispatchEvent(event: string): void;
         protected _adjustContentOutOfBoundary(): void;
         protected _hideScrollbar(): void;
         protected _showScrollbar(): void;
-        protected _stopPropagationIfTargetIsMe(event?: Event): void;
+        protected _stopPropagationIfTargetIsMe(event: Event): void;
         protected _processDeltaMove(deltaMove: Vec3): void;
         protected _handleMoveLogic(touch: Touch): void;
         protected _scrollChildren(deltaMove: Vec3): void;
@@ -32578,12 +32552,6 @@ declare module "cocos/ui/components/scroll-view-component" {
         protected _processAutoScrolling(dt: any): void;
         protected _checkMouseWheel(dt: number): void;
         protected _calculateMovePercentDelta(options: any): Vec3;
-        /**
-         * @zh
-         *
-         *
-         * @param scrollViewSize - 可视区域尺寸。
-         */
         protected _moveContentToTopLeft(scrollViewSize: Size): void;
     }
 }
@@ -32820,16 +32788,12 @@ declare module "cocos/ui/components/toggle-component" {
     import { ButtonComponent } from "cocos/ui/components/button-component";
     import { SpriteComponent } from "cocos/ui/components/sprite-component";
     import { ToggleContainerComponent } from "cocos/ui/components/toggle-container-component";
-    enum TestToggleEventType {
-        Toggle = "toggle"
-    }
     /**
      * @zh
      * Toggle 是一个 CheckBox，当它和 ToggleGroup 一起使用的时候，可以变成 RadioButton。
      * 可通过 cc.ToggleComponent 获得该组件。
      */
     export class ToggleComponent extends ButtonComponent {
-        static TestEventType: typeof import("cocos/ui/components/button-component").TestButtonEventType & typeof TestToggleEventType;
         /**
          * @zh
          * 如果这个设置为 true，则 check mark 组件会处于 enabled 状态，否则处于 disabled 状态。

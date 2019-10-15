@@ -43,11 +43,12 @@ class BundleGenerator {
         this._referencedSourceFiles = new Set();
         this._options = options;
         this._shelterName = options.shelterName || '__internal';
+        this._tsCompilerOptions = {
+            rootDir: path.dirname(options.input),
+        };
         this._program = typescript_1.default.createProgram({
             rootNames: [options.input],
-            options: {
-                rootDir: path.dirname(options.input),
-            },
+            options: this._tsCompilerOptions,
         });
         this._typeChecker = this._program.getTypeChecker();
     }
@@ -99,6 +100,47 @@ class BundleGenerator {
         const statementsArray = typescript_1.default.createNodeArray(statements);
         const result = printer.printList(typescript_1.default.ListFormat.None, statementsArray, sourceFile);
         lines.push(result);
+        //         const expandTypeReferenceDirectives: Record<string, string> = {};
+        //         const copyTypeReferenceDirectives: string[] = [];
+        //         const typeReferencePaths: string[] = [];
+        //         if (rootModule.declarations && rootModule.declarations.length !== 0) {
+        //             const declaration0 = rootModule.declarations[0];
+        //             const indexSourceFile = declaration0.getSourceFile();
+        //             const indexSourceFileName = indexSourceFile.fileName;
+        //             for (const typeReferenceDirective of indexSourceFile.typeReferenceDirectives) {
+        //                 const resolveResult = ts.resolveTypeReferenceDirective(
+        //                     typeReferenceDirective.fileName,
+        //                     indexSourceFileName,
+        //                     this._tsCompilerOptions, {
+        //                         fileExists: ts.sys.fileExists,
+        //                         readFile: ts.sys.readFile,
+        //                     });
+        //                 if (!resolveResult.resolvedTypeReferenceDirective ||
+        //                     resolveResult.resolvedTypeReferenceDirective.packageId ||
+        //                     resolveResult.resolvedTypeReferenceDirective.primary ||
+        //                     resolveResult.resolvedTypeReferenceDirective.isExternalLibraryImport ||
+        //                     !resolveResult.resolvedTypeReferenceDirective.resolvedFileName) {
+        //                     copyTypeReferenceDirectives.push(typeReferenceDirective.fileName);
+        //                 } else {
+        //                     expandTypeReferenceDirectives[typeReferenceDirective.fileName] = resolveResult.resolvedTypeReferenceDirective.resolvedFileName;
+        //                 }
+        //             }
+        //         }
+        //         const lines: string[] = [];
+        //         for (const trd of copyTypeReferenceDirectives) {
+        //             lines.push(`/// <reference types="${trd}"/>`);
+        //         }
+        //         const statementsArray = ts.createNodeArray(statements);
+        //         const result = printer.printList(ts.ListFormat.None, statementsArray, sourceFile);
+        //         lines.push(result);
+        //         for (const trd of Object.keys(expandTypeReferenceDirectives)) {
+        // //             const referencedSource = fs.readFileSync(expandTypeReferenceDirectives[trd]).toString();
+        // //             lines.push(`
+        // // /// Included from type reference directive ${trd}.
+        // // ${referencedSource}
+        // // `);
+        //             typeReferencePaths.push(trd);
+        //         }
         const code = lines.join('\n');
         return { error: GiftErrors.Ok, code, typeReferencePaths };
     }
@@ -264,28 +306,59 @@ class BundleGenerator {
         return null;
     }
     _remakeFunctionDeclaration(functionDeclaration, symbol, newName) {
-        return typescript_1.default.createFunctionDeclaration(undefined, this._remakeModifiers(functionDeclaration), functionDeclaration.asteriskToken, newName, this._remakeTypeParameterArray(functionDeclaration.typeParameters), functionDeclaration.parameters.map((p) => this._remakeParameter(p)), this._remakeType(functionDeclaration.type), undefined);
+        return typescript_1.default.createFunctionDeclaration(undefined, this._remakeModifiers(functionDeclaration.modifiers), functionDeclaration.asteriskToken, newName, this._remakeTypeParameterArray(functionDeclaration.typeParameters), this._remakeParameterArray(functionDeclaration.parameters), // parameters
+        this._remakeType(functionDeclaration.type), undefined);
     }
     _remakeVariableDeclaration(variableDeclaration, symbol, newName) {
-        return typescript_1.default.createVariableStatement(this._remakeModifiers(variableDeclaration.parent), [typescript_1.default.createVariableDeclaration(newName, this._remakeType(variableDeclaration.type))]);
+        return typescript_1.default.createVariableStatement(this._remakeModifiers(variableDeclaration.modifiers), [typescript_1.default.createVariableDeclaration(newName, this._remakeType(variableDeclaration.type))]);
     }
     _remakePropertySignature(propertySignature) {
         return this._copyComments(propertySignature, typescript_1.default.createPropertySignature(undefined, this._remakePropertyName(propertySignature.name), this._remakeToken(propertySignature.questionToken), this._remakeType(propertySignature.type), undefined));
     }
     _remakeMethodSignature(methodSignature) {
-        return this._copyComments(methodSignature, typescript_1.default.createMethodSignature(this._remakeTypeParameterArray(methodSignature.typeParameters), methodSignature.parameters.map((p) => this._remakeParameter(p)), this._remakeType(methodSignature.type), this._remakePropertyName(methodSignature.name), this._remakeToken(methodSignature.questionToken)));
+        return this._copyComments(methodSignature, typescript_1.default.createMethodSignature(this._remakeTypeParameterArray(methodSignature.typeParameters), this._remakeParameterArray(methodSignature.parameters), // parameters
+        this._remakeType(methodSignature.type), this._remakePropertyName(methodSignature.name), this._remakeToken(methodSignature.questionToken)));
+    }
+    _remakeIndexSignatureDeclaration(indexSignature) {
+        return this._copyComments(indexSignature, typescript_1.default.createIndexSignature(undefined, // decorators
+        this._remakeModifiers(indexSignature.modifiers), // modifiers
+        this._remakeParameterArray(indexSignature.parameters), // parameters
+        this._remakeType(indexSignature.type) || typescript_1.default.createKeywordTypeNode(typescript_1.default.SyntaxKind.UndefinedKeyword)));
+    }
+    _remakeCallSignatureDeclaration(callSignature) {
+        return this._copyComments(callSignature, typescript_1.default.createCallSignature(this._remakeTypeParameterArray(callSignature.typeParameters), // typeParameters
+        this._remakeParameterArray(callSignature.parameters), // parameters
+        this._remakeType(callSignature.type)));
+    }
+    _remakeConstructorSignatureDeclaration(constructSignature) {
+        return this._copyComments(constructSignature, typescript_1.default.createConstructSignature(this._remakeTypeParameterArray(constructSignature.typeParameters), this._remakeParameterArray(constructSignature.parameters), // parameters
+        this._remakeType(constructSignature.type)));
     }
     _remakePropertyDeclaration(propertyDeclaration) {
-        return this._copyComments(propertyDeclaration, typescript_1.default.createProperty(undefined, this._remakeModifiers(propertyDeclaration), this._remakePropertyName(propertyDeclaration.name), this._remakeToken(propertyDeclaration.questionToken), this._remakeType(propertyDeclaration.type), undefined));
+        return this._copyComments(propertyDeclaration, typescript_1.default.createProperty(undefined, this._remakeModifiers(propertyDeclaration.modifiers), this._remakePropertyName(propertyDeclaration.name), this._remakeToken(propertyDeclaration.questionToken), this._remakeType(propertyDeclaration.type), undefined));
     }
     _remakeMethodDeclaration(methodDeclaration) {
-        return this._copyComments(methodDeclaration, (typescript_1.default.createMethod(undefined, this._remakeModifiers(methodDeclaration), this._remakeToken(methodDeclaration.asteriskToken), this._remakePropertyName(methodDeclaration.name), this._remakeToken(methodDeclaration.questionToken), this._remakeTypeParameterArray(methodDeclaration.typeParameters), methodDeclaration.parameters.map((p) => this._remakeParameter(p)), this._remakeType(methodDeclaration.type), undefined)));
+        return this._copyComments(methodDeclaration, (typescript_1.default.createMethod(undefined, this._remakeModifiers(methodDeclaration.modifiers), this._remakeToken(methodDeclaration.asteriskToken), this._remakePropertyName(methodDeclaration.name), this._remakeToken(methodDeclaration.questionToken), this._remakeTypeParameterArray(methodDeclaration.typeParameters), this._remakeParameterArray(methodDeclaration.parameters), // parameters
+        this._remakeType(methodDeclaration.type), undefined)));
     }
     _remakeConstructorDeclaration(constructorDeclaration) {
-        return this._copyComments(constructorDeclaration, (typescript_1.default.createConstructor(undefined, this._remakeModifiers(constructorDeclaration), constructorDeclaration.parameters.map((p) => this._remakeParameter(p)), undefined)));
+        return this._copyComments(constructorDeclaration, (typescript_1.default.createConstructor(undefined, this._remakeModifiers(constructorDeclaration.modifiers), this._remakeParameterArray(constructorDeclaration.parameters), // parameters
+        undefined)));
     }
     _remakeParameter(parameter) {
-        return typescript_1.default.createParameter(undefined, this._remakeModifiers(parameter), this._remakeToken(parameter.dotDotDotToken), parameter.name.getText(), this._remakeToken(parameter.questionToken), this._remakeType(parameter.type));
+        return typescript_1.default.createParameter(undefined, this._remakeModifiers(parameter.modifiers), this._remakeToken(parameter.dotDotDotToken), parameter.name.getText(), this._remakeToken(parameter.questionToken), this._remakeType(parameter.type));
+    }
+    _remakeParameterArray(parameters) {
+        const lambda = (p) => this._copyComments(p, (this._remakeParameter(p)));
+        if (Array.isArray(parameters)) {
+            return parameters.map(lambda);
+        }
+        else if (parameters) {
+            return parameters.map(lambda);
+        }
+        else {
+            return undefined;
+        }
     }
     _remakeTypeParameter(typeParameter) {
         return typescript_1.default.createTypeParameterDeclaration(typeParameter.name.getText(), this._remakeType(typeParameter.constraint), this._remakeType(typeParameter.default));
@@ -321,8 +394,14 @@ class BundleGenerator {
             else if (typescript_1.default.isPropertyDeclaration(element)) {
                 classElements.push(this._remakePropertyDeclaration(element));
             }
+            else if (typescript_1.default.isIndexSignatureDeclaration(element)) {
+                classElements.push(this._remakeIndexSignatureDeclaration(element));
+            }
+            else if (typescript_1.default.isSemicolonClassElement(element)) {
+                classElements.push(typescript_1.default.createSemicolonClassElement());
+            }
         }
-        return typescript_1.default.createClassDeclaration(undefined, this._remakeModifiers(classDeclaration), newName, this._remakeTypeParameterArray(classDeclaration.typeParameters), this._remakeHeritageClauses(classDeclaration.heritageClauses), classElements);
+        return typescript_1.default.createClassDeclaration(undefined, this._remakeModifiers(classDeclaration.modifiers), newName, this._remakeTypeParameterArray(classDeclaration.typeParameters), this._remakeHeritageClauses(classDeclaration.heritageClauses), classElements);
     }
     _isPrivateMember(classElement) {
         if (!classElement.modifiers) {
@@ -331,7 +410,7 @@ class BundleGenerator {
         return classElement.modifiers.some((modifier) => modifier.kind === typescript_1.default.SyntaxKind.PrivateKeyword);
     }
     _remakeInterfaceDeclaration(interfaceDeclaration, symbol, newName) {
-        return typescript_1.default.createInterfaceDeclaration(undefined, this._remakeModifiers(interfaceDeclaration), newName, this._remakeTypeParameterArray(interfaceDeclaration.typeParameters), this._remakeHeritageClauses(interfaceDeclaration.heritageClauses), this._remakeTypeElements(interfaceDeclaration.members));
+        return typescript_1.default.createInterfaceDeclaration(undefined, this._remakeModifiers(interfaceDeclaration.modifiers), newName, this._remakeTypeParameterArray(interfaceDeclaration.typeParameters), this._remakeHeritageClauses(interfaceDeclaration.heritageClauses), this._remakeTypeElements(interfaceDeclaration.members));
     }
     _remakeTypeElement(typeElement) {
         if (typescript_1.default.isMethodSignature(typeElement)) {
@@ -339,6 +418,15 @@ class BundleGenerator {
         }
         else if (typescript_1.default.isPropertySignature(typeElement)) {
             return this._remakePropertySignature(typeElement);
+        }
+        else if (typescript_1.default.isIndexSignatureDeclaration(typeElement)) {
+            return this._remakeIndexSignatureDeclaration(typeElement);
+        }
+        else if (typescript_1.default.isCallSignatureDeclaration(typeElement)) {
+            return this._remakeCallSignatureDeclaration(typeElement);
+        }
+        else if (typescript_1.default.isConstructSignatureDeclaration(typeElement)) {
+            return this._remakeConstructorSignatureDeclaration(typeElement);
         }
     }
     _remakeTypeElements(typeElements) {
@@ -371,19 +459,19 @@ class BundleGenerator {
         }
     }
     _remakeEnumDeclaration(enumDeclaration, symbol, newName) {
-        return typescript_1.default.createEnumDeclaration(undefined, this._remakeModifiers(enumDeclaration), newName, enumDeclaration.members.map((enumerator) => {
+        return typescript_1.default.createEnumDeclaration(undefined, this._remakeModifiers(enumDeclaration.modifiers), newName, enumDeclaration.members.map((enumerator) => {
             return typescript_1.default.createEnumMember(enumerator.name.getText(), this._remakeExpression(enumerator.initializer));
         }));
     }
     _remakeTypeAliasDeclaration(typeAliasDeclaration, symbol, newName) {
-        return typescript_1.default.createTypeAliasDeclaration(undefined, this._remakeModifiers(typeAliasDeclaration), newName, this._remakeTypeParameterArray(typeAliasDeclaration.typeParameters), this._remakeType(typeAliasDeclaration.type));
+        return typescript_1.default.createTypeAliasDeclaration(undefined, this._remakeModifiers(typeAliasDeclaration.modifiers), newName, this._remakeTypeParameterArray(typeAliasDeclaration.typeParameters), this._remakeType(typeAliasDeclaration.type));
     }
-    _remakeModifiers(declaration) {
-        if (!declaration.modifiers) {
+    _remakeModifiers(modifiers) {
+        if (!modifiers) {
             return undefined;
         }
         const result = [];
-        for (const modifier of declaration.modifiers) {
+        for (const modifier of modifiers) {
             if (modifier.kind !== typescript_1.default.SyntaxKind.DefaultKeyword) {
                 result.push(modifier);
             }
@@ -436,10 +524,12 @@ class BundleGenerator {
             return typescript_1.default.createTypeOperatorNode(this._remakeType(type.type));
         }
         else if (typescript_1.default.isFunctionTypeNode(type)) {
-            return typescript_1.default.createFunctionTypeNode(this._remakeTypeParameterArray(type.typeParameters), type.parameters.map((p) => this._remakeParameter(p)), this._remakeType(type.type));
+            return typescript_1.default.createFunctionTypeNode(this._remakeTypeParameterArray(type.typeParameters), this._remakeParameterArray(type.parameters), // parameters
+            this._remakeType(type.type));
         }
         else if (typescript_1.default.isConstructorTypeNode(type)) {
-            return typescript_1.default.createConstructorTypeNode(this._remakeTypeParameterArray(type.typeParameters), type.parameters.map((p) => this._remakeParameter(p)), this._remakeType(type.type));
+            return typescript_1.default.createConstructorTypeNode(this._remakeTypeParameterArray(type.typeParameters), this._remakeParameterArray(type.parameters), // parameters
+            this._remakeType(type.type));
         }
         else if (typescript_1.default.isImportTypeNode(type)) {
             let symbol;

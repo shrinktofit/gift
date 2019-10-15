@@ -54,6 +54,7 @@ interface IExportedSymbolInfo {
 
 class BundleGenerator {
     private _options: IOptions;
+    private _tsCompilerOptions: ts.CompilerOptions;
     private _shelterName: string;
     private _program: ts.Program;
     private _typeChecker: ts.TypeChecker;
@@ -70,11 +71,12 @@ class BundleGenerator {
     constructor(options: IOptions) {
         this._options = options;
         this._shelterName = options.shelterName || '__internal';
+        this._tsCompilerOptions = {
+            rootDir: path.dirname(options.input),
+        };
         this._program = ts.createProgram({
             rootNames: [ options.input ],
-            options: {
-                rootDir: path.dirname(options.input),
-            },
+            options: this._tsCompilerOptions,
         });
         this._typeChecker = this._program.getTypeChecker();
     }
@@ -141,6 +143,52 @@ class BundleGenerator {
         const statementsArray = ts.createNodeArray(statements);
         const result = printer.printList(ts.ListFormat.None, statementsArray, sourceFile);
         lines.push(result);
+//         const expandTypeReferenceDirectives: Record<string, string> = {};
+//         const copyTypeReferenceDirectives: string[] = [];
+
+//         const typeReferencePaths: string[] = [];
+//         if (rootModule.declarations && rootModule.declarations.length !== 0) {
+//             const declaration0 = rootModule.declarations[0];
+//             const indexSourceFile = declaration0.getSourceFile();
+//             const indexSourceFileName = indexSourceFile.fileName;
+//             for (const typeReferenceDirective of indexSourceFile.typeReferenceDirectives) {
+//                 const resolveResult = ts.resolveTypeReferenceDirective(
+//                     typeReferenceDirective.fileName,
+//                     indexSourceFileName,
+//                     this._tsCompilerOptions, {
+//                         fileExists: ts.sys.fileExists,
+//                         readFile: ts.sys.readFile,
+//                     });
+//                 if (!resolveResult.resolvedTypeReferenceDirective ||
+//                     resolveResult.resolvedTypeReferenceDirective.packageId ||
+//                     resolveResult.resolvedTypeReferenceDirective.primary ||
+//                     resolveResult.resolvedTypeReferenceDirective.isExternalLibraryImport ||
+//                     !resolveResult.resolvedTypeReferenceDirective.resolvedFileName) {
+//                     copyTypeReferenceDirectives.push(typeReferenceDirective.fileName);
+//                 } else {
+//                     expandTypeReferenceDirectives[typeReferenceDirective.fileName] = resolveResult.resolvedTypeReferenceDirective.resolvedFileName;
+//                 }
+//             }
+//         }
+
+//         const lines: string[] = [];
+//         for (const trd of copyTypeReferenceDirectives) {
+//             lines.push(`/// <reference types="${trd}"/>`);
+//         }
+
+//         const statementsArray = ts.createNodeArray(statements);
+//         const result = printer.printList(ts.ListFormat.None, statementsArray, sourceFile);
+//         lines.push(result);
+
+//         for (const trd of Object.keys(expandTypeReferenceDirectives)) {
+// //             const referencedSource = fs.readFileSync(expandTypeReferenceDirectives[trd]).toString();
+// //             lines.push(`
+// // /// Included from type reference directive ${trd}.
+
+// // ${referencedSource}
+// // `);
+//             typeReferencePaths.push(trd);
+//         }
         const code = lines.join('\n');
         return { error: GiftErrors.Ok, code, typeReferencePaths };
     }
@@ -330,11 +378,11 @@ class BundleGenerator {
     private _remakeFunctionDeclaration(functionDeclaration: ts.FunctionDeclaration, symbol: ts.Symbol, newName: string) {
         return ts.createFunctionDeclaration(
             undefined,
-            this._remakeModifiers(functionDeclaration),
+            this._remakeModifiers(functionDeclaration.modifiers),
             functionDeclaration.asteriskToken,
             newName,
             this._remakeTypeParameterArray(functionDeclaration.typeParameters),
-            functionDeclaration.parameters.map((p) => this._remakeParameter(p)),
+            this._remakeParameterArray(functionDeclaration.parameters), // parameters
             this._remakeType(functionDeclaration.type),
             undefined,
         );
@@ -342,7 +390,7 @@ class BundleGenerator {
 
     private _remakeVariableDeclaration(variableDeclaration: ts.VariableDeclaration, symbol: ts.Symbol, newName: string) {
         return ts.createVariableStatement(
-            this._remakeModifiers(variableDeclaration.parent),
+            this._remakeModifiers(variableDeclaration.modifiers),
             [ts.createVariableDeclaration(
                 newName,
                 this._remakeType(variableDeclaration.type),
@@ -363,17 +411,42 @@ class BundleGenerator {
     private _remakeMethodSignature(methodSignature: ts.MethodSignature) {
         return this._copyComments(methodSignature, ts.createMethodSignature(
             this._remakeTypeParameterArray(methodSignature.typeParameters),
-            methodSignature.parameters.map((p) => this._remakeParameter(p)),
+            this._remakeParameterArray(methodSignature.parameters), // parameters
             this._remakeType(methodSignature.type),
             this._remakePropertyName(methodSignature.name),
             this._remakeToken(methodSignature.questionToken),
         ));
     }
 
+    private _remakeIndexSignatureDeclaration(indexSignature: ts.IndexSignatureDeclaration) {
+        return this._copyComments(indexSignature, ts.createIndexSignature(
+            undefined, // decorators
+            this._remakeModifiers(indexSignature.modifiers), // modifiers
+            this._remakeParameterArray(indexSignature.parameters), // parameters
+            this._remakeType(indexSignature.type) || ts.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword), // type
+        ));
+    }
+
+    private _remakeCallSignatureDeclaration(callSignature: ts.CallSignatureDeclaration) {
+        return this._copyComments(callSignature, ts.createCallSignature(
+            this._remakeTypeParameterArray(callSignature.typeParameters), // typeParameters
+            this._remakeParameterArray(callSignature.parameters), // parameters
+            this._remakeType(callSignature.type), // type
+        ));
+    }
+
+    private _remakeConstructorSignatureDeclaration(constructSignature: ts.ConstructSignatureDeclaration) {
+        return this._copyComments(constructSignature, ts.createConstructSignature(
+            this._remakeTypeParameterArray(constructSignature.typeParameters),
+            this._remakeParameterArray(constructSignature.parameters), // parameters
+            this._remakeType(constructSignature.type),
+        ));
+    }
+
     private _remakePropertyDeclaration(propertyDeclaration: ts.PropertyDeclaration) {
         return this._copyComments(propertyDeclaration, ts.createProperty(
             undefined,
-            this._remakeModifiers(propertyDeclaration),
+            this._remakeModifiers(propertyDeclaration.modifiers),
             this._remakePropertyName(propertyDeclaration.name),
             this._remakeToken(propertyDeclaration.questionToken),
             this._remakeType(propertyDeclaration.type),
@@ -384,12 +457,12 @@ class BundleGenerator {
     private _remakeMethodDeclaration(methodDeclaration: ts.MethodDeclaration) {
         return this._copyComments(methodDeclaration, (ts.createMethod(
             undefined,
-            this._remakeModifiers(methodDeclaration),
+            this._remakeModifiers(methodDeclaration.modifiers),
             this._remakeToken(methodDeclaration.asteriskToken),
             this._remakePropertyName(methodDeclaration.name),
             this._remakeToken(methodDeclaration.questionToken),
             this._remakeTypeParameterArray(methodDeclaration.typeParameters),
-            methodDeclaration.parameters.map((p) => this._remakeParameter(p)),
+            this._remakeParameterArray(methodDeclaration.parameters), // parameters
             this._remakeType(methodDeclaration.type),
             undefined,
         )));
@@ -398,8 +471,8 @@ class BundleGenerator {
     private _remakeConstructorDeclaration(constructorDeclaration: ts.ConstructorDeclaration) {
         return this._copyComments(constructorDeclaration, (ts.createConstructor(
             undefined,
-            this._remakeModifiers(constructorDeclaration),
-            constructorDeclaration.parameters.map((p) => this._remakeParameter(p)),
+            this._remakeModifiers(constructorDeclaration.modifiers),
+            this._remakeParameterArray(constructorDeclaration.parameters), // parameters
             undefined,
         )));
     }
@@ -407,12 +480,27 @@ class BundleGenerator {
     private _remakeParameter(parameter: ts.ParameterDeclaration) {
         return ts.createParameter(
             undefined,
-            this._remakeModifiers(parameter),
+            this._remakeModifiers(parameter.modifiers),
             this._remakeToken(parameter.dotDotDotToken),
             parameter.name.getText(),
             this._remakeToken(parameter.questionToken),
             this._remakeType(parameter.type),
         );
+    }
+
+    private _remakeParameterArray(parameters: ts.NodeArray<ts.ParameterDeclaration> | ts.ParameterDeclaration[]): ts.ParameterDeclaration[];
+
+    private _remakeParameterArray(parameters?: ts.NodeArray<ts.ParameterDeclaration> | ts.ParameterDeclaration[]): ts.ParameterDeclaration[] | undefined;
+
+    private _remakeParameterArray(parameters: ts.NodeArray<ts.ParameterDeclaration> | ts.ParameterDeclaration[]) {
+        const lambda = (p: ts.ParameterDeclaration) => this._copyComments(p, (this._remakeParameter(p)));
+        if (Array.isArray(parameters)) {
+            return parameters.map(lambda);
+        } else if (parameters) {
+            return parameters.map(lambda);
+        } else {
+            return undefined;
+        }
     }
 
     private _remakeTypeParameter(typeParameter: ts.TypeParameterDeclaration) {
@@ -452,11 +540,15 @@ class BundleGenerator {
                 classElements.push(this._remakeConstructorDeclaration(element));
             } else if (ts.isPropertyDeclaration(element)) {
                 classElements.push(this._remakePropertyDeclaration(element));
+            } else if (ts.isIndexSignatureDeclaration(element)) {
+                classElements.push(this._remakeIndexSignatureDeclaration(element));
+            } else if (ts.isSemicolonClassElement(element)) {
+                classElements.push(ts.createSemicolonClassElement());
             }
         }
         return ts.createClassDeclaration(
             undefined,
-            this._remakeModifiers(classDeclaration),
+            this._remakeModifiers(classDeclaration.modifiers),
             newName,
             this._remakeTypeParameterArray(classDeclaration.typeParameters),
             this._remakeHeritageClauses(classDeclaration.heritageClauses),
@@ -475,7 +567,7 @@ class BundleGenerator {
         interfaceDeclaration: ts.InterfaceDeclaration, symbol: ts.Symbol, newName: string) {
         return ts.createInterfaceDeclaration(
             undefined,
-            this._remakeModifiers(interfaceDeclaration),
+            this._remakeModifiers(interfaceDeclaration.modifiers),
             newName,
             this._remakeTypeParameterArray(interfaceDeclaration.typeParameters),
             this._remakeHeritageClauses(interfaceDeclaration.heritageClauses),
@@ -488,6 +580,12 @@ class BundleGenerator {
             return this._remakeMethodSignature(typeElement);
         } else if (ts.isPropertySignature(typeElement)) {
             return this._remakePropertySignature(typeElement);
+        } else if (ts.isIndexSignatureDeclaration(typeElement)) {
+            return this._remakeIndexSignatureDeclaration(typeElement);
+        } else if (ts.isCallSignatureDeclaration(typeElement)) {
+            return this._remakeCallSignatureDeclaration(typeElement);
+        } else if (ts.isConstructSignatureDeclaration(typeElement)) {
+            return this._remakeConstructorSignatureDeclaration(typeElement);
         }
     }
 
@@ -530,7 +628,7 @@ class BundleGenerator {
     private _remakeEnumDeclaration(enumDeclaration: ts.EnumDeclaration, symbol: ts.Symbol, newName: string) {
         return ts.createEnumDeclaration(
             undefined,
-            this._remakeModifiers(enumDeclaration),
+            this._remakeModifiers(enumDeclaration.modifiers),
             newName,
             enumDeclaration.members.map((enumerator) => {
                 return ts.createEnumMember(
@@ -545,24 +643,28 @@ class BundleGenerator {
         typeAliasDeclaration: ts.TypeAliasDeclaration, symbol: ts.Symbol, newName: string) {
         return ts.createTypeAliasDeclaration(
             undefined,
-            this._remakeModifiers(typeAliasDeclaration),
+            this._remakeModifiers(typeAliasDeclaration.modifiers),
             newName,
             this._remakeTypeParameterArray(typeAliasDeclaration.typeParameters),
             this._remakeType(typeAliasDeclaration.type)!,
         );
     }
 
-    private _remakeModifiers(declaration: ts.Declaration | ts.VariableDeclarationList | ts.CatchClause) {
-            if (!declaration.modifiers) {
-                return undefined;
+    private _remakeModifiers(modifiers: ts.NodeArray<ts.Modifier>): ts.Modifier[];
+
+    private _remakeModifiers(modifiers?: ts.NodeArray<ts.Modifier>): ts.Modifier[] | undefined
+
+    private _remakeModifiers(modifiers?: ts.NodeArray<ts.Modifier>) {
+        if (!modifiers) {
+            return undefined;
+        }
+        const result: ts.Modifier[] = [];
+        for (const modifier of modifiers) {
+            if (modifier.kind !== ts.SyntaxKind.DefaultKeyword) {
+                result.push(modifier);
             }
-            const result: ts.Modifier[] = [];
-            for (const modifier of declaration.modifiers) {
-                if (modifier.kind !== ts.SyntaxKind.DefaultKeyword) {
-                    result.push(modifier);
-                }
-            }
-            return result;
+        }
+        return result;
     }
 
     private _remakeType(type: ts.TypeNode): ts.TypeNode;
@@ -616,13 +718,13 @@ class BundleGenerator {
         } else if (ts.isFunctionTypeNode(type)) {
             return ts.createFunctionTypeNode(
                 this._remakeTypeParameterArray(type.typeParameters),
-                type.parameters.map((p) => this._remakeParameter(p)),
+                this._remakeParameterArray(type.parameters), // parameters
                 this._remakeType(type.type),
             );
         } else if (ts.isConstructorTypeNode(type)) {
             return ts.createConstructorTypeNode(
                 this._remakeTypeParameterArray(type.typeParameters),
-                type.parameters.map((p) => this._remakeParameter(p)),
+                this._remakeParameterArray(type.parameters), // parameters
                 this._remakeType(type.type),
             );
         } else if (ts.isImportTypeNode(type)) {
