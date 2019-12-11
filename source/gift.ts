@@ -252,25 +252,30 @@ class BundleGenerator {
 
         if (!originalSymbol.declarations || originalSymbol.declarations.length === 0) {
             if (originalSymbol === symbol) {
-                console.error(`Symbol [[${symbol.name}]] has no declaration.`);
+                console.error(`Symbol [[${symbol.name}]] has no declaration, flags: ${symbol.getFlags()}.`);
             } else {
                 console.error(
-                    `Aliasing symbol of ${symbol.name}, ` +
-                    `which is ${originalSymbol.name}, ` +
+                    `Aliasing symbol of ${symbol.name}(flags: ${symbol.getFlags()}), ` +
+                    `which is ${originalSymbol.name}(flags: ${originalSymbol.getFlags()}), ` +
                     `has no declaration.`);
             }
             return result;
         }
 
-        for (const declaration of originalSymbol.declarations) {
-            if (declaration.kind === ts.SyntaxKind.ModuleDeclaration) {
-                const exportedSymbols = this._typeChecker.getExportsOfModule(originalSymbol);
-                result.children = result.children || [];
-                for (const exportedSymbol of exportedSymbols) {
-                    const child = this._collectExportedSymbols(exportedSymbol, exportedSymbol.name);
-                    child.parent = result;
-                    result.children.push(child);
+        if (originalSymbol.declarations.some(
+            (declaration) => declaration.kind === ts.SyntaxKind.ModuleDeclaration)) {
+            const exportedSymbols = this._typeChecker.getExportsOfModule(originalSymbol);
+            result.children = result.children || [];
+            for (const exportedSymbol of exportedSymbols) {
+                if ((exportedSymbol.getFlags() & ts.SymbolFlags.Prototype) &&
+                    (exportedSymbol.getFlags() & ts.SymbolFlags.Property)) {
+                    // A symbol with both class and namespace declaration
+                    // might have a prototype exported symbol, which associates no declarations.
+                    continue;
                 }
+                const child = this._collectExportedSymbols(exportedSymbol, exportedSymbol.name);
+                child.parent = result;
+                result.children.push(child);
             }
         }
 
