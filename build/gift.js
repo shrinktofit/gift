@@ -341,8 +341,14 @@ class BundleGenerator {
         return result;
     }
     _copyComments(src, dst) {
+        if (typescript_1.default.isVariableDeclaration(src) &&
+            typescript_1.default.isVariableDeclarationList(src.parent) &&
+            typescript_1.default.isVariableStatement(src.parent.parent)) {
+            // https://github.com/microsoft/TypeScript/issues/35620
+            return this._copyComments(src.parent.parent, dst);
+        }
         const sourceFileText = src.getSourceFile().text;
-        typescript_1.default.forEachLeadingCommentRange(sourceFileText, src.getFullStart(), (pos, end, kind) => {
+        typescript_1.default.forEachLeadingCommentRange(sourceFileText, src.pos, (pos, end, kind) => {
             let tex = sourceFileText.substring(pos, end);
             if (tex.startsWith('/*')) {
                 tex = tex.substr(2, tex.length - 4);

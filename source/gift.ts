@@ -414,9 +414,15 @@ class BundleGenerator {
         return result;
     }
 
-    private _copyComments<T extends ts.Node>(src: ts.Node, dst: T) {
+    private _copyComments<T extends ts.Node>(src: ts.Node, dst: T): T {
+        if (ts.isVariableDeclaration(src) &&
+            ts.isVariableDeclarationList(src.parent) &&
+            ts.isVariableStatement(src.parent.parent)) {
+            // https://github.com/microsoft/TypeScript/issues/35620
+            return this._copyComments(src.parent.parent, dst);
+        }
         const sourceFileText = src.getSourceFile().text;
-        ts.forEachLeadingCommentRange(sourceFileText, src.getFullStart(), (pos, end, kind) => {
+        ts.forEachLeadingCommentRange(sourceFileText, src.pos, (pos, end, kind) => {
             let tex = sourceFileText.substring(pos, end);
             if (tex.startsWith('/*')) {
                 tex = tex.substr(2, tex.length - 4);

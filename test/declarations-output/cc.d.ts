@@ -656,6 +656,9 @@ declare module "cc" {
             doubleSided?: boolean;
         }
     }
+    /**
+     * @deprecated YaQiong
+     */
     var HelloMoto: {};
     namespace math {
         namespace bits {
@@ -738,6 +741,18 @@ declare module "cc" {
              * mistakenly called nextPermutation on the bit twiddling hacks page).
              */
             export function nextCombination(v: number): number;
+            /**
+             * 数学库
+             * @category core/math
+             */
+            /**
+             * Bit twiddling hacks for JavaScript.
+             *
+             * Author: Mikola Lysenko
+             *
+             * Ported from Stanford bit twiddling hack library:
+             *    http://graphics.stanford.edu/~seander/bithacks.html
+             */
             var INT_BITS;
             var INT_MAX;
             var INT_MIN: number;
@@ -3281,6 +3296,9 @@ declare module "cc" {
          */
         export function inverseLerp(from: number, to: number, value: number): number;
         var EPSILON;
+        /**
+         * @method random
+         */
         var random: () => number;
     }
     namespace memop {
@@ -4902,6 +4920,18 @@ declare module "cc" {
          * mistakenly called nextPermutation on the bit twiddling hacks page).
          */
         export function nextCombination(v: number): number;
+        /**
+         * 数学库
+         * @category core/math
+         */
+        /**
+         * Bit twiddling hacks for JavaScript.
+         *
+         * Author: Mikola Lysenko
+         *
+         * Ported from Stanford bit twiddling hack library:
+         *    http://graphics.stanford.edu/~seander/bithacks.html
+         */
         var INT_BITS;
         var INT_MAX;
         var INT_MIN: number;
@@ -7445,6 +7475,9 @@ declare module "cc" {
      */
     export function inverseLerp(from: number, to: number, value: number): number;
     var EPSILON;
+    /**
+     * @method random
+     */
     var random: () => number;
     /**
      * 可以自动分配内存的数据结构
@@ -7930,9 +7963,31 @@ declare module "cc" {
          * @private
          */
         export function _getClassId(obj: any, allowTempId?: Boolean): any;
+        /**
+         * Define value, just help to call Object.defineProperty.<br>
+         * The configurable will be true.
+         * @param [writable=false]
+         * @param [enumerable=false]
+         */
         var value: (object: Object, propertyName: string, value_: any, writable?: boolean | undefined, enumerable?: boolean | undefined) => void;
+        /**
+         * Define get set accessor, just help to call Object.defineProperty(...).
+         * @param [setter=null]
+         * @param [enumerable=false]
+         * @param [configurable=false]
+         */
         var getset: (object: {}, propertyName: string, getter: Getter, setter?: boolean | Setter | undefined, enumerable?: boolean, configurable?: boolean) => void;
+        /**
+         * Define get accessor, just help to call Object.defineProperty(...).
+         * @param [enumerable=false]
+         * @param [configurable=false]
+         */
         var get: (object: Object, propertyName: string, getter: Getter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
+        /**
+         * Define set accessor, just help to call Object.defineProperty(...).
+         * @param [enumerable=false]
+         * @param [configurable=false]
+         */
         var set: (object: Object, propertyName: string, setter: Setter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
         var _idToClass: {};
         var _nameToClass: {};
@@ -8186,6 +8241,28 @@ declare module "cc" {
          */
         export function type(type: Function): PropertyDecorator;
         export function type<T>(type: __internal.$cocos.$core.$data.$utils.$attribute.PrimitiveType<T>): PropertyDecorator;
+        /**
+         * 将标准写法的 [ES6 Class](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes) 声明为 CCClass，具体用法请参阅[类型定义](/docs/creator/scripting/class/)。
+         *
+         * @method ccclass
+         * @param {String} [name] - The class name used for serialization.
+         * @example
+         * ```typescript
+         * const {ccclass} = cc._decorator;
+         *
+         * // define a CCClass, omit the name
+         *  @ccclass
+         * class NewScript extends cc.Component {
+         *     // ...
+         * }
+         *
+         * // define a CCClass with a name
+         *  @ccclass('LoginData')
+         * class LoginData {
+         *     // ...
+         * }
+         * ```
+         */
         var ccclass: (target: any) => any;
         export type SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
         export type PropertyType = SimplePropertyType | SimplePropertyType[];
@@ -8194,18 +8271,178 @@ declare module "cc" {
          */
         export interface IPropertyOptions extends __internal.$cocos.$core.$data.$utils.$attribute_defines.IExposedAttributes {
         }
+        /**
+         * Makes a CCClass that inherit from component execute in edit mode.<br/>
+         * By default, all components are only executed in play mode,<br/>
+         * which means they will not have their callback functions executed while the Editor is in edit mode.<br/>
+         * 允许继承自 Component 的 CCClass 在编辑器里执行。<br/>
+         * 默认情况下，所有 Component 都只会在运行时才会执行，也就是说它们的生命周期回调不会在编辑器里触发。
+         *
+         * @method executeInEditMode
+         * @example
+         * ```typescript
+         * const {ccclass, executeInEditMode} = cc._decorator;
+         *
+         *  @ccclass
+         *  @executeInEditMode
+         * class NewScript extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var executeInEditMode: any;
+        /**
+         * 为声明为 CCClass 的组件添加依赖的其它组件。当组件添加到节点上时，如果依赖的组件不存在，引擎将会自动将依赖组件添加到同一个节点，防止脚本出错。该设置在运行时同样有效。
+         *
+         * @method requireComponent
+         * @param {Component} requiredComponent
+         * @example
+         * ```typescript
+         * const {ccclass, requireComponent} = cc._decorator;
+         *
+         *  @ccclass
+         *  @requireComponent(cc.SpriteComponent)
+         * class SpriteCtrl extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var requireComponent: any;
+        /**
+         * 将当前组件添加到组件菜单中，方便用户查找。例如 "Rendering/CameraCtrl"。
+         *
+         * @method menu
+         * @param {String} path - The path is the menu represented like a pathname.
+         *                        For example the menu could be "Rendering/CameraCtrl".
+         * @example
+         * ```typescript
+         * const {ccclass, menu} = cc._decorator;
+         *
+         *  @ccclass
+         *  @menu("Rendering/CameraCtrl")
+         * class NewScript extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var menu: any;
+        /**
+         * 设置脚本生命周期方法调用的优先级。优先级小于 0 的组件将会优先执行，优先级大于 0 的组件将会延后执行。优先级仅会影响 onLoad, onEnable, start, update 和 lateUpdate，而 onDisable 和 onDestroy 不受影响。
+         *
+         * @method executionOrder
+         * @param {Number} order - The execution order of lifecycle methods for Component. Those less than 0 will execute before while those greater than 0 will execute after.
+         * @example
+         * ```typescript
+         * const {ccclass, executionOrder} = cc._decorator;
+         *
+         *  @ccclass
+         *  @executionOrder(1)
+         * class CameraCtrl extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var executionOrder: any;
+        /**
+         * 防止多个相同类型（或子类型）的组件被添加到同一个节点。
+         *
+         * @method disallowMultiple
+         * @example
+         * ```typescript
+         * const {ccclass, disallowMultiple} = cc._decorator;
+         *
+         *  @ccclass
+         *  @disallowMultiple
+         * class CameraCtrl extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var disallowMultiple: any;
+        /**
+         * 当指定了 "executeInEditMode" 以后，playOnFocus 可以在选中当前组件所在的节点时，提高编辑器的场景刷新频率到 60 FPS，否则场景就只会在必要的时候进行重绘。
+         *
+         * @method playOnFocus
+         * @example
+         * ```typescript
+         * const {ccclass, playOnFocus, executeInEditMode} = cc._decorator;
+         *
+         *  @ccclass
+         *  @executeInEditMode
+         *  @playOnFocus
+         * class CameraCtrl extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var playOnFocus: any;
+        /**
+         * 自定义当前组件在 **属性检查器** 中渲染时所用的网页 url。
+         *
+         * @method inspector
+         * @param {String} url
+         * @example
+         * ```typescript
+         * const {ccclass, inspector} = cc._decorator;
+         *
+         *  @ccclass
+         *  @inspector("packages://inspector/inspectors/comps/camera-ctrl.js")
+         * class NewScript extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var inspector: any;
+        /**
+         * 自定义当前组件在编辑器中显示的图标 url。
+         *
+         * @method icon
+         * @param {String} url
+         * @private
+         * @example
+         * ```typescript
+         * const {ccclass, icon} = cc._decorator;
+         *
+         *  @ccclass
+         *  @icon("xxxx.png")
+         * class NewScript extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var icon: any;
+        /**
+         * 指定当前组件的帮助文档的 url，设置过后，在 **属性检查器** 中就会出现一个帮助图标，用户点击将打开指定的网页。
+         *
+         * @method help
+         * @param {String} url
+         * @example
+         * ```typescript
+         * const {ccclass, help} = cc._decorator;
+         *
+         *  @ccclass
+         *  @help("app://docs/html/components/spine.html")
+         * class NewScript extends cc.Component {
+         *     // ...
+         * }
+         * ```
+         */
         var help: any;
+        /**
+         * 将该属性标记为 cc 整数。
+         */
         var integer: PropertyDecorator;
+        /**
+         * 将该属性标记为 cc 浮点数。
+         */
         var float: PropertyDecorator;
+        /**
+         * 将该属性标记为 cc 布尔值。
+         */
         var boolean: PropertyDecorator;
+        /**
+         * 将该属性标记为 cc 字符串。
+         */
         var string: PropertyDecorator;
     }
     /**
@@ -8444,9 +8681,69 @@ declare module "cc" {
     namespace instantiate {
         var _clone: typeof __internal.$cocos.$core.$data.$instantiate.doInstantiate;
     }
+    /**
+     * 指定编辑器以整数形式对待该属性或数组元素。
+     * 例如：
+     * ```ts
+     * import { CCInteger, _decorator } from "Cocos3D";
+     *
+     * // 在 cc 类定义中:
+     *
+     * \@_decorator.property({type: CCInteger})
+     * count = 0;
+     *
+     * \@_decorator.property({type: [CCInteger]})
+     * array = [];
+     * ```
+     */
     var CCInteger: __internal.$cocos.$core.$data.$utils.$attribute.PrimitiveType<number>;
+    /**
+     * 指定编辑器以浮点数形式对待该属性或数组元素。
+     * 例如：
+     * ```ts
+     * import { CCFloat, _decorator } from "Cocos3D";
+     *
+     * // 在 cc 类定义中:
+     *
+     * \@_decorator.property({type: CCFloat})
+     * x = 0;
+     *
+     * \@_decorator.property({type: [CCFloat]})
+     * array = [];
+     * ```
+     */
     var CCFloat: __internal.$cocos.$core.$data.$utils.$attribute.PrimitiveType<number>;
+    /**
+     * 指定编辑器以布尔值形式对待该属性或数组元素。
+     * 例如：
+     * ```ts
+     * import { CCBoolean, _decorator } from "Cocos3D";
+     *
+     * // 在 cc 类定义中:
+     *
+     * \@_decorator.property({type: CCBoolean})
+     * isTrue = false;
+     *
+     * \@_decorator.property({type: [CCBoolean]})
+     * array = [];
+     * ```
+     */
     var CCBoolean: __internal.$cocos.$core.$data.$utils.$attribute.PrimitiveType<boolean>;
+    /**
+     * 指定编辑器以字符串形式对待该属性或数组元素。
+     * 例如：
+     * ```ts
+     * import { CCString, _decorator } from "Cocos3D";
+     *
+     * // 在 cc 类定义中:
+     *
+     * \@_decorator.property({type: CCString})
+     * name = '';
+     *
+     * \@_decorator.property({type: [CCString]})
+     * array = [];
+     * ```
+     */
     var CCString: __internal.$cocos.$core.$data.$utils.$attribute.PrimitiveType<string>;
     export class CompactValueTypeArray {
         static StorageUnit: typeof __internal.$cocos.$core.$data.$utils.$compact_value_type_array.StorageUnit;
@@ -9049,6 +9346,11 @@ declare module "cc" {
          */
         json: object | null;
     }
+    /**
+     * 管理项目中加载/卸载资源的资源库。
+     * @class AssetLibrary
+     * @static
+     */
     var AssetLibrary: {
         /**
          * 这里保存所有已经加载的场景资源，防止同一个资源在内存中加载出多份拷贝。
@@ -10027,6 +10329,11 @@ declare module "cc" {
      * @zh 设置是否在左下角显示 FPS。
      */
     export function setDisplayStats(displayStats: boolean): void;
+    /**
+     * The fullscreen API provides an easy way for web content to be presented using the user's entire screen.
+     * It's invalid on safari, QQbrowser and android browser
+     * @class screen
+     */
     var screen: {
         _supportsFullScreen: boolean;
         _preOnFullScreenChange: any;
@@ -10105,6 +10412,9 @@ declare module "cc" {
          */
         updateSubContextViewport(): void;
     }
+    /**
+     * @module macro
+     */
     var macro: {
         /**
          * !en
@@ -11759,7 +12069,36 @@ declare module "cc" {
          */
         setContentStrategy(contentStg: any): void;
     }
+    /**
+     * @module cc
+     */
+    /**
+     * @en cc.view is the shared view object.
+     * @zh cc.view 是全局的视图对象。
+     * @property view
+     * @static
+     * @type {View}
+     */
     var view: View;
+    /**
+     * @en
+     * This class has been deprecated, please use cc.systemEvent or cc.EventTarget instead.
+     * See [Listen to and launch events](../../../manual/en/scripting/events.md) for details.<br>
+     * <br>
+     * cc.eventManager is a singleton object which manages event listener subscriptions and event dispatching.
+     * The EventListener list is managed in such way so that event listeners can be added and removed
+     * while events are being dispatched.
+     *
+     * @zh
+     * 该类已废弃，请使用 cc.systemEvent 或 cc.EventTarget 代替，详见 [监听和发射事件](../../../manual/zh/scripting/events.md)。<br>
+     * <br>
+     * 事件管理器，它主要管理事件监听器注册和派发系统事件。
+     *
+     * @class eventManager
+     * @static
+     * @example {@link cocos/core/event-manager/CCEventManager/addListener.js}
+     * @deprecated
+     */
     var eventManager: __internal.$cocos.$core.$platform.$event_manager.$event_manager.EventManager;
     /**
      * @en
@@ -11819,6 +12158,12 @@ declare module "cc" {
          */
         off(type: string, callback?: Function, target?: Object): void;
     }
+    /**
+     * @module cc
+     */
+    /**
+     * 系统事件单例，方便全局使用。
+     */
     var systemEvent: SystemEvent;
     /**
      * @en The mouse event
@@ -13550,6 +13895,10 @@ declare module "cc" {
          */
         mainLoop(time: number): void;
     }
+    /**
+     * 导演类。
+     * @property director
+     */
     var director: Director;
     /**
      * @zh
@@ -14569,6 +14918,10 @@ declare module "cc" {
      * @param type GFX数据类型。
      */
     export function GFXGetTypeSize(type: GFXType): number;
+    /**
+     * gfx模块
+     * @category gfx
+     */
     var GFX_MAX_VERTEX_ATTRIBUTES: number;
     var GFX_MAX_TEXTURE_UNITS: number;
     var GFX_MAX_ATTACHMENTS: number;
@@ -15262,7 +15615,18 @@ declare module "cc" {
         bufferSize: number;
         textureSize: number;
     }
+    /**
+     * GFX格式信息数组。
+     */
     var GFXFormatInfos: IGFXFormatInfo[];
+    /**
+     * 加载相关模块
+     * @category loader
+     */
+    /**
+     * @class url
+     * @static
+     */
     var url: {
         /**
          * The base url of raw assets.
@@ -19497,12 +19861,40 @@ declare module "cc" {
         get(): __internal.$cocos.$ui.$assembler.$label.$font_utils.ISharedLabelData;
         put(canvas: __internal.$cocos.$ui.$assembler.$label.$font_utils.ISharedLabelData): void;
     }
+    /**
+     * barFilled 组装器
+     * 可通过 cc.UI.barFilled 获取该组装器。
+     */
     var barFilled: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
+    /**
+     * radialFilled 组装器
+     * 可通过 cc.UI.radialFilled 获取该组装器。
+     */
     var radialFilled: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
+    /**
+     * simple 组装器
+     * 可通过 cc.UI.simple 获取该组装器。
+     */
     var simple: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
+    /**
+     * sliced 组装器
+     * 可通过 cc.UI.sliced 获取该组装器。
+     */
     var sliced: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
+    /**
+     * ttf 组装器
+     * 可通过 cc.UI.ttf 获取该组装器。
+     */
     var ttf: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
+    /**
+     * bmfont 组装器
+     * 可通过 cc.UI.bmfont 获取该组装器。
+     */
     var bmfont: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
+    /**
+     * letter 组装器
+     * 可通过 cc.UI.letter 获取该组装器。
+     */
     var letter: {
         createData(comp: LabelComponent): __internal.$cocos.$core.$renderer.$ui.$render_data.RenderData;
         fillBuffers(comp: LabelComponent, renderer: __internal.$cocos.$core.$renderer.$ui.$ui.UI): void;
@@ -19511,6 +19903,10 @@ declare module "cc" {
     var mask: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
     var maskEnd: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
     var spriteAssembler: __internal.$cocos.$core.$renderer.$ui.$base.IAssemblerManager;
+    /**
+     * graphics 组装器
+     * 可通过 cc.UI.graphicsAssembler 获取该组装器。
+     */
     var graphics: __internal.$cocos.$core.$renderer.$ui.$base.IAssembler;
     var labelAssembler: __internal.$cocos.$core.$renderer.$ui.$base.IAssemblerManager;
     var graphicsAssembler: __internal.$cocos.$core.$renderer.$ui.$base.IAssemblerManager;
