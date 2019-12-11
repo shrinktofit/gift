@@ -338,21 +338,31 @@ class BundleGenerator {
     }
     _copyComments(src, dst) {
         const sourceFileText = src.getSourceFile().text;
-        const commentRanges = typescript_1.default.getLeadingCommentRanges(sourceFileText, src.getFullStart());
-        if (commentRanges) {
-            for (const commentRange of commentRanges) {
-                let tex = sourceFileText.substring(commentRange.pos, commentRange.end);
-                if (tex.startsWith('/*')) {
-                    tex = tex.substr(2, tex.length - 4);
-                }
-                else if (tex.startsWith('//')) {
-                    tex = tex.substr(2);
-                }
-                typescript_1.default.addSyntheticLeadingComment(dst, commentRange.kind, tex);
+        typescript_1.default.forEachLeadingCommentRange(sourceFileText, src.getFullStart(), (pos, end, kind) => {
+            let tex = sourceFileText.substring(pos, end);
+            if (tex.startsWith('/*')) {
+                tex = tex.substr(2, tex.length - 4);
+                tex = tex.split('\n').map((line, lineIndex, lines) => {
+                    const noHeadSpace = trimStart(line);
+                    if (lineIndex === lines.length - 1 && noHeadSpace.length === 0) {
+                        return ' ';
+                    }
+                    else if (!noHeadSpace.startsWith('*')) {
+                        return line;
+                    }
+                    else if (lineIndex === 0) {
+                        return noHeadSpace;
+                    }
+                    else {
+                        return ` ${noHeadSpace}`;
+                    }
+                }).join('\n');
             }
-        }
-        // ts.setSyntheticLeadingComments(result, ts.getSyntheticLeadingComments(declaration));
-        // ts.setSyntheticTrailingComments(result, ts.getSyntheticTrailingComments(declaration));
+            else if (tex.startsWith('//')) {
+                tex = tex.substr(2);
+            }
+            typescript_1.default.addSyntheticLeadingComment(dst, kind, tex, true);
+        });
         return dst;
     }
     _remakeDeclarationNoComment(declaration, symbol, newName) {
@@ -1056,5 +1066,8 @@ function createEntityName(identifiers) {
         }
     }
     return result;
+}
+function trimStart(s) {
+    return s.replace(/^\s+/, '');
 }
 //# sourceMappingURL=gift.js.map

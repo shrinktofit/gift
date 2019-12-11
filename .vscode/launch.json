@@ -14,13 +14,13 @@
             ],
             "args": [
                 "--input",
-                "./test/declarations/index.d.ts",
+                "./test/declarations/cc-before-rollup.d.ts",
                 "--root",
                 "index",
                 "--output",
                 "./test/declarations-output",
                 "--name",
-                "Cocos3D"
+                "cc"
             ]
         }
     ]

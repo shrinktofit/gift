@@ -23,7 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "fs-extra": "^7.0.1",
-    "typescript": "^3.5.2",
+    "typescript": "^3.7.2",
     "yargs": "^13.2.2"
   },
   "devDependencies": {
