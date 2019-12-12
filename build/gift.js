@@ -500,6 +500,7 @@ class BundleGenerator {
         return null;
     }
     _remakeClassDeclaration(classDeclaration, newName) {
+        var _a;
         const classElements = [];
         // console.log(`Dump class ${newName}`);
         for (const element of classDeclaration.members) {
@@ -523,6 +524,26 @@ class BundleGenerator {
             }
             else if (typescript_1.default.isSemicolonClassElement(element)) {
                 classElements.push(typescript_1.default.createSemicolonClassElement());
+            }
+            else if (typescript_1.default.isGetAccessor(element)) {
+                // Since TS 3.7
+                classElements.push(typescript_1.default.createGetAccessor(undefined, // decorators
+                this._remakeModifiers(element.modifiers), // modifiers
+                this._remakePropertyName(element.name), // name
+                this._remakeParameterArray(element.parameters), // parameters
+                this._remakeTypeNode(element.type), // type
+                undefined));
+            }
+            else if (typescript_1.default.isSetAccessor(element)) {
+                // Since TS 3.7
+                classElements.push(typescript_1.default.createSetAccessor(undefined, // decorators
+                this._remakeModifiers(element.modifiers), // modifiers
+                this._remakePropertyName(element.name), // name
+                this._remakeParameterArray(element.parameters), // parameters
+                undefined));
+            }
+            else {
+                console.warn(`Don't know how to handle element ${(_a = element.name) === null || _a === void 0 ? void 0 : _a.getText()} of class ${newName}`);
             }
         }
         return typescript_1.default.createClassDeclaration(undefined, this._remakeModifiers(classDeclaration.modifiers), newName, this._remakeTypeParameterArray(classDeclaration.typeParameters), this._remakeHeritageClauses(classDeclaration.heritageClauses), classElements);
@@ -554,11 +575,15 @@ class BundleGenerator {
         }
     }
     _remakeTypeElements(typeElements) {
+        var _a;
         const result = [];
         for (const typeElement of typeElements) {
             const d = this._remakeTypeElement(typeElement);
             if (d) {
                 result.push(d);
+            }
+            else {
+                console.warn(`Don't know how to handle element ${(_a = typeElement.name) === null || _a === void 0 ? void 0 : _a.getText()} of interface`);
             }
         }
         return result;

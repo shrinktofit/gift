@@ -677,6 +677,27 @@ class BundleGenerator {
                 classElements.push(this._remakeIndexSignatureDeclaration(element));
             } else if (ts.isSemicolonClassElement(element)) {
                 classElements.push(ts.createSemicolonClassElement());
+            } else if (ts.isGetAccessor(element)) {
+                // Since TS 3.7
+                classElements.push(ts.createGetAccessor(
+                    undefined, // decorators
+                    this._remakeModifiers(element.modifiers), // modifiers
+                    this._remakePropertyName(element.name), // name
+                    this._remakeParameterArray(element.parameters), // parameters
+                    this._remakeTypeNode(element.type), // type
+                    undefined, // body
+                ));
+            } else if (ts.isSetAccessor(element)) {
+                // Since TS 3.7
+                classElements.push(ts.createSetAccessor(
+                    undefined, // decorators
+                    this._remakeModifiers(element.modifiers), // modifiers
+                    this._remakePropertyName(element.name), // name
+                    this._remakeParameterArray(element.parameters), // parameters
+                    undefined, // body
+                ));
+            } else {
+                console.warn(`Don't know how to handle element ${element.name?.getText()} of class ${newName}`);
             }
         }
         return ts.createClassDeclaration(
@@ -728,6 +749,8 @@ class BundleGenerator {
             const d = this._remakeTypeElement(typeElement);
             if (d) {
                 result.push(d);
+            } else {
+                console.warn(`Don't know how to handle element ${typeElement.name?.getText()} of interface`);
             }
         }
         return result;

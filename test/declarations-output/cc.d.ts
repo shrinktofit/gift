@@ -1,4 +1,6 @@
 /// <reference types="./@types/globals"/>
+/// <reference types="./@types/webgl.extras"/>
+/// <reference types="./@types/webgl2.extras"/>
 declare module "cc" {
     namespace renderer {
         export function createIA(device: any, data: any): any;
@@ -203,10 +205,43 @@ declare module "cc" {
              * 清空合批缓冲。
              */
             clearBatchedBuffer(): void;
+            get priority(): __internal.$cocos.$core.$pipeline.$define.RenderPriority;
+            get primitive(): GFXPrimitiveMode;
+            get stage(): RenderPassStage;
+            get rasterizerState(): __internal.$cocos.$core.$gfx.$pipeline_state.GFXRasterizerState;
+            get depthStencilState(): __internal.$cocos.$core.$gfx.$pipeline_state.GFXDepthStencilState;
+            get blendState(): __internal.$cocos.$core.$gfx.$pipeline_state.GFXBlendState;
+            get dynamicStates(): GFXDynamicState[];
+            get customizations(): string[];
+            get phase(): number;
+            get shaderInfo(): __internal.$cocos.$core.$renderer.$core.$program_lib.IProgramInfo;
+            get program(): string;
+            get properties(): Record<string, __internal.$cocos.$core.$assets.$effect_asset.IPropertyInfo>;
+            get defines(): __internal.$cocos.$core.$renderer.$core.$pass.IDefineMap;
+            get idxInTech(): number;
+            get device(): GFXDevice;
+            get bindings(): __internal.$cocos.$core.$gfx.$binding_layout.IGFXBinding[];
+            get shader(): GFXShader;
+            get renderPass(): GFXRenderPass;
+            get dynamics(): __internal.$cocos.$core.$renderer.$core.$pass.IPassDynamics;
+            get batchedBuffer(): __internal.$cocos.$core.$pipeline.$batched_buffer.BatchedBuffer | null;
+            get blocks(): __internal.$cocos.$core.$renderer.$core.$pass.IBlock[];
         }
         var programLib: __internal.$cocos.$core.$renderer.$core.$program_lib.ProgramLib;
         var samplerLib: __internal.$cocos.$core.$renderer.$core.$sampler_lib.SamplerLib;
         export class Light {
+            set color(color: Vec3);
+            get color(): Vec3;
+            set useColorTemperature(enable: boolean);
+            get useColorTemperature(): boolean;
+            set colorTemperature(val: number);
+            get colorTemperature(): number;
+            get colorTemperatureRGB(): Vec3;
+            set node(n: __internal.$cocos.$core.$utils.$interfaces.INode | null);
+            get node(): __internal.$cocos.$core.$utils.$interfaces.INode | null;
+            get type(): __internal.$cocos.$core.$renderer.$scene.$light.LightType;
+            get name(): string | null;
+            get scene(): __internal.$cocos.$core.$renderer.$scene.$render_scene.RenderScene | null;
             protected _color: Vec3;
             protected _useColorTemp: boolean;
             protected _colorTemp: number;
@@ -232,6 +267,65 @@ declare module "cc" {
             setFixedSize(width: number, height: number): void;
             update(forceUpdate?: boolean): void;
             getSplitFrustum(out: geometry.frustum, nearClip: number, farClip: number): void;
+            set screenScale(val: number);
+            get screenScale(): number;
+            set enabled(val: boolean);
+            get enabled(): boolean;
+            get view(): RenderView;
+            set node(val: __internal.$cocos.$core.$utils.$interfaces.INode);
+            get node(): __internal.$cocos.$core.$utils.$interfaces.INode;
+            get isWindowSize(): boolean;
+            set isWindowSize(value: boolean);
+            set orthoHeight(val: number);
+            get orthoHeight(): number;
+            set projectionType(val: __internal.$cocos.$core.$renderer.$scene.$camera.CameraProjection);
+            get projectionType(): __internal.$cocos.$core.$renderer.$scene.$camera.CameraProjection;
+            set viewport(v: Rect);
+            get viewport(): Rect;
+            set fov(fov: number);
+            get fov(): number;
+            set nearClip(nearClip: number);
+            get nearClip(): number;
+            set farClip(farClip: number);
+            get farClip(): number;
+            set clearColor(val: IGFXColor);
+            get clearColor(): IGFXColor;
+            set clearDepth(val: number);
+            get clearDepth(): number;
+            set clearStencil(val: number);
+            get clearStencil(): number;
+            set clearFlag(val: GFXClearFlag);
+            get clearFlag(): GFXClearFlag;
+            get scene(): __internal.$cocos.$core.$renderer.$scene.$render_scene.RenderScene | null;
+            get name(): string | null;
+            get width(): number;
+            get height(): number;
+            get aspect(): number;
+            get matView(): Mat4;
+            get matProj(): Mat4;
+            get matProjInv(): Mat4;
+            get matViewProj(): Mat4;
+            get matViewProjInv(): Mat4;
+            get frustum(): geometry.frustum;
+            get forward(): Vec3;
+            get position(): Vec3;
+            set visibility(vis: number);
+            get visibility(): number;
+            get priority(): number;
+            set priority(val: number);
+            set aperture(val: __internal.$cocos.$core.$renderer.$scene.$camera.CameraAperture);
+            get aperture(): __internal.$cocos.$core.$renderer.$scene.$camera.CameraAperture;
+            get apertureValue(): number;
+            set shutter(val: __internal.$cocos.$core.$renderer.$scene.$camera.CameraShutter);
+            get shutter(): __internal.$cocos.$core.$renderer.$scene.$camera.CameraShutter;
+            get shutterValue(): number;
+            set iso(val: __internal.$cocos.$core.$renderer.$scene.$camera.CameraISO);
+            get iso(): __internal.$cocos.$core.$renderer.$scene.$camera.CameraISO;
+            get isoValue(): number;
+            set ec(val: number);
+            get ec(): number;
+            get exposure(): number;
+            set flows(val: string[]);
             changeTargetWindow(window?: __internal.$cocos.$core.$gfx.$window.GFXWindow | null): void;
             /**
              * transform a screen position to a world space ray
@@ -250,6 +344,31 @@ declare module "cc" {
          * A representation of a model
          */
         export class Model {
+            set scene(scene: __internal.$cocos.$core.$renderer.$scene.$render_scene.RenderScene);
+            get scene(): __internal.$cocos.$core.$renderer.$scene.$render_scene.RenderScene;
+            get id(): number;
+            get subModels(): __internal.$cocos.$core.$renderer.$scene.$submodel.SubModel[];
+            get subModelNum(): number;
+            get inited(): boolean;
+            set enabled(val: boolean);
+            get enabled(): boolean;
+            get node(): __internal.$cocos.$core.$utils.$interfaces.INode;
+            set node(node: __internal.$cocos.$core.$utils.$interfaces.INode);
+            get transform(): __internal.$cocos.$core.$utils.$interfaces.INode;
+            set transform(transform: __internal.$cocos.$core.$utils.$interfaces.INode);
+            get worldBounds(): geometry.aabb | null;
+            get modelBounds(): geometry.aabb | null;
+            get visFlags(): number;
+            set visFlags(id: number);
+            set userKey(key: number);
+            get uboLocal(): __internal.$cocos.$core.$pipeline.$define.UBOLocal;
+            get localUBO(): GFXBuffer | null;
+            get localBindings(): Map<string, __internal.$cocos.$core.$pipeline.$define.IInternalBindingInst>;
+            get castShadow(): boolean;
+            set castShadow(val: boolean);
+            get isDynamicBatching(): boolean;
+            set isDynamicBatching(val: boolean);
+            get UBOUpdated(): boolean;
             protected _type: string;
             protected _device: GFXDevice;
             protected _scene: __internal.$cocos.$core.$renderer.$scene.$render_scene.RenderScene | null;
@@ -2741,6 +2860,7 @@ declare module "cc" {
          * 二维尺寸。
          */
         export class Size extends ValueType {
+            static get ZERO(): Size;
             /**
              * 根据指定的插值比率，从当前尺寸到目标尺寸之间做插值。
              * @param out 本方法将插值结果赋值给此参数
@@ -2750,6 +2870,10 @@ declare module "cc" {
              * @returns 当前尺寸的宽和高到目标尺寸的宽和高分别按指定插值比率进行线性插值构成的向量。
              */
             static lerp<Out extends __internal.$cocos.$core.$math.$type_define.ISizeLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+            set x(val: number);
+            get x(): number;
+            set y(val: number);
+            get y(): number;
             /**
              * 宽度。
              */
@@ -2852,6 +2976,24 @@ declare module "cc" {
              * @param other 指定的另一个矩形。
              */
             static union<Out extends __internal.$cocos.$core.$math.$type_define.IRectLike>(out: Out, one: Out, other: Out): Out;
+            get xMin(): number;
+            set xMin(value: number);
+            get yMin(): number;
+            set yMin(value: number);
+            get xMax(): number;
+            set xMax(value: number);
+            get yMax(): number;
+            set yMax(value: number);
+            get center(): Vec2;
+            set center(value: Vec2);
+            get origin(): any;
+            set origin(value: any);
+            get size(): Size;
+            set size(value: Size);
+            set z(val: number);
+            get z(): number;
+            set w(val: number);
+            get w(): number;
             /**
              * 获取或设置矩形最小点的 x 坐标。
              */
@@ -3036,6 +3178,22 @@ declare module "cc" {
              * @zh 获取指定颜色的整型数据表示
              */
             static hex<Out extends __internal.$cocos.$core.$math.$type_define.IColorLike>(a: Out): number;
+            get r(): number;
+            set r(red: number);
+            get g(): number;
+            set g(green: number);
+            get b(): number;
+            set b(blue: number);
+            get a(): number;
+            set a(alpha: number);
+            get x(): number;
+            set x(value: number);
+            get y(): number;
+            set y(value: number);
+            get z(): number;
+            set z(value: number);
+            get w(): number;
+            set w(value: number);
             _val: number;
             /**
              * 构造与指定颜色相等的颜色。
@@ -3344,6 +3502,8 @@ declare module "cc" {
              * @param size 初始大小。
              */
             constructor(fn: () => T, size: number);
+            get length(): number;
+            get data(): T[];
             /**
              * @zh 清空对象池。
              */
@@ -4051,6 +4211,7 @@ declare module "cc" {
          * 基础几何  轴对齐包围盒。
          */
         export class aabb {
+            get type(): number;
             /**
              * @en
              * create a new aabb
@@ -4180,6 +4341,7 @@ declare module "cc" {
          * 基础几何  方向包围盒。
          */
         export class obb {
+            get type(): number;
             /**
              * @en
              * create a new obb
@@ -4310,6 +4472,7 @@ declare module "cc" {
             setScale(scale: Vec3, out: obb): void;
         }
         export class frustum {
+            set accurate(b: boolean);
             static createOrtho: (out: frustum, width: number, height: number, near: number, far: number, transform: Mat4) => void;
             /**
              * create a new frustum
@@ -4416,6 +4579,30 @@ declare module "cc" {
      * 渲染流程。
      */
     export abstract class RenderPipeline {
+        get root(): __internal.$cocos.$core.$root.Root;
+        get device(): GFXDevice;
+        get name(): string;
+        get renderObjects(): __internal.$cocos.$core.$pipeline.$define.IRenderObject[];
+        get flows(): RenderFlow[];
+        get activeFlows(): RenderFlow[];
+        get usePostProcess(): boolean;
+        get isHDRSupported(): boolean;
+        get isHDR(): boolean;
+        get shadingScale(): number;
+        set lightMeterScale(scale: number);
+        get lightMeterScale(): number;
+        get useMSAA(): boolean;
+        get useSMAA(): boolean;
+        get quadIA(): GFXInputAssembler;
+        get globalBindings(): Map<string, __internal.$cocos.$core.$pipeline.$define.IInternalBindingInst>;
+        get defaultTexture(): GFXTexture;
+        get fpScale(): number;
+        get fpScaleInv(): number;
+        get macros(): __internal.$cocos.$core.$renderer.$core.$pass.IDefineMap;
+        get defaultGlobalUBOData(): Float32Array;
+        get currShading(): string;
+        get prevShading(): string;
+        get useDynamicBatching(): boolean;
         protected _root: __internal.$cocos.$core.$root.Root;
         protected _device: GFXDevice;
         protected _renderObjects: __internal.$cocos.$core.$pipeline.$define.IRenderObject[];
@@ -4598,6 +4785,13 @@ declare module "cc" {
      * 渲染流程。
      */
     export abstract class RenderFlow {
+        get device(): GFXDevice;
+        get pipeline(): RenderPipeline;
+        get name(): string;
+        get priority(): number;
+        get stages(): RenderStage[];
+        get material(): Material | null;
+        get type(): __internal.$cocos.$core.$pipeline.$pipeline_serialization.RenderFlowType;
         /**
          * @zh
          * GFX设备。
@@ -4679,6 +4873,10 @@ declare module "cc" {
      * 渲染阶段。
      */
     export abstract class RenderStage {
+        get flow(): RenderFlow;
+        get pipeline(): RenderPipeline;
+        get priority(): number;
+        get framebuffer(): GFXFramebuffer | null;
         /**
          * @zh
          * 名称。
@@ -4821,6 +5019,16 @@ declare module "cc" {
      * 渲染视图。
      */
     export class RenderView {
+        get name(): string;
+        get window(): __internal.$cocos.$core.$gfx.$window.GFXWindow | null;
+        set window(val: __internal.$cocos.$core.$gfx.$window.GFXWindow | null);
+        get priority(): number;
+        set priority(val: number);
+        set visibility(vis: number);
+        get visibility(): number;
+        get camera(): renderer.Camera;
+        get isEnable(): boolean;
+        get flows(): RenderFlow[];
         static registerCreateFunc(root: __internal.$cocos.$core.$root.Root): void;
         /**
          * @zh
@@ -6920,6 +7128,7 @@ declare module "cc" {
      * 二维尺寸。
      */
     export class Size extends ValueType {
+        static get ZERO(): Size;
         /**
          * 根据指定的插值比率，从当前尺寸到目标尺寸之间做插值。
          * @param out 本方法将插值结果赋值给此参数
@@ -6929,6 +7138,10 @@ declare module "cc" {
          * @returns 当前尺寸的宽和高到目标尺寸的宽和高分别按指定插值比率进行线性插值构成的向量。
          */
         static lerp<Out extends __internal.$cocos.$core.$math.$type_define.ISizeLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+        set x(val: number);
+        get x(): number;
+        set y(val: number);
+        get y(): number;
         /**
          * 宽度。
          */
@@ -7031,6 +7244,24 @@ declare module "cc" {
          * @param other 指定的另一个矩形。
          */
         static union<Out extends __internal.$cocos.$core.$math.$type_define.IRectLike>(out: Out, one: Out, other: Out): Out;
+        get xMin(): number;
+        set xMin(value: number);
+        get yMin(): number;
+        set yMin(value: number);
+        get xMax(): number;
+        set xMax(value: number);
+        get yMax(): number;
+        set yMax(value: number);
+        get center(): Vec2;
+        set center(value: Vec2);
+        get origin(): any;
+        set origin(value: any);
+        get size(): Size;
+        set size(value: Size);
+        set z(val: number);
+        get z(): number;
+        set w(val: number);
+        get w(): number;
         /**
          * 获取或设置矩形最小点的 x 坐标。
          */
@@ -7215,6 +7446,22 @@ declare module "cc" {
          * @zh 获取指定颜色的整型数据表示
          */
         static hex<Out extends __internal.$cocos.$core.$math.$type_define.IColorLike>(a: Out): number;
+        get r(): number;
+        set r(red: number);
+        get g(): number;
+        set g(green: number);
+        get b(): number;
+        set b(blue: number);
+        get a(): number;
+        set a(alpha: number);
+        get x(): number;
+        set x(value: number);
+        get y(): number;
+        set y(value: number);
+        get z(): number;
+        set z(value: number);
+        get w(): number;
+        set w(value: number);
         _val: number;
         /**
          * 构造与指定颜色相等的颜色。
@@ -7521,6 +7768,8 @@ declare module "cc" {
          * @param size 初始大小。
          */
         constructor(fn: () => T, size: number);
+        get length(): number;
+        get data(): T[];
         /**
          * @zh 清空对象池。
          */
@@ -8562,6 +8811,9 @@ declare module "cc" {
         _objFlags: number;
         protected _name: string;
         constructor(name?: string);
+        get name(): string;
+        set name(value: string);
+        get isValid(): boolean;
         /**
          * @en
          * Destroy this Object, and release all its own references to other objects.<br/>
@@ -9145,6 +9397,9 @@ declare module "cc" {
         hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
         removeAll(keyOrTarget?: string | Object | undefined): void;
         emit(key: string, ...args: any[]): void;
+        get nativeUrl(): string;
+        get _nativeAsset(): any;
+        set _nativeAsset(obj: any);
         /**
          * @en
          * Returns the string representation of the object.<br>
@@ -9460,6 +9715,16 @@ declare module "cc" {
      * 图像资源。
      */
     export class ImageAsset extends Asset {
+        get _nativeAsset(): __internal.$cocos.$core.$assets.$image_asset.ImageSource;
+        set _nativeAsset(value: __internal.$cocos.$core.$assets.$image_asset.ImageSource);
+        get data(): ArrayBuffer | ArrayBufferView | HTMLCanvasElement | HTMLImageElement | __internal.$cocos.$core.$assets.$image_asset.IMemoryImageSource;
+        get width(): number;
+        get height(): number;
+        get format(): __internal.$cocos.$core.$assets.$asset_enum.PixelFormat;
+        get isCompressed(): boolean;
+        get url(): string;
+        set _texture(tex: any);
+        get _texture(): any;
         /**
          * @param nativeAsset
          */
@@ -9482,6 +9747,10 @@ declare module "cc" {
      * 二维贴图资源的每个 Mipmap 层级都为一张图像资源。
      */
     export class Texture2D extends __internal.$cocos.$core.$assets.$simple_texture.SimpleTexture {
+        get mipmaps(): ImageAsset[];
+        set mipmaps(value: ImageAsset[]);
+        get image(): ImageAsset | null;
+        set image(value: ImageAsset | null);
         _mipmaps: ImageAsset[];
         constructor();
         onLoaded(): void;
@@ -9545,6 +9814,10 @@ declare module "cc" {
      */
     export class TextureCube extends __internal.$cocos.$core.$assets.$simple_texture.SimpleTexture {
         static FaceIndex: typeof __internal.$cocos.$core.$assets.$texture_cube.FaceIndex;
+        get mipmaps(): __internal.$cocos.$core.$assets.$texture_cube.ITextureCubeMipmap[];
+        set mipmaps(value: __internal.$cocos.$core.$assets.$texture_cube.ITextureCubeMipmap[]);
+        get image(): __internal.$cocos.$core.$assets.$texture_cube.ITextureCubeMipmap | null;
+        set image(value: __internal.$cocos.$core.$assets.$texture_cube.ITextureCubeMipmap | null);
         /**
          * 通过二维贴图指定每个 Mipmap 的每个面创建立方体贴图。
          * @param textures 数组长度必须是6的倍数。
@@ -9616,6 +9889,8 @@ declare module "cc" {
      */
     export class TTFFont extends Font {
         _fontFamily: any;
+        get _nativeAsset(): any;
+        set _nativeAsset(value: any);
     }
     /**
      * @en
@@ -9753,6 +10028,11 @@ declare module "cc" {
         protected _passes: renderer.Pass[];
         protected _owner: RenderableComponent | null;
         protected _hash: number;
+        get effectAsset(): EffectAsset | null;
+        get effectName(): string;
+        get technique(): number;
+        get passes(): renderer.Pass[];
+        get hash(): number;
         constructor();
         /**
          * @zh
@@ -9905,6 +10185,15 @@ declare module "cc" {
      * 网格资源。
      */
     export class Mesh extends Asset {
+        get _nativeAsset(): ArrayBuffer;
+        set _nativeAsset(value: ArrayBuffer);
+        get subMeshCount(): number;
+        get minPosition(): Vec3 | undefined;
+        get maxPosition(): Vec3 | undefined;
+        get struct(): Mesh.Struct;
+        get data(): Uint8Array | null;
+        get hash(): number;
+        get hasFlatBuffers(): boolean;
         constructor();
         initialize(): void;
         /**
@@ -9927,6 +10216,7 @@ declare module "cc" {
          * @param info 网格重置选项。
          */
         reset(info: Mesh.CreateInfo): void;
+        get renderingMesh(): __internal.$cocos.$core.$assets.$mesh.RenderingMesh;
         /**
          * 获取此网格创建的渲染子网格。
          * @param index 渲染子网格的索引。
@@ -10005,11 +10295,23 @@ declare module "cc" {
      * 骨骼资源记录了每个关节（相对于`SkinningModelComponent.skinningRoot`）的路径以及它的绑定姿势矩阵。
      */
     export class Skeleton extends Asset {
+        get bindposes(): Mat4[];
+        set bindposes(value: Mat4[]);
+        get joints(): string[];
+        set joints(value: string[]);
+        get hash(): number;
+        get bounds(): geometry.aabb;
         onLoaded(): void;
         destroy(): boolean;
     }
     export class RenderTexture extends __internal.$cocos.$core.$assets.$texture_base.TextureBase {
         static DepthStencilFormat: typeof __internal.$cocos.$core.$assets.$asset_enum.DepthStencilFormat;
+        get width(): number;
+        set width(value: number);
+        get height(): number;
+        set height(value: number);
+        get depthStencilFormat(): __internal.$cocos.$core.$assets.$asset_enum.DepthStencilFormat;
+        set depthStencilFormat(value: __internal.$cocos.$core.$assets.$asset_enum.DepthStencilFormat);
         getGFXWindow(): __internal.$cocos.$core.$gfx.$window.GFXWindow | null;
         getGFXTextureView(): GFXTextureView | null;
         getGFXStencilTexture(): GFXTextureView | null;
@@ -10150,6 +10452,25 @@ declare module "cc" {
      * ```
      */
     export class SpriteFrame extends Asset {
+        get insetTop(): number;
+        set insetTop(value: number);
+        get insetBottom(): number;
+        set insetBottom(value: number);
+        get insetLeft(): number;
+        set insetLeft(value: number);
+        get insetRight(): number;
+        set insetRight(value: number);
+        get rect(): Rect;
+        set rect(value: Rect);
+        get originalSize(): Size;
+        set originalSize(value: Size);
+        set _imageSource(value: ImageAsset);
+        get texture(): __internal.$cocos.$core.$assets.$texture_base.TextureBase;
+        set texture(value: __internal.$cocos.$core.$assets.$texture_base.TextureBase);
+        get atlasUuid(): string;
+        set atlasUuid(value: string);
+        get width(): number;
+        get height(): number;
         vertices: IVertices | null;
         /**
          * @zh
@@ -10395,6 +10716,8 @@ declare module "cc" {
      * 唯一需要注意的是，当子域节点的包围盒发生改变时，开发者需要使用 `updateSubContextViewport` 来手动更新子域视窗。
      */
     export class SubContextView extends Component {
+        get fps(): number;
+        set fps(value: number);
         constructor();
         onLoad(): void;
         onEnable(): void;
@@ -12025,6 +12348,7 @@ declare module "cc" {
          * @param {ContentStrategy} contentStg
          */
         constructor(containerStg: any, contentStg: any);
+        get canvasSize(): any;
         /**
          * @en Manipulation before applying the resolution policy
          * @zh 策略应用前的操作
@@ -13798,6 +14122,7 @@ declare module "cc" {
          * @deprecated since v2.0
          */
         setClearColor(clearColor: any): void;
+        get root(): __internal.$cocos.$core.$root.Root | null;
         /**
          * @en Returns current logic Scene.
          * @zh 获取当前逻辑场景。
@@ -13905,6 +14230,38 @@ declare module "cc" {
      * GFX设备。
      */
     export abstract class GFXDevice {
+        get canvas(): HTMLCanvasElement;
+        get canvas2D(): HTMLCanvasElement;
+        get gfxAPI(): __internal.$cocos.$core.$gfx.$device.GFXAPI;
+        get queue(): GFXQueue;
+        get devicePixelRatio(): number;
+        get width(): number;
+        get height(): number;
+        get nativeWidth(): number;
+        get nativeHeight(): number;
+        get mainWindow(): __internal.$cocos.$core.$gfx.$window.GFXWindow;
+        get commandAllocator(): __internal.$cocos.$core.$gfx.$command_allocator.GFXCommandAllocator;
+        get renderer(): string;
+        get vendor(): string;
+        get maxVertexAttributes(): number;
+        get maxVertexUniformVectors(): number;
+        get maxFragmentUniformVectors(): number;
+        get maxTextureUnits(): number;
+        get maxVertexTextureUnits(): number;
+        get maxUniformBufferBindings(): number;
+        get maxUniformBlockSize(): number;
+        get maxTextureSize(): number;
+        get maxCubeMapTextureSize(): number;
+        get depthBits(): number;
+        get stencilBits(): number;
+        get colorFormat(): GFXFormat;
+        get depthStencilFormat(): GFXFormat;
+        get macros(): Map<string, string>;
+        get numDrawCalls(): number;
+        get numTris(): number;
+        get memoryStatus(): IGFXMemoryStatus;
+        get reverseCW(): boolean;
+        set reverseCW(val: boolean);
         protected _canvas: HTMLCanvasElement | null;
         protected _canvas2D: HTMLCanvasElement | null;
         protected _gfxAPI: __internal.$cocos.$core.$gfx.$device.GFXAPI;
@@ -14111,6 +14468,13 @@ declare module "cc" {
      * GFX缓冲。
      */
     export abstract class GFXBuffer extends GFXObject {
+        get usage(): GFXBufferUsage;
+        get memUsage(): GFXMemoryUsage;
+        get size(): number;
+        get stride(): number;
+        get count(): number;
+        get flags(): GFXBufferFlags;
+        get bufferView(): Uint8Array | null;
         protected _device: GFXDevice;
         protected _usage: GFXBufferUsage;
         protected _memUsage: GFXMemoryUsage;
@@ -14155,6 +14519,18 @@ declare module "cc" {
      * GFX纹理。
      */
     export abstract class GFXTexture extends GFXObject {
+        get type(): GFXTextureType;
+        get usage(): GFXTextureUsage;
+        get format(): GFXFormat;
+        get width(): number;
+        get height(): number;
+        get depth(): number;
+        get arrayLayer(): number;
+        get mipLevel(): number;
+        get samples(): GFXSampleCount;
+        get flags(): GFXTextureFlags;
+        get size(): number;
+        get buffer(): ArrayBuffer | null;
         /**
          * @zh
          * GFX设备。
@@ -14254,6 +14630,13 @@ declare module "cc" {
      * GFX纹理视图。
      */
     export abstract class GFXTextureView extends GFXObject {
+        get texture(): GFXTexture;
+        get type(): GFXTextureViewType;
+        get format(): GFXFormat;
+        get baseLevel(): number;
+        get levelCount(): number;
+        get baseLayer(): number;
+        get layerCount(): number;
         /**
          * @zh
          * GFX设备。
@@ -14316,6 +14699,7 @@ declare module "cc" {
      * GFX采样器。
      */
     export abstract class GFXSampler extends GFXObject {
+        get state(): __internal.$cocos.$core.$gfx.$sampler.GFXSamplerState;
         /**
          * @zh
          * GFX设备。
@@ -14347,6 +14731,8 @@ declare module "cc" {
      * GFX着色器。
      */
     export abstract class GFXShader extends GFXObject {
+        get id(): number;
+        get name(): string;
         /**
          * @zh
          * GFX设备。
@@ -14399,6 +14785,25 @@ declare module "cc" {
      * GFX输入汇集器。
      */
     export abstract class GFXInputAssembler extends GFXObject {
+        get vertexBuffers(): GFXBuffer[];
+        get indexBuffer(): GFXBuffer | null;
+        get attributes(): __internal.$cocos.$core.$gfx.$input_assembler.IGFXAttribute[];
+        get vertexCount(): number;
+        set vertexCount(count: number);
+        get firstVertex(): number;
+        set firstVertex(first: number);
+        get indexCount(): number;
+        set indexCount(count: number);
+        get firstIndex(): number;
+        set firstIndex(first: number);
+        get vertexOffset(): number;
+        set vertexOffset(offset: number);
+        get instanceCount(): number;
+        set instanceCount(count: number);
+        get firstInstance(): number;
+        set firstInstance(first: number);
+        get isIndirect(): boolean;
+        get indirectBuffer(): GFXBuffer | null;
         /**
          * @zh
          * GFX设备。
@@ -14527,6 +14932,10 @@ declare module "cc" {
      * GFX帧缓冲。
      */
     export abstract class GFXFramebuffer extends GFXObject {
+        get renderPass(): GFXRenderPass | null;
+        get colorViews(): GFXTextureView[];
+        get depthStencilView(): GFXTextureView | null;
+        get isOffscreen(): boolean;
         /**
          * @zh
          * GFX设备。
@@ -14570,6 +14979,7 @@ declare module "cc" {
         abstract destroy(): void;
     }
     export abstract class GFXPipelineLayout extends GFXObject {
+        get layouts(): __internal.$cocos.$core.$gfx.$binding_layout.GFXBindingLayout[];
         /**
          * @zh
          * GFX设备。
@@ -14607,6 +15017,16 @@ declare module "cc" {
      * GFX管线状态。
      */
     export abstract class GFXPipelineState extends GFXObject {
+        get shader(): GFXShader;
+        get primitive(): GFXPrimitiveMode;
+        get rasterizerState(): __internal.$cocos.$core.$gfx.$pipeline_state.GFXRasterizerState;
+        get depthStencilState(): __internal.$cocos.$core.$gfx.$pipeline_state.GFXDepthStencilState;
+        get blendState(): __internal.$cocos.$core.$gfx.$pipeline_state.GFXBlendState;
+        get inputState(): __internal.$cocos.$core.$gfx.$pipeline_state.GFXInputState;
+        get dynamicStates(): GFXDynamicState[];
+        get pipelineLayout(): GFXPipelineLayout;
+        get renderPass(): GFXRenderPass;
+        get hash(): number;
         /**
          * @zh
          * GFX设备。
@@ -14684,6 +15104,9 @@ declare module "cc" {
      * GFX命令缓冲。
      */
     export abstract class GFXCommandBuffer extends GFXObject {
+        get type(): GFXCommandBufferType;
+        get numDrawCalls(): number;
+        get numTris(): number;
         /**
          * @zh
          * GFX设备。
@@ -14859,6 +15282,7 @@ declare module "cc" {
      * GFX队列。
      */
     export abstract class GFXQueue extends GFXObject {
+        get type(): number;
         /**
          * @zh
          * GFX设备。
@@ -14962,6 +15386,8 @@ declare module "cc" {
      * GFX对象。
      */
     export class GFXObject {
+        get gfxType(): GFXObjectType;
+        get status(): GFXStatus;
         /**
          * @zh
          * 对象类型。
@@ -16239,6 +16665,20 @@ declare module "cc" {
      * @protected
      */
     export class BaseNode extends CCObject implements __internal.$cocos.$core.$utils.$interfaces.IBaseNode, ISchedulable {
+        get components(): ReadonlyArray<Component>;
+        get _persistNode(): boolean;
+        set _persistNode(value: boolean);
+        get name(): string;
+        set name(value: string);
+        get uuid(): string;
+        get children(): this[];
+        get active(): boolean;
+        set active(isActive: boolean);
+        get activeInHierarchy(): boolean;
+        get parent(): this | null;
+        set parent(value: this | null);
+        get scene(): any;
+        get eventProcessor(): __internal.$cocos.$core.$scene_graph.$node_event_processor.NodeEventProcessor;
         static _setScene(node: BaseNode): void;
         protected static idGenerator: js.IDGenerator;
         protected static _stacks: Array<Array<(BaseNode | null)>>;
@@ -16674,6 +17114,38 @@ declare module "cc" {
          * @param obj 待测试的节点
          */
         static isNode(obj: object | null): obj is Node;
+        get position(): Readonly<Vec3>;
+        set position(val: Readonly<Vec3>);
+        get worldPosition(): Readonly<Vec3>;
+        set worldPosition(val: Readonly<Vec3>);
+        get rotation(): Readonly<Quat>;
+        set rotation(val: Readonly<Quat>);
+        set eulerAngles(val: Readonly<Vec3>);
+        get eulerAngles(): Readonly<Vec3>;
+        get worldRotation(): Readonly<Quat>;
+        set worldRotation(val: Readonly<Quat>);
+        get scale(): Readonly<Vec3>;
+        set scale(val: Readonly<Vec3>);
+        get worldScale(): Readonly<Vec3>;
+        set worldScale(val: Readonly<Vec3>);
+        set matrix(val: Readonly<Mat4>);
+        get worldMatrix(): Readonly<Mat4>;
+        get forward(): Vec3;
+        set forward(dir: Vec3);
+        set layer(l: number);
+        get layer(): number;
+        get hasChangedFlags(): number;
+        set hasChangedFlags(val: number);
+        get uiTransfromComp(): UITransformComponent | null;
+        set uiTransfromComp(value: UITransformComponent | null);
+        get width(): number;
+        set width(value: number);
+        get height(): number;
+        set height(value: number);
+        get anchorX(): number;
+        set anchorX(value: number);
+        get anchorY(): number;
+        set anchorY(value: number);
         /**
          * @zh
          * 设置父节点
@@ -16898,6 +17370,8 @@ declare module "cc" {
      * cc.Scene 和 cc._BaseNode 有点不同，用户不应直接修改 cc.Scene。
      */
     export class Scene extends BaseNode {
+        get renderScene(): __internal.$cocos.$core.$renderer.$scene.$render_scene.RenderScene | null;
+        get globals(): __internal.$cocos.$core.$scene_graph.$scene_globals.SceneGlobals;
         /**
          * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
          * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
@@ -16932,6 +17406,14 @@ declare module "cc" {
         getWorldMatrix(out?: Mat4): Mat4;
         getWorldRS(out?: Mat4): Mat4;
         getWorldRT(out?: Mat4): Mat4;
+        get position(): Readonly<Vec3>;
+        get worldPosition(): Readonly<Vec3>;
+        get rotation(): Readonly<Quat>;
+        get worldRotation(): Readonly<Quat>;
+        get scale(): Readonly<Vec3>;
+        get worldScale(): Readonly<Vec3>;
+        get eulerAngles(): Readonly<Vec3>;
+        get worldMatrix(): Readonly<Mat4>;
         updateWorldTransform(): void;
         protected _instantiate(): void;
         protected _load(): void;
@@ -17063,6 +17545,14 @@ declare module "cc" {
      * @extends Object
      */
     class Component extends CCObject {
+        get name(): string;
+        set name(value: string);
+        get uuid(): string;
+        get __scriptAsset(): null;
+        get enabled(): boolean;
+        set enabled(value: boolean);
+        get enabledInHierarchy(): boolean;
+        get _isOnLoadCalled(): number;
         static system: null;
         /**
          * @en The node this component is attached to. A component is always attached to a node.
@@ -17401,6 +17891,8 @@ declare module "cc" {
      * ```
      */
     export class EventHandler {
+        get _componentName(): any;
+        set _componentName(value: any);
         /**
          * @zh
          * 组件事件派发。
@@ -17468,6 +17960,10 @@ declare module "cc" {
         protected _id: string;
         protected _priority: number;
         protected _executeInEditMode: boolean;
+        set priority(value: number);
+        get priority(): number;
+        set id(id: string);
+        get id(): string;
         static sortByPriority(a: System, b: System): 1 | 0 | -1;
         init(): void;
         update(dt: number): void;
@@ -17478,6 +17974,14 @@ declare module "cc" {
      * 主要提供映射后的转换世界坐标以及模拟透视相机远近比。
      */
     export class UICoordinateTrackerComponent extends Component {
+        get target(): Node | null;
+        set target(value: Node | null);
+        get camera(): CameraComponent | null;
+        set camera(value: CameraComponent | null);
+        get useScale(): boolean;
+        set useScale(value: boolean);
+        get distance(): number;
+        set distance(value: number);
         /**
          * @zh
          * 映射数据事件。回调的第一个参数是映射后的本地坐标，第二个是距相机距离比。
@@ -17503,6 +18007,18 @@ declare module "cc" {
      * 可通过 cc.CanvasComponent 获得此组件
      */
     export class CanvasComponent extends Component {
+        get clearFlag(): GFXClearFlag;
+        set clearFlag(val: GFXClearFlag);
+        get color(): Color;
+        set color(val: Color);
+        get renderMode(): number;
+        set renderMode(val: number);
+        get priority(): number;
+        set priority(val: number);
+        get targetTexture(): RenderTexture | null;
+        set targetTexture(value: RenderTexture | null);
+        get visibility(): number;
+        get camera(): renderer.Camera | null;
         protected _priority: number;
         protected _targetTexture: RenderTexture | null;
         protected _clearFlag: GFXClearFlag;
@@ -17551,6 +18067,17 @@ declare module "cc" {
      * 可通过 cc.UIRenderComponent 获得该组件。
      */
     export class UIRenderComponent extends UIComponent {
+        get srcBlendFactor(): GFXBlendFactor;
+        set srcBlendFactor(value: GFXBlendFactor);
+        get dstBlendFactor(): GFXBlendFactor;
+        set dstBlendFactor(value: GFXBlendFactor);
+        get color(): Readonly<Color>;
+        set color(value: Readonly<Color>);
+        get sharedMaterial(): Material | null;
+        set sharedMaterial(value: Material | null);
+        get material(): Material | null;
+        get renderData(): __internal.$cocos.$core.$renderer.$ui.$render_data.RenderData | null;
+        set delegateSrc(value: __internal.$cocos.$core.$utils.$interfaces.INode);
         static BlendState: typeof GFXBlendFactor;
         static Assembler: __internal.$cocos.$core.$renderer.$ui.$base.IAssemblerManager | null;
         static PostAssembler: __internal.$cocos.$core.$renderer.$ui.$base.IAssemblerManager | null;
@@ -17619,7 +18146,23 @@ declare module "cc" {
      * 可通过 cc.UITransformComponent 获得该组件。
      */
     export class UITransformComponent extends Component {
+        get contentSize(): Readonly<Size>;
+        set contentSize(value: Readonly<Size>);
+        get width(): number;
+        set width(value: number);
+        get height(): number;
+        set height(value: number);
+        get anchorPoint(): Readonly<Vec2>;
+        set anchorPoint(value: Readonly<Vec2>);
+        get anchorX(): number;
+        set anchorX(value: number);
+        get anchorY(): number;
+        set anchorY(value: number);
+        get priority(): number;
+        set priority(value: number);
         protected _priority: number;
+        get visibility(): number;
+        get _screen(): CanvasComponent | null;
         static EventType: typeof SystemEventType;
         protected _contentSize: Size;
         protected _anchorPoint: Vec2;
@@ -18613,6 +19156,37 @@ declare module "cc" {
         protected _camera: renderer.Camera | null;
         protected _inEditorMode: boolean;
         protected _flows: string[] | undefined;
+        get projection(): number;
+        set projection(val: number);
+        get priority(): number;
+        set priority(val: number);
+        get fov(): number;
+        set fov(val: number);
+        get orthoHeight(): number;
+        set orthoHeight(val: number);
+        get near(): number;
+        set near(val: number);
+        get far(): number;
+        set far(val: number);
+        get color(): Readonly<Color>;
+        set color(val: Readonly<Color>);
+        get depth(): number;
+        set depth(val: number);
+        get stencil(): number;
+        set stencil(val: number);
+        get clearFlags(): GFXClearFlag;
+        set clearFlags(val: GFXClearFlag);
+        get rect(): Rect;
+        set rect(val: Rect);
+        get screenScale(): number;
+        set screenScale(val: number);
+        get visibility(): number;
+        set visibility(val: number);
+        get targetTexture(): RenderTexture | null;
+        set targetTexture(value: RenderTexture | null);
+        get inEditorMode(): boolean;
+        set inEditorMode(value: boolean);
+        set flows(val: any);
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
@@ -18639,6 +19213,13 @@ declare module "cc" {
         protected _type: __internal.$cocos.$core.$renderer.$scene.$light.LightType;
         protected _lightType: typeof renderer.Light;
         protected _light: renderer.Light | null;
+        get color(): Readonly<Color>;
+        set color(val: Readonly<Color>);
+        get useColorTemperature(): boolean;
+        set useColorTemperature(enable: boolean);
+        get colorTemperature(): number;
+        set colorTemperature(val: number);
+        get type(): __internal.$cocos.$core.$renderer.$scene.$light.LightType;
         constructor();
         onLoad(): void;
         onEnable(): void;
@@ -18654,6 +19235,15 @@ declare module "cc" {
      * @class ModelComponent
      */
     export class ModelComponent extends RenderableComponent {
+        get mesh(): Mesh | null;
+        set mesh(val: Mesh | null);
+        get shadowCastingMode(): number;
+        set shadowCastingMode(val: number);
+        get receiveShadows(): boolean;
+        set receiveShadows(val: boolean);
+        get model(): renderer.Model | null;
+        set enableDynamicBatching(enable: boolean);
+        get enableDynamicBatching(): boolean;
         static ShadowCastingMode: {
             /**
              * 不投射阴影。
@@ -18693,6 +19283,11 @@ declare module "cc" {
         protected _skeleton: Skeleton | null;
         protected _skinningRoot: __internal.$cocos.$core.$utils.$interfaces.INode | null;
         protected _clip: AnimationClip | null;
+        get skeleton(): Skeleton | null;
+        set skeleton(val: Skeleton | null);
+        get skinningRoot(): __internal.$cocos.$core.$utils.$interfaces.INode | null;
+        set skinningRoot(value: __internal.$cocos.$core.$utils.$interfaces.INode | null);
+        get model(): renderer.SkinningModel;
         constructor();
         uploadAnimation(clip: AnimationClip | null): void;
         _updateModelParams(): void;
@@ -18706,6 +19301,10 @@ declare module "cc" {
         atlasSize: number;
         batchableTextureNames: string[];
         units: SkinningModelUnit[];
+        get mesh(): Mesh | null;
+        set mesh(val: Mesh | null);
+        get skeleton(): Skeleton | null;
+        set skeleton(val: Skeleton | null);
         onLoad(): void;
         onDestroy(): void;
         _onMaterialModified(idx: number, material: Material | null): void;
@@ -18721,12 +19320,22 @@ declare module "cc" {
         mesh: Mesh | null;
         skeleton: Skeleton | null;
         material: Material | null;
+        set offset(offset: Vec2);
+        get offset(): Vec2;
+        set size(size: Vec2);
+        get size(): Vec2;
+        set copyFrom(comp: SkinningModelComponent | null);
+        get copyFrom(): SkinningModelComponent | null;
     }
     export class RenderableComponent extends Component {
         protected _materials: Array<Material | null>;
         protected _visFlags: number;
         protected _models: renderer.Model[];
         constructor();
+        get sharedMaterials(): (Material | null)[];
+        set sharedMaterials(val: (Material | null)[]);
+        get materials(): (Material | null)[];
+        set materials(val: (Material | null)[]);
         /**
          * @en Returns the material corresponding to the sequence number
          * @zh 返回相对应序号的材质。
@@ -18734,6 +19343,11 @@ declare module "cc" {
          */
         getMaterial(idx: number, inEditor?: boolean, autoUpdate?: boolean): Material | null;
         getSharedMaterial(idx: number): Material | null;
+        get material(): Material | null;
+        set material(val: Material | null);
+        get sharedMaterial(): Material | null;
+        get visibility(): number;
+        set visibility(val: number);
         setMaterial(material: Material | null, index: number, notify?: boolean): void;
         _collectModels(): renderer.Model[];
         protected _attachToScene(): void;
@@ -18747,6 +19361,8 @@ declare module "cc" {
         protected _illuminance: number;
         protected _type: __internal.$cocos.$core.$renderer.$scene.$light.LightType;
         protected _light: __internal.$cocos.$core.$renderer.$scene.$directional_light.DirectionalLight | null;
+        get illuminance(): number;
+        set illuminance(val: number);
         constructor();
         protected _createLight(): void;
     }
@@ -18757,6 +19373,16 @@ declare module "cc" {
         protected _range: number;
         protected _type: __internal.$cocos.$core.$renderer.$scene.$light.LightType;
         protected _light: __internal.$cocos.$core.$renderer.$scene.$sphere_light.SphereLight | null;
+        get luminousPower(): number;
+        set luminousPower(val: number);
+        get luminance(): number;
+        set luminance(val: number);
+        get term(): number;
+        set term(val: number);
+        get size(): number;
+        set size(val: number);
+        get range(): number;
+        set range(val: number);
         constructor();
         protected _createLight(): void;
     }
@@ -18768,6 +19394,18 @@ declare module "cc" {
         protected _spotAngle: number;
         protected _type: __internal.$cocos.$core.$renderer.$scene.$light.LightType;
         protected _light: __internal.$cocos.$core.$renderer.$scene.$spot_light.SpotLight | null;
+        get luminousPower(): number;
+        set luminousPower(val: number);
+        get luminance(): number;
+        set luminance(val: number);
+        get term(): number;
+        set term(val: number);
+        get size(): number;
+        set size(val: number);
+        get range(): number;
+        set range(val: number);
+        get spotAngle(): number;
+        set spotAngle(val: number);
         constructor();
         protected _createLight(): void;
     }
@@ -18829,6 +19467,15 @@ declare module "cc" {
      *
      */
     export class AnimationState extends __internal.$cocos.$core.$animation.$playable.Playable {
+        get clip(): AnimationClip;
+        get name(): string;
+        get length(): number;
+        get wrapMode(): __internal.$cocos.$core.$animation.$types.WrapMode;
+        set wrapMode(value: __internal.$cocos.$core.$animation.$types.WrapMode);
+        get repeatCount(): number;
+        set repeatCount(value: number);
+        get delay(): number;
+        set delay(value: number);
         /**
          * @en The curves list.
          * @zh 曲线列表。
@@ -18879,6 +19526,7 @@ declare module "cc" {
         protected _curveLoaded: boolean;
         protected _ignoreIndex: number;
         constructor(clip: AnimationClip, name?: string);
+        get curveLoaded(): boolean;
         initialize(root: __internal.$cocos.$core.$utils.$interfaces.INode): void;
         _emit(type: any, state: any): void;
         emit<K extends string>(type: K, ...args: __internal.$cocos.$core.$event.$defines.EventArgumentsOf<K, __internal.$cocos.$core.$animation.$animation_state.IAnimationEventDefinitionMap>): void;
@@ -19131,6 +19779,17 @@ declare module "cc" {
          * @zh 动画包含的事件数据。
          */
         events: AnimationClip.IEvent[];
+        get duration(): number;
+        set duration(value: number);
+        get keys(): number[][];
+        set keys(value: number[][]);
+        get eventGroups(): ReadonlyArray<IAnimationEventGroup>;
+        get stepness(): number;
+        set stepness(value: number);
+        get hash(): number;
+        get curves(): AnimationClip.ICurve[];
+        set curves(value: AnimationClip.ICurve[]);
+        get data(): Uint8Array | null;
         onLoaded(): void;
         getPropertyCurves(): ReadonlyArray<IRuntimeCurve>;
         /**
@@ -19164,6 +19823,7 @@ declare module "cc" {
         protected _applyStepness(): void;
     }
     export class AnimationManager extends System {
+        get blendState(): __internal.$cocos.$core.$animation.$animation_blend_state.AnimationBlendState;
         static ID: string;
         addCrossFade(crossFade: __internal.$cocos.$core.$animation.$cross_fade.CrossFade): void;
         removeCrossFade(crossFade: __internal.$cocos.$core.$animation.$cross_fade.CrossFade): void;
@@ -19216,6 +19876,10 @@ declare module "cc" {
      *  - finished : 动画播放完成时
      */
     export class AnimationComponent extends Component implements __internal.$cocos.$core.$event.$event_target_factory.IEventTarget {
+        get clips(): (AnimationClip | null)[];
+        set clips(value: (AnimationClip | null)[]);
+        get defaultClip(): AnimationClip | null;
+        set defaultClip(value: AnimationClip | null);
         static EventType: typeof EventType;
         /**
          * 是否在动画组件开始运行时自动播放默认动画剪辑。
@@ -19384,7 +20048,11 @@ declare module "cc" {
         static Socket: typeof Socket;
         _sockets: Socket[];
         protected _animMgr: renderer.JointsAnimationInfo;
+        get sockets(): Socket[];
+        set sockets(val: Socket[]);
         protected _animInfo: renderer.IAnimInfo | null;
+        set frameID(fid: number);
+        get frameID(): number;
         onLoad(): void;
         onDestroy(): void;
         start(): void;
@@ -19577,6 +20245,10 @@ declare module "cc" {
         protected _player: __internal.$cocos.$audio.$assets.$player.AudioPlayer | null;
         constructor();
         destroy(): boolean;
+        set _nativeAsset(clip: any);
+        get _nativeAsset(): any;
+        get loadMode(): number;
+        get state(): number;
         play(): void;
         pause(): void;
         stop(): void;
@@ -19602,6 +20274,14 @@ declare module "cc" {
         protected _loop: boolean;
         protected _playOnAwake: boolean;
         protected _volume: number;
+        set clip(val: AudioClip | null);
+        get clip(): AudioClip | null;
+        set loop(val: boolean);
+        get loop(): boolean;
+        set playOnAwake(val: boolean);
+        get playOnAwake(): boolean;
+        set volume(val: number);
+        get volume(): number;
         onLoad(): void;
         onDisable(): void;
         onDestroy(): void;
@@ -19641,20 +20321,49 @@ declare module "cc" {
          */
         playOneShot(clip: AudioClip, volumeScale?: number): void;
         protected _syncStates(): void;
+        set currentTime(num: number);
+        get currentTime(): number;
+        get duration(): number;
+        get state(): number;
+        get playing(): boolean;
     }
     export class BillboardComponent extends Component {
+        get texture(): null;
+        set texture(val: null);
+        get height(): number;
+        set height(val: number);
+        get width(): number;
+        set width(val: number);
+        get rotation(): number;
+        set rotation(val: number);
         constructor();
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
     }
     export class LineComponent extends Component {
+        get texture(): null;
+        set texture(val: null);
+        get worldSpace(): boolean;
+        set worldSpace(val: boolean);
+        get positions(): never[];
+        set positions(val: never[]);
+        get width(): __internal.$cocos.$particle.$animator.$curve_range.$default;
+        set width(val: __internal.$cocos.$particle.$animator.$curve_range.$default);
+        get tile(): Vec2;
+        set tile(val: Vec2);
+        get offset(): Vec2;
+        set offset(val: Vec2);
+        get color(): __internal.$cocos.$particle.$animator.$gradient_range.$default;
+        set color(val: __internal.$cocos.$particle.$animator.$gradient_range.$default);
         constructor();
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
     }
     export class ParticleSystemComponent extends RenderableComponent {
+        get capacity(): number;
+        set capacity(val: number);
         /**
          * @zh 粒子初始颜色。
          */
@@ -19706,6 +20415,10 @@ declare module "cc" {
          * @zh 粒子系统是否循环播放。
          */
         loop: boolean;
+        get prewarm(): boolean;
+        set prewarm(val: boolean);
+        get simulationSpace(): number;
+        set simulationSpace(val: number);
         /**
          * @zh 控制整个粒子系统的更新速度。
          */
@@ -19730,6 +20443,8 @@ declare module "cc" {
          * @zh 设定在指定时间发射指定数量的粒子的 Brust 的数量。
          */
         bursts: any[];
+        get sharedMaterials(): (Material | null)[];
+        set sharedMaterials(val: (Material | null)[]);
         /**
          * @zh 颜色控制模块。
          */
@@ -19804,6 +20519,11 @@ declare module "cc" {
         protected onDisable(): void;
         protected update(dt: any): void;
         protected _onVisiblityChange(val: any): void;
+        get isPlaying(): boolean;
+        get isPaused(): boolean;
+        get isStopped(): boolean;
+        get isEmitting(): boolean;
+        get time(): number;
     }
     export class ParticleUtils {
         /**
@@ -19949,6 +20669,33 @@ declare module "cc" {
      * ```
      */
     export class ButtonComponent extends Component {
+        get interactable(): boolean;
+        set interactable(value: boolean);
+        set _resizeToTarget(value: boolean);
+        get transition(): __internal.$cocos.$ui.$components.$button_component.Transition;
+        set transition(value: __internal.$cocos.$ui.$components.$button_component.Transition);
+        get normalColor(): Readonly<Color>;
+        set normalColor(value: Readonly<Color>);
+        get pressedColor(): Readonly<Color>;
+        set pressedColor(value: Readonly<Color>);
+        get hoverColor(): Readonly<Color>;
+        set hoverColor(value: Readonly<Color>);
+        get disabledColor(): Readonly<Color>;
+        set disabledColor(value: Readonly<Color>);
+        get duration(): number;
+        set duration(value: number);
+        get zoomScale(): number;
+        set zoomScale(value: number);
+        get normalSprite(): SpriteFrame | null;
+        set normalSprite(value: SpriteFrame | null);
+        get pressedSprite(): SpriteFrame | null;
+        set pressedSprite(value: SpriteFrame | null);
+        get hoverSprite(): SpriteFrame | null;
+        set hoverSprite(value: SpriteFrame | null);
+        get disabledSprite(): SpriteFrame | null;
+        set disabledSprite(value: SpriteFrame | null);
+        get target(): __internal.$cocos.$core.$utils.$interfaces.INode | null;
+        set target(value: __internal.$cocos.$core.$utils.$interfaces.INode | null);
         static Transition: typeof __internal.$cocos.$ui.$components.$button_component.Transition;
         /**
          * @zh
@@ -19987,6 +20734,34 @@ declare module "cc" {
      * EditBoxComponent 组件，用于获取用户的输入文本。
      */
     export class EditBoxComponent extends Component {
+        get string(): string;
+        set string(value: string);
+        get backgroundImage(): SpriteFrame | null;
+        set backgroundImage(value: SpriteFrame | null);
+        get returnType(): __internal.$cocos.$ui.$components.$editbox.$types.KeyboardReturnType;
+        set returnType(value: __internal.$cocos.$ui.$components.$editbox.$types.KeyboardReturnType);
+        get inputFlag(): __internal.$cocos.$ui.$components.$editbox.$types.InputFlag;
+        set inputFlag(value: __internal.$cocos.$ui.$components.$editbox.$types.InputFlag);
+        get inputMode(): __internal.$cocos.$ui.$components.$editbox.$types.InputMode;
+        set inputMode(value: __internal.$cocos.$ui.$components.$editbox.$types.InputMode);
+        get fontSize(): number;
+        set fontSize(value: number);
+        get lineHeight(): number;
+        set lineHeight(value: number);
+        get fontColor(): Color;
+        set fontColor(value: Color);
+        get placeholder(): string;
+        set placeholder(value: string);
+        get placeholderFontSize(): number;
+        set placeholderFontSize(value: number);
+        get placeholderFontColor(): Color;
+        set placeholderFontColor(value: Color);
+        get maxLength(): number;
+        set maxLength(value: number);
+        get stayOnTop(): boolean;
+        set stayOnTop(value: boolean);
+        get tabIndex(): number;
+        set tabIndex(value: number);
         static _EditBoxImpl: typeof __internal.$cocos.$ui.$components.$editbox.$edit_box_impl.EditBoxImpl;
         static KeyboardReturnType: typeof __internal.$cocos.$ui.$components.$editbox.$types.KeyboardReturnType;
         static InputFlag: typeof __internal.$cocos.$ui.$components.$editbox.$types.InputFlag;
@@ -20071,6 +20846,34 @@ declare module "cc" {
      * 可通过 cc.LayoutComponent 获得此组件
      */
     export class LayoutComponent extends Component {
+        get type(): __internal.$cocos.$ui.$components.$layout_component.Type;
+        set type(value: __internal.$cocos.$ui.$components.$layout_component.Type);
+        get resizeMode(): __internal.$cocos.$ui.$components.$layout_component.ResizeMode;
+        set resizeMode(value: __internal.$cocos.$ui.$components.$layout_component.ResizeMode);
+        get cellSize(): Readonly<Size>;
+        set cellSize(value: Readonly<Size>);
+        get startAxis(): __internal.$cocos.$ui.$components.$layout_component.AxisDirection;
+        set startAxis(value: __internal.$cocos.$ui.$components.$layout_component.AxisDirection);
+        get paddingLeft(): number;
+        set paddingLeft(value: number);
+        get paddingRight(): number;
+        set paddingRight(value: number);
+        get paddingTop(): number;
+        set paddingTop(value: number);
+        get paddingBottom(): number;
+        set paddingBottom(value: number);
+        get spacingX(): number;
+        set spacingX(value: number);
+        get spacingY(): number;
+        set spacingY(value: number);
+        get verticalDirection(): __internal.$cocos.$ui.$components.$layout_component.VerticalDirection;
+        set verticalDirection(value: __internal.$cocos.$ui.$components.$layout_component.VerticalDirection);
+        get horizontalDirection(): __internal.$cocos.$ui.$components.$layout_component.HorizontalDirection;
+        set horizontalDirection(value: __internal.$cocos.$ui.$components.$layout_component.HorizontalDirection);
+        get padding(): number;
+        set padding(value: number);
+        get affectedByScale(): boolean;
+        set affectedByScale(value: boolean);
         static Type: typeof __internal.$cocos.$ui.$components.$layout_component.Type;
         static VerticalDirection: typeof __internal.$cocos.$ui.$components.$layout_component.VerticalDirection;
         static HorizontalDirection: typeof __internal.$cocos.$ui.$components.$layout_component.HorizontalDirection;
@@ -20113,6 +20916,18 @@ declare module "cc" {
      * 可通过 cc.MaskComponent 获得该组件。
      */
     export class MaskComponent extends UIRenderComponent {
+        get type(): __internal.$cocos.$ui.$components.$mask_component.MaskType;
+        set type(value: __internal.$cocos.$ui.$components.$mask_component.MaskType);
+        get segments(): number;
+        set segments(value: number);
+        get graphics(): GraphicsComponent | null;
+        get clearGraphics(): GraphicsComponent | null;
+        get dstBlendFactor(): GFXBlendFactor;
+        set dstBlendFactor(value: GFXBlendFactor);
+        get srcBlendFactor(): GFXBlendFactor;
+        set srcBlendFactor(value: GFXBlendFactor);
+        get color(): Readonly<Color>;
+        set color(value: Readonly<Color>);
         static Type: typeof __internal.$cocos.$ui.$components.$mask_component.MaskType;
         protected _type: __internal.$cocos.$ui.$components.$mask_component.MaskType;
         protected _segments: number;
@@ -20164,6 +20979,16 @@ declare module "cc" {
      * ```
      */
     export class ProgressBarComponent extends Component {
+        get barSprite(): SpriteComponent | null;
+        set barSprite(value: SpriteComponent | null);
+        get mode(): __internal.$cocos.$ui.$components.$progress_bar_component.Mode;
+        set mode(value: __internal.$cocos.$ui.$components.$progress_bar_component.Mode);
+        get totalLength(): number;
+        set totalLength(value: number);
+        get progress(): number;
+        set progress(value: number);
+        get reverse(): boolean;
+        set reverse(value: boolean);
         static Mode: typeof __internal.$cocos.$ui.$components.$progress_bar_component.Mode;
     }
     /**
@@ -20172,6 +20997,22 @@ declare module "cc" {
      * 可通过 cc.RichTextComponent 获得该组件。
      */
     export class RichTextComponent extends UIComponent {
+        get string(): string;
+        set string(value: string);
+        get horizontalAlign(): HorizontalTextAlignment;
+        set horizontalAlign(value: HorizontalTextAlignment);
+        get fontSize(): number;
+        set fontSize(value: number);
+        get font(): TTFFont | null;
+        set font(value: TTFFont | null);
+        get maxWidth(): number;
+        set maxWidth(value: number);
+        get lineHeight(): number;
+        set lineHeight(value: number);
+        get imageAtlas(): SpriteAtlas | null;
+        set imageAtlas(value: SpriteAtlas | null);
+        get handleTouchEvent(): boolean;
+        set handleTouchEvent(value: boolean);
         static HorizontalAlign: typeof HorizontalTextAlignment;
         static VerticalAlign: typeof VerticalTextAlignment;
         constructor();
@@ -20187,6 +21028,14 @@ declare module "cc" {
      * 可通过 cc.ScrollBarComponent 获得该组件。
      */
     export class ScrollBarComponent extends Component {
+        get handle(): SpriteComponent | null;
+        set handle(value: SpriteComponent | null);
+        get direction(): __internal.$cocos.$ui.$components.$scroll_bar_component.Direction;
+        set direction(value: __internal.$cocos.$ui.$components.$scroll_bar_component.Direction);
+        get enableAutoHide(): boolean;
+        set enableAutoHide(value: boolean);
+        get autoHideTime(): number;
+        set autoHideTime(value: number);
         static Direction: typeof __internal.$cocos.$ui.$components.$scroll_bar_component.Direction;
         /**
          * @zh
@@ -20224,6 +21073,13 @@ declare module "cc" {
      * 可通过 cc.ScrollViewComponent 获得该组件。
      */
     export class ScrollViewComponent extends ViewGroupComponent {
+        get content(): __internal.$cocos.$core.$utils.$interfaces.INode | null;
+        set content(value: __internal.$cocos.$core.$utils.$interfaces.INode | null);
+        get horizontalScrollBar(): ScrollBarComponent | null;
+        set horizontalScrollBar(value: ScrollBarComponent | null);
+        get verticalScrollBar(): ScrollBarComponent | null;
+        set verticalScrollBar(value: ScrollBarComponent | null);
+        get view(): __internal.$cocos.$core.$utils.$interfaces.INode | null;
         static EventType: typeof __internal.$cocos.$ui.$components.$scroll_view_component.ScrollViewEventType;
         /**
          * @zh
@@ -20538,6 +21394,12 @@ declare module "cc" {
      * 可通过 cc.SliderComponent 获得该组件。
      */
     export class SliderComponent extends Component {
+        get handle(): SpriteComponent | null;
+        set handle(value: SpriteComponent | null);
+        get direction(): number;
+        set direction(value: number);
+        get progress(): number;
+        set progress(value: number);
         static Direction: typeof __internal.$cocos.$ui.$components.$slider_component.Direction;
         /**
          * @zh
@@ -20563,6 +21425,26 @@ declare module "cc" {
      * 可通过 cc.SpriteComponent 获得该组件。
      */
     export class SpriteComponent extends UIRenderComponent {
+        get spriteAtlas(): SpriteAtlas | null;
+        set spriteAtlas(value: SpriteAtlas | null);
+        get spriteFrame(): SpriteFrame | null;
+        set spriteFrame(value: SpriteFrame | null);
+        get type(): __internal.$cocos.$ui.$components.$sprite_component.SpriteType;
+        set type(value: __internal.$cocos.$ui.$components.$sprite_component.SpriteType);
+        get fillType(): __internal.$cocos.$ui.$components.$sprite_component.FillType;
+        set fillType(value: __internal.$cocos.$ui.$components.$sprite_component.FillType);
+        get fillCenter(): Vec2;
+        set fillCenter(value: Vec2);
+        get fillStart(): number;
+        set fillStart(value: number);
+        get fillRange(): number;
+        set fillRange(value: number);
+        get trim(): boolean;
+        set trim(value: boolean);
+        get grayscale(): boolean;
+        set grayscale(value: boolean);
+        get sizeMode(): __internal.$cocos.$ui.$components.$sprite_component.SizeMode;
+        set sizeMode(value: __internal.$cocos.$ui.$components.$sprite_component.SizeMode);
         static FillType: typeof __internal.$cocos.$ui.$components.$sprite_component.FillType;
         static Type: typeof __internal.$cocos.$ui.$components.$sprite_component.SpriteType;
         static SizeMode: typeof __internal.$cocos.$ui.$components.$sprite_component.SizeMode;
@@ -20586,6 +21468,14 @@ declare module "cc" {
      * 可通过 cc.ToggleComponent 获得该组件。
      */
     export class ToggleComponent extends ButtonComponent {
+        get isChecked(): boolean;
+        set isChecked(value: boolean);
+        get toggleGroup(): ToggleContainerComponent | null;
+        set toggleGroup(value: ToggleContainerComponent | null);
+        get checkMark(): SpriteComponent | null;
+        set checkMark(value: SpriteComponent | null);
+        set _resizeToTarget(value: boolean);
+        get _toggleContainer(): null;
         /**
          * @zh
          * Toggle 按钮的点击事件列表。
@@ -20617,6 +21507,9 @@ declare module "cc" {
      */
     export class ToggleContainerComponent extends Component {
         checkEvents: EventHandler[];
+        get allowSwitchOff(): boolean;
+        set allowSwitchOff(value: boolean);
+        get toggleItems(): ToggleComponent[];
         start(): void;
         /**
          * @zh
@@ -20646,6 +21539,7 @@ declare module "cc" {
      * 可通过 cc.UIModelComponent 获得该组件。
      */
     export class UIModelComponent extends UIComponent {
+        get modelComponent(): RenderableComponent | null;
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
@@ -20663,6 +21557,8 @@ declare module "cc" {
      * WebView 组件，用于在游戏中显示网页。
      */
     export class WebviewComponent extends UIComponent {
+        get url(): string;
+        set url(url: string);
         static EventType: typeof __internal.$cocos.$ui.$components.$webview.$webview_impl.WebViewEventType;
         /**
          * @en
@@ -20726,6 +21622,62 @@ declare module "cc" {
      * Widget 会自动调整当前节点的坐标和宽高，不过目前调整后的结果要到下一帧才能在脚本里获取到，除非你先手动调用 [[updateAlignment]]。
      */
     export class WidgetComponent extends Component {
+        get target(): __internal.$cocos.$core.$utils.$interfaces.INode | null;
+        set target(value: __internal.$cocos.$core.$utils.$interfaces.INode | null);
+        get isAlignTop(): boolean;
+        set isAlignTop(value: boolean);
+        get isAlignBottom(): boolean;
+        set isAlignBottom(value: boolean);
+        get isAlignLeft(): boolean;
+        set isAlignLeft(value: boolean);
+        get isAlignRight(): boolean;
+        set isAlignRight(value: boolean);
+        get isAlignVerticalCenter(): boolean;
+        set isAlignVerticalCenter(value: boolean);
+        get isAlignHorizontalCenter(): boolean;
+        set isAlignHorizontalCenter(value: boolean);
+        get isStretchWidth(): boolean;
+        get isStretchHeight(): boolean;
+        get top(): number;
+        set top(value: number);
+        get editorTop(): number;
+        set editorTop(value: number);
+        get bottom(): number;
+        set bottom(value: number);
+        get editorBottom(): number;
+        set editorBottom(value: number);
+        get left(): number;
+        set left(value: number);
+        get editorLeft(): number;
+        set editorLeft(value: number);
+        get right(): number;
+        set right(value: number);
+        get editorRight(): number;
+        set editorRight(value: number);
+        get horizontalCenter(): number;
+        set horizontalCenter(value: number);
+        get editorHorizontalCenter(): number;
+        set editorHorizontalCenter(value: number);
+        get verticalCenter(): number;
+        set verticalCenter(value: number);
+        get editorVerticalCenter(): number;
+        set editorVerticalCenter(value: number);
+        get isAbsoluteTop(): boolean;
+        set isAbsoluteTop(value: boolean);
+        get isAbsoluteBottom(): boolean;
+        set isAbsoluteBottom(value: boolean);
+        get isAbsoluteLeft(): boolean;
+        set isAbsoluteLeft(value: boolean);
+        get isAbsoluteRight(): boolean;
+        set isAbsoluteRight(value: boolean);
+        get alignMode(): __internal.$cocos.$ui.$components.$widget_component.AlignMode;
+        set alignMode(value: __internal.$cocos.$ui.$components.$widget_component.AlignMode);
+        get isAbsoluteHorizontalCenter(): boolean;
+        set isAbsoluteHorizontalCenter(value: boolean);
+        get isAbsoluteVerticalCenter(): boolean;
+        set isAbsoluteVerticalCenter(value: boolean);
+        get alignFlags(): number;
+        set alignFlags(value: number);
         static AlignMode: typeof __internal.$cocos.$ui.$components.$widget_component.AlignMode;
         _lastPos: Vec3;
         _lastSize: Size;
@@ -20778,6 +21730,10 @@ declare module "cc" {
      * ```
      */
     export class LabelOutlineComponent extends Component {
+        get color(): Readonly<Color>;
+        set color(value: Readonly<Color>);
+        get width(): number;
+        set width(value: number);
     }
     /**
      * @zh
@@ -20785,6 +21741,19 @@ declare module "cc" {
      * 可通过 cc.GraphicsComponent 获得此组件
      */
     export class GraphicsComponent extends UIRenderComponent {
+        get lineWidth(): number;
+        set lineWidth(value: number);
+        get lineJoin(): __internal.$cocos.$ui.$assembler.$graphics.$types.LineJoin;
+        set lineJoin(value: __internal.$cocos.$ui.$assembler.$graphics.$types.LineJoin);
+        get lineCap(): __internal.$cocos.$ui.$assembler.$graphics.$types.LineCap;
+        set lineCap(value: __internal.$cocos.$ui.$assembler.$graphics.$types.LineCap);
+        get strokeColor(): Readonly<Color>;
+        set strokeColor(value: Readonly<Color>);
+        get fillColor(): Readonly<Color>;
+        set fillColor(value: Readonly<Color>);
+        get miterLimit(): number;
+        set miterLimit(value: number);
+        get color(): Color;
         static LineJoin: typeof __internal.$cocos.$ui.$assembler.$graphics.$types.LineJoin;
         static LineCap: typeof __internal.$cocos.$ui.$assembler.$graphics.$types.LineCap;
         impl: __internal.$cocos.$ui.$assembler.$graphics.$webgl.$impl.Impl | null;
@@ -20947,6 +21916,17 @@ declare module "cc" {
      * @zh 页面视图组件
      */
     export class PageViewComponent extends ScrollViewComponent {
+        get sizeMode(): __internal.$cocos.$ui.$components.$page_view_component.SizeMode;
+        set sizeMode(value: __internal.$cocos.$ui.$components.$page_view_component.SizeMode);
+        get direction(): __internal.$cocos.$ui.$components.$page_view_component.Direction;
+        set direction(value: __internal.$cocos.$ui.$components.$page_view_component.Direction);
+        get scrollThreshold(): number;
+        set scrollThreshold(value: number);
+        get pageTurningEventTiming(): number;
+        set pageTurningEventTiming(value: number);
+        get indicator(): PageViewIndicatorComponent | null;
+        set indicator(value: PageViewIndicatorComponent | null);
+        get curPageIdx(): number;
         static SizeMode: typeof __internal.$cocos.$ui.$components.$page_view_component.SizeMode;
         static Direction: typeof __internal.$cocos.$ui.$components.$page_view_component.Direction;
         static EventType: typeof __internal.$cocos.$ui.$components.$page_view_component.PageViewEventType;
@@ -20961,6 +21941,8 @@ declare module "cc" {
          * 该值与此临界值相比较，如果大于临界值，则进行自动翻页。
          */
         autoPageTurningThreshold: number;
+        get verticalScrollBar(): ScrollBarComponent | null;
+        get horizontalScrollBar(): ScrollBarComponent | null;
         horizontal: boolean;
         vertical: boolean;
         cancelInnerEvents: boolean;
@@ -21051,6 +22033,12 @@ declare module "cc" {
      * @zh 页面视图每页标记组件
      */
     export class PageViewIndicatorComponent extends Component {
+        get spriteFrame(): SpriteFrame | null;
+        set spriteFrame(value: SpriteFrame | null);
+        get direction(): __internal.$cocos.$ui.$components.$page_view_indicator_component.Direction;
+        set direction(value: __internal.$cocos.$ui.$components.$page_view_indicator_component.Direction);
+        get cellSize(): Size;
+        set cellSize(value: Size);
         static Direction: typeof __internal.$cocos.$ui.$components.$page_view_indicator_component.Direction;
         /**
          * @en The distance between each element.
@@ -21079,6 +22067,17 @@ declare module "cc" {
      * 注意：子节点下不要放置 Mask，Graphics，以及 UI 模型或者粒子之类对象，否则会在启用完静态合批后跳过渲染。
      */
     export class UIStaticBatchComponent extends UIRenderComponent {
+        get dstBlendFactor(): GFXBlendFactor;
+        set dstBlendFactor(value: GFXBlendFactor);
+        get srcBlendFactor(): GFXBlendFactor;
+        set srcBlendFactor(value: GFXBlendFactor);
+        get color(): Readonly<Color>;
+        set color(value: Readonly<Color>);
+        get sharedMaterial(): Material | null;
+        set sharedMaterial(value: Material | null);
+        get collect(): boolean;
+        set collect(value: boolean);
+        get drawBatchList(): __internal.$cocos.$core.$renderer.$ui.$ui_draw_batch.UIDrawBatch[];
         protected _init: boolean;
         protected _meshBuffer: MeshBuffer | null;
         protected _collect: boolean;
@@ -21167,6 +22166,43 @@ declare module "cc" {
      * 可通过 cc.LabelComponent 获得此组件
      */
     export class LabelComponent extends UIRenderComponent {
+        get string(): string;
+        set string(value: string);
+        get horizontalAlign(): HorizontalTextAlignment;
+        set horizontalAlign(value: HorizontalTextAlignment);
+        get verticalAlign(): VerticalTextAlignment;
+        set verticalAlign(value: VerticalTextAlignment);
+        get actualFontSize(): number;
+        set actualFontSize(value: number);
+        get fontSize(): number;
+        set fontSize(value: number);
+        get fontFamily(): string;
+        set fontFamily(value: string);
+        get lineHeight(): number;
+        set lineHeight(value: number);
+        get overflow(): Overflow;
+        set overflow(value: Overflow);
+        get enableWrapText(): boolean;
+        set enableWrapText(value: boolean);
+        get font(): Font | null;
+        set font(value: Font | null);
+        get useSystemFont(): boolean;
+        set useSystemFont(value: boolean);
+        get cacheMode(): CacheMode;
+        set cacheMode(value: CacheMode);
+        get spriteFrame(): SpriteFrame | __internal.$cocos.$ui.$assembler.$label.$letter_font.LetterRenderTexture | null;
+        get isBold(): boolean;
+        set isBold(value: boolean);
+        get isItalic(): boolean;
+        set isItalic(value: boolean);
+        get isUnderline(): boolean;
+        set isUnderline(value: boolean);
+        get assemblerData(): __internal.$cocos.$ui.$assembler.$label.$font_utils.ISharedLabelData | null;
+        get fontAtlas(): __internal.$cocos.$ui.$assembler.$label.$bmfontUtils.FontAtlas | null;
+        set fontAtlas(value: __internal.$cocos.$ui.$assembler.$label.$bmfontUtils.FontAtlas | null);
+        get spacingX(): number;
+        set spacingX(value: number);
+        get _bmFontOriginalSize(): number;
         static HorizontalAlign: typeof HorizontalTextAlignment;
         static VerticalAlign: typeof VerticalTextAlignment;
         static Overflow: typeof Overflow;
@@ -21320,6 +22356,15 @@ declare module "cc" {
          * 存储注册事件的回调列表，请不要直接修改。
          */
         _callbackTable: __internal.$cocos.$core.$event.$callbacks_invoker.ICallbackTable;
+        get sharedMaterial(): PhysicMaterial | null;
+        set sharedMaterial(value: PhysicMaterial | null);
+        get material(): PhysicMaterial | null;
+        set material(value: PhysicMaterial | null);
+        get isTrigger(): boolean;
+        set isTrigger(value: boolean);
+        get center(): Vec3;
+        set center(value: Vec3);
+        get attachedRigidbody(): RigidBodyComponent | null;
         protected _shapeBase: __internal.$cocos.$physics.$api.ShapeBase;
         constructor();
         /**
@@ -21369,6 +22414,8 @@ declare module "cc" {
     export class BoxColliderComponent extends ColliderComponent {
         constructor();
         protected onLoad(): void;
+        get size(): Vec3;
+        set size(value: Vec3);
     }
     /**
      * @zh
@@ -21377,12 +22424,35 @@ declare module "cc" {
     export class SphereColliderComponent extends ColliderComponent {
         constructor();
         protected onLoad(): void;
+        get radius(): number;
+        set radius(value: number);
     }
     /**
      * @zh
      * 刚体组件。
      */
     export class RigidBodyComponent extends __internal.$cocos.$physics.$components.$detail.$physics_based_component.PhysicsBasedComponent {
+        get allowSleep(): boolean;
+        set allowSleep(v: boolean);
+        get mass(): number;
+        set mass(value: number);
+        get linearDamping(): number;
+        set linearDamping(value: number);
+        get angularDamping(): number;
+        set angularDamping(value: number);
+        get isKinematic(): boolean;
+        set isKinematic(value: boolean);
+        get useGravity(): boolean;
+        set useGravity(value: boolean);
+        get fixedRotation(): boolean;
+        set fixedRotation(value: boolean);
+        get linearFactor(): Vec3;
+        set linearFactor(value: Vec3);
+        get angularFactor(): Vec3;
+        set angularFactor(value: Vec3);
+        get isAwake(): boolean;
+        get isSleepy(): boolean;
+        get isSleeping(): boolean;
         constructor();
         /**
          * @zh
@@ -21452,6 +22522,10 @@ declare module "cc" {
     }
     export class PhysicMaterial extends Asset {
         static allMaterials: PhysicMaterial[];
+        get friction(): number;
+        set friction(value: number);
+        get restitution(): number;
+        set restitution(value: number);
         constructor();
         clone(): PhysicMaterial;
         destroy(): boolean;
@@ -21461,6 +22535,9 @@ declare module "cc" {
      * 用于保存物理射线检测结果
      */
     export class PhysicsRayResult {
+        get hitPoint(): Vec3;
+        get distance(): number;
+        get collider(): ColliderComponent;
         /**
          * @zh
          * 设置射线，此方法由引擎内部使用，请勿在外部脚本调用
@@ -21477,6 +22554,17 @@ declare module "cc" {
      * 物理系统。
      */
     export class PhysicsSystem extends System {
+        get enable(): boolean;
+        set enable(value: boolean);
+        get allowSleep(): boolean;
+        set allowSleep(v: boolean);
+        get maxSubStep(): number;
+        set maxSubStep(value: number);
+        get deltaTime(): number;
+        set deltaTime(value: number);
+        get gravity(): Vec3;
+        set gravity(gravity: Vec3);
+        get defaultMaterial(): PhysicMaterial | null;
         static readonly instance: PhysicsSystem;
         static readonly ID: "physics";
         _world: __internal.$cocos.$physics.$api.PhysicsWorldBase;
@@ -21516,6 +22604,14 @@ declare module "cc" {
      * 在每帧对一个刚体施加持续的力，依赖 RigidBodyComponent 组件
      */
     export class ConstantForce extends Component {
+        get force(): Vec3;
+        set force(value: Vec3);
+        get localForce(): Vec3;
+        set localForce(value: Vec3);
+        get torque(): Vec3;
+        set torque(value: Vec3);
+        get localTorque(): Vec3;
+        set localTorque(value: Vec3);
         onLoad(): void;
         lateUpdate(dt: number): void;
     }
@@ -21633,6 +22729,9 @@ declare module "cc" {
         blockCount: number[];
         weightMapSize: number;
         lightMapSize: number;
+        get size(): Size;
+        get tileCount(): number[];
+        get vertexCount(): number[];
     }
     export class TerrainLayer {
         detailMap: Texture2D | null;
@@ -21671,6 +22770,9 @@ declare module "cc" {
         destroy(): void;
         update(): void;
         setBrushMaterial(mtl: Material | null): void;
+        get layers(): number[];
+        get lightmap(): Texture2D | null;
+        get lightmapUVParam(): Vec4;
         getTerrain(): Terrain;
         getIndex(): number[];
         getRect(): Rect;
@@ -21698,6 +22800,19 @@ declare module "cc" {
         protected _blocks: TerrainBlock[];
         protected _sharedIndexBuffer: GFXBuffer | null;
         constructor();
+        set _asset(value: TerrainAsset | null);
+        get _asset(): TerrainAsset | null;
+        get size(): Size;
+        get tileSize(): number;
+        get tileCount(): number[];
+        get vertexCount(): number[];
+        get blockCount(): number[];
+        get lightMapSize(): number;
+        get weightMapSize(): number;
+        get heights(): Uint16Array;
+        get weights(): Uint8Array;
+        get valid(): boolean;
+        get info(): TerrainInfo;
         build(info: TerrainInfo): boolean | undefined;
         rebuild(info: TerrainInfo): void;
         importHeightField(hf: HeightField, heightScale: number): void;
@@ -21766,6 +22881,22 @@ declare module "cc" {
         protected _weights: Uint8Array;
         protected _layerBuffer: number[];
         constructor();
+        get _nativeAsset(): ArrayBuffer;
+        set _nativeAsset(value: ArrayBuffer);
+        set tileSize(value: number);
+        get tileSize(): number;
+        set blockCount(value: number[]);
+        get blockCount(): number[];
+        set lightMapSize(value: number);
+        get lightMapSize(): number;
+        set weightMapSize(value: number);
+        get weightMapSize(): number;
+        set heights(value: Uint16Array);
+        get heights(): Uint16Array;
+        set weights(value: Uint8Array);
+        get weights(): Uint8Array;
+        set layerBuffer(value: number[]);
+        get layerBuffer(): number[];
         getLayer(xblock: number, yblock: number, layerId: number): number;
         _setNativeData(_nativeData: Uint8Array): void;
         _loadNativeData(_nativeData: Uint8Array): boolean;
@@ -21914,15 +23045,52 @@ declare module "cc" {
                                 constructor();
                                 initialize(subMesh: $cocos.$core.$assets.$mesh.IRenderingSubmesh, mat: Material, psos: GFXPipelineState[]): void;
                                 destroy(): void;
+                                set priority(val: $cocos.$core.$pipeline.$define.RenderPriority);
+                                get priority(): $cocos.$core.$pipeline.$define.RenderPriority;
+                                set subMeshData(sm: $cocos.$core.$assets.$mesh.IRenderingSubmesh);
+                                get subMeshData(): $cocos.$core.$assets.$mesh.IRenderingSubmesh;
+                                get psos(): GFXPipelineState[] | null;
+                                set psos(val: GFXPipelineState[] | null);
+                                set material(material: Material | null);
+                                get material(): Material | null;
+                                get inputAssembler(): GFXInputAssembler | null;
                                 updateCommandBuffer(): void;
                                 protected recordCommandBuffer(index: number): void;
+                                get passes(): renderer.Pass[];
+                                get commandBuffers(): GFXCommandBuffer[];
+                            }
+                        }
+                        namespace $light {
+                            export enum LightType {
+                                DIRECTIONAL = 0,
+                                SPHERE = 1,
+                                SPOT = 2,
+                                UNKNOWN = 3
                             }
                         }
                         namespace $render_scene {
                             export interface IRenderSceneInfo {
                                 name: string;
                             }
+                            export interface IRaycastResult {
+                                node: $cocos.$core.$utils.$interfaces.INode;
+                                distance: number;
+                            }
                             export class RenderScene {
+                                get root(): $cocos.$core.$root.Root;
+                                get name(): string;
+                                get cameras(): renderer.Camera[];
+                                get ambient(): $cocos.$core.$renderer.$scene.$ambient.Ambient;
+                                get skybox(): $cocos.$core.$renderer.$scene.$skybox.Skybox;
+                                get planarShadows(): $cocos.$core.$renderer.$scene.$planar_shadows.PlanarShadows;
+                                get mainLight(): $cocos.$core.$renderer.$scene.$directional_light.DirectionalLight | null;
+                                get sphereLights(): $cocos.$core.$renderer.$scene.$sphere_light.SphereLight[];
+                                get spotLights(): $cocos.$core.$renderer.$scene.$spot_light.SpotLight[];
+                                get models(): renderer.Model[];
+                                get rayResultCanvas(): $cocos.$core.$renderer.$scene.$render_scene.IRaycastResult[];
+                                get rayResultModels(): $cocos.$core.$renderer.$scene.$render_scene.IRaycastResult[];
+                                get rayResultAll(): $cocos.$core.$renderer.$scene.$render_scene.IRaycastResult[];
+                                get rayResultSingleModel(): $cocos.$core.$renderer.$scene.$render_scene.IRaycastResult[];
                                 static registerCreateFunc(root: $cocos.$core.$root.Root): void;
                                 constructor(root: $cocos.$core.$root.Root);
                                 initialize(info: $cocos.$core.$renderer.$scene.$render_scene.IRenderSceneInfo): boolean;
@@ -22013,66 +23181,18 @@ declare module "cc" {
                                 raycastAllCanvas(worldRay: geometry.ray, mask?: number, distance?: number): boolean;
                             }
                         }
-                        namespace $directional_light {
-                            export class DirectionalLight extends renderer.Light {
-                                protected _dir: Vec3;
-                                protected _illum: number;
-                                constructor();
-                                update(): void;
-                            }
-                        }
-                        namespace $sphere_light {
-                            export class SphereLight extends renderer.Light {
-                                protected _needUpdate: boolean;
-                                protected _size: number;
-                                protected _range: number;
-                                protected _luminance: number;
-                                protected _pos: Vec3;
-                                protected _aabb: geometry.aabb;
-                                constructor();
-                                update(): void;
-                            }
-                        }
-                        namespace $spot_light {
-                            export class SpotLight extends renderer.Light {
-                                protected _dir: Vec3;
-                                protected _size: number;
-                                protected _range: number;
-                                protected _luminance: number;
-                                protected _spotAngle: number;
-                                protected _pos: Vec3;
-                                protected _aabb: geometry.aabb;
-                                protected _frustum: geometry.frustum;
-                                protected _angle: number;
-                                protected _needUpdate: boolean;
-                                constructor();
-                                update(): void;
-                            }
-                        }
-                        namespace $light {
-                            export enum LightType {
-                                DIRECTIONAL = 0,
-                                SPHERE = 1,
-                                SPOT = 2,
-                                UNKNOWN = 3
-                            }
-                        }
-                        namespace $camera {
-                            export interface ICameraInfo {
-                                name: string;
-                                node: $cocos.$core.$utils.$interfaces.INode;
-                                projection: number;
-                                targetDisplay?: number;
-                                window?: $cocos.$core.$gfx.$window.GFXWindow | null;
-                                priority: number;
-                                pipeline?: string;
-                                flows?: string[];
-                            }
-                        }
                         namespace $ambient {
                             export class Ambient {
                                 static SUN_ILLUM: number;
                                 static SKY_ILLUM: number;
+                                set enabled(val: boolean);
+                                get enabled(): boolean;
+                                get skyColor(): Float32Array;
+                                set skyColor(color: Float32Array);
+                                set skyIllum(illum: number);
+                                get skyIllum(): number;
+                                get groundAlbedo(): Float32Array;
+                                set groundAlbedo(color: Float32Array);
                                 protected _enabled: boolean;
                                 protected _skyColor: Float32Array;
                                 protected _skyIllum: number;
@@ -22082,8 +23202,37 @@ declare module "cc" {
                                 update(): void;
                             }
                         }
+                        namespace $skybox {
+                            export class Skybox extends renderer.Model {
+                                set useIBL(val: boolean);
+                                get useIBL(): boolean;
+                                set isRGBE(val: boolean);
+                                get isRGBE(): boolean;
+                                set envmap(val: TextureCube | null);
+                                get envmap(): TextureCube | null;
+                                protected _default: TextureCube;
+                                protected _envmap: TextureCube;
+                                protected _isRGBE: boolean;
+                                protected _useIBL: boolean;
+                                protected _globalBinding: $cocos.$core.$pipeline.$define.IInternalBindingInst;
+                                constructor(scene: $cocos.$core.$renderer.$scene.$render_scene.RenderScene);
+                                protected _updatePipeline(): void;
+                                protected _updateGlobalBinding(): void;
+                            }
+                        }
                         namespace $planar_shadows {
                             export class PlanarShadows {
+                                set enabled(enable: boolean);
+                                get enabled(): boolean;
+                                set normal(val: Vec3);
+                                get normal(): Vec3;
+                                set distance(val: number);
+                                get distance(): number;
+                                set shadowColor(color: Color);
+                                get matLight(): Mat4;
+                                get data(): Float32Array;
+                                get cmdBuffs(): CachedArray<GFXCommandBuffer>;
+                                get cmdBuffCount(): number;
                                 protected _scene: $cocos.$core.$renderer.$scene.$render_scene.RenderScene;
                                 protected _enabled: boolean;
                                 protected _normal: Vec3;
@@ -22109,6 +23258,128 @@ declare module "cc" {
                                 protected _createOrReuseCommandBuffer(cb?: GFXCommandBuffer): GFXCommandBuffer;
                             }
                         }
+                        namespace $sphere_light {
+                            export class SphereLight extends renderer.Light {
+                                protected _needUpdate: boolean;
+                                get position(): Vec3;
+                                set size(size: number);
+                                get size(): number;
+                                set range(range: number);
+                                get range(): number;
+                                set luminance(lum: number);
+                                get luminance(): number;
+                                get aabb(): geometry.aabb;
+                                protected _size: number;
+                                protected _range: number;
+                                protected _luminance: number;
+                                protected _pos: Vec3;
+                                protected _aabb: geometry.aabb;
+                                constructor();
+                                update(): void;
+                            }
+                        }
+                        namespace $directional_light {
+                            export class DirectionalLight extends renderer.Light {
+                                protected _dir: Vec3;
+                                protected _illum: number;
+                                set direction(dir: Vec3);
+                                get direction(): Vec3;
+                                set illuminance(illum: number);
+                                get illuminance(): number;
+                                constructor();
+                                update(): void;
+                            }
+                        }
+                        namespace $spot_light {
+                            export class SpotLight extends renderer.Light {
+                                protected _dir: Vec3;
+                                protected _size: number;
+                                protected _range: number;
+                                protected _luminance: number;
+                                protected _spotAngle: number;
+                                protected _pos: Vec3;
+                                protected _aabb: geometry.aabb;
+                                protected _frustum: geometry.frustum;
+                                protected _angle: number;
+                                protected _needUpdate: boolean;
+                                get position(): Vec3;
+                                set size(size: number);
+                                get size(): number;
+                                set range(range: number);
+                                get range(): number;
+                                set luminance(lum: number);
+                                get luminance(): number;
+                                get direction(): Vec3;
+                                get spotAngle(): number;
+                                set spotAngle(val: number);
+                                get aabb(): geometry.aabb;
+                                get frustum(): geometry.frustum;
+                                constructor();
+                                update(): void;
+                            }
+                        }
+                        namespace $camera {
+                            export interface ICameraInfo {
+                                name: string;
+                                node: $cocos.$core.$utils.$interfaces.INode;
+                                projection: number;
+                                targetDisplay?: number;
+                                window?: $cocos.$core.$gfx.$window.GFXWindow | null;
+                                priority: number;
+                                pipeline?: string;
+                                flows?: string[];
+                            }
+                            export enum CameraProjection {
+                                ORTHO = 0,
+                                PERSPECTIVE = 1
+                            }
+                            export enum CameraAperture {
+                                F1_8 = 0,
+                                F2_0 = 1,
+                                F2_2 = 2,
+                                F2_5 = 3,
+                                F2_8 = 4,
+                                F3_2 = 5,
+                                F3_5 = 6,
+                                F4_0 = 7,
+                                F4_5 = 8,
+                                F5_0 = 9,
+                                F5_6 = 10,
+                                F6_3 = 11,
+                                F7_1 = 12,
+                                F8_0 = 13,
+                                F9_0 = 14,
+                                F10_0 = 15,
+                                F11_0 = 16,
+                                F13_0 = 17,
+                                F14_0 = 18,
+                                F16_0 = 19,
+                                F18_0 = 20,
+                                F20_0 = 21,
+                                F22_0 = 22
+                            }
+                            export enum CameraShutter {
+                                D1 = 0,
+                                D2 = 1,
+                                D4 = 2,
+                                D8 = 3,
+                                D15 = 4,
+                                D30 = 5,
+                                D60 = 6,
+                                D125 = 7,
+                                D250 = 8,
+                                D500 = 9,
+                                D1000 = 10,
+                                D2000 = 11,
+                                D4000 = 12
+                            }
+                            export enum CameraISO {
+                                ISO100 = 0,
+                                ISO200 = 1,
+                                ISO400 = 2,
+                                ISO800 = 3
+                            }
+                        }
                     }
                     namespace $ui {
                         namespace $ui {
@@ -22117,6 +23388,10 @@ declare module "cc" {
                              * UI 渲染流程
                              */
                             export class UI {
+                                get renderScene(): $cocos.$core.$renderer.$scene.$render_scene.RenderScene;
+                                get currBufferBatch(): MeshBuffer | null;
+                                set currBufferBatch(value: MeshBuffer | null);
+                                set currStaticRoot(value: UIStaticBatchComponent | null);
                                 device: GFXDevice;
                                 constructor(_root: $cocos.$core.$root.Root);
                                 initialize(): boolean;
@@ -22189,6 +23464,8 @@ declare module "cc" {
                                 material: Material;
                             }
                             export class UIMaterial {
+                                get material(): Material;
+                                get pass(): renderer.Pass;
                                 protected _material: Material | null;
                                 protected _pass: renderer.Pass | null;
                                 constructor();
@@ -22200,21 +23477,24 @@ declare module "cc" {
                                 destroy(): void;
                             }
                         }
-                        namespace $base {
-                            export interface IAssembler {
-                                [key: string]: any;
-                            }
-                            export interface IAssemblerManager {
-                                getAssembler(component: UIRenderComponent): $cocos.$core.$renderer.$ui.$base.IAssembler;
-                            }
-                        }
                         namespace $render_data {
+                            export interface IRenderData {
+                                x: number;
+                                y: number;
+                                z: number;
+                                u: number;
+                                v: number;
+                                color: Color;
+                            }
                             export class BaseRenderData {
                                 material: Material | null;
                                 vertexCount: number;
                                 indiceCount: number;
                             }
                             export class RenderData extends $cocos.$core.$renderer.$ui.$render_data.BaseRenderData {
+                                get dataLength(): number;
+                                set dataLength(length: number);
+                                get datas(): $cocos.$core.$renderer.$ui.$render_data.IRenderData[];
                                 static add(): $cocos.$core.$renderer.$ui.$render_data.RenderData;
                                 static remove(data: $cocos.$core.$renderer.$ui.$render_data.RenderData): void;
                                 vData: Float32Array | null;
@@ -22232,6 +23512,14 @@ declare module "cc" {
                                 byteCount: number;
                                 request(vertexCount: number, indiceCount: number): boolean;
                                 reset(): void;
+                            }
+                        }
+                        namespace $base {
+                            export interface IAssembler {
+                                [key: string]: any;
+                            }
+                            export interface IAssemblerManager {
+                                getAssembler(component: UIRenderComponent): $cocos.$core.$renderer.$ui.$base.IAssembler;
                             }
                         }
                         namespace $stencil_manager {
@@ -22259,6 +23547,18 @@ declare module "cc" {
                                 destroy(ui: $cocos.$core.$renderer.$ui.$ui.UI): void;
                                 clear(ui: $cocos.$core.$renderer.$ui.$ui.UI): void;
                             }
+                        }
+                    }
+                    namespace $data_pool_manager {
+                        export class DataPoolManager {
+                            jointsTexturePool: renderer.JointsTexturePool;
+                            jointsAnimationInfo: renderer.JointsAnimationInfo;
+                            animatedBoundsInfo: renderer.AnimatedBoundsInfo;
+                            constructor(device: GFXDevice);
+                            releaseMesh(mesh: Mesh): void;
+                            releaseSkeleton(skeleton: Skeleton): void;
+                            releaseAnimationClip(clip: AnimationClip): void;
+                            clear(): void;
                         }
                     }
                 }
@@ -22394,6 +23694,27 @@ declare module "cc" {
                              */
                             geometricInfo?: $cocos.$core.$assets.$mesh.IGeometricInfo;
                         }
+                        /**
+                         * 渲染网格。
+                         */
+                        export class RenderingMesh {
+                            constructor(_subMeshes: $cocos.$core.$assets.$mesh.IRenderingSubmesh[]);
+                            get subMeshes(): $cocos.$core.$assets.$mesh.IRenderingSubmesh[];
+                            get subMeshCount(): number;
+                            /**
+                             * 获取指定的渲染子网格。
+                             * @param index 渲染子网格的索引。
+                             */
+                            getSubmesh(index: number): $cocos.$core.$assets.$mesh.IRenderingSubmesh;
+                            /**
+                             * 销毁所有渲染子网格。
+                             */
+                            destroySubMeshes(): void;
+                            /**
+                             * 销毁此渲染网格，移除其所有渲染子网格。
+                             */
+                            destroy(): void;
+                        }
                         type Storage = Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | Int32Array | Float32Array | Float64Array;
                     }
                     namespace $asset {
@@ -22423,31 +23744,6 @@ declare module "cc" {
                          * 图像资源的原始图像源。可以来源于 HTML 元素也可以来源于内存。
                          */
                         export type ImageSource = HTMLCanvasElement | HTMLImageElement | $cocos.$core.$assets.$image_asset.IMemoryImageSource;
-                    }
-                    namespace $texture_2d {
-                        /**
-                         * 贴图创建选项。
-                         */
-                        export interface ITexture2DCreateInfo {
-                            /**
-                             * 像素宽度。
-                             */
-                            width: number;
-                            /**
-                             * 像素高度。
-                             */
-                            height: number;
-                            /**
-                             * 像素格式。
-                             * @default PixelFormat.RGBA8888
-                             */
-                            format?: $cocos.$core.$assets.$asset_enum.PixelFormat;
-                            /**
-                             * mipmap 层级。
-                             * @default 1
-                             */
-                            mipmapLevel?: number;
-                        }
                     }
                     namespace $asset_enum {
                         /**
@@ -22511,6 +23807,31 @@ declare module "cc" {
                             DEPTH_32_STENCIL_8 = 58
                         }
                     }
+                    namespace $texture_2d {
+                        /**
+                         * 贴图创建选项。
+                         */
+                        export interface ITexture2DCreateInfo {
+                            /**
+                             * 像素宽度。
+                             */
+                            width: number;
+                            /**
+                             * 像素高度。
+                             */
+                            height: number;
+                            /**
+                             * 像素格式。
+                             * @default PixelFormat.RGBA8888
+                             */
+                            format?: $cocos.$core.$assets.$asset_enum.PixelFormat;
+                            /**
+                             * mipmap 层级。
+                             * @default 1
+                             */
+                            mipmapLevel?: number;
+                        }
+                    }
                     namespace $simple_texture {
                         export type PresumedGFXTextureInfo = Pick<$cocos.$core.$gfx.$texture.IGFXTextureInfo, "usage" | "flags" | "format" | "mipLevel">;
                         export type PresumedGFXTextureViewInfo = Pick<$cocos.$core.$gfx.$texture_view.IGFXTextureViewInfo, "texture" | "format">;
@@ -22522,6 +23843,7 @@ declare module "cc" {
                         export class SimpleTexture extends $cocos.$core.$assets.$texture_base.TextureBase {
                             protected _gfxTexture: GFXTexture | null;
                             protected _gfxTextureView: GFXTextureView | null;
+                            get mipmapLevel(): number;
                             /**
                              * 获取此贴图底层的 GFX 贴图对象。
                              */
@@ -22581,6 +23903,9 @@ declare module "cc" {
                          * 贴图资源基类。它定义了所有贴图共用的概念。
                          */
                         export class TextureBase extends Asset {
+                            get isCompressed(): boolean;
+                            get width(): number;
+                            get height(): number;
                             static PixelFormat: typeof $cocos.$core.$assets.$asset_enum.PixelFormat;
                             static WrapMode: typeof $cocos.$core.$assets.$asset_enum.WrapMode;
                             static Filter: typeof $cocos.$core.$assets.$asset_enum.Filter;
@@ -23072,6 +24397,15 @@ declare module "cc" {
                          * GFX窗口。
                          */
                         export abstract class GFXWindow extends GFXObject {
+                            get width(): number;
+                            get height(): number;
+                            get colorFormat(): GFXFormat;
+                            get detphStencilFormat(): GFXFormat;
+                            get isOffscreen(): boolean;
+                            get renderPass(): GFXRenderPass;
+                            get colorTexView(): GFXTextureView | null;
+                            get depthStencilTexView(): GFXTextureView | null;
+                            get framebuffer(): GFXFramebuffer;
                             protected _device: GFXDevice;
                             protected _title: string;
                             protected _left: number;
@@ -23150,6 +24484,19 @@ declare module "cc" {
                     namespace $webgl2 {
                         namespace $webgl2_device {
                             export class WebGL2GFXDevice extends GFXDevice {
+                                get gl(): WebGL2RenderingContext;
+                                get isAntialias(): boolean;
+                                get isPremultipliedAlpha(): boolean;
+                                get useVAO(): boolean;
+                                get EXT_texture_filter_anisotropic(): EXT_texture_filter_anisotropic | null;
+                                get OES_texture_float_linear(): OES_texture_float_linear | null;
+                                get EXT_color_buffer_float(): EXT_color_buffer_float | null;
+                                get EXT_disjoint_timer_query_webgl2(): EXT_disjoint_timer_query_webgl2 | null;
+                                get WEBGL_compressed_texture_etc1(): WEBGL_compressed_texture_etc1 | null;
+                                get WEBGL_compressed_texture_etc(): WEBGL_compressed_texture_etc | null;
+                                get WEBGL_compressed_texture_pvrtc(): WEBGL_compressed_texture_pvrtc | null;
+                                get WEBGL_compressed_texture_s3tc(): WEBGL_compressed_texture_s3tc | null;
+                                get WEBGL_compressed_texture_s3tc_srgb(): WEBGL_compressed_texture_s3tc_srgb | null;
                                 stateCache: $cocos.$core.$gfx.$webgl2.$webgl2_state_cache.WebGL2StateCache;
                                 nullTex2D: $cocos.$core.$gfx.$webgl2.$webgl2_texture.WebGL2GFXTexture | null;
                                 nullTexCube: $cocos.$core.$gfx.$webgl2.$webgl2_texture.WebGL2GFXTexture | null;
@@ -23208,10 +24555,39 @@ declare module "cc" {
                         }
                         namespace $webgl2_texture {
                             export class WebGL2GFXTexture extends GFXTexture {
+                                get gpuTexture(): $cocos.$core.$gfx.$webgl2.$webgl2_gpu_objects.WebGL2GPUTexture;
                                 constructor(device: GFXDevice);
                                 initialize(info: $cocos.$core.$gfx.$texture.IGFXTextureInfo): boolean;
                                 destroy(): void;
                                 resize(width: number, height: number): void;
+                            }
+                        }
+                        namespace $webgl2_gpu_objects {
+                            export class WebGL2GPUTexture {
+                                type: GFXTextureType;
+                                viewType: GFXTextureViewType;
+                                format: GFXFormat;
+                                usage: GFXTextureUsage;
+                                width: number;
+                                height: number;
+                                depth: number;
+                                size: number;
+                                arrayLayer: number;
+                                mipLevel: number;
+                                samples: GFXSampleCount;
+                                flags: GFXTextureFlags;
+                                isPowerOf2: boolean;
+                                glTarget: GLenum;
+                                glInternelFmt: GLenum;
+                                glFormat: GLenum;
+                                glType: GLenum;
+                                glUsage: GLenum;
+                                glTexture: WebGLTexture | null;
+                                glRenderbuffer: WebGLRenderbuffer | null;
+                                glWrapS: GLenum;
+                                glWrapT: GLenum;
+                                glMinFilter: GLenum;
+                                glMagFilter: GLenum;
                             }
                         }
                     }
@@ -23460,6 +24836,33 @@ declare module "cc" {
                     namespace $webgl {
                         namespace $webgl_device {
                             export class WebGLGFXDevice extends GFXDevice {
+                                get gl(): WebGLRenderingContext;
+                                get webGLQueue(): $cocos.$core.$gfx.$webgl.$webgl_queue.WebGLGFXQueue;
+                                get isAntialias(): boolean;
+                                get isPremultipliedAlpha(): boolean;
+                                get useVAO(): boolean;
+                                get EXT_texture_filter_anisotropic(): EXT_texture_filter_anisotropic | null;
+                                get EXT_frag_depth(): EXT_frag_depth | null;
+                                get EXT_shader_texture_lod(): EXT_shader_texture_lod | null;
+                                get EXT_sRGB(): EXT_sRGB | null;
+                                get OES_vertex_array_object(): OES_vertex_array_object | null;
+                                get WEBGL_color_buffer_float(): WEBGL_color_buffer_float | null;
+                                get WEBGL_compressed_texture_etc1(): WEBGL_compressed_texture_etc1 | null;
+                                get WEBGL_compressed_texture_pvrtc(): WEBGL_compressed_texture_pvrtc | null;
+                                get WEBGL_compressed_texture_astc(): WEBGL_compressed_texture_astc | null;
+                                get WEBGL_compressed_texture_s3tc(): WEBGL_compressed_texture_s3tc | null;
+                                get WEBGL_compressed_texture_s3tc_srgb(): WEBGL_compressed_texture_s3tc_srgb | null;
+                                get WEBGL_debug_shaders(): WEBGL_debug_shaders | null;
+                                get WEBGL_draw_buffers(): WEBGL_draw_buffers | null;
+                                get WEBGL_lose_context(): WEBGL_lose_context | null;
+                                get WEBGL_depth_texture(): WEBGL_depth_texture | null;
+                                get WEBGL_debug_renderer_info(): WEBGL_debug_renderer_info | null;
+                                get OES_texture_half_float(): OES_texture_half_float | null;
+                                get OES_texture_half_float_linear(): OES_texture_half_float_linear | null;
+                                get OES_texture_float(): OES_texture_float | null;
+                                get OES_standard_derivatives(): OES_standard_derivatives | null;
+                                get OES_element_index_uint(): OES_element_index_uint | null;
+                                get ANGLE_instanced_arrays(): ANGLE_instanced_arrays | null;
                                 stateCache: $cocos.$core.$gfx.$webgl.$webgl_state_cache.WebGLStateCache;
                                 nullTex2D: $cocos.$core.$gfx.$webgl.$webgl_texture.WebGLGFXTexture | null;
                                 nullTexCube: $cocos.$core.$gfx.$webgl.$webgl_texture.WebGLGFXTexture | null;
@@ -23489,6 +24892,17 @@ declare module "cc" {
                                 blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
                             }
                         }
+                        namespace $webgl_queue {
+                            export class WebGLGFXQueue extends GFXQueue {
+                                numDrawCalls: number;
+                                numTris: number;
+                                constructor(device: GFXDevice);
+                                initialize(info: $cocos.$core.$gfx.$queue.IGFXQueueInfo): boolean;
+                                destroy(): void;
+                                submit(cmdBuffs: GFXCommandBuffer[], fence?: any): void;
+                                clear(): void;
+                            }
+                        }
                         namespace $webgl_state_cache {
                             export interface IWebGLTexUnit {
                                 glTexture: WebGLTexture | null;
@@ -23514,10 +24928,39 @@ declare module "cc" {
                         }
                         namespace $webgl_texture {
                             export class WebGLGFXTexture extends GFXTexture {
+                                get gpuTexture(): $cocos.$core.$gfx.$webgl.$webgl_gpu_objects.WebGLGPUTexture;
                                 constructor(device: GFXDevice);
                                 initialize(info: $cocos.$core.$gfx.$texture.IGFXTextureInfo): boolean;
                                 destroy(): void;
                                 resize(width: number, height: number): void;
+                            }
+                        }
+                        namespace $webgl_gpu_objects {
+                            export class WebGLGPUTexture {
+                                type: GFXTextureType;
+                                viewType: GFXTextureViewType;
+                                format: GFXFormat;
+                                usage: GFXTextureUsage;
+                                width: number;
+                                height: number;
+                                depth: number;
+                                size: number;
+                                arrayLayer: number;
+                                mipLevel: number;
+                                samples: GFXSampleCount;
+                                flags: GFXTextureFlags;
+                                isPowerOf2: boolean;
+                                glTarget: GLenum;
+                                glInternelFmt: GLenum;
+                                glFormat: GLenum;
+                                glType: GLenum;
+                                glUsage: GLenum;
+                                glTexture: WebGLTexture | null;
+                                glRenderbuffer: WebGLRenderbuffer | null;
+                                glWrapS: GLenum;
+                                glWrapT: GLenum;
+                                glMinFilter: GLenum;
+                                glMagFilter: GLenum;
                             }
                         }
                     }
@@ -23549,6 +24992,16 @@ declare module "cc" {
                             model: renderer.Model;
                             depth: number;
                         }
+                        export interface IInternalBindingDesc {
+                            type: GFXBindingType;
+                            blockInfo?: $cocos.$core.$gfx.$shader.GFXUniformBlock;
+                            samplerInfo?: $cocos.$core.$gfx.$shader.GFXUniformSampler;
+                        }
+                        export interface IInternalBindingInst extends $cocos.$core.$pipeline.$define.IInternalBindingDesc {
+                            buffer?: GFXBuffer;
+                            sampler?: GFXSampler;
+                            textureView?: GFXTextureView;
+                        }
                         /**
                          * @zh
                          * 本地 UBO。
@@ -23560,16 +25013,6 @@ declare module "cc" {
                             static SIZE: number;
                             static BLOCK: $cocos.$core.$gfx.$shader.GFXUniformBlock;
                             view: Float32Array;
-                        }
-                        export interface IInternalBindingDesc {
-                            type: GFXBindingType;
-                            blockInfo?: $cocos.$core.$gfx.$shader.GFXUniformBlock;
-                            samplerInfo?: $cocos.$core.$gfx.$shader.GFXUniformSampler;
-                        }
-                        export interface IInternalBindingInst extends $cocos.$core.$pipeline.$define.IInternalBindingDesc {
-                            buffer?: GFXBuffer;
-                            sampler?: GFXSampler;
-                            textureView?: GFXTextureView;
                         }
                         /**
                          * @zh
@@ -23781,117 +25224,6 @@ declare module "cc" {
                              */
                             sort(): void;
                         }
-                    }
-                }
-                namespace $root {
-                    /**
-                     * @zh
-                     * Root描述信息
-                     */
-                    export interface IRootInfo {
-                        enableHDR?: boolean;
-                    }
-                    /**
-                     * @zh
-                     * Root类
-                     */
-                    export class Root {
-                        _createSceneFun: any;
-                        _createViewFun: any;
-                        /**
-                         * 构造函数
-                         * @param device GFX设备
-                         */
-                        constructor(device: GFXDevice);
-                        /**
-                         * @zh
-                         * 初始化函数
-                         * @param info Root描述信息
-                         */
-                        initialize(info: $cocos.$core.$root.IRootInfo): boolean;
-                        destroy(): void;
-                        /**
-                         * @zh
-                         * 重置大小
-                         * @param width 屏幕宽度
-                         * @param height 屏幕高度
-                         */
-                        resize(width: number, height: number): void;
-                        setRenderPipeline(rppl: RenderPipeline): boolean;
-                        /**
-                         * @zh
-                         * 激活指定窗口为当前窗口
-                         * @param window GFX窗口
-                         */
-                        activeWindow(window: $cocos.$core.$gfx.$window.GFXWindow): void;
-                        /**
-                         * @zh
-                         * 重置累计时间
-                         */
-                        resetCumulativeTime(): void;
-                        /**
-                         * @zh
-                         * 每帧执行函数
-                         * @param deltaTime 间隔时间
-                         */
-                        frameMove(deltaTime: number): void;
-                        /**
-                         * @zh
-                         * 创建窗口
-                         * @param info GFX窗口描述信息
-                         */
-                        createWindow(info: $cocos.$core.$gfx.$window.IGFXWindowInfo): $cocos.$core.$gfx.$window.GFXWindow | null;
-                        /**
-                         * @zh
-                         * 销毁指定的窗口
-                         * @param window GFX窗口
-                         */
-                        destroyWindow(window: $cocos.$core.$gfx.$window.GFXWindow): void;
-                        /**
-                         * @zh
-                         * 销毁全部窗口
-                         */
-                        destroyWindows(): void;
-                        /**
-                         * @zh
-                         * 创建渲染场景
-                         * @param info 渲染场景描述信息
-                         */
-                        createScene(info: $cocos.$core.$renderer.$scene.$render_scene.IRenderSceneInfo): $cocos.$core.$renderer.$scene.$render_scene.RenderScene;
-                        /**
-                         * @zh
-                         * 销毁指定的渲染场景
-                         * @param scene 渲染场景
-                         */
-                        destroyScene(scene: $cocos.$core.$renderer.$scene.$render_scene.RenderScene): void;
-                        /**
-                         * @zh
-                         * 销毁全部场景
-                         */
-                        destroyScenes(): void;
-                        /**
-                         * @zh
-                         * 创建渲染视图
-                         * @param info 渲染视图描述信息
-                         */
-                        createView(info: $cocos.$core.$pipeline.$render_view.IRenderViewInfo): RenderView;
-                        /**
-                         * @zh
-                         * 销毁指定的渲染视图
-                         * @param view 渲染视图
-                         */
-                        destroyView(view: RenderView): void;
-                        /**
-                         * @zh
-                         * 销毁全部渲染视图
-                         */
-                        destroyViews(): void;
-                        createModel<T extends renderer.Model>(mClass: new () => T): T;
-                        destroyModel(m: renderer.Model): void;
-                        createCamera(): renderer.Camera;
-                        destroyCamera(c: renderer.Camera): void;
-                        createLight<T extends renderer.Light>(lClass: new () => T): T;
-                        destroyLight(l: renderer.Light): void;
                     }
                 }
                 namespace $utils {
@@ -24598,6 +25930,8 @@ declare module "cc" {
                             array: T[];
                             i: number;
                             constructor(array: T[]);
+                            get length(): number;
+                            set length(value: number);
                             remove(value: T): void;
                             removeAt(i: number): void;
                             fastRemove(value: T): void;
@@ -24608,6 +25942,8 @@ declare module "cc" {
                     namespace $profiler {
                         namespace $counter {
                             export class Counter {
+                                get value(): number;
+                                set value(val: number);
                                 protected _id: string;
                                 protected _opts: $cocos.$core.$utils.$profiler.$counter.ICounterOption;
                                 protected _accumStart: number;
@@ -24652,6 +25988,7 @@ declare module "cc" {
                          * 节点事件类。
                          */
                         export class NodeEventProcessor {
+                            get node(): $cocos.$core.$utils.$interfaces.IBaseNode;
                             /**
                              * @zh
                              * 节点冒泡事件监听器
@@ -24882,6 +26219,13 @@ declare module "cc" {
                             protected _skyIllum: number;
                             protected _groundAlbedo: Color;
                             protected _resource: $cocos.$core.$renderer.$scene.$ambient.Ambient | null;
+                            set skyColor(val: Color);
+                            get skyColor(): Color;
+                            set skyIllum(val: number);
+                            get skyIllum(): number;
+                            set groundAlbedo(val: Color);
+                            get groundAlbedo(): Color;
+                            set renderScene(rs: $cocos.$core.$renderer.$scene.$render_scene.RenderScene);
                         }
                         /**
                          * @zh 平面阴影相关信息
@@ -24892,11 +26236,39 @@ declare module "cc" {
                             protected _distance: number;
                             protected _shadowColor: Color;
                             protected _resource: $cocos.$core.$renderer.$scene.$planar_shadows.PlanarShadows | null;
+                            set enabled(val: boolean);
+                            get enabled(): boolean;
+                            set normal(val: Vec3);
+                            get normal(): Vec3;
+                            set distance(val: number);
+                            get distance(): number;
+                            set shadowColor(val: Color);
+                            get shadowColor(): Color;
                             /**
                              * @zh 根据指定节点的世界变换设置阴影接收平面的信息
                              * @param node 阴影接收平面的世界变换
                              */
                             setPlaneFromNode(node: Node): void;
+                            set renderScene(val: $cocos.$core.$renderer.$scene.$render_scene.RenderScene);
+                        }
+                        /**
+                         * @zh 天空盒相关信息
+                         */
+                        export class SkyboxInfo {
+                            protected _envmap: TextureCube | null;
+                            protected _isRGBE: boolean;
+                            protected _enabled: boolean;
+                            protected _useIBL: boolean;
+                            protected _resource: $cocos.$core.$renderer.$scene.$skybox.Skybox | null;
+                            set enabled(val: boolean);
+                            get enabled(): boolean;
+                            set useIBL(val: boolean);
+                            get useIBL(): boolean;
+                            set envmap(val: TextureCube | null);
+                            get envmap(): TextureCube | null;
+                            set isRGBE(val: boolean);
+                            get isRGBE(): boolean;
+                            set renderScene(val: $cocos.$core.$renderer.$scene.$render_scene.RenderScene);
                         }
                         /**
                          * @zh 各类场景级别的渲染参数，将影响全场景的所有物体
@@ -24904,6 +26276,9 @@ declare module "cc" {
                         export class SceneGlobals {
                             ambient: $cocos.$core.$scene_graph.$scene_globals.AmbientInfo;
                             planarShadows: $cocos.$core.$scene_graph.$scene_globals.PlanarShadowInfo;
+                            get skybox(): $cocos.$core.$scene_graph.$scene_globals.SkyboxInfo;
+                            set skybox(value: $cocos.$core.$scene_graph.$scene_globals.SkyboxInfo);
+                            set renderScene(rs: $cocos.$core.$renderer.$scene.$render_scene.RenderScene);
                         }
                     }
                 }
@@ -24929,6 +26304,7 @@ declare module "cc" {
                              * 注意：这是一个抽象类，开发者不应该直接实例化这个类，请参考 [[create]] 。
                              */
                             export class EventListener {
+                                get onEvent(): ((...args: any[]) => any) | null;
                                 /**
                                  * @en The type code of unknown event listener.<br/>
                                  * @zh 未知的事件监听器类型
@@ -25265,6 +26641,135 @@ declare module "cc" {
                                 dispatchCustomEvent(eventName: any, optionalUserData: any): void;
                             }
                         }
+                    }
+                }
+                namespace $root {
+                    /**
+                     * @zh
+                     * Root描述信息
+                     */
+                    export interface IRootInfo {
+                        enableHDR?: boolean;
+                    }
+                    /**
+                     * @zh
+                     * Root类
+                     */
+                    export class Root {
+                        get device(): GFXDevice;
+                        get mainWindow(): $cocos.$core.$gfx.$window.GFXWindow | null;
+                        set curWindow(window: $cocos.$core.$gfx.$window.GFXWindow | null);
+                        get curWindow(): $cocos.$core.$gfx.$window.GFXWindow | null;
+                        set tempWindow(window: $cocos.$core.$gfx.$window.GFXWindow | null);
+                        get tempWindow(): $cocos.$core.$gfx.$window.GFXWindow | null;
+                        get windows(): $cocos.$core.$gfx.$window.GFXWindow[];
+                        get pipeline(): RenderPipeline;
+                        get ui(): $cocos.$core.$renderer.$ui.$ui.UI;
+                        get scenes(): $cocos.$core.$renderer.$scene.$render_scene.RenderScene[];
+                        get views(): RenderView[];
+                        get cumulativeTime(): number;
+                        get frameTime(): number;
+                        get frameCount(): number;
+                        get fps(): number;
+                        set fixedFPS(fps: number);
+                        get fixedFPS(): number;
+                        get dataPoolManager(): $cocos.$core.$renderer.$data_pool_manager.DataPoolManager;
+                        _createSceneFun: any;
+                        _createViewFun: any;
+                        /**
+                         * 构造函数
+                         * @param device GFX设备
+                         */
+                        constructor(device: GFXDevice);
+                        /**
+                         * @zh
+                         * 初始化函数
+                         * @param info Root描述信息
+                         */
+                        initialize(info: $cocos.$core.$root.IRootInfo): boolean;
+                        destroy(): void;
+                        /**
+                         * @zh
+                         * 重置大小
+                         * @param width 屏幕宽度
+                         * @param height 屏幕高度
+                         */
+                        resize(width: number, height: number): void;
+                        setRenderPipeline(rppl: RenderPipeline): boolean;
+                        /**
+                         * @zh
+                         * 激活指定窗口为当前窗口
+                         * @param window GFX窗口
+                         */
+                        activeWindow(window: $cocos.$core.$gfx.$window.GFXWindow): void;
+                        /**
+                         * @zh
+                         * 重置累计时间
+                         */
+                        resetCumulativeTime(): void;
+                        /**
+                         * @zh
+                         * 每帧执行函数
+                         * @param deltaTime 间隔时间
+                         */
+                        frameMove(deltaTime: number): void;
+                        /**
+                         * @zh
+                         * 创建窗口
+                         * @param info GFX窗口描述信息
+                         */
+                        createWindow(info: $cocos.$core.$gfx.$window.IGFXWindowInfo): $cocos.$core.$gfx.$window.GFXWindow | null;
+                        /**
+                         * @zh
+                         * 销毁指定的窗口
+                         * @param window GFX窗口
+                         */
+                        destroyWindow(window: $cocos.$core.$gfx.$window.GFXWindow): void;
+                        /**
+                         * @zh
+                         * 销毁全部窗口
+                         */
+                        destroyWindows(): void;
+                        /**
+                         * @zh
+                         * 创建渲染场景
+                         * @param info 渲染场景描述信息
+                         */
+                        createScene(info: $cocos.$core.$renderer.$scene.$render_scene.IRenderSceneInfo): $cocos.$core.$renderer.$scene.$render_scene.RenderScene;
+                        /**
+                         * @zh
+                         * 销毁指定的渲染场景
+                         * @param scene 渲染场景
+                         */
+                        destroyScene(scene: $cocos.$core.$renderer.$scene.$render_scene.RenderScene): void;
+                        /**
+                         * @zh
+                         * 销毁全部场景
+                         */
+                        destroyScenes(): void;
+                        /**
+                         * @zh
+                         * 创建渲染视图
+                         * @param info 渲染视图描述信息
+                         */
+                        createView(info: $cocos.$core.$pipeline.$render_view.IRenderViewInfo): RenderView;
+                        /**
+                         * @zh
+                         * 销毁指定的渲染视图
+                         * @param view 渲染视图
+                         */
+                        destroyView(view: RenderView): void;
+                        /**
+                         * @zh
+                         * 销毁全部渲染视图
+                         */
+                        destroyViews(): void;
+                        createModel<T extends renderer.Model>(mClass: new () => T): T;
+                        destroyModel(m: renderer.Model): void;
+                        createCamera(): renderer.Camera;
+                        destroyCamera(c: renderer.Camera): void;
+                        createLight<T extends renderer.Light>(lClass: new () => T): T;
+                        destroyLight(l: renderer.Light): void;
                     }
                 }
                 namespace $primitive {
@@ -26358,6 +27863,8 @@ declare module "cc" {
                             attachToBlendState(blendState: $cocos.$core.$animation.$animation_blend_state.AnimationBlendState): void;
                             dettachFromBlendState(blendState: $cocos.$core.$animation.$animation_blend_state.AnimationBlendState): void;
                             applySample(ratio: number, index: number, lerpRequired: boolean, samplerResultCache: any, weight: number): void;
+                            get propertyName(): string;
+                            get curveDetail(): Pick<IRuntimeCurve, "modifiers" | "valueAdapter" | "curve">;
                         }
                         /**
                          * The curves in ISamplerSharedGroup share a same keys.
@@ -26397,6 +27904,8 @@ declare module "cc" {
                     }
                     namespace $playable {
                         export class Playable {
+                            get isPlaying(): boolean;
+                            get isPaused(): boolean;
                             /**
                              * @en Play this animation.
                              * @zh 播放动画。
@@ -26502,8 +28011,55 @@ declare module "cc" {
             }
             namespace $particle {
                 namespace $animator {
+                    namespace $curve_range {
+                        export class $default {
+                            static Mode: {
+                                Constant: number;
+                                Curve: number;
+                                TwoCurves: number;
+                                TwoConstants: number;
+                            };
+                            /**
+                             * @zh 曲线类型[[Mode]]。
+                             */
+                            mode: number;
+                            /**
+                             * @zh 当mode为Curve时，使用的曲线。
+                             */
+                            curve: geometry.AnimationCurve;
+                            /**
+                             * @zh 当mode为TwoCurves时，使用的曲线下限。
+                             */
+                            curveMin: geometry.AnimationCurve;
+                            /**
+                             * @zh 当mode为TwoCurves时，使用的曲线上限。
+                             */
+                            curveMax: geometry.AnimationCurve;
+                            /**
+                             * @zh 当mode为Constant时，曲线的值。
+                             */
+                            constant: number;
+                            /**
+                             * @zh 当mode为TwoConstants时，曲线的上限。
+                             */
+                            constantMin: number;
+                            /**
+                             * @zh 当mode为TwoConstants时，曲线的下限。
+                             */
+                            constantMax: number;
+                            /**
+                             * @zh 应用于曲线插值的系数。
+                             */
+                            multiplier: number;
+                            constructor();
+                            evaluate(time: number, rndRatio: number): number | undefined;
+                            getMax(): number;
+                        }
+                    }
                     namespace $gradient_range {
                         export class $default {
+                            get mode(): number;
+                            set mode(m: number);
                             static Mode: {
                                 Color: number;
                                 Gradient: number;
@@ -26560,51 +28116,6 @@ declare module "cc" {
                             sortKeys(): void;
                             evaluate(time: number): Color;
                             randomColor(): Color;
-                        }
-                    }
-                    namespace $curve_range {
-                        export class $default {
-                            static Mode: {
-                                Constant: number;
-                                Curve: number;
-                                TwoCurves: number;
-                                TwoConstants: number;
-                            };
-                            /**
-                             * @zh 曲线类型[[Mode]]。
-                             */
-                            mode: number;
-                            /**
-                             * @zh 当mode为Curve时，使用的曲线。
-                             */
-                            curve: geometry.AnimationCurve;
-                            /**
-                             * @zh 当mode为TwoCurves时，使用的曲线下限。
-                             */
-                            curveMin: geometry.AnimationCurve;
-                            /**
-                             * @zh 当mode为TwoCurves时，使用的曲线上限。
-                             */
-                            curveMax: geometry.AnimationCurve;
-                            /**
-                             * @zh 当mode为Constant时，曲线的值。
-                             */
-                            constant: number;
-                            /**
-                             * @zh 当mode为TwoConstants时，曲线的上限。
-                             */
-                            constantMin: number;
-                            /**
-                             * @zh 当mode为TwoConstants时，曲线的下限。
-                             */
-                            constantMax: number;
-                            /**
-                             * @zh 应用于曲线插值的系数。
-                             */
-                            multiplier: number;
-                            constructor();
-                            evaluate(time: number, rndRatio: number): number | undefined;
-                            getMax(): number;
                         }
                     }
                     namespace $color_overtime {
@@ -26756,6 +28267,8 @@ declare module "cc" {
                              * @zh 是否启用。
                              */
                             enable: boolean;
+                            get separateAxes(): boolean;
+                            set separateAxes(val: boolean);
                             /**
                              * @zh 绕 X 轴设定旋转。
                              */
@@ -26774,6 +28287,14 @@ declare module "cc" {
                     }
                     namespace $texture_animation {
                         export class $default {
+                            get enable(): boolean;
+                            set enable(val: boolean);
+                            get mode(): number;
+                            set mode(val: number);
+                            get numTilesX(): number;
+                            set numTilesX(val: number);
+                            get numTilesY(): number;
+                            set numTilesY(val: number);
                             /**
                              * @zh 动画播放方式 [[Animation]]。
                              */
@@ -26790,6 +28311,12 @@ declare module "cc" {
                              * @zh 一个生命周期内播放循环的次数。
                              */
                             cycleCount: number;
+                            get flipU(): number;
+                            set flipU(val: number);
+                            get flipV(): number;
+                            set flipV(val: number);
+                            get uvChannelMask(): number;
+                            set uvChannelMask(val: number);
                             /**
                              * @zh 随机从动画贴图中选择一行以生成动画。<br>
                              * 此选项仅在动画播放方式为 SingleRow 时生效。
@@ -26833,6 +28360,16 @@ declare module "cc" {
                 namespace $emitter {
                     namespace $shape_module {
                         export class $default {
+                            get position(): Vec3;
+                            set position(val: Vec3);
+                            get rotation(): Vec3;
+                            set rotation(val: Vec3);
+                            get scale(): Vec3;
+                            set scale(val: Vec3);
+                            get arc(): number;
+                            set arc(val: number);
+                            get angle(): number;
+                            set angle(val: number);
                             /**
                              * @zh 是否启用。
                              */
@@ -26841,6 +28378,8 @@ declare module "cc" {
                              * @zh 粒子发射器类型 [[ShapeType]]。
                              */
                             _shapeType: number;
+                            get shapeType(): number;
+                            set shapeType(val: number);
                             /**
                              * @zh 粒子从发射器哪个部位发射 [[EmitLocation]]。
                              */
@@ -26902,6 +28441,8 @@ declare module "cc" {
                 namespace $renderer {
                     namespace $trail {
                         export class $default {
+                            get enable(): boolean;
+                            set enable(val: boolean);
                             _enable: boolean;
                             /**
                              * 设定粒子生成轨迹的方式。
@@ -26912,6 +28453,10 @@ declare module "cc" {
                              */
                             lifeTime: $cocos.$particle.$animator.$curve_range.$default;
                             _minParticleDistance: number;
+                            get minParticleDistance(): number;
+                            set minParticleDistance(val: number);
+                            get space(): number;
+                            set space(val: number);
                             /**
                              * 粒子本身是否存在。
                              */
@@ -26946,6 +28491,18 @@ declare module "cc" {
                     }
                     namespace $particle_system_renderer {
                         export class $default {
+                            get renderMode(): number;
+                            set renderMode(val: number);
+                            get velocityScale(): number;
+                            set velocityScale(val: number);
+                            get lengthScale(): number;
+                            set lengthScale(val: number);
+                            get mesh(): Mesh | null;
+                            set mesh(val: Mesh | null);
+                            get particleMaterial(): any;
+                            set particleMaterial(val: any);
+                            get trailMaterial(): any;
+                            set trailMaterial(val: any);
                             constructor();
                             onInit(ps: Component): void;
                             onEnable(): void;
@@ -26976,6 +28533,52 @@ declare module "cc" {
                             export interface ISharedLabelData {
                                 canvas: HTMLCanvasElement;
                                 context: CanvasRenderingContext2D | null;
+                            }
+                        }
+                        namespace $letter_font {
+                            export class LetterRenderTexture extends Texture2D {
+                                /**
+                                 * @en
+                                 * Init the render texture with size.
+                                 * @zh
+                                 * 初始化 render texture。
+                                 * @param [width]
+                                 * @param [height]
+                                 * @param [string]
+                                 */
+                                initWithSize(width: number, height: number, format?: number): void;
+                                /**
+                                 * @en Draw a texture to the specified position
+                                 * @zh 将指定的图片渲染到指定的位置上。
+                                 * @param {Texture2D} texture
+                                 * @param {Number} x
+                                 * @param {Number} y
+                                 */
+                                drawTextureAt(texture: SpriteFrame, x: number, y: number): void;
+                            }
+                        }
+                        namespace $bmfontUtils {
+                            class FontLetterDefinition {
+                                u: number;
+                                v: number;
+                                width: number;
+                                height: number;
+                                offsetX: number;
+                                offsetY: number;
+                                textureID: number;
+                                validDefinition: boolean;
+                                xAdvance: number;
+                            }
+                            interface ILetterDefinition {
+                                [key: string]: $cocos.$ui.$assembler.$label.$bmfontUtils.FontLetterDefinition;
+                            }
+                            export class FontAtlas {
+                                get letterDefinitions(): $cocos.$ui.$assembler.$label.$bmfontUtils.ILetterDefinition;
+                                addLetterDefinitions(letter: string, letterDefinition: $cocos.$ui.$assembler.$label.$bmfontUtils.FontLetterDefinition): void;
+                                cloneLetterDefinition(): $cocos.$ui.$assembler.$label.$bmfontUtils.ILetterDefinition;
+                                assignLetterDefinitions(letterDefinition: $cocos.$ui.$assembler.$label.$bmfontUtils.ILetterDefinition): void;
+                                scaleFontLetterDefinition(scaleFactor: number): void;
+                                getLetterDefinitionForChar(char: string): any;
                             }
                         }
                     }
@@ -27075,6 +28678,48 @@ declare module "cc" {
                         }
                     }
                     namespace $editbox {
+                        namespace $types {
+                            /**
+                             * 键盘的返回键类型。
+                             * @readonly
+                             * @enum EditBox.KeyboardReturnType
+                             */
+                            export enum KeyboardReturnType {
+                                DEFAULT = 0,
+                                DONE = 1,
+                                SEND = 2,
+                                SEARCH = 3,
+                                GO = 4,
+                                NEXT = 5
+                            }
+                            /**
+                             * 定义了一些用于设置文本显示和文本格式化的标志位。
+                             * @readonly
+                             * @enum EditBox.InputFlag
+                             */
+                            export enum InputFlag {
+                                PASSWORD = 0,
+                                SENSITIVE = 1,
+                                INITIAL_CAPS_WORD = 2,
+                                INITIAL_CAPS_SENTENCE = 3,
+                                INITIAL_CAPS_ALL_CHARACTERS = 4,
+                                DEFAULT = 5
+                            }
+                            /**
+                             * 输入模式。
+                             * @readonly
+                             * @enum EditBox.InputMode
+                             */
+                            export enum InputMode {
+                                ANY = 0,
+                                EMAIL_ADDR = 1,
+                                NUMERIC = 2,
+                                PHONE_NUMBER = 3,
+                                URL = 4,
+                                DECIMAL = 5,
+                                SINGLE_LINE = 6
+                            }
+                        }
                         namespace $edit_box_impl {
                             export class EditBoxImpl {
                                 _delegate: EditBoxComponent | null;
@@ -27096,6 +28741,16 @@ declare module "cc" {
                                 _edTxt: HTMLInputElement | HTMLTextAreaElement | null;
                                 _textColor: Color;
                                 _edFontSize: number;
+                                get text(): string;
+                                set text(value: string);
+                                get textColor(): Color;
+                                get fontSize(): number;
+                                set returnType(value: $cocos.$ui.$components.$editbox.$types.KeyboardReturnType);
+                                get alwayOnTop(): boolean;
+                                get editing(): boolean;
+                                set editing(value: boolean);
+                                get delegate(): EditBoxComponent | null;
+                                get eventListeners(): any;
                                 onEnable(): void;
                                 onDisable(): void;
                                 setTabIndex(index: number): void;
@@ -27134,48 +28789,6 @@ declare module "cc" {
                                 removeDom(): void;
                             }
                         }
-                        namespace $types {
-                            /**
-                             * 键盘的返回键类型。
-                             * @readonly
-                             * @enum EditBox.KeyboardReturnType
-                             */
-                            export enum KeyboardReturnType {
-                                DEFAULT = 0,
-                                DONE = 1,
-                                SEND = 2,
-                                SEARCH = 3,
-                                GO = 4,
-                                NEXT = 5
-                            }
-                            /**
-                             * 输入模式。
-                             * @readonly
-                             * @enum EditBox.InputMode
-                             */
-                            export enum InputMode {
-                                ANY = 0,
-                                EMAIL_ADDR = 1,
-                                NUMERIC = 2,
-                                PHONE_NUMBER = 3,
-                                URL = 4,
-                                DECIMAL = 5,
-                                SINGLE_LINE = 6
-                            }
-                            /**
-                             * 定义了一些用于设置文本显示和文本格式化的标志位。
-                             * @readonly
-                             * @enum EditBox.InputFlag
-                             */
-                            export enum InputFlag {
-                                PASSWORD = 0,
-                                SENSITIVE = 1,
-                                INITIAL_CAPS_WORD = 2,
-                                INITIAL_CAPS_SENTENCE = 3,
-                                INITIAL_CAPS_ALL_CHARACTERS = 4,
-                                DEFAULT = 5
-                            }
-                        }
                     }
                     namespace $layout_component {
                         /**
@@ -27187,22 +28800,6 @@ declare module "cc" {
                             HORIZONTAL = 1,
                             VERTICAL = 2,
                             GRID = 3
-                        }
-                        /**
-                         * @zh
-                         * 垂直方向布局方式。
-                         */
-                        enum VerticalDirection {
-                            BOTTOM_TO_TOP = 0,
-                            TOP_TO_BOTTOM = 1
-                        }
-                        /**
-                         * @zh
-                         * 水平方向布局方式。
-                         */
-                        enum HorizontalDirection {
-                            LEFT_TO_RIGHT = 0,
-                            RIGHT_TO_LEFT = 1
                         }
                         /**
                          * @zh
@@ -27220,6 +28817,22 @@ declare module "cc" {
                         enum AxisDirection {
                             HORIZONTAL = 0,
                             VERTICAL = 1
+                        }
+                        /**
+                         * @zh
+                         * 垂直方向布局方式。
+                         */
+                        enum VerticalDirection {
+                            BOTTOM_TO_TOP = 0,
+                            TOP_TO_BOTTOM = 1
+                        }
+                        /**
+                         * @zh
+                         * 水平方向布局方式。
+                         */
+                        enum HorizontalDirection {
+                            LEFT_TO_RIGHT = 0,
+                            RIGHT_TO_LEFT = 1
                         }
                     }
                     namespace $mask_component {
@@ -27286,15 +28899,6 @@ declare module "cc" {
                     namespace $sprite_component {
                         /**
                          * @zh
-                         * 填充类型。
-                         */
-                        enum FillType {
-                            HORIZONTAL = 0,
-                            VERTICAL = 1,
-                            RADIAL = 2
-                        }
-                        /**
-                         * @zh
                          * Sprite 类型。
                          */
                         enum SpriteType {
@@ -27302,6 +28906,15 @@ declare module "cc" {
                             SLICED = 1,
                             TILED = 2,
                             FILLED = 3
+                        }
+                        /**
+                         * @zh
+                         * 填充类型。
+                         */
+                        enum FillType {
+                            HORIZONTAL = 0,
+                            VERTICAL = 1,
+                            RADIAL = 2
                         }
                         /**
                          * @zh
@@ -27448,11 +29061,128 @@ declare module "cc" {
                         getAllowSleep(): boolean;
                         setAllowSleep(v: boolean): void;
                     }
+                    export interface BuiltInRigidBodyBase {
+                        getGroup(): number;
+                        setGroup(v: number): void;
+                        addGroup(v: number): void;
+                        removeGroup(v: number): void;
+                        setMask(v: number): void;
+                        getMask(): number;
+                        addMask(v: number): void;
+                        removeMask(v: number): void;
+                        addShape(shape: $cocos.$physics.$api.ShapeBase, offset?: Vec3): void;
+                        removeShape(shape: $cocos.$physics.$api.ShapeBase): void;
+                        getPosition(out: Vec3): void;
+                        setPosition(value: Vec3): void;
+                        getRotation(out: Quat): void;
+                        setRotation(out: Quat): void;
+                        translateAndRotate(m: Mat4, rot: Quat): void;
+                        scaleAllShapes(scale: Vec3): void;
+                        getUserData(): any;
+                        setUserData(data: any): void;
+                        setWorld(world: $cocos.$physics.$api.PhysicsWorldBase | null): void;
+                    }
+                    export type ICollisionEventType = "onCollisionEnter" | "onCollisionStay" | "onCollisionExit";
+                    export interface ICollisionEvent {
+                        type: $cocos.$physics.$api.ICollisionEventType;
+                        selfCollider: any;
+                        otherCollider: any;
+                        contacts: any;
+                    }
+                    export type ICollisionCallback = (event: $cocos.$physics.$api.ICollisionEvent) => void;
+                    export interface RigidBodyBase extends $cocos.$physics.$api.BuiltInRigidBodyBase {
+                        /** the body type */
+                        getType(): $cocos.$physics.$physic_enum.ERigidBodyType;
+                        setType(v: $cocos.$physics.$physic_enum.ERigidBodyType): void;
+                        wakeUp(): void;
+                        sleep(): void;
+                        isAwake(): boolean;
+                        isSleepy(): boolean;
+                        isSleeping(): boolean;
+                        getMass(): number;
+                        setMass(value: number): void;
+                        addCollisionCallback(callback: $cocos.$physics.$api.ICollisionCallback): void;
+                        removeCollisionCllback(callback: $cocos.$physics.$api.ICollisionCallback): void;
+                        /**
+                         * force
+                         */
+                        applyForce(force: Vec3, worldPoint?: Vec3): void;
+                        applyLocalForce(force: Vec3, localPoint?: Vec3): void;
+                        /**
+                         * impulse
+                         */
+                        applyImpulse(impulse: Vec3, worldPoint?: Vec3): void;
+                        applyLocalImpulse(impulse: Vec3, localPoint?: Vec3): void;
+                        /**
+                         * Torque
+                         */
+                        applyTorque(torque: Vec3): void;
+                        applyLocalTorque(torque: Vec3): void;
+                        getIsKinematic(): boolean;
+                        setIsKinematic(value: boolean): void;
+                        /**
+                         * linear damping
+                         */
+                        getLinearDamping(): number;
+                        setLinearDamping(value: number): void;
+                        /**
+                         * angular damping
+                         */
+                        getAngularDamping(): number;
+                        setAngularDamping(value: number): void;
+                        getUseGravity(): boolean;
+                        setUseGravity(value: boolean): void;
+                        getCollisionResponse(): boolean;
+                        setCollisionResponse(value: boolean): void;
+                        /**
+                         * linear velocity
+                         */
+                        getLinearVelocity(out?: Vec3): Vec3;
+                        setLinearVelocity(value: Vec3): void;
+                        /**
+                         * angular velocity
+                         */
+                        getAngularVelocity(out?: Vec3): Vec3;
+                        setAngularVelocity(value: Vec3): void;
+                        /**
+                         * linear factor
+                         */
+                        getLinearFactor(out?: Vec3): Vec3;
+                        setLinearFactor(value: Vec3): void;
+                        /**
+                         * angular factor
+                         */
+                        getAngularFactor(out?: Vec3): Vec3;
+                        setAngularFactor(value: Vec3): void;
+                        getFreezeRotation(): boolean;
+                        setFreezeRotation(value: boolean): void;
+                        /**
+                         * allow sleep
+                         */
+                        getAllowSleep(): boolean;
+                        setAllowSleep(v: boolean): void;
+                    }
                 }
                 namespace $components {
                     namespace $detail {
                         namespace $physics_based_component {
+                            class SharedRigidBody {
+                                get body(): $cocos.$physics.$api.RigidBodyBase;
+                                get rigidBody(): object | null;
+                                get isShapeOnly(): boolean;
+                                set isShapeOnly(v: boolean);
+                                constructor(node: $cocos.$core.$utils.$interfaces.INode, rigidBody: object | null, world: $cocos.$physics.$api.PhysicsWorldBase);
+                                ref(): void;
+                                deref(): void;
+                                enable(): void;
+                                disable(): void;
+                                destroy(): void;
+                                syncPhysWithScene(): void;
+                            }
                             export class PhysicsBasedComponent extends Component {
+                                protected get _body(): $cocos.$physics.$api.RigidBodyBase;
+                                protected get sharedBody(): $cocos.$physics.$components.$detail.$physics_based_component.SharedRigidBody;
+                                protected get _assertPreload(): boolean;
                                 constructor();
                                 /**
                                  * @zh
@@ -27508,6 +29238,16 @@ declare module "cc" {
                                 protected onDestroy(): void;
                             }
                         }
+                    }
+                }
+                namespace $physic_enum {
+                    /**
+                     * @hidden
+                     */
+                    export enum ERigidBodyType {
+                        DYNAMIC = 1,
+                        STATIC = 2,
+                        KINEMATIC = 4
                     }
                 }
             }
