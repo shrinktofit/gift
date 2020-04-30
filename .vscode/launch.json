@@ -20,7 +20,8 @@
                 "--output",
                 "./test/declarations-output",
                 "--name",
-                "cc"
+                "cc",
+                "--config=${workspaceFolder}/test/config.json"
             ]
         }
     ]

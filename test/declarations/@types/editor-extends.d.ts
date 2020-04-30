@@ -49,9 +49,46 @@ interface EditorExtendsAsset {
     getAssetInfoFromUrl(url: string): EditorAssetInfo;
 }
 
+interface EditorExtendsUuid {
+    NonUuidMark: string;
+    compressUuid(uuid: string, min: boolean): string;
+    compressHex(hexString: string, reservedHeadLength: number): string;
+    decompressUuid(str: string): string;
+    isUuid(str: string): boolean;
+    getUuidFromLibPath(path: string): string;
+    uuid(): string;
+}
+
 declare namespace EditorExtends {
     const Script: EditorExtendsScript;
     const Node: EditorExtendsNode;
     const Component: EditorExtendsComponent;
     const Asset: EditorExtendsAsset;
+    const UuidUtils: EditorExtendsUuid;
+
+    const MissingReporter: {
+        classInstance: any;
+        class: any;
+        object: any;
+    }
+
+    const serialize: any;
+
+    interface EventMap {
+        /**
+         * Called when a cc-class is registered.
+         * @param classConstructor Registering class.
+         */
+        'class-registered'(classConstructor: Function, metadata?: Readonly<any>):  void;
+    }
+
+    type EventArgs<EventName extends keyof EventMap> = Parameters<EventMap[EventName]>;
+
+    type Listener<EventName extends keyof EventMap> = (...args: EventArgs<EventName>) => void;
+
+    function emit<EventName extends keyof EventMap>(name: EventName, ...args: EventArgs<EventName>): void;
+
+    function on<EventName extends keyof EventMap>(name: EventName, listener: Listener<EventName>): void;
+
+    function removeListener<EventName extends keyof EventMap>(name: EventName, listener: Listener<EventName>): void;
 }

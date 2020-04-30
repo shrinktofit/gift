@@ -1,0 +1,12 @@
+{
+    "entries": {
+        "cc.core": "exports/base",
+        "cc.gfx-webgl": "exports/gfx-webgl",
+        "cc.gfx-webgl2": "exports/gfx-webgl2",
+        "cc.audio": "exports/audio",
+        "cc.particle": "exports/particle",
+        "cc.terrain": "exports/terrain",
+        "cc.tween": "exports/tween",
+        "cc.ui": "exports/ui"
+    }
+}
