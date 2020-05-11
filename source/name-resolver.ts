@@ -6,7 +6,6 @@ export class NameResolver {
     }
 
     public enter(ns: rConcepts.NamespaceTraits) {
-        console.log(`++ ${printNamespace(ns)}`);
         this._contextStack.push(ns);
     }
 
@@ -14,7 +13,6 @@ export class NameResolver {
         if (this._contextStack.length === 0) {
             throw new Error(`Bad NameResolver.leave() call`);
         } else {
-            console.log(`-- ${printNamespace(this.current())}`);
             this._contextStack.pop();
         }
     }
