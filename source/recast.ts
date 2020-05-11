@@ -90,6 +90,7 @@ export function recastTopLevelModule({
 
         if (!rEntity.symbol) {
             debugger;
+            return [];
         }
 
         const declarations = rEntity.symbol.getDeclarations();
