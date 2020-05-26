@@ -832,10 +832,6 @@ class BundleGenerator {
             return undefined;
         }
 
-        // if (type.getText() === 'Pass[]') {
-        //     debugger;
-        // }
-
         const fallthrough = () => {
             return ts.createTypeReferenceNode(type.getText(), undefined);
         };
@@ -915,7 +911,11 @@ class BundleGenerator {
         } else if (ts.isTypePredicateNode(type)) {
             const dumpedParameterName = ts.isIdentifier(type.parameterName) ?
                 this._remakeIdentifier(type.parameterName) : ts.createThisTypeNode();
-            return ts.createTypePredicateNode(dumpedParameterName, this._remakeTypeNode(type.type));
+            return ts.createTypePredicateNodeWithModifier(
+                type.assertsModifier ? ts.createToken(ts.SyntaxKind.AssertsKeyword) : undefined,
+                dumpedParameterName,
+                this._remakeTypeNode(type.type),
+            );
         } else if (ts.isConditionalTypeNode(type)) {
             return ts.createConditionalTypeNode(
                 this._remakeTypeNode(type.checkType),
@@ -1114,21 +1114,26 @@ class BundleGenerator {
                 (originalSymbol.declarations && originalSymbol.declarations.length > 0 ?
                     originalSymbol.declarations[0] : null);
             if (declaration) {
-                this._referencedSourceFiles.add(declaration.getSourceFile());
+                const declarationStatement =
+                    ts.isVariableDeclaration(declaration) &&
+                    ts.isVariableDeclarationList(declaration.parent) &&
+                    ts.isVariableStatement(declaration.parent.parent) ?
+                    declaration.parent.parent : declaration;
+                this._referencedSourceFiles.add(declarationStatement.getSourceFile());
                 let isTopLevelModuleMember = false;
-                // if (ts.isModuleDeclaration(declaration.parent)) {
+                // if (ts.isModuleDeclaration(declarationStatement.parent)) {
                 //     isTopLevelModuleMember = true;
                 // }
-                if (ts.isModuleDeclaration(declaration.parent) &&
-                    ts.isSourceFile(declaration.parent.parent)) {
+                if (ts.isModuleDeclaration(declarationStatement.parent) &&
+                    ts.isSourceFile(declarationStatement.parent.parent)) {
                     isTopLevelModuleMember = true;
                 } else if (
-                    ts.isModuleBlock(declaration.parent) &&
-                    ts.isSourceFile(declaration.parent.parent.parent)) {
+                    ts.isModuleBlock(declarationStatement.parent) &&
+                    ts.isSourceFile(declarationStatement.parent.parent.parent)) {
                     isTopLevelModuleMember = true;
                 }
-                else if (ts.isModuleDeclaration(declaration) &&
-                    ts.isSourceFile(declaration.parent)) {
+                else if (ts.isModuleDeclaration(declarationStatement) &&
+                    ts.isSourceFile(declarationStatement.parent)) {
                     isTopLevelModuleMember = true;
                 }
                 if (!isTopLevelModuleMember) {
