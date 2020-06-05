@@ -815,7 +815,7 @@ export function recastTopLevelModule({
             // typeof Entity
             return ts.createTypeQueryNode(recastEntityName(type.exprName));
         } else if (ts.isTypeOperatorNode(type)) {
-            return ts.createTypeOperatorNode(recastTypeNode(type.type)!);
+            return ts.createTypeOperatorNode(type.operator, recastTypeNode(type.type));
         } else if (ts.isFunctionTypeNode(type)) {
             return ts.createFunctionTypeNode(
                 recastTypeParameterArray(type.typeParameters),
