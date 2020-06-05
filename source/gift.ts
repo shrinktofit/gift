@@ -871,7 +871,7 @@ class BundleGenerator {
             // typeof Entity
             return ts.createTypeQueryNode(this._remakeEntityName(type.exprName));
         } else if (ts.isTypeOperatorNode(type)) {
-            return ts.createTypeOperatorNode(this._remakeTypeNode(type.type)!);
+            return ts.createTypeOperatorNode(type.operator, this._remakeTypeNode(type.type));
         } else if (ts.isFunctionTypeNode(type)) {
             return ts.createFunctionTypeNode(
                 this._remakeTypeParameterArray(type.typeParameters),
