@@ -15,12 +15,15 @@
             "args": [
                 "--input",
                 "./test/declarations/cc-before-rollup.d.ts",
+                "./test/declarations/module-cc.d.ts",
+                "--root-dir=./test/declarations",
                 "--root",
                 "index",
                 "--output",
                 "./test/declarations-output",
                 "--name",
-                "cc"
+                "cc",
+                "--config=${workspaceFolder}/test/config.json"
             ]
         }
     ]

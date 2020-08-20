@@ -3,13 +3,22 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as yargs from 'yargs';
+import YargsParser from 'yargs-parser';
 import { bundle, GiftErrors, IOptions } from './gift';
 
 main();
 
 function main() {
     yargs.demandOption([ 'i', 'r' ]);
-    yargs.alias('i', 'input').describe('i', 'The input file.');
+    yargs.option('input', {
+        alias: 'i',
+        description: 'The input file.',
+        array: true,
+    });
+    yargs.option('root-dir', {
+        type: 'string',
+        description: 'The root dir.'
+    });
     yargs.alias('r', 'root').describe('r', 'The root module name.');
     yargs.alias('n', 'name').describe('n', 'The generated module name.');
     yargs.alias('o', 'output').describe('o', 'The output file.');
@@ -18,10 +27,23 @@ function main() {
     yargs.alias('p', 'export-privates').describe(
         'p', 'Indicates whether export private members of class.');
     yargs.option('verbose', { type: 'boolean', default: false });
+    yargs.option('config', {
+        type: 'string',
+        demandOption: true,
+    });
     yargs.help();
 
     const argv = yargs.parse(process.argv);
-    const { i, n, o, r, u, p, verbose } = argv;
+    const { i, n, o, r, u, p, verbose, entries: entriesUnParsed, config: configFile, rootDir } = argv;
+
+    let config;
+    try {
+        config = fs.readJsonSync(configFile as string);
+    } catch (err) {
+        console.error(`Failed to read config file ${configFile}\n`, err);
+    }
+
+    const entries: Record<string, string> = config.entries;
 
     let name: undefined | string;
     if (typeof n === 'string') {
@@ -47,19 +69,21 @@ function main() {
 
     const options: IOptions = {
         input: i as string,
+        rootDir: rootDir as (string | undefined),
         name,
         output,
         rootModule: r as string,
         shelterName: u as (string | undefined),
         exportPrivates: p as (string | undefined),
         verbose: verbose as boolean,
+        entries,
     };
 
     const bundleResult = bundle(options);
-    if (bundleResult.error !== GiftErrors.Ok) {
-        console.error(`Error occurred: ${GiftErrors[bundleResult.error]}`);
-        return -1;
-    }
+    // if (bundleResult.error !== GiftErrors.Ok) {
+    //     console.error(`Error occurred: ${GiftErrors[bundleResult.error]}`);
+    //     return -1;
+    // }
 
     const outputPath = options.output;
     fs.ensureDirSync(path.dirname(outputPath));
