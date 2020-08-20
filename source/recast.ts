@@ -2,6 +2,7 @@ import ts from 'typescript';
 import * as rConcepts from './r-concepts';
 import { NameResolver, resolveRelativePath } from './name-resolver';
 import * as tsUtils from './ts-utils';
+import { ModuleInteropRecord } from './module-interop';
 
 export function recastTopLevelModule({
     program,
@@ -86,12 +87,12 @@ export function recastTopLevelModule({
     }
 
     function recastREntity(rEntity: rConcepts.Entity) {
-        const namespaceTraits = rEntity.namespaceTraits;
-
         if (!rEntity.symbol) {
-            debugger;
-            return [];
+            // For example: the `__private` namespace
+            return null;
         }
+
+        const namespaceTraits = rEntity.namespaceTraits;
 
         const declarations = rEntity.symbol.getDeclarations();
         if (!declarations || declarations.length === 0) {
@@ -134,7 +135,7 @@ export function recastTopLevelModule({
             const neNsDeclaration = ts.createModuleDeclaration(
                 undefined, // decorators,
                 [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
-                ts.createIdentifier(namespaceTraits.neNamespace.name),
+                ts.createIdentifier(namespaceTraits.neNamespace.trait.entity.name),
                 ts.createModuleBlock(namespaceTraits.neNamespace.statements),
                 ts.NodeFlags.Namespace
             );
@@ -150,46 +151,26 @@ export function recastTopLevelModule({
         const exportingExternalModule = isExportingInternal ?
             (exporting as rConcepts.NamespaceTraits).entity.ownerModule.entity.moduleTraits!:
             exporting.entity.moduleTraits!;
+        const moduleInteropRecord = new ModuleInteropRecord(exportingExternalModule.entity.name);
 
-        const moduleInterops = new Map<rConcepts.ModuleTraits, {
-            specifier: string;
-            imports: ts.ImportSpecifier[];
-            exports: ts.ExportSpecifier[];
-        }>();
-
-        const getModuleInterop = (to: rConcepts.ModuleTraits) => {
-            let interop = moduleInterops.get(to);
-            if (!interop) {
-                const specifier = optimizeModuleSpecifierTo(exportingExternalModule, to);
-                interop = {
-                    specifier,
-                    imports: [],
-                    exports: [],
-                };
-                moduleInterops.set(to, interop);
-            }
-            return interop;
+        const addModuleReference = (from: string, importName: string, exportName: string) => {
+            moduleInteropRecord.addNamedImport(from, importName, exportName);
         };
 
-        const addModuleReference = (to: rConcepts.ModuleTraits, importName: string, exportName: string) => {
-            const interlop = getModuleInterop(to);
-            interlop.imports.push(ts.createImportSpecifier(ts.createIdentifier(exportName), ts.createIdentifier(importName)));
-        };
-
-        const addDirectExport = (to: rConcepts.ModuleTraits, importName: string, exportName: string) => {
-            const interlop = getModuleInterop(to);
-            interlop.exports.push(ts.createExportSpecifier(exportName, importName));
+        const addDirectExport = (from: string, importName: string, exportName: string) => {
+            moduleInteropRecord.addNamedExportFrom(from, importName, exportName);
         };
 
         const addNamespaceReference = (to: rConcepts.NamespaceTraits, importName: string, exportName: string): ts.EntityName => {
             const resolved = resolveRelativePath(exporting, to.entity);
             if (resolved.module) {
-                return ts.createIdentifier(`____not_impl___`);
-            } else {
-                const ids = resolved.namespaces?.slice() ?? [];
-                ids.push(resolved.name);
-                return tsUtils.createEntityName(ids);
+                const namespaces = resolved.namespaces;
+                const leftmost = namespaces ? namespaces[0] : resolved.name;
+                moduleInteropRecord.addNamedImport(resolved.module, leftmost, leftmost);
             }
+            const ids = resolved.namespaces?.slice() ?? [];
+            ids.push(resolved.name);
+            return tsUtils.createEntityName(ids);
         };
 
         for (const aliasExport of exporting.aliasExports) {
@@ -203,7 +184,7 @@ export function recastTopLevelModule({
             switch (true) {
                 case !isExportingInternal && !isImportingInternal:
                     addDirectExport(
-                        importingModule.entity.moduleTraits!,
+                        importingModule.entity.moduleTraits!.entity.name,
                         exportName,
                         importName,
                     );
@@ -216,18 +197,13 @@ export function recastTopLevelModule({
                             importName,
                             exportName,
                         );
+                        // `export import ${exportName} = ${importingModule}.${exportName}`
                         statements.push(
                             ts.createImportEqualsDeclaration(
                                 undefined, // decorators
-                                undefined, // modifiers
+                                [ts.createModifier(ts.SyntaxKind.ExportKeyword)], // modifiers
                                 ts.createIdentifier(exportName),
                                 ts.createQualifiedName(namespaceReference, exportName),
-                            ),
-                            ts.createExportDeclaration(
-                                undefined, // decorators
-                                undefined, // modifiers
-                                ts.createNamedExports([ts.createExportSpecifier(undefined, exportName)]),
-                                undefined, // module specifier
                             ),
                         );
                     }
@@ -236,45 +212,51 @@ export function recastTopLevelModule({
                     // import from module, export into namespace
                     {
                         addModuleReference(
-                            importingModule.entity.moduleTraits!,
+                            importingModule.entity.moduleTraits!.entity.name,
                             importName,
                             exportName,
                         );
-                        statements.push(ts.createExportDeclaration(
-                            undefined, // decorators
-                            undefined, // modifiers
-                            ts.createNamedExports([ts.createExportSpecifier(exportName, exportName)]),
-                            undefined, // module specifier
-                        ));
+                        moduleInteropRecord.addNamedExport(exportName, exportName);
                     }
                     break;
             }
         }
 
-        moduleInterops.forEach((interop) => {
+        if (moduleInteropRecord.selfExports.length !== 0) {
             statements.push(ts.createExportDeclaration(
                 undefined, // decorators
                 undefined, // modifiers
-                ts.createNamedExports(interop.exports),
-                ts.createStringLiteral(interop.specifier),
+                ts.createNamedExports(moduleInteropRecord.selfExports),
+                undefined,
             ));
-    
-            statements.push(ts.createImportDeclaration(
-                undefined, // decorators
-                undefined, // modifiers
-                ts.createImportClause(
-                    undefined, // default import name
-                    ts.createNamedImports(interop.imports), // namespace import or named imports, or no
-                ),
-                ts.createStringLiteral(interop.specifier),
-            ));
+        }
+        moduleInteropRecord.record.forEach((interop) => {
+            if (interop.exports.length !== 0) {
+                statements.push(ts.createExportDeclaration(
+                    undefined, // decorators
+                    undefined, // modifiers
+                    ts.createNamedExports(interop.exports),
+                    ts.createStringLiteral(interop.specifier),
+                ));
+            }
+            if (interop.imports.length !== 0) {
+                statements.push(ts.createImportDeclaration(
+                    undefined, // decorators
+                    undefined, // modifiers
+                    ts.createImportClause(
+                        undefined, // default import name
+                        ts.createNamedImports(interop.imports), // namespace import or named imports, or no
+                    ),
+                    ts.createStringLiteral(interop.specifier),
+                ));
+            }
         });
 
         return statements;
     }
 
-    function optimizeModuleSpecifierTo(from: rConcepts.ModuleTraits, to: rConcepts.ModuleTraits): string {
-        return to.entity.name;
+    function optimizeModuleSpecifierTo(from: rConcepts.ModuleTraits, to: string): string {
+        return to;
     }
 
     function recastStatement(statement: ts.Statement) {

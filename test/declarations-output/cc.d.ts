@@ -1,4 +1,4 @@
-declare module "cc.core" {
+declare module "cc" {
     export namespace renderer {
         export function createIA(device: any, data: any): any;
         export const addStage: (name: any) => void;
@@ -15,11 +15,16 @@ declare module "cc.core" {
             FORWARD = 2,
             SHADOWCAST = 4
         }
-        export function getDefaultFromType(type: GFXType): keyof number[] | "default-texture" | "default-cube-texture";
-        export function assignDefines(target: IDefineMap, source: IDefineMap): boolean;
-        export const genHandle: (bt: GFXBindingType, binding: number, type: GFXType, offset?: number) => number;
-        export const getBindingTypeFromHandle: (handle: number) => number;
+        export function getDefaultFromType(type: GFXType): readonly number[] | "default-texture" | "default-cube-texture";
+        export function overrideMacros(target: MacroRecord, source: MacroRecord): boolean;
+        export enum PropertyType {
+            UBO = 0,
+            SAMPLER = 1
+        }
+        export const genHandle: (pt: PropertyType, set: number, binding: number, type: GFXType, offset?: number) => number;
+        export const getPropertyTypeFromHandle: (handle: number) => number;
         export const getTypeFromHandle: (handle: number) => number;
+        export const getSetIndexFromHandle: (handle: number) => number;
         export const getBindingFromHandle: (handle: number) => number;
         export const getOffsetFromHandle: (handle: number) => number;
         export const customizeType: (handle: number, type: GFXType) => number;
@@ -50,12 +55,10 @@ declare module "cc.core" {
             21: (a: Float32Array, v: any, idx?: number) => Float32Array;
             25: (a: Float32Array, v: any, idx?: number) => Float32Array;
         };
-        export interface IDefineMap {
-            [name: string]: number | boolean | string;
-        }
+        export type MacroRecord = Record<string, number | boolean | string>;
         export interface IPassInfoFull extends __private.cocos_core_assets_effect_asset_IPassInfo {
-            idxInTech: number;
-            defines: IDefineMap;
+            passIndex: number;
+            defines: MacroRecord;
             stateOverrides?: PassOverrides;
         }
         export type PassOverrides = __private.RecursivePartial<__private.cocos_core_assets_effect_asset_IPassStates>;
@@ -67,26 +70,15 @@ declare module "cc.core" {
             name: string;
             value: boolean | number | string;
         }
-        export interface IPassResources {
-            bindingLayout: GFXBindingLayout;
-            pipelineLayout: GFXPipelineLayout;
-            pipelineState: GFXPipelineState;
-        }
         export interface IPassDynamics {
             [type: number]: {
                 dirty: boolean;
                 value: number[];
             };
         }
-        export interface IPSOHashInfo {
-            program: string;
-            defines: IDefineMap;
-            stage: RenderPassStage;
-            primitive: GFXPrimitiveMode;
-            rasterizerState: GFXRasterizerState;
-            depthStencilState: GFXDepthStencilState;
-            blendState: GFXBlendState;
-            dynamicStates: GFXDynamicState[];
+        export enum BatchingSchemes {
+            INSTANCING = 1,
+            VB_MERGING = 2
         }
         /**
          * @zh
@@ -97,7 +89,8 @@ declare module "cc.core" {
              * @zh
              * 根据 handle 获取 unform 的绑定类型（UBO 或贴图等）。
              */
-            static getBindingTypeFromHandle: (handle: number) => number;
+            static PropertyType: typeof PropertyType;
+            static getPropertyTypeFromHandle: (handle: number) => number;
             /**
              * @zh
              * 根据 handle 获取 UBO member 的具体类型。
@@ -108,44 +101,35 @@ declare module "cc.core" {
              * 根据 handle 获取 binding。
              */
             static getBindingFromHandle: (handle: number) => number;
-            static fillinPipelineInfo(target: Pass, info: PassOverrides): void;
+            static fillPipelineInfo(hPass: __private.cocos_core_renderer_core_memory_pools_PassHandle, info: PassOverrides): void;
             /**
+             * @en
+             * Get pass hash value by [[Pass]] hash information.
              * @zh
-             * 根据指定 PSO 信息计算 hash
-             * @param psoInfo 用于计算 PSO hash 的最小必要信息
+             * 根据 [[Pass]] 的哈希信息获取哈希值。
+             *
+             * @param hPass Handle of the pass info used to compute hash value.
              */
-            static getPSOHash(psoInfo: IPSOHashInfo): number;
+            static getPassHash(hPass: __private.cocos_core_renderer_core_memory_pools_PassHandle, hShader: __private.cocos_core_renderer_core_memory_pools_ShaderHandle): number;
             protected static getOffsetFromHandle: (handle: number) => number;
             protected _buffers: Record<number, GFXBuffer>;
             protected _samplers: Record<number, GFXSampler>;
-            protected _textureViews: Record<number, GFXTextureView>;
-            protected _resources: IPassResources[];
-            protected _phase: number;
-            protected _idxInTech: number;
+            protected _textures: Record<number, GFXTexture>;
+            protected _descriptorSet: GFXDescriptorSet;
+            protected _passIndex: number;
+            protected _propertyIndex: number;
             protected _programName: string;
-            protected _priority: __private.cocos_core_pipeline_define_RenderPriority;
-            protected _primitive: GFXPrimitiveMode;
-            protected _stage: RenderPassStage;
-            protected _bindings: IGFXBinding[];
-            protected _inputState: GFXInputState;
-            protected _bs: GFXBlendState;
-            protected _dss: GFXDepthStencilState;
-            protected _rs: GFXRasterizerState;
-            protected _dynamicStates: GFXDynamicState[];
             protected _dynamics: IPassDynamics;
-            protected _customizations: string[];
-            protected _handleMap: Record<string, number>;
+            protected _propertyHandleMap: Record<string, number>;
             protected _blocks: IBlock[];
             protected _shaderInfo: IProgramInfo;
-            protected _defines: IDefineMap;
+            protected _defines: MacroRecord;
             protected _properties: Record<string, __private.cocos_core_assets_effect_asset_IPropertyInfo>;
-            protected _hash: number;
+            protected _root: __private.cocos_core_root_Root;
             protected _device: GFXDevice;
-            protected _renderPass: GFXRenderPass | null;
-            protected _shader: GFXShader | null;
-            protected _batchedBuffer: __private.cocos_core_pipeline_batched_buffer_BatchedBuffer | null;
-            protected _instancedBuffer: __private.cocos_core_pipeline_instanced_buffer_InstancedBuffer | null;
-            constructor(device: GFXDevice);
+            protected _hShaderDefault: __private.cocos_core_renderer_core_memory_pools_ShaderHandle;
+            protected _handle: __private.cocos_core_renderer_core_memory_pools_PassHandle;
+            constructor(root: __private.cocos_core_root_Root);
             /**
              * @zh
              * 根据指定参数初始化当前 pass，shader 会在这一阶段就尝试编译。
@@ -161,12 +145,13 @@ declare module "cc.core" {
              * @param targetType Target type of the handle, i.e. the type of data when read/write to it.
              * @example
              * ```
+             * import { Vec3, GFXType } from 'cc';
              * // say 'pbrParams' is a uniform vec4
              * const hParams = pass.getHandle('pbrParams'); // get the default handle
-             * pass.setUniform(hAlbedo, cc.v3(1, 0, 0)); // wrong! pbrParams.w is NaN now
+             * pass.setUniform(hAlbedo, new Vec3(1, 0, 0)); // wrong! pbrParams.w is NaN now
              *
              * // say 'albedoScale' is a uniform vec4, and we only want to modify the w component in the form of a single float
-             * const hThreshold = pass.getHandle('albedoScale', 3, cc.GFXType.FLOAT);
+             * const hThreshold = pass.getHandle('albedoScale', 3, GFXType.FLOAT);
              * pass.setUniform(hThreshold, 0.5); // now, albedoScale.w = 0.5
              * ```
              */
@@ -207,11 +192,11 @@ declare module "cc.core" {
             bindBuffer(binding: number, value: GFXBuffer): void;
             /**
              * @zh
-             * 绑定实际 [[GFXTextureView]] 到指定 binding。
+             * 绑定实际 [[GFXTexture]] 到指定 binding。
              * @param binding 目标贴图类 uniform 的 binding。
-             * @param value 目标 texture view。
+             * @param value 目标 texture
              */
-            bindTextureView(binding: number, value: GFXTextureView): void;
+            bindTexture(binding: number, value: GFXTexture): void;
             /**
              * @zh
              * 绑定实际 [[GFXSampler]] 到指定 binding。
@@ -225,7 +210,7 @@ declare module "cc.core" {
              * @param state 目标管线状态。
              * @param value 目标值。
              */
-            setDynamicState(state: GFXDynamicState, value: any): void;
+            setDynamicState(state: GFXDynamicStateFlagBit, value: any): void;
             /**
              * @zh
              * 重载当前所有管线状态。
@@ -245,7 +230,7 @@ declare module "cc.core" {
             destroy(): void;
             /**
              * @zh
-             * 重置指定（非数组） Uniform  为 Effect 默认值。
+             * 重置指定（非数组） Uniform 为 Effect 默认值。
              */
             resetUniform(name: string): void;
             /**
@@ -269,74 +254,62 @@ declare module "cc.core" {
              * @param defineOverrides shader 预处理宏定义重载
              */
             tryCompile(): boolean | null;
-            /**
-             * @zh
-             * 根据当前 pass 持有的信息创建 [[GFXPipelineState]]。
-             */
-            createPipelineState(patches?: IMacroPatch[]): GFXPipelineState | null;
-            /**
-             * @zh
-             * 销毁指定的 [[GFXPipelineState]]，如果它是这个 pass 创建的。
-             */
-            destroyPipelineState(pipelineStates: GFXPipelineState): void;
+            getShaderVariant(patches?: IMacroPatch[] | null): __private.cocos_core_renderer_core_memory_pools_ShaderHandle;
             beginChangeStatesSilently(): void;
             endChangeStatesSilently(): void;
             protected _doInit(info: IPassInfoFull, copyDefines?: boolean): void;
-            protected _dynamicBatchingSync(): void;
-            protected _getShaderWithBuiltinMacroPatches(patches: IMacroPatch[]): IShaderResources | null;
-            get priority(): __private.cocos_core_pipeline_define_RenderPriority;
+            protected _syncBatchingScheme(): void;
+            get root(): __private.cocos_core_root_Root;
+            get device(): GFXDevice;
+            get shaderInfo(): IProgramInfo;
+            get setLayouts(): GFXDescriptorSetLayout[];
+            get program(): string;
+            get properties(): Record<string, __private.cocos_core_assets_effect_asset_IPropertyInfo>;
+            get defines(): Record<string, string | number | boolean>;
+            get passIndex(): number;
+            get propertyIndex(): number;
+            get dynamics(): IPassDynamics;
+            get blocks(): IBlock[];
+            get handle(): __private.cocos_core_renderer_core_memory_pools_PassHandle;
+            get priority(): number;
             get primitive(): GFXPrimitiveMode;
-            get stage(): RenderPassStage;
-            get inputState(): GFXInputState;
+            get stage(): __private.cocos_core_pipeline_define_RenderPassStage;
+            get phase(): number;
             get rasterizerState(): GFXRasterizerState;
             get depthStencilState(): GFXDepthStencilState;
             get blendState(): GFXBlendState;
-            get dynamicStates(): GFXDynamicState[];
-            get customizations(): string[];
-            get phase(): number;
-            get device(): GFXDevice;
-            get shaderInfo(): IProgramInfo;
-            get program(): string;
-            get properties(): Record<string, __private.cocos_core_assets_effect_asset_IPropertyInfo>;
-            get defines(): IDefineMap;
-            get idxInTech(): number;
-            get bindings(): IGFXBinding[];
-            get shader(): GFXShader;
-            get renderPass(): GFXRenderPass;
-            get dynamics(): IPassDynamics;
-            get batchedBuffer(): __private.cocos_core_pipeline_batched_buffer_BatchedBuffer | null;
-            get instancedBuffer(): __private.cocos_core_pipeline_instanced_buffer_InstancedBuffer | null;
-            get blocks(): IBlock[];
+            get dynamicStates(): GFXDynamicStateFlagBit;
+            get batchingScheme(): BatchingSchemes;
             get hash(): number;
+        }
+        export namespace Pass {
+            export type getPropertyTypeFromHandle = typeof renderer.getPropertyTypeFromHandle;
+            export type getTypeFromHandle = typeof renderer.getTypeFromHandle;
+            export type getBindingFromHandle = typeof renderer.getBindingFromHandle;
+            export type fillinPipelineInfo = typeof Pass.fillPipelineInfo;
+            export type getPassHash = typeof Pass.getPassHash;
+            export type getOffsetFromHandle = typeof renderer.getOffsetFromHandle;
+            export type PropertyType = typeof renderer.PropertyType;
         }
         export interface IDefineRecord extends __private.cocos_core_assets_effect_asset_IDefineInfo {
             _map: (value: any) => number;
             _offset: number;
         }
-        export interface IBlockInfoRT extends __private.cocos_core_assets_effect_asset_IBlockInfo, IGFXBinding {
+        export interface IBlockInfoRT extends __private.cocos_core_assets_effect_asset_IBlockInfo {
             size: number;
-        }
-        export interface ISamplerInfoRT extends __private.cocos_core_assets_effect_asset_ISamplerInfo, IGFXBinding {
         }
         export interface IProgramInfo extends __private.cocos_core_assets_effect_asset_IShaderInfo {
             blocks: IBlockInfoRT[];
-            samplers: ISamplerInfoRT[];
+            samplers: __private.cocos_core_assets_effect_asset_ISamplerInfo[];
             defines: IDefineRecord[];
             handleMap: Record<string, number>;
-            offsets: number[][];
-            globalsInited: boolean;
-            localsInited: boolean;
+            bindings: IGFXDescriptorSetLayoutBinding[];
+            samplerStartBinding: number;
             uber: boolean;
         }
-        export interface IMacroInfo {
-            name: string;
-            value: string;
-            isDefault: boolean;
-        }
-        export interface IShaderResources {
-            shader: GFXShader;
-            bindings: IGFXBinding[];
-            inputState: GFXInputState;
+        export interface IPipelineLayoutInfo {
+            setLayouts: GFXDescriptorSetLayout[];
+            hPipelineLayout: __private.cocos_core_renderer_core_memory_pools_PipelineLayoutHandle;
         }
         /**
          * @zh
@@ -344,14 +317,15 @@ declare module "cc.core" {
          */
         export class ProgramLib {
             protected _templates: Record<string, IProgramInfo>;
-            protected _cache: Record<string, IShaderResources>;
-            constructor();
+            protected _pipelineLayouts: Record<string, IPipelineLayoutInfo>;
+            protected _cache: Record<string, __private.cocos_core_renderer_core_memory_pools_ShaderHandle>;
             /**
              * @zh
              * 根据 effect 信息注册 shader 模板。
              */
             define(prog: __private.cocos_core_assets_effect_asset_IShaderInfo): void;
             getTemplate(name: string): IProgramInfo;
+            getPipelineLayout(name: string): IPipelineLayoutInfo;
             /**
              * @en
              * Does this library has the specified program?
@@ -366,13 +340,13 @@ declare module "cc.core" {
              * @param name 目标 shader 名
              * @param defines 目标预处理宏列表
              */
-            getKey(name: string, defines: IDefineMap): string;
+            getKey(name: string, defines: MacroRecord): string;
             /**
              * @zh
              * 销毁所有完全满足指定预处理宏特征的 shader 实例。
              * @param defines 用于筛选的预处理宏列表
              */
-            destroyShaderByDefines(defines: IDefineMap): void;
+            destroyShaderByDefines(defines: MacroRecord): void;
             /**
              * @zh
              * 获取指定 shader 的渲染资源实例
@@ -381,10 +355,10 @@ declare module "cc.core" {
              * @param defines 预处理宏列表
              * @param pipeline 实际渲染命令执行时所属的 [[RenderPipeline]]
              */
-            getGFXShader(device: GFXDevice, name: string, defines: IDefineMap, pipeline: RenderPipeline): IShaderResources;
+            getGFXShader(device: GFXDevice, name: string, defines: MacroRecord, pipeline: RenderPipeline, key?: string): __private.cocos_core_renderer_core_memory_pools_ShaderHandle;
         }
         export const programLib: ProgramLib;
-        export function genSamplerHash(info: Array<number | undefined>): number;
+        export function genSamplerHash(info: (number | undefined)[]): number;
         export enum SamplerInfoIndex {
             minFilter = 0,
             magFilter = 1,
@@ -399,6 +373,7 @@ declare module "cc.core" {
             mipLODBias = 10,
             total = 11
         }
+        export const defaultSamplerHash: number;
         /**
          * @zh
          * 维护 sampler 资源实例的全局管理器。
@@ -417,7 +392,6 @@ declare module "cc.core" {
         export function nearestPOT(num: number): number;
         export interface ITextureBuffer {
             texture: GFXTexture;
-            texView: GFXTextureView;
             size: number;
             start: number;
             end: number;
@@ -427,7 +401,6 @@ declare module "cc.core" {
             start: number;
             end: number;
             texture: GFXTexture;
-            texView: GFXTextureView;
         }
         export interface ITextureBufferPoolInfo {
             format: GFXFormat;
@@ -458,8 +431,8 @@ declare module "cc.core" {
             get owner(): RenderableComponent | null;
             protected _passes: PassInstance[];
             constructor(info: IMaterialInstanceInfo);
-            recompileShaders(overrides: IDefineMap, passIdx?: number): void;
-            overridePipelineStates(overrides: any, passIdx?: number): void;
+            recompileShaders(overrides: MacroRecord, passIdx?: number): void;
+            overridePipelineStates(overrides: PassOverrides, passIdx?: number): void;
             destroy(): boolean;
             onPassStateChange(dontNotify: boolean): void;
             protected _createPasses(): PassInstance[];
@@ -468,10 +441,10 @@ declare module "cc.core" {
             get parent(): Pass;
             constructor(parent: Pass, owner: MaterialInstance);
             overridePipelineStates(original: __private.cocos_core_assets_effect_asset_IPassInfo, overrides: PassOverrides): void;
-            tryCompile(defineOverrides?: IDefineMap): boolean | null;
+            tryCompile(defineOverrides?: MacroRecord): boolean | null;
             beginChangeStatesSilently(): void;
             endChangeStatesSilently(): void;
-            protected _dynamicBatchingSync(): void;
+            protected _syncBatchingScheme(): void;
             protected _onStateChange(): void;
         }
         export function selectJointsMediumFormat(device: GFXDevice): GFXFormat;
@@ -479,6 +452,12 @@ declare module "cc.core" {
         export const uploadJointData: typeof uploadJointDataLBS;
         export const MINIMUM_JOINT_TEXTURE_SIZE: number;
         export const jointTextureSamplerHash: number;
+        export interface IInternalJointAnimInfo {
+            downstream?: math.Mat4;
+            curveData?: math.Mat4[];
+            bindposeIdx: number;
+            bindposeCorrection?: math.Mat4;
+        }
         export interface IJointTextureHandle {
             pixelOffset: number;
             refCount: number;
@@ -487,6 +466,7 @@ declare module "cc.core" {
             readyToBeDeleted: boolean;
             handle: ITextureBufferHandle;
             bounds: Map<number, geometry.aabb[]>;
+            animInfos?: IInternalJointAnimInfo[];
         }
         export interface IChunkContent {
             skeleton: number;
@@ -555,7 +535,8 @@ declare module "cc.core" {
             updateTransform(stamp: number): void;
             updateUBOs(stamp: number): boolean;
             initSubModel(idx: number, subMeshData: __private.cocos_core_assets_mesh_RenderingSubMesh, mat: Material): void;
-            protected createPipelineState(pass: Pass, subModelIdx: number, patches?: IMacroPatch[]): any;
+            getMacroPatches(subModelIndex: number): any;
+            _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
         }
         /**
          * @en
@@ -573,26 +554,30 @@ declare module "cc.core" {
             createBoundingShape(minPos?: math.Vec3, maxPos?: math.Vec3): void;
             uploadAnimation(anim: AnimationClip | null): void;
             protected _applyJointTexture(texture?: IJointTextureHandle | null): void;
-            protected createPipelineState(pass: Pass, subModelIdx: number, patches?: IMacroPatch[]): any;
-            protected updateInstancedAttributeList(pso: GFXPipelineState, pass: Pass): void;
+            getMacroPatches(subModelIndex: number): any;
+            protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
+            protected _updateInstancedAttributes(attributes: IGFXAttribute[], pass: Pass): void;
         }
         export class Ambient {
             static SUN_ILLUM: number;
             static SKY_ILLUM: number;
+            get colorArray(): Float32Array;
+            get albedoArray(): Float32Array;
             set enabled(val: boolean);
             get enabled(): boolean;
-            get skyColor(): Float32Array;
-            set skyColor(color: Float32Array);
-            set skyIllum(illum: number);
+            get skyColor(): math.Color;
+            set skyColor(color: math.Color);
             get skyIllum(): number;
-            get groundAlbedo(): Float32Array;
-            set groundAlbedo(color: Float32Array);
+            set skyIllum(illum: number);
+            get groundAlbedo(): math.Color;
+            set groundAlbedo(color: math.Color);
             protected _enabled: boolean;
-            protected _skyColor: Float32Array;
+            protected _skyColor: math.Color;
             protected _skyIllum: number;
-            protected _groundAlbedo: Float32Array;
-            protected _scene: RenderScene;
-            constructor(scene: RenderScene);
+            protected _groundAlbedo: math.Color;
+            protected _albedoArray: Float32Array;
+            protected _colorArray: Float32Array;
+            activate(): void;
             update(): void;
         }
         export enum CameraFOVAxis {
@@ -654,7 +639,7 @@ declare module "cc.core" {
             node: Node;
             projection: number;
             targetDisplay?: number;
-            window?: GFXWindow | null;
+            window?: RenderWindow | null;
             priority: number;
             pipeline?: string;
             flows?: string[];
@@ -663,11 +648,10 @@ declare module "cc.core" {
         export class Camera {
             isWindowSize: boolean;
             screenScale: number;
-            viewport: math.Rect;
             clearStencil: number;
             clearDepth: number;
             clearFlag: GFXClearFlag;
-            constructor();
+            constructor(device: GFXDevice);
             initialize(info: ICameraInfo): void;
             destroy(): void;
             attachToScene(scene: RenderScene): void;
@@ -693,8 +677,10 @@ declare module "cc.core" {
             get nearClip(): number;
             set farClip(farClip: number);
             get farClip(): number;
-            set clearColor(val: IGFXColor);
-            get clearColor(): IGFXColor;
+            set clearColor(val: GFXColor);
+            get clearColor(): GFXColor;
+            get viewport(): math.Rect;
+            set viewport(val: math.Rect);
             get scene(): RenderScene | null;
             get name(): string | null;
             get width(): number;
@@ -735,7 +721,7 @@ declare module "cc.core" {
             get ec(): number;
             get exposure(): number;
             set flows(val: string[]);
-            changeTargetWindow(window?: GFXWindow | null): void;
+            changeTargetWindow(window?: RenderWindow | null): void;
             /**
              * transform a screen position to a world space ray
              */
@@ -752,6 +738,20 @@ declare module "cc.core" {
         export const CameraVisFlags: {};
         export const VisibilityFlags: {};
         export class DirectionalLight extends Light {
+            set shadowRange(shadowRange: number);
+            get shadowRange(): number;
+            set shadowIntensitywRange(shadowIntensity: number);
+            get shadowIntensity(): number;
+            set shadowFadeDistance(shadowFadeDistance: number);
+            get shadowFadeDistance(): number;
+            set shadowDistance(shadowDistance: number);
+            get shadowDistance(): number;
+            set fadeStart(fadeStart: number);
+            get fadeStart(): number;
+            set splits(splits: math.Vec4);
+            get splits(): math.Vec4;
+            set biasAutoAdjust(biasAutoAdjust: number);
+            get biasAutoAdjust(): number;
             protected _dir: math.Vec3;
             protected _illum: number;
             set direction(dir: math.Vec3);
@@ -820,13 +820,12 @@ declare module "cc.core" {
          */
         export class Model {
             get subModels(): SubModel[];
-            get subModelNum(): number;
             get inited(): boolean;
             get worldBounds(): geometry.aabb | null;
             get modelBounds(): geometry.aabb | null;
-            get lightBuffer(): GFXBuffer | null;
             get localBuffer(): GFXBuffer | null;
             get updateStamp(): number;
+            get isInstancingEnabled(): boolean;
             type: ModelType;
             scene: RenderScene | null;
             node: Node;
@@ -834,19 +833,15 @@ declare module "cc.core" {
             enabled: boolean;
             visFlags: number;
             castShadow: boolean;
+            receiveShadow: boolean;
             isDynamicBatching: boolean;
             instancedAttributes: IInstancedAttributeBlock;
-            protected _device: GFXDevice;
             protected _worldBounds: geometry.aabb | null;
             protected _modelBounds: geometry.aabb | null;
             protected _subModels: SubModel[];
-            protected _implantPSOs: GFXPipelineState[];
-            protected _matPSORecord: Map<Material, GFXPipelineState[]>;
-            protected _matRefCount: Map<Material, number>;
-            protected _localData: Float32Array;
-            protected _localBuffer: GFXBuffer | null;
-            protected _lightBuffer: GFXBuffer | null;
+            protected _device: GFXDevice;
             protected _inited: boolean;
+            protected _descriptorSetCount: number;
             protected _updateStamp: number;
             protected _transformUpdated: boolean;
             /**
@@ -857,7 +852,6 @@ declare module "cc.core" {
             destroy(): void;
             attachToScene(scene: RenderScene): void;
             detachFromScene(): void;
-            getSubModel(idx: number): SubModel;
             updateTransform(stamp: number): void;
             updateUBOs(stamp: number): void;
             /**
@@ -867,52 +861,53 @@ declare module "cc.core" {
              */
             createBoundingShape(minPos?: math.Vec3, maxPos?: math.Vec3): void;
             initSubModel(idx: number, subMeshData: __private.cocos_core_assets_mesh_RenderingSubMesh, mat: Material): void;
-            setSubModelMesh(idx: number, subMeshData: __private.cocos_core_assets_mesh_RenderingSubMesh): void;
-            setSubModelMaterial(idx: number, mat: Material | null): void;
+            setSubModelMesh(idx: number, subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh): void;
+            setSubModelMaterial(idx: number, mat: Material): void;
             onGlobalPipelineStateChanged(): void;
-            insertImplantPSO(pso: GFXPipelineState): void;
-            removeImplantPSO(pso: GFXPipelineState): void;
-            protected createPipelineStates(mat: Material, subModelIdx: number): GFXPipelineState[];
-            protected destroyPipelineStates(mat: Material, pso: GFXPipelineState[]): void;
-            protected createPipelineState(pass: Pass, subModelIdx: number, patches?: IMacroPatch[]): GFXPipelineState;
-            protected updateInstancedAttributeList(pso: GFXPipelineState, pass: Pass): void;
-            protected getInstancedAttributeIndex(name: string): number;
-            protected initLocalBindings(mat: Material | null): void;
+            updateLightingmap(texture: Texture2D | null, uvParam: math.Vec4): void;
+            getMacroPatches(subModelIndex: number): IMacroPatch[] | null;
+            protected _updateAttributesAndBinding(subModelIndex: number): void;
+            protected _getInstancedAttributeIndex(name: string): number;
+            protected _updateInstancedAttributes(attributes: IGFXAttribute[], pass: Pass): void;
+            protected _initLocalDescriptors(subModelIndex: number): void;
+            protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
         }
         export interface IShadowRenderData {
-            psos: GFXPipelineState[];
-            cmdBuffer: GFXCommandBuffer;
+            model: Model;
+            shaders: GFXShader[];
+            instancedBuffer: __private.cocos_core_pipeline_instanced_buffer_InstancedBuffer | null;
         }
         export class PlanarShadows {
-            set enabled(enable: boolean);
             get enabled(): boolean;
-            set normal(val: math.Vec3);
+            set enabled(val: boolean);
             get normal(): math.Vec3;
-            set distance(val: number);
+            set normal(val: math.Vec3);
             get distance(): number;
+            set distance(val: number);
+            get shadowColor(): math.Color;
             set shadowColor(color: math.Color);
             get matLight(): math.Mat4;
             get data(): Float32Array;
-            get cmdBuffs(): memop.CachedArray<GFXCommandBuffer>;
-            get cmdBuffCount(): number;
-            protected _scene: RenderScene;
             protected _enabled: boolean;
             protected _normal: math.Vec3;
             protected _distance: number;
+            protected _shadowColor: math.Color;
             protected _matLight: math.Mat4;
             protected _data: Float32Array;
-            protected _globalBindings: __private.cocos_core_pipeline_define_IInternalBindingInst;
-            protected _cmdBuffs: memop.CachedArray<GFXCommandBuffer>;
-            protected _cmdBuffCount: number;
             protected _record: Map<Model, IShadowRenderData>;
-            protected _material: Material;
-            constructor(scene: RenderScene);
+            protected _pendingModels: IShadowRenderData[];
+            protected _material: Material | null;
+            protected _instancingMaterial: Material | null;
+            protected _device: GFXDevice | null;
+            protected _globalDescriptorSet: GFXDescriptorSet | null;
+            protected _dirty: boolean;
+            activate(): void;
             updateSphereLight(light: SphereLight): void;
             updateDirLight(light: DirectionalLight): void;
-            updateCommandBuffers(frstm: geometry.frustum, stamp: number): void;
+            updateShadowList(scene: RenderScene, frstm: geometry.frustum, stamp: number, shadowVisible?: boolean): void;
+            recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
             createShadowData(model: Model): IShadowRenderData;
             destroyShadowData(model: Model): void;
-            onGlobalPipelineStateChanged(): void;
             destroy(): void;
         }
         export interface IRenderSceneInfo {
@@ -930,9 +925,6 @@ declare module "cc.core" {
             get root(): __private.cocos_core_root_Root;
             get name(): string;
             get cameras(): Camera[];
-            get ambient(): Ambient;
-            get skybox(): Skybox;
-            get planarShadows(): PlanarShadows;
             get mainLight(): DirectionalLight | null;
             get sphereLights(): SphereLight[];
             get spotLights(): SpotLight[];
@@ -950,6 +942,8 @@ declare module "cc.core" {
             removeCameras(): void;
             setMainLight(dl: DirectionalLight): void;
             unsetMainLight(dl: DirectionalLight): void;
+            addDirectionalLight(dl: DirectionalLight): void;
+            removeDirectionalLight(dl: DirectionalLight): void;
             addSphereLight(pl: SphereLight): void;
             removeSphereLight(pl: SphereLight): void;
             addSpotLight(sl: SpotLight): void;
@@ -1030,19 +1024,25 @@ declare module "cc.core" {
              */
             raycastAllCanvas(worldRay: geometry.ray, mask?: number, distance?: number): boolean;
         }
-        export class Skybox extends Model {
-            set useIBL(val: boolean);
+        export class Skybox {
+            get model(): Model | null;
+            get enabled(): boolean;
+            set enabled(val: boolean);
             get useIBL(): boolean;
-            set isRGBE(val: boolean);
+            set useIBL(val: boolean);
             get isRGBE(): boolean;
-            set envmap(val: TextureCube | null);
+            set isRGBE(val: boolean);
             get envmap(): TextureCube | null;
-            protected _default: TextureCube;
-            protected _envmap: TextureCube;
+            set envmap(val: TextureCube | null);
+            protected _enabled: boolean;
             protected _isRGBE: boolean;
             protected _useIBL: boolean;
-            protected _globalBinding: __private.cocos_core_pipeline_define_IInternalBindingInst;
-            constructor(scene: RenderScene);
+            protected _envmap: TextureCube | null;
+            protected _globalDescriptorSet: GFXDescriptorSet | null;
+            protected _model: Model | null;
+            protected _default: TextureCube | null;
+            activate(): void;
+            onGlobalPipelineStateChanged(): void;
             protected _updatePipeline(): void;
             protected _updateGlobalBinding(): void;
         }
@@ -1091,550 +1091,39 @@ declare module "cc.core" {
             update(): void;
         }
         export class SubModel {
-            priority: __private.cocos_core_pipeline_define_RenderPriority;
-            protected _psos: GFXPipelineState[] | null;
-            protected _subMeshObject: __private.cocos_core_assets_mesh_RenderingSubMesh | null;
-            protected _material: Material | null;
+            protected _device: GFXDevice | null;
+            protected _passes: Pass[] | null;
+            protected _subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh | null;
+            protected _patches: IMacroPatch[] | null;
+            protected _handle: __private.cocos_core_renderer_core_memory_pools_SubModelHandle;
+            protected _priority: __private.cocos_core_pipeline_define_RenderPriority;
             protected _inputAssembler: GFXInputAssembler | null;
-            protected _cmdBuffers: GFXCommandBuffer[];
-            set psos(val: GFXPipelineState[] | null);
-            get psos(): GFXPipelineState[] | null;
-            set subMeshData(sm: __private.cocos_core_assets_mesh_RenderingSubMesh);
-            get subMeshData(): __private.cocos_core_assets_mesh_RenderingSubMesh;
-            set material(material: Material | null);
-            get material(): Material | null;
-            get passes(): import("cocos/core/renderer").Pass[];
-            get inputAssembler(): GFXInputAssembler | null;
-            get commandBuffers(): GFXCommandBuffer[];
-            initialize(subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh, mat: Material, psos: GFXPipelineState[]): void;
+            protected _descriptorSet: GFXDescriptorSet | null;
+            set passes(passes: Pass[]);
+            get passes(): Pass[];
+            set subMesh(subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh);
+            get subMesh(): __private.cocos_core_assets_mesh_RenderingSubMesh;
+            set priority(val: __private.cocos_core_pipeline_define_RenderPriority);
+            get priority(): __private.cocos_core_pipeline_define_RenderPriority;
+            get handle(): __private.cocos_core_renderer_core_memory_pools_SubModelHandle;
+            get inputAssembler(): GFXInputAssembler;
+            get descriptorSet(): GFXDescriptorSet;
+            initialize(subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh, passes: Pass[], patches?: IMacroPatch[] | null): void;
             destroy(): void;
-            updateCommandBuffer(): void;
-            protected recordCommandBuffer(index: number): void;
-        }
-        export namespace __private {
-            export interface cocos_core_assets_effect_asset_IPassStates {
-                priority?: number;
-                primitive?: GFXPrimitiveMode;
-                stage?: RenderPassStage;
-                rasterizerState?: GFXRasterizerState;
-                depthStencilState?: GFXDepthStencilState;
-                blendState?: GFXBlendState;
-                dynamicStates?: GFXDynamicState[];
-                customizations?: string[];
-                phase?: string | number;
-            }
-            export interface cocos_core_assets_effect_asset_IPropertyInfo {
-                type: number;
-                handleInfo?: [string, number, number];
-                samplerHash?: number;
-                value?: number[] | string;
-            }
-            export interface cocos_core_assets_effect_asset_IPassInfo extends cocos_core_assets_effect_asset_IPassStates {
-                program: string;
-                switch?: string;
-                properties?: Record<string, cocos_core_assets_effect_asset_IPropertyInfo>;
-            }
-            export type RecursivePartial<T> = {
-                [P in keyof T]?: T[P] extends Array<infer U> ? Array<RecursivePartial<U>> : T[P] extends ReadonlyArray<infer V> ? ReadonlyArray<RecursivePartial<V>> : RecursivePartial<T[P]>;
-            };
-            /**
-             * @zh
-             * 渲染优先级。
-             */
-            export enum cocos_core_pipeline_define_RenderPriority {
-                MIN = 0,
-                MAX = 255,
-                DEFAULT = 128
-            }
-            export class cocos_core_pipeline_define_UBOLocalBatched {
-                static BATCHING_COUNT: number;
-                static MAT_WORLDS_OFFSET: number;
-                static COUNT: number;
-                static SIZE: number;
-                static BLOCK: GFXUniformBlock;
-                view: Float32Array;
-            }
-            export interface cocos_core_pipeline_batched_buffer_IBatchedItem {
-                vbs: GFXBuffer[];
-                vbDatas: Uint8Array[];
-                vbIdx: GFXBuffer;
-                vbIdxData: Float32Array;
-                vbCount: number;
-                mergeCount: number;
-                ia: GFXInputAssembler;
-                ubo: GFXBuffer;
-                uboData: cocos_core_pipeline_define_UBOLocalBatched;
-                pso: GFXPipelineState;
-            }
-            /**
-             * @zh
-             * 渲染对象。
-             */
-            export interface cocos_core_pipeline_define_IRenderObject {
-                model: Model;
-                depth: number;
-            }
-            export class cocos_core_pipeline_batched_buffer_BatchedBuffer {
-                batches: cocos_core_pipeline_batched_buffer_IBatchedItem[];
-                pass: Pass;
-                constructor(pass: Pass);
-                destroy(): void;
-                merge(subModel: SubModel, ro: cocos_core_pipeline_define_IRenderObject, pso: GFXPipelineState): void;
-                clear(): void;
-                clearUBO(): void;
-            }
-            export interface cocos_core_pipeline_instanced_buffer_IInstancedItem {
-                count: number;
-                capacity: number;
-                vb: GFXBuffer;
-                data: Uint8Array;
-                ia: GFXInputAssembler;
-            }
-            export class cocos_core_pipeline_instanced_buffer_InstancedBuffer {
-                instances: cocos_core_pipeline_instanced_buffer_IInstancedItem[];
-                pso: GFXPipelineState | null;
-                pass: Pass;
-                constructor(pass: Pass);
-                destroy(): void;
-                merge(subModel: SubModel, attrs: IInstancedAttributeBlock, pso: GFXPipelineState): void;
-                uploadBuffers(): void;
-                clear(): void;
-            }
-            export interface cocos_core_assets_effect_asset_IDefineInfo {
-                name: string;
-                type: string;
-                range?: number[];
-                options?: string[];
-                default?: string;
-            }
-            export interface cocos_core_assets_effect_asset_IBlockInfo extends GFXUniformBlock {
-                defines: string[];
-            }
-            export interface cocos_core_assets_effect_asset_ISamplerInfo extends GFXUniformSampler {
-                defines: string[];
-            }
-            export interface cocos_core_assets_effect_asset_IBuiltin {
-                name: string;
-                defines: string[];
-            }
-            export interface cocos_core_assets_effect_asset_IBuiltinInfo {
-                blocks: cocos_core_assets_effect_asset_IBuiltin[];
-                samplers: cocos_core_assets_effect_asset_IBuiltin[];
-            }
-            export interface cocos_core_assets_effect_asset_IAttributeInfo extends IGFXAttribute {
-                defines: string[];
-            }
-            export interface cocos_core_assets_effect_asset_IShaderInfo {
-                name: string;
-                hash: number;
-                glsl3: {
-                    vert: string;
-                    frag: string;
-                };
-                glsl1: {
-                    vert: string;
-                    frag: string;
-                };
-                builtins: {
-                    globals: cocos_core_assets_effect_asset_IBuiltinInfo;
-                    locals: cocos_core_assets_effect_asset_IBuiltinInfo;
-                };
-                defines: cocos_core_assets_effect_asset_IDefineInfo[];
-                blocks: cocos_core_assets_effect_asset_IBlockInfo[];
-                samplers: cocos_core_assets_effect_asset_ISamplerInfo[];
-                attributes: cocos_core_assets_effect_asset_IAttributeInfo[];
-            }
-            /**
-             * 允许存储索引的数组视图。
-             */
-            export type cocos_core_assets_mesh_IBArray = Uint8Array | Uint16Array | Uint32Array;
-            /**
-             * 几何信息。
-             */
-            export interface cocos_core_assets_mesh_IGeometricInfo {
-                /**
-                 * 顶点位置。
-                 */
-                positions: Float32Array;
-                /**
-                 * 索引数据。
-                 */
-                indices?: cocos_core_assets_mesh_IBArray;
-                /**
-                 * 是否将图元按双面对待。
-                 */
-                doubleSided?: boolean;
-                /**
-                 * 此几何体的轴对齐包围盒。
-                 */
-                boundingBox: {
-                    max: math.Vec3;
-                    min: math.Vec3;
-                };
-            }
-            export interface cocos_core_assets_mesh_IFlatBuffer {
-                stride: number;
-                count: number;
-                buffer: Uint8Array;
-            }
-            /**
-             * 渲染子网格。
-             */
-            export class cocos_core_assets_mesh_RenderingSubMesh {
-                /**
-                 * 使用的所有顶点缓冲区。
-                 */
-                vertexBuffers: GFXBuffer[];
-                /**
-                 * 所有顶点属性。
-                 */
-                attributes: IGFXAttribute[];
-                /**
-                 * 图元类型。
-                 */
-                primitiveMode: GFXPrimitiveMode;
-                /**
-                 * 使用的索引缓冲区，若未使用则无需指定。
-                 */
-                indexBuffer?: GFXBuffer;
-                /**
-                 * 间接绘制缓冲区。
-                 */
-                indirectBuffer?: GFXBuffer;
-                get geometricInfo(): cocos_core_assets_mesh_IGeometricInfo;
-                get flatBuffers(): cocos_core_assets_mesh_IFlatBuffer[];
-                get jointMappedBuffers(): GFXBuffer[];
-                mesh?: Mesh;
-                subMeshIdx?: number;
-                constructor(vertexBuffers: GFXBuffer[], attributes: IGFXAttribute[], primitiveMode: GFXPrimitiveMode);
-                destroy(): void;
-                /**
-                 * Adds a vertex attribute input called 'a_vertexId' into this sub-mesh.
-                 * This is useful if you want to simulate `gl_VertexId` in WebGL context prior to 2.0.
-                 * Once you call this function, the vertex attribute is permanently added.
-                 * Subsequent calls to this function take no effect.
-                 * @param device Device used to create related rendering resources.
-                 */
-                enableVertexIdChannel(device: GFXDevice): void;
-            }
-            /**
-             * This rendering instance of a morph resource.
-             */
-            export interface cocos_core_assets_morph_MorphRenderingInstance {
-                /**
-                 * Sets weights of targets of specified sub mesh.
-                 * @param subMeshIndex
-                 * @param weights
-                 */
-                setWeights(subMeshIndex: number, weights: number[]): void;
-                /**
-                 * Adapts pipeline state to do the rendering.
-                 * @param subMeshIndex
-                 * @param pipelineState
-                 */
-                adaptPipelineState(subMeshIndex: number, pipelineState: GFXPipelineState): void;
-                requiredPatches(subMeshIndex: number): IMacroPatch[] | undefined;
-                /**
-                 * Destroy the rendering instance.
-                 */
-                destroy(): void;
-            }
-            export class cocos_core_renderer_models_morph_model_MorphModel extends Model {
-                protected createPipelineState(pass: Pass, subModelIndex: number, patches?: IMacroPatch[]): any;
-                initSubModel(subModelIndex: number, subMeshData: cocos_core_assets_mesh_RenderingSubMesh, material: Material): void;
-                setSubModelMaterial(subModelIndex: number, material: Material | null): void;
-                setMorphRendering(morphRendering: cocos_core_assets_morph_MorphRenderingInstance): void;
-            }
-            export interface cocos_core_pipeline_define_IInternalBindingDesc {
-                type: GFXBindingType;
-                blockInfo?: GFXUniformBlock;
-                samplerInfo?: GFXUniformSampler;
-                defaultValue?: ArrayBuffer | string;
-            }
-            export interface cocos_core_pipeline_define_IInternalBindingInst extends cocos_core_pipeline_define_IInternalBindingDesc {
-                buffer?: GFXBuffer;
-                sampler?: GFXSampler;
-                textureView?: GFXTextureView;
-            }
-            export interface cocos_core_renderer_ui_ui_material_IUIMaterialInfo {
-                material: Material;
-            }
-            export class cocos_core_renderer_ui_ui_material_UIMaterial {
-                get material(): Material;
-                get pass(): Pass;
-                protected _material: Material | null;
-                protected _pass: Pass | null;
-                constructor();
-                initialize(info: cocos_core_renderer_ui_ui_material_IUIMaterialInfo): boolean;
-                increase(): number;
-                decrease(): number;
-                getPipelineState(): GFXPipelineState;
-                revertPipelineState(pso: GFXPipelineState): void;
-                destroy(): void;
-            }
-            /**
-             * @zh
-             * UI 渲染流程
-             */
-            export class cocos_core_renderer_ui_ui_UI {
-                get renderScene(): RenderScene;
-                get currBufferBatch(): MeshBuffer | null;
-                set currBufferBatch(value: MeshBuffer | null);
-                set currStaticRoot(value: UIStaticBatchComponent | null);
-                device: GFXDevice;
-                constructor(_root: cocos_core_root_Root);
-                initialize(): boolean;
-                destroy(): void;
-                getRenderSceneGetter(): () => any;
-                _getUIMaterial(mat: Material): cocos_core_renderer_ui_ui_material_UIMaterial;
-                _removeUIMaterial(hash: number): void;
-                /**
-                 * @en
-                 * Add the managed CanvasComponent.
-                 *
-                 * @zh
-                 * 添加屏幕组件管理。
-                 *
-                 * @param comp - 屏幕组件。
-                 */
-                addScreen(comp: CanvasComponent): void;
-                /**
-                 * @en
-                 * Get the CanvasComponent by number.
-                 *
-                 * @zh
-                 * 通过屏幕编号获得屏幕组件。
-                 *
-                 * @param visibility - 屏幕编号。
-                 */
-                getScreen(visibility: number): CanvasComponent | null;
-                /**
-                 * @zh
-                 * Removes the CanvasComponent from the list.
-                 *
-                 * @param comp - 被移除的屏幕。
-                 */
-                removeScreen(comp: CanvasComponent): void;
-                update(dt: number): void;
-                sortScreens(): void;
-                render(): void;
-                /**
-                 * @en
-                 * Render component data submission process of UI.
-                 * The submitted vertex data is the UI for world coordinates.
-                 * For example: The UI components except Graphics and UIModelComponent.
-                 *
-                 * @zh
-                 * UI 渲染组件数据提交流程（针对提交的顶点数据是世界坐标的提交流程，例如：除 graphics 和 uimodel 的大部分 ui 组件）。
-                 * 此处的数据最终会生成需要提交渲染的 model 数据。
-                 *
-                 * @param comp - 当前执行组件。
-                 * @param frame - 当前执行组件贴图。
-                 * @param assembler - 当前组件渲染数据组装器。
-                 */
-                commitComp(comp: UIRenderComponent, frame: GFXTextureView | null | undefined, assembler: any, sampler?: GFXSampler | null): void;
-                /**
-                 * @en
-                 * Render component data submission process of UI.
-                 * The submitted vertex data is the UI for local coordinates.
-                 * For example: The UI components of Graphics and UIModelComponent.
-                 *
-                 * @zh
-                 * UI 渲染组件数据提交流程（针对例如： graphics 和 uimodel 等数据量较为庞大的 ui 组件）。
-                 *
-                 * @param comp - 当前执行组件。
-                 * @param model - 提交渲染的 model 数据。
-                 * @param mat - 提交渲染的材质。
-                 */
-                commitModel(comp: UIComponent, model: Model | null, mat: Material | null): void;
-                /**
-                 * @en
-                 * Submit separate render data.
-                 * This data does not participate in the batch.
-                 *
-                 * @zh
-                 * 提交独立渲染数据.
-                 * @param comp 静态组件
-                 */
-                commitStaticBatch(comp: UIStaticBatchComponent): void;
-                /**
-                 * @en
-                 * End a section of render data and submit according to the batch condition.
-                 *
-                 * @zh
-                 * 根据合批条件，结束一段渲染数据并提交。
-                 */
-                autoMergeBatches(): void;
-                /**
-                 * @en
-                 * Force changes to current batch data and merge
-                 *
-                 * @zh
-                 * 强行修改当前批次数据并合并。
-                 *
-                 * @param material - 当前批次的材质。
-                 * @param sprite - 当前批次的精灵帧。
-                 */
-                forceMergeBatches(material: Material, sprite: GFXTextureView | null): void;
-                /**
-                 * @en
-                 * Forced to merge the data of the previous batch to start a new batch.
-                 *
-                 * @zh
-                 * 强制合并上一个批次的数据，开启新一轮合批。
-                 */
-                finishMergeBatches(): void;
-            }
-            export class cocos_core_renderer_data_pool_manager_DataPoolManager {
-                jointTexturePool: JointTexturePool;
-                jointAnimationInfo: JointAnimationInfo;
-                constructor(device: GFXDevice);
-                releaseSkeleton(skeleton: Skeleton): void;
-                releaseAnimationClip(clip: AnimationClip): void;
-                clear(): void;
-            }
-            /**
-             * @zh
-             * Root描述信息
-             */
-            export interface cocos_core_root_IRootInfo {
-                enableHDR?: boolean;
-            }
-            /**
-             * @zh
-             * 渲染视图描述信息。
-             */
-            export interface cocos_core_pipeline_render_view_IRenderViewInfo {
-                camera: Camera;
-                name: string;
-                priority: number;
-                flows?: string[];
-            }
-            /**
-             * @zh
-             * Root类
-             */
-            export class cocos_core_root_Root {
-                get device(): GFXDevice;
-                get mainWindow(): GFXWindow | null;
-                set curWindow(window: GFXWindow | null);
-                get curWindow(): GFXWindow | null;
-                set tempWindow(window: GFXWindow | null);
-                get tempWindow(): GFXWindow | null;
-                get windows(): GFXWindow[];
-                get pipeline(): RenderPipeline;
-                get ui(): cocos_core_renderer_ui_ui_UI;
-                get scenes(): RenderScene[];
-                get views(): RenderView[];
-                get cumulativeTime(): number;
-                get frameTime(): number;
-                get frameCount(): number;
-                get fps(): number;
-                set fixedFPS(fps: number);
-                get fixedFPS(): number;
-                get dataPoolManager(): cocos_core_renderer_data_pool_manager_DataPoolManager;
-                _createSceneFun: any;
-                _createViewFun: any;
-                /**
-                 * 构造函数
-                 * @param device GFX设备
-                 */
-                constructor(device: GFXDevice);
-                /**
-                 * @zh
-                 * 初始化函数
-                 * @param info Root描述信息
-                 */
-                initialize(info: cocos_core_root_IRootInfo): boolean;
-                destroy(): void;
-                /**
-                 * @zh
-                 * 重置大小
-                 * @param width 屏幕宽度
-                 * @param height 屏幕高度
-                 */
-                resize(width: number, height: number): void;
-                setRenderPipeline(rppl: RenderPipeline): boolean;
-                /**
-                 * @zh
-                 * 激活指定窗口为当前窗口
-                 * @param window GFX窗口
-                 */
-                activeWindow(window: GFXWindow): void;
-                /**
-                 * @zh
-                 * 重置累计时间
-                 */
-                resetCumulativeTime(): void;
-                /**
-                 * @zh
-                 * 每帧执行函数
-                 * @param deltaTime 间隔时间
-                 */
-                frameMove(deltaTime: number): void;
-                /**
-                 * @zh
-                 * 创建窗口
-                 * @param info GFX窗口描述信息
-                 */
-                createWindow(info: IGFXWindowInfo): GFXWindow | null;
-                /**
-                 * @zh
-                 * 销毁指定的窗口
-                 * @param window GFX窗口
-                 */
-                destroyWindow(window: GFXWindow): void;
-                /**
-                 * @zh
-                 * 销毁全部窗口
-                 */
-                destroyWindows(): void;
-                /**
-                 * @zh
-                 * 创建渲染场景
-                 * @param info 渲染场景描述信息
-                 */
-                createScene(info: IRenderSceneInfo): RenderScene;
-                /**
-                 * @zh
-                 * 销毁指定的渲染场景
-                 * @param scene 渲染场景
-                 */
-                destroyScene(scene: RenderScene): void;
-                /**
-                 * @zh
-                 * 销毁全部场景
-                 */
-                destroyScenes(): void;
-                /**
-                 * @zh
-                 * 创建渲染视图
-                 * @param info 渲染视图描述信息
-                 */
-                createView(info: cocos_core_pipeline_render_view_IRenderViewInfo): RenderView;
-                /**
-                 * @zh
-                 * 销毁指定的渲染视图
-                 * @param view 渲染视图
-                 */
-                destroyView(view: RenderView): void;
-                /**
-                 * @zh
-                 * 销毁全部渲染视图
-                 */
-                destroyViews(): void;
-                createModel<T extends Model>(mClass: new () => T): T;
-                destroyModel(m: Model): void;
-                createCamera(): Camera;
-                destroyCamera(c: Camera): void;
-                createLight<T extends Light>(lClass: new () => T): T;
-                destroyLight(l: Light): void;
-                sortViews(): void;
-            }
+            update(): void;
+            onPipelineStateChanged(): void;
+            protected _flushPassInfo(): void;
         }
     }
-    export const cclegacy: {
-        [x: string]: any;
+    /**
+     * !#en
+     * The main namespace of Cocos2d-JS, all engine core classes, functions, properties and constants are defined in this namespace.
+     * !#zh
+     * Cocos 引擎的主要命名空间，引擎代码中所有的类，函数，属性和常量都在这个命名空间中定义。
+     * @deprecated
+     */
+    export const cclegacy: Record<string, any> & {
+        _global: typeof globalThis;
     };
     export namespace primitives {
         /**
@@ -1656,7 +1145,7 @@ declare module "cc.core" {
          * @param height 圆锥高度。
          * @param opts 圆锥参数选项。
          */
-        export function cone(radius?: number, height?: number, opts?: renderer.__private.RecursivePartial<__private.cocos_core_primitive_cone_IConeOptions>): IGeometry;
+        export function cone(radius?: number, height?: number, opts?: __private.RecursivePartial<__private.cocos_core_primitive_cone_IConeOptions>): IGeometry;
         /**
          * @en
          * Generate a cylinder with radiusTop radiusBottom 0.5, height 2 and centered at origin,
@@ -1667,7 +1156,7 @@ declare module "cc.core" {
          * @param radiusBottom 底部半径。
          * @param opts 圆柱参数选项。
          */
-        export function cylinder(radiusTop?: number, radiusBottom?: number, height?: number, opts?: renderer.__private.RecursivePartial<__private.cocos_core_primitive_cylinder_ICylinderOptions>): IGeometry;
+        export function cylinder(radiusTop?: number, radiusBottom?: number, height?: number, opts?: __private.RecursivePartial<__private.cocos_core_primitive_cylinder_ICylinderOptions>): IGeometry;
         /**
          * @en
          * This function generates a plane on XOZ plane with positive Y direction.
@@ -1692,7 +1181,7 @@ declare module "cc.core" {
          * @param radius 球半径。
          * @param options 参数选项。
          */
-        export function sphere(radius?: number, opts?: renderer.__private.RecursivePartial<__private.cocos_core_primitive_sphere_ISphereOptions>): IGeometry;
+        export function sphere(radius?: number, opts?: __private.RecursivePartial<__private.cocos_core_primitive_sphere_ISphereOptions>): IGeometry;
         /**
          * @en
          * Generate a torus with raidus 0.4, tube 0.1 and centered at origin.
@@ -1702,7 +1191,7 @@ declare module "cc.core" {
          * @param tube 管形大小。
          * @param opts 参数选项。
          */
-        export function torus(radius?: number, tube?: number, opts?: renderer.__private.RecursivePartial<__private.cocos_core_primitive_torus_ITorusOptions>): {
+        export function torus(radius?: number, tube?: number, opts?: __private.RecursivePartial<__private.cocos_core_primitive_torus_ITorusOptions>): {
             positions: number[];
             normals: number[];
             uvs: number[];
@@ -1720,7 +1209,7 @@ declare module "cc.core" {
          * @param radiusBottom 底部半径。
          * @param opts 胶囊体参数选项。
          */
-        export function capsule(radiusTop?: number, radiusBottom?: number, height?: number, opts?: renderer.__private.RecursivePartial<__private.cocos_core_primitive_capsule_ICapsuteOptions>): {
+        export function capsule(radiusTop?: number, radiusBottom?: number, height?: number, opts?: __private.RecursivePartial<__private.cocos_core_primitive_capsule_ICapsuteOptions>): {
             positions: number[];
             normals: number[];
             uvs: number[];
@@ -1737,7 +1226,7 @@ declare module "cc.core" {
          * 生成一个圆，其半径是单位1，中心点在原点。
          * @param options 参数选项。
          */
-        export function circle(options?: renderer.__private.RecursivePartial<__private.cocos_core_primitive_circle_ICircleOptions> | __private.cocos_core_primitive_circle_ICircleOptions): IGeometry;
+        export function circle(options?: __private.RecursivePartial<__private.cocos_core_primitive_circle_ICircleOptions> | __private.cocos_core_primitive_circle_ICircleOptions): IGeometry;
         /**
          * @en
          * Translate the geometry.
@@ -1794,7 +1283,7 @@ declare module "cc.core" {
          * @zh
          * 应用默认的几何参数选项。
          */
-        export function applyDefaultGeometryOptions<GeometryOptions = IGeometryOptions>(options?: renderer.__private.RecursivePartial<IGeometryOptions>): GeometryOptions;
+        export function applyDefaultGeometryOptions<GeometryOptions = IGeometryOptions>(options?: __private.RecursivePartial<IGeometryOptions>): GeometryOptions;
         /**
          * @en
          * The definition of the parameter for building a primitive geometry.
@@ -1847,6 +1336,13 @@ declare module "cc.core" {
             uvs?: number[];
             /**
              * @en
+             * Vertex Tangents.
+             * @zh
+             * 顶点切线。
+             */
+            tangents?: number[];
+            /**
+             * @en
              * Vertex colors.
              * @zh
              * 顶点颜色。
@@ -1859,10 +1355,10 @@ declare module "cc.core" {
              * 顶点属性。
              */
             attributes?: IGFXAttribute[];
-            customAttributes?: Array<{
+            customAttributes?: {
                 attr: IGFXAttribute;
                 values: number[];
-            }>;
+            }[];
             /**
              * @en
              * Bounding sphere radius.
@@ -1914,132 +1410,6 @@ declare module "cc.core" {
              */
             doubleSided?: boolean;
         }
-        export namespace __private {
-            /**
-             * @en
-             * The definition of the parameter for building a box.
-             * @zh
-             * 立方体参数选项。
-             */
-            export interface cocos_core_primitive_box_IBoxOptions extends renderer.__private.RecursivePartial<IGeometryOptions> {
-                /**
-                 * @en
-                 * Box extent on X-axis.
-                 * @zh
-                 * 立方体宽度。
-                 */
-                width?: number;
-                /**
-                 * @en
-                 * Box extent on Y-axis.
-                 * @zh
-                 * 立方体高度。
-                 */
-                height?: number;
-                /**
-                 * @en
-                 * Box extent on Z-axis.
-                 * @zh
-                 * 立方体长度。
-                 */
-                length?: number;
-                /**
-                 * @en
-                 * Segment count on X-axis.
-                 * @zh
-                 * 宽度线段数。
-                 */
-                widthSegments?: number;
-                /**
-                 * @en
-                 * Segment count on Y-axis.
-                 * @zh
-                 * 高度线段数。
-                 */
-                heightSegments?: number;
-                /**
-                 * @en
-                 * Segment count on Z-axis.
-                 * @zh
-                 * 长度线段数。
-                 */
-                lengthSegments?: number;
-            }
-            /**
-             * @en
-             * The definition of the parameter for building a cylinder.
-             * @zh
-             * 圆柱参数选项。
-             */
-            export interface cocos_core_primitive_cylinder_ICylinderOptions extends IGeometryOptions {
-                radialSegments: number;
-                heightSegments: number;
-                capped: boolean;
-                arc: number;
-            }
-            export type cocos_core_primitive_cone_IConeOptions = cocos_core_primitive_cylinder_ICylinderOptions;
-            /**
-             * @en
-             * The definition of the parameter for building a plane.
-             * @zh
-             * 平面参数选项。
-             */
-            export interface cocos_core_primitive_plane_IPlaneOptions extends renderer.__private.RecursivePartial<IGeometryOptions> {
-                /**
-                 * Plane extent on X-axis.
-                 */
-                width: number;
-                /**
-                 * Plane extent on Z-axis.
-                 */
-                length: number;
-                /**
-                 * Segment count on X-axis.
-                 */
-                widthSegments: number;
-                /**
-                 * Segment count on Z-axis.
-                 */
-                lengthSegments: number;
-            }
-            /**
-             * @zh
-             * 球参数选项。
-             */
-            export interface cocos_core_primitive_sphere_ISphereOptions extends IGeometryOptions {
-                segments: number;
-            }
-            /**
-             * @zh
-             * 环面参数选项。
-             */
-            export interface cocos_core_primitive_torus_ITorusOptions extends IGeometryOptions {
-                radialSegments: number;
-                tubularSegments: number;
-                arc: number;
-            }
-            /**
-             * @en
-             * The definition of the parameter for building a capsule.
-             * @zh
-             * 胶囊体参数选项。
-             */
-            export interface cocos_core_primitive_capsule_ICapsuteOptions {
-                sides: number;
-                heightSegments: number;
-                capped: boolean;
-                arc: number;
-            }
-            /**
-             * @en
-             * The definition of the parameter for building a circle.
-             * @zh
-             * 圆形参数选项。
-             */
-            export interface cocos_core_primitive_circle_ICircleOptions extends IGeometryOptions {
-                segments: number;
-            }
-        }
     }
     export namespace math {
         export namespace bits {
@@ -2075,7 +1445,7 @@ declare module "cc.core" {
             /**
              * Computes log base 10 of v.
              */
-            export function log10(v: number): 1 | 0 | 2 | 4 | 8 | 3 | 5 | 6 | 7 | 9;
+            export function log10(v: number): 1 | 0 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
             /**
              * Counts number of bits.
              */
@@ -2150,142 +1520,142 @@ declare module "cc.core" {
             /**
              * @zh 获得指定向量的拷贝
              */
-            static clone<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out): Vec2;
+            static clone<Out extends IVec2Like>(a: Out): Vec2;
             /**
              * @zh 复制目标向量
              */
-            static copy<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+            static copy<Out extends IVec2Like>(out: Out, a: Out): Out;
             /**
              * @zh 设置向量值
              */
-            static set<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, x: number, y: number): Out;
+            static set<Out extends IVec2Like>(out: Out, x: number, y: number): Out;
             /**
              * @zh 逐元素向量加法
              */
-            static add<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+            static add<Out extends IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量减法
              */
-            static subtract<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+            static subtract<Out extends IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量乘法
              */
-            static multiply<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+            static multiply<Out extends IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量除法
              */
-            static divide<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+            static divide<Out extends IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量向上取整
              */
-            static ceil<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+            static ceil<Out extends IVec2Like>(out: Out, a: Out): Out;
             /**
              * @zh 逐元素向量向下取整
              */
-            static floor<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+            static floor<Out extends IVec2Like>(out: Out, a: Out): Out;
             /**
              * @zh 逐元素向量最小值
              */
-            static min<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+            static min<Out extends IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量最大值
              */
-            static max<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out): Out;
+            static max<Out extends IVec2Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量四舍五入取整
              */
-            static round<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+            static round<Out extends IVec2Like>(out: Out, a: Out): Out;
             /**
              * @zh 向量标量乘法
              */
-            static multiplyScalar<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: number): Out;
+            static multiplyScalar<Out extends IVec2Like>(out: Out, a: Out, b: number): Out;
             /**
              * @zh 逐元素向量乘加: A + B * scale
              */
-            static scaleAndAdd<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out, scale: number): Out;
+            static scaleAndAdd<Out extends IVec2Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
              * @zh 求两向量的欧氏距离
              */
-            static distance<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+            static distance<Out extends IVec2Like>(a: Out, b: Out): number;
             /**
              * @zh 求两向量的欧氏距离平方
              */
-            static squaredDistance<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+            static squaredDistance<Out extends IVec2Like>(a: Out, b: Out): number;
             /**
              * @zh 求向量长度
              */
-            static len<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out): number;
+            static len<Out extends IVec2Like>(a: Out): number;
             /**
              * @zh 求向量长度平方
              */
-            static lengthSqr<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out): number;
+            static lengthSqr<Out extends IVec2Like>(a: Out): number;
             /**
              * @zh 逐元素向量取负
              */
-            static negate<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+            static negate<Out extends IVec2Like>(out: Out, a: Out): Out;
             /**
              * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
              */
-            static inverse<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+            static inverse<Out extends IVec2Like>(out: Out, a: Out): Out;
             /**
              * @zh 逐元素向量取倒数，接近 0 时返回 0
              */
-            static inverseSafe<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out): Out;
+            static inverseSafe<Out extends IVec2Like>(out: Out, a: Out): Out;
             /**
              * @zh 归一化向量
              */
-            static normalize<Out extends __private.cocos_core_math_type_define_IVec2Like, Vec2Like extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Vec2Like): Out;
+            static normalize<Out extends IVec2Like, Vec2Like extends IVec2Like>(out: Out, a: Vec2Like): Out;
             /**
              * @zh 向量点积（数量积）
              */
-            static dot<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+            static dot<Out extends IVec2Like>(a: Out, b: Out): number;
             /**
              * @zh 向量叉积（向量积），注意二维向量的叉积为与 Z 轴平行的三维向量
              */
-            static cross<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Vec3, a: Out, b: Out): Vec3;
+            static cross<Out extends IVec2Like>(out: Vec3, a: Out, b: Out): Vec3;
             /**
              * @zh 逐元素向量线性插值： A + t * (B - A)
              */
-            static lerp<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, a: Out, b: Out, t: number): Out;
+            static lerp<Out extends IVec2Like>(out: Out, a: Out, b: Out, t: number): Out;
             /**
              * @zh 生成一个在单位圆上均匀分布的随机向量
              * @param scale 生成的向量长度
              */
-            static random<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, scale?: number): Out;
+            static random<Out extends IVec2Like>(out: Out, scale?: number): Out;
             /**
              * @zh 向量与三维矩阵乘法，默认向量第三位为 1。
              */
-            static transformMat3<Out extends __private.cocos_core_math_type_define_IVec2Like, MatLike extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, m: __private.cocos_core_math_type_define_IMat3Like): Out;
+            static transformMat3<Out extends IVec2Like, MatLike extends IMat3Like>(out: Out, a: Out, m: IMat3Like): Out;
             /**
              * @zh 向量与四维矩阵乘法，默认向量第三位为 0，第四位为 1。
              */
-            static transformMat4<Out extends __private.cocos_core_math_type_define_IVec2Like, MatLike extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, m: __private.cocos_core_math_type_define_IMat4Like): Out;
+            static transformMat4<Out extends IVec2Like, MatLike extends IMat4Like>(out: Out, a: Out, m: IMat4Like): Out;
             /**
              * @zh 返回向量的字符串表示
              */
-            static str<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out): string;
+            static str<Out extends IVec2Like>(a: Out): string;
             /**
              * @zh 向量转数组
              * @param ofs 数组起始偏移量
              */
-            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, v: __private.cocos_core_math_type_define_IVec2Like, ofs?: number): Out;
+            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, v: IVec2Like, ofs?: number): Out;
             /**
              * @zh 数组转向量
              * @param ofs 数组起始偏移量
              */
-            static fromArray<Out extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
+            static fromArray<Out extends IVec2Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
             /**
              * @zh 向量等价判断
              */
-            static strictEquals<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): boolean;
+            static strictEquals<Out extends IVec2Like>(a: Out, b: Out): boolean;
             /**
              * @zh 排除浮点数误差的向量近似等价判断
              */
-            static equals<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out, epsilon?: number): boolean;
+            static equals<Out extends IVec2Like>(a: Out, b: Out, epsilon?: number): boolean;
             /**
              * @zh 求两向量夹角弧度
              */
-            static angle<Out extends __private.cocos_core_math_type_define_IVec2Like>(a: Out, b: Out): number;
+            static angle<Out extends IVec2Like>(a: Out, b: Out): number;
             /**
              * x 分量。
              */
@@ -2486,195 +1856,195 @@ declare module "cc.core" {
             /**
              * @zh 将目标赋值为零向量
              */
-            static zero<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out): Out;
+            static zero<Out extends IVec3Like>(out: Out): Out;
             /**
              * @zh 获得指定向量的拷贝
              */
-            static clone<Out extends __private.cocos_core_math_type_define_IVec3Like>(a: Out): Vec3;
+            static clone<Out extends IVec3Like>(a: Out): Vec3;
             /**
              * @zh 复制目标向量
              */
-            static copy<Out extends __private.cocos_core_math_type_define_IVec3Like, Vec3Like extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like): Out;
+            static copy<Out extends IVec3Like, Vec3Like extends IVec3Like>(out: Out, a: Vec3Like): Out;
             /**
              * @zh 设置向量值
              */
-            static set<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, x: number, y: number, z: number): Out;
+            static set<Out extends IVec3Like>(out: Out, x: number, y: number, z: number): Out;
             /**
              * @zh 逐元素向量加法
              */
-            static add<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static add<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like): Out;
             /**
              * @zh 逐元素向量减法
              */
-            static subtract<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static subtract<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like): Out;
             /**
              * @zh 逐元素向量乘法 (分量积)
              */
-            static multiply<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static multiply<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like): Out;
             /**
              * @zh 逐元素向量除法
              */
-            static divide<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static divide<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like): Out;
             /**
              * @zh 逐元素向量向上取整
              */
-            static ceil<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static ceil<Out extends IVec3Like>(out: Out, a: IVec3Like): Out;
             /**
              * @zh 逐元素向量向下取整
              */
-            static floor<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static floor<Out extends IVec3Like>(out: Out, a: IVec3Like): Out;
             /**
              * @zh 逐元素向量最小值
              */
-            static min<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static min<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like): Out;
             /**
              * @zh 逐元素向量最大值
              */
-            static max<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static max<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like): Out;
             /**
              * @zh 逐元素向量四舍五入取整
              */
-            static round<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static round<Out extends IVec3Like>(out: Out, a: IVec3Like): Out;
             /**
              * @zh 向量标量乘法
              */
-            static multiplyScalar<Out extends __private.cocos_core_math_type_define_IVec3Like, Vec3Like extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Vec3Like, b: number): Out;
+            static multiplyScalar<Out extends IVec3Like, Vec3Like extends IVec3Like>(out: Out, a: Vec3Like, b: number): Out;
             /**
              * @zh 逐元素向量乘加: A + B * scale
              */
-            static scaleAndAdd<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like, scale: number): Out;
+            static scaleAndAdd<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like, scale: number): Out;
             /**
              * @zh 求两向量的欧氏距离
              */
-            static distance(a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): number;
+            static distance(a: IVec3Like, b: IVec3Like): number;
             /**
              * @zh 求两向量的欧氏距离平方
              */
-            static squaredDistance(a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): number;
+            static squaredDistance(a: IVec3Like, b: IVec3Like): number;
             /**
              * @zh 求向量长度
              */
-            static len(a: __private.cocos_core_math_type_define_IVec3Like): number;
+            static len(a: IVec3Like): number;
             /**
              * @zh 求向量长度平方
              */
-            static lengthSqr(a: __private.cocos_core_math_type_define_IVec3Like): number;
+            static lengthSqr(a: IVec3Like): number;
             /**
              * @zh 逐元素向量取负
              */
-            static negate<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static negate<Out extends IVec3Like>(out: Out, a: IVec3Like): Out;
             /**
              * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
              */
-            static invert<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static invert<Out extends IVec3Like>(out: Out, a: IVec3Like): Out;
             /**
              * @zh 逐元素向量取倒数，接近 0 时返回 0
              */
-            static invertSafe<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static invertSafe<Out extends IVec3Like>(out: Out, a: IVec3Like): Out;
             /**
              * @zh 归一化向量
              */
-            static normalize<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static normalize<Out extends IVec3Like>(out: Out, a: IVec3Like): Out;
             /**
              * @zh 向量点积（数量积）
              */
-            static dot<Out extends __private.cocos_core_math_type_define_IVec3Like>(a: Out, b: __private.cocos_core_math_type_define_IVec3Like): number;
+            static dot<Out extends IVec3Like>(a: Out, b: IVec3Like): number;
             /**
              * @zh 向量叉积（向量积）
              */
-            static cross<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static cross<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like): Out;
             /**
              * @zh 逐元素向量线性插值： A + t * (B - A)
              */
-            static lerp<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like, t: number): Out;
+            static lerp<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like, t: number): Out;
             /**
              * @zh 生成一个在单位球体上均匀分布的随机向量
              * @param scale 生成的向量长度
              */
-            static random<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, scale?: number): Out;
+            static random<Out extends IVec3Like>(out: Out, scale?: number): Out;
             /**
              * @zh 向量与四维矩阵乘法，默认向量第四位为 1。
              */
-            static transformMat4<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, m: __private.cocos_core_math_type_define_IMat4Like): Out;
+            static transformMat4<Out extends IVec3Like>(out: Out, a: IVec3Like, m: IMat4Like): Out;
             /**
              * @zh 向量与四维矩阵乘法，默认向量第四位为 0。
              */
-            static transformMat4Normal<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, m: __private.cocos_core_math_type_define_IMat4Like): Out;
+            static transformMat4Normal<Out extends IVec3Like>(out: Out, a: IVec3Like, m: IMat4Like): Out;
             /**
              * @zh 向量与三维矩阵乘法
              */
-            static transformMat3<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, m: __private.cocos_core_math_type_define_IMat3Like): Out;
+            static transformMat3<Out extends IVec3Like>(out: Out, a: IVec3Like, m: IMat3Like): Out;
             /**
              * @zh 向量仿射变换
              */
-            static transformAffine<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, v: __private.cocos_core_math_type_define_IVec3Like, m: __private.cocos_core_math_type_define_IMat4Like): Out;
+            static transformAffine<Out extends IVec3Like>(out: Out, v: IVec3Like, m: IMat4Like): Out;
             /**
              * @zh 向量四元数乘法
              */
-            static transformQuat<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, q: __private.cocos_core_math_type_define_IQuatLike): Out;
+            static transformQuat<Out extends IVec3Like>(out: Out, a: IVec3Like, q: IQuatLike): Out;
             /**
              * @zh 以缩放 -> 旋转 -> 平移顺序变换向量
              */
-            static transformRTS<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, r: __private.cocos_core_math_type_define_IQuatLike, t: __private.cocos_core_math_type_define_IVec3Like, s: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static transformRTS<Out extends IVec3Like>(out: Out, a: IVec3Like, r: IQuatLike, t: IVec3Like, s: IVec3Like): Out;
             /**
              * @zh 以平移 -> 旋转 -> 缩放顺序逆变换向量
              */
-            static transformInverseRTS<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, r: __private.cocos_core_math_type_define_IQuatLike, t: __private.cocos_core_math_type_define_IVec3Like, s: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static transformInverseRTS<Out extends IVec3Like>(out: Out, a: IVec3Like, r: IQuatLike, t: IVec3Like, s: IVec3Like): Out;
             /**
              * @zh 绕 X 轴旋转向量指定弧度
              * @param v 待旋转向量
              * @param o 旋转中心
              * @param a 旋转弧度
              */
-            static rotateX<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, v: __private.cocos_core_math_type_define_IVec3Like, o: __private.cocos_core_math_type_define_IVec3Like, a: number): Out;
+            static rotateX<Out extends IVec3Like>(out: Out, v: IVec3Like, o: IVec3Like, a: number): Out;
             /**
              * @zh 绕 Y 轴旋转向量指定弧度
              * @param v 待旋转向量
              * @param o 旋转中心
              * @param a 旋转弧度
              */
-            static rotateY<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, v: __private.cocos_core_math_type_define_IVec3Like, o: __private.cocos_core_math_type_define_IVec3Like, a: number): Out;
+            static rotateY<Out extends IVec3Like>(out: Out, v: IVec3Like, o: IVec3Like, a: number): Out;
             /**
              * @zh 绕 Z 轴旋转向量指定弧度
              * @param v 待旋转向量
              * @param o 旋转中心
              * @param a 旋转弧度
              */
-            static rotateZ<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, v: __private.cocos_core_math_type_define_IVec3Like, o: __private.cocos_core_math_type_define_IVec3Like, a: number): Out;
+            static rotateZ<Out extends IVec3Like>(out: Out, v: IVec3Like, o: IVec3Like, a: number): Out;
             /**
              * @zh 向量转数组
              * @param ofs 数组起始偏移量
              */
-            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, v: __private.cocos_core_math_type_define_IVec3Like, ofs?: number): Out;
+            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, v: IVec3Like, ofs?: number): Out;
             /**
              * @zh 数组转向量
              * @param ofs 数组起始偏移量
              */
-            static fromArray<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
+            static fromArray<Out extends IVec3Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
             /**
              * @zh 向量等价判断
              */
-            static strictEquals(a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): boolean;
+            static strictEquals(a: IVec3Like, b: IVec3Like): boolean;
             /**
              * @zh 排除浮点数误差的向量近似等价判断
              */
-            static equals(a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like, epsilon?: number): boolean;
+            static equals(a: IVec3Like, b: IVec3Like, epsilon?: number): boolean;
             /**
              * @zh 求两向量夹角弧度
              */
-            static angle(a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): number;
+            static angle(a: IVec3Like, b: IVec3Like): number;
             /**
              * @zh 计算向量在指定平面上的投影
              * @param a 待投影向量
              * @param n 指定平面的法线
              */
-            static projectOnPlane<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, n: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static projectOnPlane<Out extends IVec3Like>(out: Out, a: IVec3Like, n: IVec3Like): Out;
             /**
              * @zh 计算向量在指定向量上的投影
              * @param a 待投影向量
              * @param n 目标向量
              */
-            static project<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: __private.cocos_core_math_type_define_IVec3Like, b: __private.cocos_core_math_type_define_IVec3Like): Out;
+            static project<Out extends IVec3Like>(out: Out, a: IVec3Like, b: IVec3Like): Out;
             /**
              * x 分量。
              */
@@ -2855,134 +2225,134 @@ declare module "cc.core" {
             /**
              * @zh 获得指定向量的拷贝
              */
-            static clone<Out extends __private.cocos_core_math_type_define_IVec4Like>(a: Out): Vec4;
+            static clone<Out extends IVec4Like>(a: Out): Vec4;
             /**
              * @zh 复制目标向量
              */
-            static copy<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+            static copy<Out extends IVec4Like>(out: Out, a: Out): Out;
             /**
              * @zh 设置向量值
              */
-            static set<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, x: number, y: number, z: number, w: number): Out;
+            static set<Out extends IVec4Like>(out: Out, x: number, y: number, z: number, w: number): Out;
             /**
              * @zh 逐元素向量加法
              */
-            static add<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+            static add<Out extends IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量减法
              */
-            static subtract<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+            static subtract<Out extends IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量乘法
              */
-            static multiply<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+            static multiply<Out extends IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量除法
              */
-            static divide<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+            static divide<Out extends IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量向上取整
              */
-            static ceil<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+            static ceil<Out extends IVec4Like>(out: Out, a: Out): Out;
             /**
              * @zh 逐元素向量向下取整
              */
-            static floor<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+            static floor<Out extends IVec4Like>(out: Out, a: Out): Out;
             /**
              * @zh 逐元素向量最小值
              */
-            static min<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+            static min<Out extends IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量最大值
              */
-            static max<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out): Out;
+            static max<Out extends IVec4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素向量四舍五入取整
              */
-            static round<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+            static round<Out extends IVec4Like>(out: Out, a: Out): Out;
             /**
              * @zh 向量标量乘法
              */
-            static multiplyScalar<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: number): Out;
+            static multiplyScalar<Out extends IVec4Like>(out: Out, a: Out, b: number): Out;
             /**
              * @zh 逐元素向量乘加: A + B * scale
              */
-            static scaleAndAdd<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out, scale: number): Out;
+            static scaleAndAdd<Out extends IVec4Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
              * @zh 求两向量的欧氏距离
              */
-            static distance<Out extends __private.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
+            static distance<Out extends IVec4Like>(a: Out, b: Out): number;
             /**
              * @zh 求两向量的欧氏距离平方
              */
-            static squaredDistance<Out extends __private.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
+            static squaredDistance<Out extends IVec4Like>(a: Out, b: Out): number;
             /**
              * @zh 求向量长度
              */
-            static len<Out extends __private.cocos_core_math_type_define_IVec4Like>(a: Out): number;
+            static len<Out extends IVec4Like>(a: Out): number;
             /**
              * @zh 求向量长度平方
              */
-            static lengthSqr<Out extends __private.cocos_core_math_type_define_IVec4Like>(a: Out): number;
+            static lengthSqr<Out extends IVec4Like>(a: Out): number;
             /**
              * @zh 逐元素向量取负
              */
-            static negate<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+            static negate<Out extends IVec4Like>(out: Out, a: Out): Out;
             /**
              * @zh 逐元素向量取倒数，接近 0 时返回 Infinity
              */
-            static inverse<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+            static inverse<Out extends IVec4Like>(out: Out, a: Out): Out;
             /**
              * @zh 逐元素向量取倒数，接近 0 时返回 0
              */
-            static inverseSafe<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+            static inverseSafe<Out extends IVec4Like>(out: Out, a: Out): Out;
             /**
              * @zh 归一化向量
              */
-            static normalize<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out): Out;
+            static normalize<Out extends IVec4Like>(out: Out, a: Out): Out;
             /**
              * @zh 向量点积（数量积）
              */
-            static dot<Out extends __private.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): number;
+            static dot<Out extends IVec4Like>(a: Out, b: Out): number;
             /**
              * @zh 逐元素向量线性插值： A + t * (B - A)
              */
-            static lerp<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, a: Out, b: Out, t: number): Out;
+            static lerp<Out extends IVec4Like>(out: Out, a: Out, b: Out, t: number): Out;
             /**
              * @zh 生成一个在单位球体上均匀分布的随机向量
              * @param scale 生成的向量长度
              */
-            static random<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, scale?: number): Out;
+            static random<Out extends IVec4Like>(out: Out, scale?: number): Out;
             /**
              * @zh 向量矩阵乘法
              */
-            static transformMat4<Out extends __private.cocos_core_math_type_define_IVec4Like, MatLike extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, m: MatLike): Out;
+            static transformMat4<Out extends IVec4Like, MatLike extends IMat4Like>(out: Out, a: Out, m: MatLike): Out;
             /**
              * @zh 向量仿射变换
              */
-            static transformAffine<Out extends __private.cocos_core_math_type_define_IVec4Like, VecLike extends __private.cocos_core_math_type_define_IVec4Like, MatLike extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, v: VecLike, m: MatLike): Out;
+            static transformAffine<Out extends IVec4Like, VecLike extends IVec4Like, MatLike extends IMat4Like>(out: Out, v: VecLike, m: MatLike): Out;
             /**
              * @zh 向量四元数乘法
              */
-            static transformQuat<Out extends __private.cocos_core_math_type_define_IVec4Like, QuatLike extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, q: QuatLike): Out;
+            static transformQuat<Out extends IVec4Like, QuatLike extends IQuatLike>(out: Out, a: Out, q: QuatLike): Out;
             /**
              * @zh 向量转数组
              * @param ofs 数组起始偏移量
              */
-            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, v: __private.cocos_core_math_type_define_IVec4Like, ofs?: number): Out;
+            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, v: IVec4Like, ofs?: number): Out;
             /**
              * @zh 数组转向量
              * @param ofs 数组起始偏移量
              */
-            static fromArray<Out extends __private.cocos_core_math_type_define_IVec4Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
+            static fromArray<Out extends IVec4Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
             /**
              * @zh 向量等价判断
              */
-            static strictEquals<Out extends __private.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out): boolean;
+            static strictEquals<Out extends IVec4Like>(a: Out, b: Out): boolean;
             /**
              * @zh 排除浮点数误差的向量近似等价判断
              */
-            static equals<Out extends __private.cocos_core_math_type_define_IVec4Like>(a: Out, b: Out, epsilon?: number): boolean;
+            static equals<Out extends IVec4Like>(a: Out, b: Out, epsilon?: number): boolean;
             /**
              * x 分量。
              */
@@ -3172,166 +2542,166 @@ declare module "cc.core" {
             /**
              * @zh 获得指定四元数的拷贝
              */
-            static clone<Out extends __private.cocos_core_math_type_define_IQuatLike>(a: Out): Quat;
+            static clone<Out extends IQuatLike>(a: Out): Quat;
             /**
              * @zh 复制目标四元数
              */
-            static copy<Out extends __private.cocos_core_math_type_define_IQuatLike, QuatLike extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike): Out;
+            static copy<Out extends IQuatLike, QuatLike extends IQuatLike>(out: Out, a: QuatLike): Out;
             /**
              * @zh 设置四元数值
              */
-            static set<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, x: number, y: number, z: number, w: number): Out;
+            static set<Out extends IQuatLike>(out: Out, x: number, y: number, z: number, w: number): Out;
             /**
              * @zh 将目标赋值为单位四元数
              */
-            static identity<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out): Out;
+            static identity<Out extends IQuatLike>(out: Out): Out;
             /**
              * @zh 设置四元数为两向量间的最短路径旋转，默认两向量都已归一化
              */
-            static rotationTo<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: VecLike, b: VecLike): Out;
+            static rotationTo<Out extends IQuatLike, VecLike extends IVec3Like>(out: Out, a: VecLike, b: VecLike): Out;
             /**
              * @zh 获取四元数的旋转轴和旋转弧度
              * @param outAxis 旋转轴输出
              * @param q 源四元数
              * @return 旋转弧度
              */
-            static getAxisAngle<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(outAxis: VecLike, q: Out): number;
+            static getAxisAngle<Out extends IQuatLike, VecLike extends IVec3Like>(outAxis: VecLike, q: Out): number;
             /**
              * @zh 四元数乘法
              */
-            static multiply<Out extends __private.cocos_core_math_type_define_IQuatLike, QuatLike_1 extends __private.cocos_core_math_type_define_IQuatLike, QuatLike_2 extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike_1, b: QuatLike_2): Out;
+            static multiply<Out extends IQuatLike, QuatLike_1 extends IQuatLike, QuatLike_2 extends IQuatLike>(out: Out, a: QuatLike_1, b: QuatLike_2): Out;
             /**
              * @zh 四元数标量乘法
              */
-            static multiplyScalar<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: number): Out;
+            static multiplyScalar<Out extends IQuatLike>(out: Out, a: Out, b: number): Out;
             /**
              * @zh 四元数乘加：A + B * scale
              */
-            static scaleAndAdd<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, scale: number): Out;
+            static scaleAndAdd<Out extends IQuatLike>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
              * @zh 绕 X 轴旋转指定四元数
              * @param rad 旋转弧度
              */
-            static rotateX<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
+            static rotateX<Out extends IQuatLike>(out: Out, a: Out, rad: number): Out;
             /**
              * @zh 绕 Y 轴旋转指定四元数
              * @param rad 旋转弧度
              */
-            static rotateY<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
+            static rotateY<Out extends IQuatLike>(out: Out, a: Out, rad: number): Out;
             /**
              * @zh 绕 Z 轴旋转指定四元数
              * @param rad 旋转弧度
              */
-            static rotateZ<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, rad: number): Out;
+            static rotateZ<Out extends IQuatLike>(out: Out, a: Out, rad: number): Out;
             /**
              * @zh 绕世界空间下指定轴旋转四元数
              * @param axis 旋转轴，默认已归一化
              * @param rad 旋转弧度
              */
-            static rotateAround<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, rot: Out, axis: VecLike, rad: number): Out;
+            static rotateAround<Out extends IQuatLike, VecLike extends IVec3Like>(out: Out, rot: Out, axis: VecLike, rad: number): Out;
             /**
              * @zh 绕本地空间下指定轴旋转四元数
              * @param axis 旋转轴
              * @param rad 旋转弧度
              */
-            static rotateAroundLocal<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, rot: Out, axis: VecLike, rad: number): Out;
+            static rotateAroundLocal<Out extends IQuatLike, VecLike extends IVec3Like>(out: Out, rot: Out, axis: VecLike, rad: number): Out;
             /**
              * @zh 根据 xyz 分量计算 w 分量，默认已归一化
              */
-            static calculateW<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
+            static calculateW<Out extends IQuatLike>(out: Out, a: Out): Out;
             /**
              * @zh 四元数点积（数量积）
              */
-            static dot<Out extends __private.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out): number;
+            static dot<Out extends IQuatLike>(a: Out, b: Out): number;
             /**
              * @zh 逐元素线性插值： A + t * (B - A)
              */
-            static lerp<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, t: number): Out;
+            static lerp<Out extends IQuatLike>(out: Out, a: Out, b: Out, t: number): Out;
             /**
              * @zh 四元数球面插值
              */
-            static slerp<Out extends __private.cocos_core_math_type_define_IQuatLike, QuatLike_1 extends __private.cocos_core_math_type_define_IQuatLike, QuatLike_2 extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike_1, b: QuatLike_2, t: number): Out;
+            static slerp<Out extends IQuatLike, QuatLike_1 extends IQuatLike, QuatLike_2 extends IQuatLike>(out: Out, a: QuatLike_1, b: QuatLike_2, t: number): Out;
             /**
              * @zh 带两个控制点的四元数球面插值
              */
-            static sqlerp<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out, b: Out, c: Out, d: Out, t: number): Out;
+            static sqlerp<Out extends IQuatLike>(out: Out, a: Out, b: Out, c: Out, d: Out, t: number): Out;
             /**
              * @zh 四元数求逆
              */
-            static invert<Out extends __private.cocos_core_math_type_define_IQuatLike, QuatLike extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: QuatLike): Out;
+            static invert<Out extends IQuatLike, QuatLike extends IQuatLike>(out: Out, a: QuatLike): Out;
             /**
              * @zh 求共轭四元数，对单位四元数与求逆等价，但更高效
              */
-            static conjugate<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
+            static conjugate<Out extends IQuatLike>(out: Out, a: Out): Out;
             /**
              * @zh 求四元数长度
              */
-            static len<Out extends __private.cocos_core_math_type_define_IQuatLike>(a: Out): number;
+            static len<Out extends IQuatLike>(a: Out): number;
             /**
              * @zh 求四元数长度平方
              */
-            static lengthSqr<Out extends __private.cocos_core_math_type_define_IQuatLike>(a: Out): number;
+            static lengthSqr<Out extends IQuatLike>(a: Out): number;
             /**
              * @zh 归一化四元数
              */
-            static normalize<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, a: Out): Out;
+            static normalize<Out extends IQuatLike>(out: Out, a: Out): Out;
             /**
              * @zh 根据本地坐标轴朝向计算四元数，默认三向量都已归一化且相互垂直
              */
-            static fromAxes<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, xAxis: VecLike, yAxis: VecLike, zAxis: VecLike): Out;
+            static fromAxes<Out extends IQuatLike, VecLike extends IVec3Like>(out: Out, xAxis: VecLike, yAxis: VecLike, zAxis: VecLike): Out;
             /**
              * @zh 根据视口的前方向和上方向计算四元数
              * @param view 视口面向的前方向，必须归一化
              * @param up 视口的上方向，必须归一化，默认为 (0, 1, 0)
              */
-            static fromViewUp<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, view: VecLike, up?: Vec3): Out;
+            static fromViewUp<Out extends IQuatLike, VecLike extends IVec3Like>(out: Out, view: VecLike, up?: Vec3): Out;
             /**
              * @zh 根据旋转轴和旋转弧度计算四元数
              */
-            static fromAxisAngle<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, axis: VecLike, rad: number): Out;
+            static fromAxisAngle<Out extends IQuatLike, VecLike extends IVec3Like>(out: Out, axis: VecLike, rad: number): Out;
             /**
              * @zh 根据三维矩阵信息计算四元数，默认输入矩阵不含有缩放信息
              */
-            static fromMat3<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, m: Mat3): Out;
+            static fromMat3<Out extends IQuatLike>(out: Out, m: Mat3): Out;
             /**
              * @zh 根据欧拉角信息计算四元数，旋转顺序为 YZX
              */
-            static fromEuler<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, x: number, y: number, z: number): Out;
+            static fromEuler<Out extends IQuatLike>(out: Out, x: number, y: number, z: number): Out;
             /**
              * @zh 返回定义此四元数的坐标系 X 轴向量
              */
-            static toAxisX<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
+            static toAxisX(out: IVec3Like, q: IQuatLike): IVec3Like;
             /**
              * @zh 返回定义此四元数的坐标系 Y 轴向量
              */
-            static toAxisY<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
+            static toAxisY(out: IVec3Like, q: IQuatLike): IVec3Like;
             /**
              * @zh 返回定义此四元数的坐标系 Z 轴向量
              */
-            static toAxisZ<Out extends __private.cocos_core_math_type_define_IQuatLike, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: VecLike, q: Out): VecLike;
+            static toAxisZ(out: IVec3Like, q: IQuatLike): IVec3Like;
             /**
              * @zh 根据四元数计算欧拉角，返回角度 x, y 在 [-180, 180] 区间内, z 默认在 [-90, 90] 区间内，旋转顺序为 YZX
              * @param outerZ z 取值范围区间改为 [-180, -90] U [90, 180]
              */
-            static toEuler<Out extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, q: __private.cocos_core_math_type_define_IQuatLike, outerZ?: boolean): Out;
+            static toEuler(out: IVec3Like, q: IQuatLike, outerZ?: boolean): IVec3Like;
             /**
              * @zh 四元数转数组
              * @param ofs 数组内的起始偏移量
              */
-            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, q: __private.cocos_core_math_type_define_IQuatLike, ofs?: number): Out;
+            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, q: IQuatLike, ofs?: number): Out;
             /**
              * @zh 数组转四元数
              * @param ofs 数组起始偏移量
              */
-            static fromArray<Out extends __private.cocos_core_math_type_define_IQuatLike>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
+            static fromArray(out: IQuatLike, arr: __private.IWritableArrayLike<number>, ofs?: number): IQuatLike;
             /**
              * @zh 四元数等价判断
              */
-            static strictEquals<Out extends __private.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out): boolean;
+            static strictEquals(a: IQuatLike, b: IQuatLike): boolean;
             /**
              * @zh 排除浮点数误差的四元数近似等价判断
              */
-            static equals<Out extends __private.cocos_core_math_type_define_IQuatLike>(a: Out, b: Out, epsilon?: number): boolean;
+            static equals(a: IQuatLike, b: IQuatLike, epsilon?: number): boolean;
             /**
              * x 分量。
              */
@@ -3386,13 +2756,19 @@ declare module "cc.core" {
              * @zh 将当前四元数转化为欧拉角（x-y-z）并赋值给出口向量。
              * @param out 出口向量。
              */
-            getEulerAngles(out: Vec3): Vec3;
+            getEulerAngles(out: Vec3): IVec3Like;
             /**
-             * @zh 根据指定的插值比率，从当前四元数到目标四元数之间做插值。
+             * @zh 根据指定的插值比率，从当前四元数到目标四元数之间做线性插值。
              * @param to 目标四元数。
              * @param ratio 插值比率，范围为 [0,1]。
              */
             lerp(to: Quat, ratio: number): this;
+            /**
+             * @zh 根据指定的插值比率，从当前四元数到目标四元数之间做球面插值。
+             * @param to 目标四元数。
+             * @param ratio 插值比率，范围为 [0,1]。
+             */
+            slerp(to: Quat, ratio: number): this;
             /**
              * @zh 求四元数长度
              */
@@ -3412,121 +2788,121 @@ declare module "cc.core" {
             /**
              * @zh 获得指定矩阵的拷贝
              */
-            static clone<Out extends __private.cocos_core_math_type_define_IMat3Like>(a: Out): Mat3;
+            static clone<Out extends IMat3Like>(a: Out): Mat3;
             /**
              * @zh 复制目标矩阵
              */
-            static copy<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
+            static copy<Out extends IMat3Like>(out: Out, a: Out): Out;
             /**
              * @zh 设置矩阵值
              */
-            static set<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, m00: number, m01: number, m02: number, m10: number, m11: number, m12: number, m20: number, m21: number, m22: number): Out;
+            static set<Out extends IMat3Like>(out: Out, m00: number, m01: number, m02: number, m10: number, m11: number, m12: number, m20: number, m21: number, m22: number): Out;
             /**
              * @zh 将目标赋值为单位矩阵
              */
-            static identity<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out): Out;
+            static identity<Out extends IMat3Like>(out: Out): Out;
             /**
              * @zh 转置矩阵
              */
-            static transpose<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
+            static transpose<Out extends IMat3Like>(out: Out, a: Out): Out;
             /**
              * @zh 矩阵求逆，注意，在矩阵不可逆时，会返回一个全为 0 的矩阵。
              */
-            static invert<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out): Out;
+            static invert<Out extends IMat3Like>(out: Out, a: Out): Out;
             /**
              * @zh 矩阵行列式
              */
-            static determinant<Out extends __private.cocos_core_math_type_define_IMat3Like>(a: Out): number;
+            static determinant<Out extends IMat3Like>(a: Out): number;
             /**
              * @zh 矩阵乘法
              */
-            static multiply<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
+            static multiply<Out extends IMat3Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 取四阶矩阵的前三阶，与三阶矩阵相乘
              */
-            static multiplyMat4<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: __private.cocos_core_math_type_define_IMat4Like): Out;
+            static multiplyMat4<Out extends IMat3Like>(out: Out, a: Out, b: IMat4Like): Out;
             /**
              * @zh 在给定矩阵变换基础上加入变换
              * @deprecated 将在 1.2 移除，请转用 `Mat3.transform` 方法。
              */
-            static transfrom<Out extends __private.cocos_core_math_type_define_IMat3Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): void;
+            static transfrom<Out extends IMat3Like, VecLike extends IVec3Like>(out: Out, a: Out, v: VecLike): void;
             /**
              * @zh 在给定矩阵变换基础上加入变换
              */
-            static transform<Out extends __private.cocos_core_math_type_define_IMat3Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+            static transform<Out extends IMat3Like, VecLike extends IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
              * @zh 在给定矩阵变换基础上加入新缩放变换
              */
-            static scale<Out extends __private.cocos_core_math_type_define_IMat3Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+            static scale<Out extends IMat3Like, VecLike extends IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
              * @zh 在给定矩阵变换基础上加入新旋转变换
              * @param rad 旋转弧度
              */
-            static rotate<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, rad: number): Out;
+            static rotate<Out extends IMat3Like>(out: Out, a: Out, rad: number): Out;
             /**
              * @zh 取四阶矩阵的前三阶
              */
-            static fromMat4<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: __private.cocos_core_math_type_define_IMat4Like): Out;
+            static fromMat4<Out extends IMat3Like>(out: Out, a: IMat4Like): Out;
             /**
              * @zh 根据视口前方向和上方向计算矩阵
              * @param view 视口面向的前方向，必须归一化
              * @param up 视口的上方向，必须归一化，默认为 (0, 1, 0)
              */
-            static fromViewUp<Out extends __private.cocos_core_math_type_define_IMat3Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, view: VecLike, up?: Vec3): Out;
+            static fromViewUp<Out extends IMat3Like, VecLike extends IVec3Like>(out: Out, view: VecLike, up?: Vec3): Out;
             /**
              * @zh 计算位移矩阵
              */
-            static fromTranslation<Out extends __private.cocos_core_math_type_define_IMat3Like, VecLike extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, v: VecLike): Out;
+            static fromTranslation<Out extends IMat3Like, VecLike extends IVec2Like>(out: Out, v: VecLike): Out;
             /**
              * @zh 计算缩放矩阵
              */
-            static fromScaling<Out extends __private.cocos_core_math_type_define_IMat3Like, VecLike extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, v: VecLike): Out;
+            static fromScaling<Out extends IMat3Like, VecLike extends IVec2Like>(out: Out, v: VecLike): Out;
             /**
              * @zh 计算旋转矩阵
              */
-            static fromRotation<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, rad: number): Out;
+            static fromRotation<Out extends IMat3Like>(out: Out, rad: number): Out;
             /**
              * @zh 根据四元数旋转信息计算矩阵
              */
-            static fromQuat<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, q: __private.cocos_core_math_type_define_IQuatLike): Out;
+            static fromQuat<Out extends IMat3Like>(out: Out, q: IQuatLike): Out;
             /**
              * @zh 计算指定四维矩阵的逆转置三维矩阵
              */
-            static inverseTransposeMat4<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: __private.cocos_core_math_type_define_IMat4Like): Out | null;
+            static inverseTransposeMat4<Out extends IMat3Like>(out: Out, a: IMat4Like): Out | null;
             /**
              * @zh 矩阵转数组
              * @param ofs 数组内的起始偏移量
              */
-            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, m: __private.cocos_core_math_type_define_IMat3Like, ofs?: number): Out;
+            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, m: IMat3Like, ofs?: number): Out;
             /**
              * @zh 数组转矩阵
              * @param ofs 数组起始偏移量
              */
-            static fromArray<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
+            static fromArray<Out extends IMat3Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
             /**
              * @zh 逐元素矩阵加法
              */
-            static add<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
+            static add<Out extends IMat3Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素矩阵减法
              */
-            static subtract<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out): Out;
+            static subtract<Out extends IMat3Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 矩阵标量乘法
              */
-            static multiplyScalar<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: number): Out;
+            static multiplyScalar<Out extends IMat3Like>(out: Out, a: Out, b: number): Out;
             /**
              * @zh 逐元素矩阵标量乘加: A + B * scale
              */
-            static multiplyScalarAndAdd<Out extends __private.cocos_core_math_type_define_IMat3Like>(out: Out, a: Out, b: Out, scale: number): Out;
+            static multiplyScalarAndAdd<Out extends IMat3Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
              * @zh 矩阵等价判断
              */
-            static strictEquals<Out extends __private.cocos_core_math_type_define_IMat3Like>(a: Out, b: Out): boolean;
+            static strictEquals<Out extends IMat3Like>(a: Out, b: Out): boolean;
             /**
              * @zh 排除浮点数误差的矩阵近似等价判断
              */
-            static equals<Out extends __private.cocos_core_math_type_define_IMat3Like>(a: Out, b: Out, epsilon?: number): boolean;
+            static equals<Out extends IMat3Like>(a: Out, b: Out, epsilon?: number): boolean;
             /**
              * 矩阵第 0 列第 0 行的元素。
              */
@@ -3662,116 +3038,116 @@ declare module "cc.core" {
             /**
              * @zh 获得指定矩阵的拷贝
              */
-            static clone<Out extends __private.cocos_core_math_type_define_IMat4Like>(a: Out): Mat4;
+            static clone<Out extends IMat4Like>(a: Out): Mat4;
             /**
              * @zh 复制目标矩阵
              */
-            static copy<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out;
+            static copy<Out extends IMat4Like>(out: Out, a: Out): Out;
             /**
              * @zh 设置矩阵值
              */
-            static set<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, m00: number, m01: number, m02: number, m03: number, m10: number, m11: number, m12: number, m13: number, m20: number, m21: number, m22: number, m23: number, m30: number, m31: number, m32: number, m33: number): Out;
+            static set<Out extends IMat4Like>(out: Out, m00: number, m01: number, m02: number, m03: number, m10: number, m11: number, m12: number, m13: number, m20: number, m21: number, m22: number, m23: number, m30: number, m31: number, m32: number, m33: number): Out;
             /**
              * @zh 将目标赋值为单位矩阵
              */
-            static identity<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out): Out;
+            static identity<Out extends IMat4Like>(out: Out): Out;
             /**
              * @zh 转置矩阵
              */
-            static transpose<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out;
+            static transpose<Out extends IMat4Like>(out: Out, a: Out): Out;
             /**
              * @zh 矩阵求逆，注意，在矩阵不可逆时，会返回一个全为 0 的矩阵。
              */
-            static invert<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out;
+            static invert<Out extends IMat4Like>(out: Out, a: Out): Out;
             /**
              * @zh 矩阵行列式
              */
-            static determinant<Out extends __private.cocos_core_math_type_define_IMat4Like>(a: Out): number;
+            static determinant<Out extends IMat4Like>(a: Out): number;
             /**
              * @zh 矩阵乘法
              */
-            static multiply<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
+            static multiply<Out extends IMat4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 在给定矩阵变换基础上加入变换
              */
-            static transform<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+            static transform<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
              * @zh 在给定矩阵变换基础上加入新位移变换
              */
-            static translate<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+            static translate<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
              * @zh 在给定矩阵变换基础上加入新缩放变换
              */
-            static scale<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, v: VecLike): Out;
+            static scale<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, a: Out, v: VecLike): Out;
             /**
              * @zh 在给定矩阵变换基础上加入新旋转变换
              * @param rad 旋转角度
              * @param axis 旋转轴
              */
-            static rotate<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, a: Out, rad: number, axis: VecLike): Out | null;
+            static rotate<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, a: Out, rad: number, axis: VecLike): Out | null;
             /**
              * @zh 在给定矩阵变换基础上加入绕 X 轴的旋转变换
              * @param rad 旋转角度
              */
-            static rotateX<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
+            static rotateX<Out extends IMat4Like>(out: Out, a: Out, rad: number): Out;
             /**
              * @zh 在给定矩阵变换基础上加入绕 Y 轴的旋转变换
              * @param rad 旋转角度
              */
-            static rotateY<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
+            static rotateY<Out extends IMat4Like>(out: Out, a: Out, rad: number): Out;
             /**
              * @zh 在给定矩阵变换基础上加入绕 Z 轴的旋转变换
              * @param rad 旋转角度
              */
-            static rotateZ<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, rad: number): Out;
+            static rotateZ<Out extends IMat4Like>(out: Out, a: Out, rad: number): Out;
             /**
              * @zh 计算位移矩阵
              */
-            static fromTranslation<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
+            static fromTranslation<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, v: VecLike): Out;
             /**
              * @zh 计算缩放矩阵
              */
-            static fromScaling<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, v: VecLike): Out;
+            static fromScaling<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, v: VecLike): Out;
             /**
              * @zh 计算旋转矩阵
              */
-            static fromRotation<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, rad: number, axis: VecLike): Out | null;
+            static fromRotation<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, rad: number, axis: VecLike): Out | null;
             /**
              * @zh 计算绕 X 轴的旋转矩阵
              */
-            static fromXRotation<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
+            static fromXRotation<Out extends IMat4Like>(out: Out, rad: number): Out;
             /**
              * @zh 计算绕 Y 轴的旋转矩阵
              */
-            static fromYRotation<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
+            static fromYRotation<Out extends IMat4Like>(out: Out, rad: number): Out;
             /**
              * @zh 计算绕 Z 轴的旋转矩阵
              */
-            static fromZRotation<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, rad: number): Out;
+            static fromZRotation<Out extends IMat4Like>(out: Out, rad: number): Out;
             /**
              * @zh 根据旋转和位移信息计算矩阵
              */
-            static fromRT<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike): Out;
+            static fromRT<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, q: Quat, v: VecLike): Out;
             /**
              * @zh 提取矩阵的位移信息, 默认矩阵中的变换以 S->R->T 的顺序应用
              */
-            static getTranslation<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: VecLike, mat: Out): VecLike;
+            static getTranslation<Out extends IMat4Like, VecLike extends IVec3Like>(out: VecLike, mat: Out): VecLike;
             /**
              * @zh 提取矩阵的缩放信息, 默认矩阵中的变换以 S->R->T 的顺序应用
              */
-            static getScaling<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: VecLike, mat: Out): VecLike;
+            static getScaling<Out extends IMat4Like, VecLike extends IVec3Like>(out: VecLike, mat: Out): VecLike;
             /**
              * @zh 提取矩阵的旋转信息, 默认输入矩阵不含有缩放信息，如考虑缩放应使用 `toRTS` 函数。
              */
-            static getRotation<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Quat, mat: Out): Quat;
+            static getRotation<Out extends IMat4Like>(out: Quat, mat: Out): Quat;
             /**
              * @zh 提取旋转、位移、缩放信息， 默认矩阵中的变换以 S->R->T 的顺序应用
              */
-            static toRTS<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(m: Out, q: Quat, v: VecLike, s: VecLike): void;
+            static toRTS<Out extends IMat4Like, VecLike extends IVec3Like>(m: Out, q: Quat, v: VecLike, s: VecLike): void;
             /**
              * @zh 根据旋转、位移、缩放信息计算矩阵，以 S->R->T 的顺序应用
              */
-            static fromRTS<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike, s: VecLike): Out;
+            static fromRTS<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, q: Quat, v: VecLike, s: VecLike): Out;
             /**
              * @zh 根据指定的旋转、位移、缩放及变换中心信息计算矩阵，以 S->R->T 的顺序应用
              * @param q 旋转值
@@ -3779,11 +3155,11 @@ declare module "cc.core" {
              * @param s 缩放值
              * @param o 指定变换中心
              */
-            static fromRTSOrigin<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, q: Quat, v: VecLike, s: VecLike, o: VecLike): Out;
+            static fromRTSOrigin<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, q: Quat, v: VecLike, s: VecLike, o: VecLike): Out;
             /**
              * @zh 根据指定的旋转信息计算矩阵
              */
-            static fromQuat<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, q: Quat): Out;
+            static fromQuat<Out extends IMat4Like>(out: Out, q: Quat): Out;
             /**
              * @zh 根据指定的视锥体信息计算矩阵
              * @param left 左平面距离
@@ -3793,7 +3169,7 @@ declare module "cc.core" {
              * @param near 近平面距离
              * @param far 远平面距离
              */
-            static frustum<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
+            static frustum<Out extends IMat4Like>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
             /**
              * @zh 计算透视投影矩阵
              * @param fovy 纵向视角高度
@@ -3801,7 +3177,7 @@ declare module "cc.core" {
              * @param near 近平面距离
              * @param far 远平面距离
              */
-            static perspective<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, fov: number, aspect: number, near: number, far: number, isFOVY?: boolean): Out;
+            static perspective<Out extends IMat4Like>(out: Out, fov: number, aspect: number, near: number, far: number, isFOVY?: boolean, minClipZ?: number, projectionSignY?: number): Out;
             /**
              * @zh 计算正交投影矩阵
              * @param left 左平面距离
@@ -3811,52 +3187,52 @@ declare module "cc.core" {
              * @param near 近平面距离
              * @param far 远平面距离
              */
-            static ortho<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number): Out;
+            static ortho<Out extends IMat4Like>(out: Out, left: number, right: number, bottom: number, top: number, near: number, far: number, minClipZ?: number, projectionSignY?: number): Out;
             /**
              * @zh 根据视点计算矩阵，注意 `eye - center` 不能为零向量或与 `up` 向量平行
              * @param eye 当前位置
              * @param center 目标视点
              * @param up 视口上方向
              */
-            static lookAt<Out extends __private.cocos_core_math_type_define_IMat4Like, VecLike extends __private.cocos_core_math_type_define_IVec3Like>(out: Out, eye: VecLike, center: VecLike, up: VecLike): Out;
+            static lookAt<Out extends IMat4Like, VecLike extends IVec3Like>(out: Out, eye: VecLike, center: VecLike, up: VecLike): Out;
             /**
              * @zh 计算逆转置矩阵
              */
-            static inverseTranspose<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out): Out | null;
+            static inverseTranspose<Out extends IMat4Like>(out: Out, a: Out): Out | null;
             /**
              * @zh 矩阵转数组
              * @param ofs 数组内的起始偏移量
              */
-            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, m: __private.cocos_core_math_type_define_IMat4Like, ofs?: number): Out;
+            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, m: IMat4Like, ofs?: number): Out;
             /**
              * @zh 数组转矩阵
              * @param ofs 数组起始偏移量
              */
-            static fromArray<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
+            static fromArray<Out extends IMat4Like>(out: Out, arr: __private.IWritableArrayLike<number>, ofs?: number): Out;
             /**
              * @zh 逐元素矩阵加法
              */
-            static add<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
+            static add<Out extends IMat4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐元素矩阵减法
              */
-            static subtract<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out): Out;
+            static subtract<Out extends IMat4Like>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 矩阵标量乘法
              */
-            static multiplyScalar<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: number): Out;
+            static multiplyScalar<Out extends IMat4Like>(out: Out, a: Out, b: number): Out;
             /**
              * @zh 逐元素矩阵标量乘加: A + B * scale
              */
-            static multiplyScalarAndAdd<Out extends __private.cocos_core_math_type_define_IMat4Like>(out: Out, a: Out, b: Out, scale: number): Out;
+            static multiplyScalarAndAdd<Out extends IMat4Like>(out: Out, a: Out, b: Out, scale: number): Out;
             /**
              * @zh 矩阵等价判断
              */
-            static strictEquals<Out extends __private.cocos_core_math_type_define_IMat4Like>(a: Out, b: Out): boolean;
+            static strictEquals<Out extends IMat4Like>(a: Out, b: Out): boolean;
             /**
              * @zh 排除浮点数误差的矩阵近似等价判断
              */
-            static equals<Out extends __private.cocos_core_math_type_define_IMat4Like>(a: Out, b: Out, epsilon?: number): boolean;
+            static equals<Out extends IMat4Like>(a: Out, b: Out, epsilon?: number): boolean;
             /**
              * 矩阵第 0 列第 0 行的元素。
              */
@@ -4140,7 +3516,7 @@ declare module "cc.core" {
              * @param ratio 插值比率，范围为 [0,1]。
              * @returns 当前尺寸的宽和高到目标尺寸的宽和高分别按指定插值比率进行线性插值构成的向量。
              */
-            static lerp<Out extends __private.cocos_core_math_type_define_ISizeLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+            static lerp<Out extends ISizeLike>(out: Out, from: Out, to: Out, ratio: number): Out;
             set x(val: number);
             get x(): number;
             set y(val: number);
@@ -4224,7 +3600,7 @@ declare module "cc.core" {
              * @param v2 指定的点。
              * @returns 目标矩形。
              */
-            static fromMinMax<Out extends __private.cocos_core_math_type_define_IRectLike, VecLike extends __private.cocos_core_math_type_define_IVec2Like>(out: Out, v1: VecLike, v2: VecLike): Out;
+            static fromMinMax<Out extends IRectLike, VecLike extends IVec2Like>(out: Out, v1: VecLike, v2: VecLike): Out;
             /**
              * 根据指定的插值比率，从当前矩形到目标矩形之间做插值。
              * @param out 本方法将插值结果赋值给此参数
@@ -4232,21 +3608,21 @@ declare module "cc.core" {
              * @param to 目标矩形。
              * @param ratio 插值比率，范围为 [0,1]。
              */
-            static lerp<Out extends __private.cocos_core_math_type_define_IRectLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+            static lerp<Out extends IRectLike>(out: Out, from: Out, to: Out, ratio: number): Out;
             /**
              * 计算当前矩形与指定矩形重叠部分的矩形，将其赋值给出口矩形。
              * @param out 出口矩形。
              * @param one 指定的一个矩形。
              * @param other 指定的另一个矩形。
              */
-            static intersection<Out extends __private.cocos_core_math_type_define_IRectLike>(out: Out, one: Out, other: Out): Out;
+            static intersection<Out extends IRectLike>(out: Out, one: Out, other: Out): Out;
             /**
              * 创建同时包含当前矩形和指定矩形的最小矩形，将其赋值给出口矩形。
              * @param out 出口矩形。
              * @param one 指定的一个矩形。
              * @param other 指定的另一个矩形。
              */
-            static union<Out extends __private.cocos_core_math_type_define_IRectLike>(out: Out, one: Out, other: Out): Out;
+            static union<Out extends IRectLike>(out: Out, one: Out, other: Out): Out;
             get xMin(): number;
             set xMin(value: number);
             get yMin(): number;
@@ -4390,65 +3766,65 @@ declare module "cc.core" {
             /**
              * @zh 获得指定颜色的拷贝
              */
-            static clone<Out extends __private.cocos_core_math_type_define_IColorLike>(a: Out): Color;
+            static clone<Out extends IColorLike>(a: Out): Color;
             /**
              * @zh 复制目标颜色
              */
-            static copy<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, a: Out): Out;
+            static copy<Out extends IColorLike>(out: Out, a: Out): Out;
             /**
              * @zh 设置颜色值
              */
-            static set<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, r: number, g: number, b: number, a: number): Out;
+            static set<Out extends IColorLike>(out: Out, r: number, g: number, b: number, a: number): Out;
             /**
              * @zh 从十六进制颜色字符串中读入颜色到 out 中
              */
-            static fromHEX<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, hexString: string): Out;
+            static fromHEX<Out extends IColorLike>(out: Out, hexString: string): Out;
             /**
              * @zh 逐通道颜色加法
              */
-            static add<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
+            static add<Out extends IColorLike>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐通道颜色减法
              */
-            static subtract<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
+            static subtract<Out extends IColorLike>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐通道颜色乘法
              */
-            static multiply<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
+            static multiply<Out extends IColorLike>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 逐通道颜色除法
              */
-            static divide<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: Out): Out;
+            static divide<Out extends IColorLike>(out: Out, a: Out, b: Out): Out;
             /**
              * @zh 全通道统一缩放颜色
              */
-            static scale<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, a: Out, b: number): Out;
+            static scale<Out extends IColorLike>(out: Out, a: Out, b: number): Out;
             /**
              * @zh 逐通道颜色线性插值：A + t * (B - A)
              */
-            static lerp<Out extends __private.cocos_core_math_type_define_IColorLike>(out: Out, from: Out, to: Out, ratio: number): Out;
+            static lerp<Out extends IColorLike>(out: Out, from: Out, to: Out, ratio: number): Out;
             /**
              * @zh 颜色转数组
              * @param ofs 数组起始偏移量
              */
-            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, a: __private.cocos_core_math_type_define_IColorLike, ofs?: number): Out;
+            static toArray<Out extends __private.IWritableArrayLike<number>>(out: Out, a: IColorLike, ofs?: number): Out;
             /**
              * @zh 数组转颜色
              * @param ofs 数组起始偏移量
              */
-            static fromArray<Out extends __private.cocos_core_math_type_define_IColorLike>(arr: __private.IWritableArrayLike<number>, out: Out, ofs?: number): Out;
+            static fromArray<Out extends IColorLike>(arr: __private.IWritableArrayLike<number>, out: Out, ofs?: number): Out;
             /**
              * @zh 颜色等价判断
              */
-            static strictEquals<Out extends __private.cocos_core_math_type_define_IColorLike>(a: Out, b: Out): boolean;
+            static strictEquals<Out extends IColorLike>(a: Out, b: Out): boolean;
             /**
              * @zh 排除浮点数误差的颜色近似等价判断
              */
-            static equals<Out extends __private.cocos_core_math_type_define_IColorLike>(a: Out, b: Out, epsilon?: number): boolean;
+            static equals<Out extends IColorLike>(a: Out, b: Out, epsilon?: number): boolean;
             /**
              * @zh 获取指定颜色的整型数据表示
              */
-            static hex<Out extends __private.cocos_core_math_type_define_IColorLike>(a: Out): number;
+            static hex<Out extends IColorLike>(a: Out): number;
             get r(): number;
             set r(red: number);
             get g(): number;
@@ -4529,11 +3905,12 @@ declare module "cc.core" {
              * @example
              * ```
              * const color = new Color(255, 14, 0, 255);
-             * color.toHex("rrggbbaa"); // "FF0E00FF"
-             * color.toHex("rrggbb"); // "FF0E00"
+             * color.toHEX("#rgb");      // "f00";
+             * color.toHEX("#rrggbbaa"); // "ff0e00"
+             * color.toHEX("#rrggbb");   // "ff0e00ff"
              * ```
              */
-            toHEX(fmt: "#rrggbb" | "#rrggbbaa"): string;
+            toHEX(fmt: "#rgb" | "#rrggbb" | "#rrggbbaa"): string;
             /**
              * @zh 将当前颜色转换为 RGB 整数值。
              * @returns RGB 整数值。从最低有效位开始，每8位分别是 Red、Green、Blue 通道的值。
@@ -4562,7 +3939,8 @@ declare module "cc.core" {
              * @returns HSV 颜色。成员 `h`、`s`、`v` 分别代表 HSV 颜色的 H、S、V 通道。
              * @example
              * ```
-             * const color = cc.Color.YELLOW;
+             * import { Color } from 'cc';
+             * const color = Color.YELLOW;
              * color.toHSV(); // {h: 0.1533864541832669, s: 0.9843137254901961, v: 1}
              * ```
              */
@@ -4581,7 +3959,8 @@ declare module "cc.core" {
              * @param [a=255] 指定的 Alpha 通道。
              * @returns 当前颜色。
              */
-            set(other: Color, g?: number, b?: number, a?: number): Color;
+            set(other: Color): Color;
+            set(r?: number, g?: number, b?: number, a?: number): Color;
             /**
              * @zh 将当前颜色乘以与指定颜色
              * @param other 指定的颜色。
@@ -4725,7 +4104,7 @@ declare module "cc.core" {
          * @param v 类 Vec3 结构
          * @returns 绝对值最大的分量
          */
-        export function absMaxComponent(v: __private.cocos_core_math_type_define_IVec3Like): number;
+        export function absMaxComponent(v: IVec3Like): number;
         /**
          * @zh 对 a b 的绝对值进行比较大小，返回绝对值最大的值。
          * @param a number
@@ -4737,84 +4116,78 @@ declare module "cc.core" {
          * @method random
          */
         export const random: () => number;
-        export namespace __private {
-            export interface cocos_core_math_type_define_IVec2Like {
-                x: number;
-                y: number;
-            }
-            export interface cocos_core_math_type_define_IMat3Like {
-                m00: number;
-                m01: number;
-                m02: number;
-                m03: number;
-                m04: number;
-                m05: number;
-                m06: number;
-                m07: number;
-                m08: number;
-            }
-            export interface cocos_core_math_type_define_IMat4Like {
-                m00: number;
-                m01: number;
-                m02: number;
-                m03: number;
-                m04: number;
-                m05: number;
-                m06: number;
-                m07: number;
-                m08: number;
-                m09: number;
-                m10: number;
-                m11: number;
-                m12: number;
-                m13: number;
-                m14: number;
-                m15: number;
-            }
-            export interface IWritableArrayLike<T> {
-                length: number;
-                [index: number]: T;
-            }
-            export interface cocos_core_math_type_define_IVec3Like {
-                x: number;
-                y: number;
-                z: number;
-            }
-            export interface cocos_core_math_type_define_IQuatLike {
-                x: number;
-                y: number;
-                z: number;
-                w: number;
-            }
-            export interface cocos_core_math_type_define_IVec4Like {
-                x: number;
-                y: number;
-                z: number;
-                w: number;
-            }
-            export interface cocos_core_math_type_define_ISizeLike {
-                width: number;
-                height: number;
-            }
-            export interface cocos_core_math_type_define_IRectLike {
-                x: number;
-                y: number;
-                width: number;
-                height: number;
-            }
-            /**
-             * @category core/math
-             */
-            /**
-             * @hidden
-             */
-            export interface cocos_core_math_type_define_IColorLike {
-                r: number;
-                g: number;
-                b: number;
-                a: number;
-                _val: number;
-            }
+        /**
+         * @category core/math
+         */
+        /**
+         * @hidden
+         */
+        export interface IColorLike {
+            r: number;
+            g: number;
+            b: number;
+            a: number;
+            _val: number;
+        }
+        export interface IMat3Like {
+            m00: number;
+            m01: number;
+            m02: number;
+            m03: number;
+            m04: number;
+            m05: number;
+            m06: number;
+            m07: number;
+            m08: number;
+        }
+        export interface IMat4Like {
+            m00: number;
+            m01: number;
+            m02: number;
+            m03: number;
+            m04: number;
+            m05: number;
+            m06: number;
+            m07: number;
+            m08: number;
+            m09: number;
+            m10: number;
+            m11: number;
+            m12: number;
+            m13: number;
+            m14: number;
+            m15: number;
+        }
+        export interface IQuatLike {
+            x: number;
+            y: number;
+            z: number;
+            w: number;
+        }
+        export interface IRectLike {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        }
+        export interface ISizeLike {
+            width: number;
+            height: number;
+        }
+        export interface IVec2Like {
+            x: number;
+            y: number;
+        }
+        export interface IVec3Like {
+            x: number;
+            y: number;
+            z: number;
+        }
+        export interface IVec4Like {
+            x: number;
+            y: number;
+            z: number;
+            w: number;
         }
     }
     export namespace memop {
@@ -4828,10 +4201,10 @@ declare module "cc.core" {
         export class Pool<T> {
             /**
              * 构造函数。
-             * @param fn 元素构造函数。
+             * @param ctor 元素构造函数。
              * @param size 初始大小。
              */
-            constructor(fn: () => T, size: number);
+            constructor(ctor: () => T, elementsPerBatch: number);
             /**
              * @zh 从对象池中取出一个对象。
              */
@@ -4842,10 +4215,15 @@ declare module "cc.core" {
              */
             free(obj: T): void;
             /**
-             * 清除对象池。
-             * @param fn 清除回调，对每个释放的对象调用一次。
+             * @zh 将一组对象放回对象池中。
+             * @param objs 一组要释放的对象。
              */
-            clear(fn: (obj: T) => void): void;
+            freeArray(objs: T[]): void;
+            /**
+             * 释放对象池中所有资源。
+             * @param dtor 销毁回调，对每个释放的对象调用一次。
+             */
+            destroy(dtor?: (obj: T) => void): void;
         }
         /**
          * @category memop
@@ -5033,9 +4411,9 @@ declare module "cc.core" {
             ray_plane: (ray: ray, plane: plane) => number;
             ray_triangle: (ray: ray, triangle: triangle, doubleSided?: boolean | undefined) => number;
             ray_capsule: (ray: ray, capsule: capsule) => number;
-            ray_subMesh: (ray: ray, submesh: renderer.__private.cocos_core_assets_mesh_RenderingSubMesh, option?: IRaySubMeshOptions | undefined) => boolean | undefined;
-            ray_mesh: (ray: ray, mesh: Mesh, option?: IRayMeshOptions | undefined) => boolean;
-            ray_model: (r: ray, model: renderer.Model, option?: IRayModelOptions | undefined) => boolean;
+            ray_subMesh: (ray: ray, submesh: __private.cocos_core_assets_mesh_RenderingSubMesh, options?: IRaySubMeshOptions | undefined) => number;
+            ray_mesh: (ray: ray, mesh: Mesh, options?: IRayMeshOptions | undefined) => number;
+            ray_model: (r: ray, model: renderer.Model, options?: IRayModelOptions | undefined) => number;
             line_sphere: typeof __private.cocos_core_geometry_intersect_line_sphere;
             line_aabb: typeof __private.cocos_core_geometry_intersect_line_aabb;
             line_obb: typeof __private.cocos_core_geometry_intersect_line_obb;
@@ -5394,7 +4772,7 @@ declare module "cc.core" {
              * @param out 射线上的另一点。
              * @param distance 给定距离。
              */
-            computeHit(out: math.__private.cocos_core_math_type_define_IVec3Like, distance: number): void;
+            computeHit(out: math.IVec3Like, distance: number): void;
         }
         /**
          * @en
@@ -5706,7 +5084,7 @@ declare module "cc.core" {
              * @param maxPos - aabb 的最大点。
              * @returns {aabb} out 接受操作的 aabb。
              */
-            static fromPoints(out: aabb, minPos: math.Vec3, maxPos: math.Vec3): aabb;
+            static fromPoints(out: aabb, minPos: math.IVec3Like, maxPos: math.IVec3Like): aabb;
             /**
              * @en
              * Set the components of a aabb to the given values
@@ -5765,7 +5143,7 @@ declare module "cc.core" {
              * @param {Vec3} minPos 最小点。
              * @param {Vec3} maxPos 最大点。
              */
-            getBoundary(minPos: math.Vec3, maxPos: math.Vec3): void;
+            getBoundary(minPos: math.IVec3Like, maxPos: math.IVec3Like): void;
             /**
              * @en
              * Transform this shape
@@ -5983,7 +5361,7 @@ declare module "cc.core" {
              * @zh
              * 变换此胶囊体。
              */
-            transform(m: math.Mat4, pos: math.__private.cocos_core_math_type_define_IVec3Like, rot: math.__private.cocos_core_math_type_define_IQuatLike, scale: math.__private.cocos_core_math_type_define_IVec3Like, out: capsule): void;
+            transform(m: math.Mat4, pos: math.IVec3Like, rot: math.IQuatLike, scale: math.IVec3Like, out: capsule): void;
             updateCache(): void;
             updateLocalCenter(): void;
         }
@@ -6141,77 +5519,114 @@ declare module "cc.core" {
              */
             calcOptimizedKey(optKey: __private.cocos_core_geometry_curve_OptimizedKey, leftIndex: number, rightIndex: number): void;
         }
+        /**
+         * @category geometry
+         */
+        /**
+         * @en
+         * The raycast mode.
+         * @zh
+         * 射线检测模式。
+         */
         export enum ERaycastMode {
             ALL = 0,
             CLOSEST = 1,
             ANY = 2
         }
+        /**
+         * @en
+         * The storage structure of the raycast results.
+         * @zh
+         * 射线检测结果的存储结构。
+         */
         export interface IRaySubMeshResult {
+            /**
+             * @en
+             * The distance between the hit point and the ray.
+             * @zh
+             * 击中点和射线的距离。
+             */
             distance: number;
+            /**
+             * @en
+             * The index of the triangle vertex 0。
+             * @zh
+             * 三角形顶点0的索引。
+             */
             vertexIndex0: number;
+            /**
+             * @en
+             * The index of the triangle vertex 1。
+             * @zh
+             * 三角形顶点1的索引
+             */
             vertexIndex1: number;
+            /**
+             * @en
+             * The index of the triangle vertex 2。
+             * @zh
+             * 三角形顶点2的索引
+             */
             vertexIndex2: number;
         }
+        /**
+         * @en
+         * The optional param structure of the `ray_subMesh`.
+         * @zh
+         * `ray_subMesh`的可选参数结构。
+         */
         export interface IRaySubMeshOptions {
             /**
+             * @en
+             * The raycast mode，`ANY` by default.
              * @zh
-             * 检测模式：[0,1,2]=>[ALL,CLOSEST,ANY]
+             * 射线检测模式：[0, 1, 2]=>[`ALL`, `CLOSEST`, `ANY`]
              */
             mode: ERaycastMode;
             /**
+             * @en
+             * The maximum distance of the raycast, `Infinity` by default.
              * @zh
-             * 检测的最大距离
+             * 射线检测的最大距离，默认为`Infinity`。
              */
             distance: number;
+            /**
+             * @en
+             * An array used to store the results of a ray detection.
+             * @zh
+             * 用于存储射线检测结果的数组。
+             */
             result?: IRaySubMeshResult[];
+            /**
+             * @en
+             * Whether to detect the double-sided or not，`false` by default.
+             * @zh
+             * 是否检测双面，默认为`false`。
+             */
             doubleSided?: boolean;
-            doNotZeroMin?: boolean;
         }
+        /**
+         * @en
+         * The optional param structure of the `ray_mesh`.
+         * @zh
+         * `ray_mesh`的可选参数结构。
+         */
         export interface IRayMeshOptions extends IRaySubMeshOptions {
+            /**
+             * @en
+             * The index of the sub mesh.
+             * @zh
+             * 子网格的索引。
+             */
             subIndices?: number[];
         }
+        /**
+         * @en
+         * The optional param structure of the `ray_model`.
+         * @zh
+         * `ray_model`的可选参数结构。
+         */
         export interface IRayModelOptions extends IRayMeshOptions {
-            doNotTransformRay?: boolean;
-        }
-        export namespace __private {
-            /**
-             * @en
-             * line-sphere intersect detect.
-             * @zh
-             * 线段与球的相交性检测
-             * @param line 线段
-             * @param sphere 球
-             * @return {number} 0 或 非0
-             */
-            function cocos_core_geometry_intersect_line_sphere(line: line, sphere: sphere): number;
-            /**
-             * @en
-             * line-aabb intersect detect.
-             * @zh
-             * 线段与轴对齐包围盒的相交性检测
-             * @param line 线段
-             * @param aabb 轴对齐包围盒
-             * @return {number} 0 或 非0
-             */
-            function cocos_core_geometry_intersect_line_aabb(line: line, aabb: aabb): number;
-            /**
-             * @en
-             * line-obb intersect detect.
-             * @zh
-             * 线段与方向包围盒的相交性检测
-             * @param line 线段
-             * @param obb 方向包围盒
-             * @return {number} 0 或 非0
-             */
-            function cocos_core_geometry_intersect_line_obb(line: line, obb: obb): number;
-            export class cocos_core_geometry_curve_OptimizedKey {
-                index: number;
-                time: number;
-                endTime: number;
-                coefficient: Float32Array;
-                constructor();
-                evaluate(T: number): number;
-            }
         }
     }
     export function BitMask<T>(obj: T): T;
@@ -6237,6 +5652,7 @@ declare module "cc.core" {
         export var isEnum: (enumType: any) => any;
         export var getList: (enumDef: any) => any;
     }
+    export function ccenum(enumx: any): void;
     /**
      * 所有值类型的基类。
      */
@@ -6270,88 +5686,6 @@ declare module "cc.core" {
         toString(): string;
     }
     export namespace js {
-        export namespace array {
-            /**
-             * Removes the array item at the specified index.
-             */
-            export function removeAt<T>(array: T[], index: number): void;
-            /**
-             * Removes the array item at the specified index.
-             * It's faster but the order of the array will be changed.
-             */
-            export function fastRemoveAt<T>(array: T[], index: number): void;
-            /**
-             * Removes the first occurrence of a specific object from the array.
-             */
-            export function remove<T>(array: T[], value: T): boolean;
-            /**
-             * Removes the first occurrence of a specific object from the array.
-             * It's faster but the order of the array will be changed.
-             */
-            export function fastRemove<T>(array: T[], value: T): void;
-            export function removeIf<T>(array: T[], predicate: (value: T) => boolean): T | undefined;
-            /**
-             * Verify array's Type.
-             */
-            export function verifyType<T>(array: T[], type: Function): boolean;
-            /**
-             * Removes from array all values in minusArr. For each Value in minusArr, the first matching instance in array will be removed.
-             * @param array Source Array
-             * @param minusArr minus Array
-             */
-            export function removeArray<T>(array: T[], minusArr: T[]): void;
-            /**
-             * Inserts some objects at index.
-             */
-            export function appendObjectsAt<T>(array: T[], addObjs: T[], index: number): T[];
-            /**
-             * Exact same function as Array.prototype.indexOf.<br>
-             * HACK: ugliy hack for Baidu mobile browser compatibility,
-             * stupid Baidu guys modify Array.prototype.indexOf for all pages loaded,
-             * their version changes strict comparison to non-strict comparison,
-             * it also ignores the second parameter of the original API, and this will cause event handler enter infinite loop.<br>
-             * Baidu developers, if you ever see this documentation,
-             * here is the standard: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf, Seriously!
-             *
-             * @method indexOf
-             * @param searchElement - Element to locate in the array.
-             * @param [fromIndex=0] - The index to start the search at
-             * @return the first index at which a given element can be found in the array, or -1 if it is not present.
-             */
-            export function indexOf<T>(array: T[], searchElement: T, fromIndex?: number): number;
-            /**
-             * Determines whether the array contains a specific value.
-             */
-            export function contains<T>(array: T[], value: T): boolean;
-            /**
-             * Copy an array's item to a new array (its performance is better than Array.slice)
-             */
-            export function copy<T>(array: T[]): any[];
-            /**
-             * @class js.array.MutableForwardIterator
-             * @example
-             * ```
-             * var array = [0, 1, 2, 3, 4];
-             * var iterator = new cc.js.array.MutableForwardIterator(array);
-             * for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
-             *     var item = array[iterator.i];
-             *     ...
-             * }
-             * ```
-             */
-            export class MutableForwardIterator<T> {
-                array: T[];
-                i: number;
-                constructor(array: T[]);
-                get length(): number;
-                set length(value: number);
-                remove(value: T): void;
-                removeAt(i: number): void;
-                fastRemove(value: T): void;
-                fastRemoveAt(i: number): void;
-                push(item: T): void;
-            }
-        }
         /**
          * ID generator for runtime.
          */
@@ -6469,6 +5803,37 @@ declare module "cc.core" {
              */
             resize(length: number): void;
         }
+        export const array: typeof __private.cocos_core_utils_array;
+        export const js: {
+            IDGenerator: typeof IDGenerator;
+            Pool: typeof Pool;
+            array: typeof __private.cocos_core_utils_array;
+            isNumber: typeof isNumber;
+            isString: typeof isString;
+            getPropertyDescriptor: typeof getPropertyDescriptor;
+            addon: typeof addon;
+            mixin: typeof mixin;
+            extend: typeof extend;
+            getSuper: typeof getSuper;
+            isChildClassOf: typeof isChildClassOf;
+            clear: typeof clear;
+            value: (object: Object, propertyName: string, value_: any, writable?: boolean | undefined, enumerable?: boolean | undefined) => void;
+            getset: (object: {}, propertyName: string, getter: __private.Getter, setter?: boolean | __private.Setter | undefined, enumerable?: boolean, configurable?: boolean) => void;
+            get: (object: Object, propertyName: string, getter: __private.Getter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
+            set: (object: Object, propertyName: string, setter: __private.Setter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
+            unregisterClass: typeof unregisterClass;
+            getClassName: typeof getClassName;
+            setClassName: typeof setClassName;
+            getClassByName: typeof getClassByName;
+            _getClassId: typeof _getClassId;
+            _setClassId: typeof _setClassId;
+            _getClassById: typeof _getClassById;
+            obsolete: typeof obsolete;
+            obsoletes: typeof obsoletes;
+            formatStr: typeof formatStr;
+            shiftArguments: typeof shiftArguments;
+            createMap: typeof createMap;
+        };
         /**
          * Check the object whether is number or not
          * If a number is created by using 'new Number(10086)', the typeof it will be "object"...
@@ -6527,8 +5892,9 @@ declare module "cc.core" {
          * This gives you additional control over the format of the output.
          * @example
          * ```
-         * cc.js.formatStr("a: %s, b: %s", a, b);
-         * cc.js.formatStr(a, b, c);
+         * import { js } from 'cc';
+         * js.formatStr("a: %s, b: %s", a, b);
+         * js.formatStr(a, b, c);
          * ```
          */
         export function formatStr(msg: string | any, ...subst: any[]): any;
@@ -6551,7 +5917,7 @@ declare module "cc.core" {
         export function mixin(object?: any, ...sources: any[]): any;
         /**
          * Derive the class from the supplied base class.
-         * Both classes are just native javascript constructors, not created by cc.Class, so
+         * Both classes are just native javascript constructors, not created by `Class`, so
          * usually you will want to inherit using [[Class]] instead.
          * @param base The baseclass to inherit.
          * @return The result class.
@@ -6647,11 +6013,6 @@ declare module "cc.core" {
         export const set: (object: Object, propertyName: string, setter: __private.Setter, enumerable?: boolean | undefined, configurable?: boolean | undefined) => void;
         export const _idToClass: {};
         export const _nameToClass: {};
-        export namespace __private {
-            export type cocos_core_utils_pool_CleanUpFunction<T> = (value: T) => boolean | void;
-            export type Getter = () => any;
-            export type Setter = (value: any) => void;
-        }
     }
     export namespace misc {
         /**
@@ -6666,12 +6027,6 @@ declare module "cc.core" {
          * @param {Object} diffNameGetSets
          */
         export function propertyDefine(ctor: any, sameNameGetSets: any, diffNameGetSets: any): void;
-        /**
-         * @method nextPOT
-         * @param {Number} x
-         * @return {Number}
-         */
-        export function nextPOT(x: any): any;
         export function pushToMap(map: any, key: any, value: any, pushFront: any): void;
         export function contains(refNode: any, otherNode: any): any;
         export function isDomNode(obj: any): boolean;
@@ -6791,6 +6146,8 @@ declare module "cc.core" {
         src?: string;
         imageWidth?: number;
         imageHeight?: number;
+        imageOffset?: string;
+        imageAlign?: string;
         underline?: boolean;
         italic?: boolean;
         bold?: boolean;
@@ -6866,95 +6223,17 @@ declare module "cc.core" {
     };
     export namespace _decorator {
         /**
-         * @zh 标注属性为 cc 属性。
-         * @param options 选项。
-         */
-        export function property(options?: IPropertyOptions): PropertyDecorator;
-        /**
-         * @zh 标注属性为 cc 属性。<br/>
-         * 等价于`@property({type})`。
-         * @param type cc 属性的类型。
-         */
-        export function property(type: PropertyType): PropertyDecorator;
-        /**
-         * @zh 标注属性为 cc 属性。<br/>
-         * 等价于`@property()`。
-         */
-        export function property(target: Object, propertyKey: string | symbol): void;
-        /**
-         * @en
-         * NOTE:<br>
-         * The old mixins implemented in cc.Class(ES5) behaves exact the same as multiple inheritance.
-         * But since ES6, class constructor can't be function-called and class methods become non-enumerable,
-         * so we can not mix in ES6 Classes.<br>
-         * See:<br>
-         * [https://esdiscuss.org/topic/traits-are-now-impossible-in-es6-until-es7-since-rev32](https://esdiscuss.org/topic/traits-are-now-impossible-in-es6-until-es7-since-rev32)<br>
-         * One possible solution (but IDE unfriendly):<br>
-         * [http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes](http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/)<br>
-         * <br>
-         * NOTE:<br>
-         * You must manually call mixins constructor, this is different from cc.Class(ES5).
-         * @zh
-         * *注意：<br>
-         * 在cc.Class（ES5）中实现的旧mixin的行为与多重继承完全相同。
-         * 但是从ES6开始，类构造函数不能被函数调用，类方法变得不可枚举，
-         * 所以我们不能混合使用ES6类。<br>
-         * 参看：<br>
-         * [https://esdiscuss.org/topic/traits-are-now-impossible-in-es6-until-es7-since-rev32](https://esdiscuss.org/topic/traits-are-now-impossible-in-ES6-直到-ES7，因为-rev32）点击
-         * 一种可能的解决方案（但对 IDE 不友好）：<br>
-         * [http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes](http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/）结果
-         * <br>
-         * 注意：<br>
-         * 您必须手动调用mixins构造函数，这与cc.Class（ES5）不同。
-         *
-         * @method mixins
-         * @param {Function} ...ctor - constructors to mix, only support ES5 constructors or classes defined by using `cc.Class`,
-         *                             not support ES6 Classes.
+         * @en Declare a standard ES6 or TS Class as a CCClass, please refer to the [document](https://docs.cocos.com/creator3d/manual/zh/scripting/ccclass.html)
+         * @zh 将标准写法的 ES6 或者 TS Class 声明为 CCClass，具体用法请参阅[类型定义](https://docs.cocos.com/creator3d/manual/zh/scripting/ccclass.html)。
+         * @param name - The class name used for serialization.
          * @example
-         * ```typescript
-         * const {ccclass, mixins} = cc._decorator;
-         *
-         * class Animal { ... }
-         *
-         * const Fly = cc.Class({
-         *     constructor () { ... }
-         * });
-         *
-         *  @ccclass
-         *  @mixins(cc.EventTarget, Fly)
-         * class Bird extends Animal {
-         *     constructor () {
-         *         super();
-         *
-         *         // You must manually call mixins constructor, this is different from cc.Class(ES5)
-         *         cc.EventTarget.call(this);
-         *         Fly.call(this);
-         *     }
-         *     // ...
-         * }
-         * ```
-         */
-        export function mixins(...constructors: Function[]): (ctor: any) => void;
-        /**
-         * 标记该属性的类型。
-         * @param type 指定类型。
-         */
-        export function type(type: Function): PropertyDecorator;
-        export function type(type: [Function]): PropertyDecorator;
-        export function type<T>(type: __private.cocos_core_data_utils_attribute_PrimitiveType<T>): PropertyDecorator;
-        export function type<T>(type: [__private.cocos_core_data_utils_attribute_PrimitiveType<T>]): PropertyDecorator;
-        /**
-         * 将标准写法的 [ES6 Class](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes) 声明为 CCClass，具体用法请参阅[类型定义](/docs/creator/scripting/class/)。
-         *
-         * @method ccclass
-         * @param {String} [name] - The class name used for serialization.
-         * @example
-         * ```typescript
-         * const {ccclass} = cc._decorator;
+         * ```ts
+         * import { _decorator, Component } from 'cc';
+         * const {ccclass} = _decorator;
          *
          * // define a CCClass, omit the name
          *  @ccclass
-         * class NewScript extends cc.Component {
+         * class NewScript extends Component {
          *     // ...
          * }
          *
@@ -6965,367 +6244,211 @@ declare module "cc.core" {
          * }
          * ```
          */
-        export const ccclass: (target: any) => any;
-        export type SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
-        export type PropertyType = SimplePropertyType | SimplePropertyType[];
+        export const ccclass: any | ((name?: string) => Function);
         /**
-         * @zh cc 属性选项。
+         * @en Declare as a CCClass property with options
+         * @zh 声明属性为 CCClass 属性。
+         * @param options property options
          */
-        export interface IPropertyOptions extends __private.cocos_core_data_utils_attribute_defines_IExposedAttributes {
-        }
+        export function property(options?: __private.cocos_core_data_class_decorator_IPropertyOptions): PropertyDecorator;
         /**
-         * Makes a CCClass that inherit from component execute in edit mode.<br/>
+         * @en Declare as a CCClass property with the property type
+         * @zh 标注属性为 cc 属性。<br/>
+         * 等价于`@property({type})`。
+         * @param type A {{ccclass}} type or a {{ValueType}}
+         */
+        export function property(type: __private.cocos_core_data_class_decorator_PropertyType): PropertyDecorator;
+        /**
+         * @en Declare as a CCClass property
+         * @zh 标注属性为 cc 属性。<br/>
+         * 等价于`@property()`。
+         */
+        export function property(target: Object, propertyKey: string | symbol): void;
+        /**
+         * @en Makes a CCClass that inherit from component execute in edit mode.<br/>
          * By default, all components are only executed in play mode,<br/>
          * which means they will not have their callback functions executed while the Editor is in edit mode.<br/>
-         * 允许继承自 Component 的 CCClass 在编辑器里执行。<br/>
+         * @zh 允许继承自 Component 的 CCClass 在编辑器里执行。<br/>
          * 默认情况下，所有 Component 都只会在运行时才会执行，也就是说它们的生命周期回调不会在编辑器里触发。
-         *
-         * @method executeInEditMode
          * @example
-         * ```typescript
-         * const {ccclass, executeInEditMode} = cc._decorator;
+         * ```ts
+         * import { _decorator, Component } from 'cc';
+         * const {ccclass, executeInEditMode} = _decorator;
          *
          *  @ccclass
-         *  @executeInEditMode
-         * class NewScript extends cc.Component {
+         *  @editable.executeInEditMode
+         * class NewScript extends Component {
          *     // ...
          * }
          * ```
          */
         export const executeInEditMode: any;
         /**
-         * 为声明为 CCClass 的组件添加依赖的其它组件。当组件添加到节点上时，如果依赖的组件不存在，引擎将会自动将依赖组件添加到同一个节点，防止脚本出错。该设置在运行时同样有效。
-         *
-         * @method requireComponent
-         * @param {Component} requiredComponent
+         * @en Declare that the current component relies on another type of component.
+         * If the required component doesn't exist, the engine will create a new empty instance of the required component and add to the node.
+         * @zh 为声明为 CCClass 的组件添加依赖的其它组件。当组件添加到节点上时，如果依赖的组件不存在，引擎将会自动将依赖组件添加到同一个节点，防止脚本出错。该设置在运行时同样有效。
+         * @param requiredComponent The required component type
          * @example
-         * ```typescript
-         * const {ccclass, requireComponent} = cc._decorator;
+         * ```ts
+         * import {_decorator, SpriteComponent, Component} from cc;
+         * import {ccclass, requireComponent} from _decorator;
          *
-         *  @ccclass
-         *  @requireComponent(cc.SpriteComponent)
-         * class SpriteCtrl extends cc.Component {
+         * @ccclass
+         * @requireComponent(SpriteComponent)
+         * class SpriteCtrl extends Component {
          *     // ...
          * }
          * ```
          */
-        export const requireComponent: any;
+        export const requireComponent: (requiredComponent: Function) => Function;
         /**
-         * 将当前组件添加到组件菜单中，方便用户查找。例如 "Rendering/CameraCtrl"。
-         *
-         * @method menu
-         * @param {String} path - The path is the menu represented like a pathname.
-         *                        For example the menu could be "Rendering/CameraCtrl".
+         * @en Add the current component to the specific menu path in `Add Component` selector of the inspector panel
+         * @zh 将当前组件添加到组件菜单中，方便用户查找。例如 "Rendering/CameraCtrl"。
+         * @param path - The path is the menu represented like a pathname. For example the menu could be "Rendering/CameraCtrl".
          * @example
-         * ```typescript
-         * const {ccclass, menu} = cc._decorator;
+         * ```ts
+         * import { _decorator, Component } from 'cc';
+         * const {ccclass, menu} = _decorator;
          *
-         *  @ccclass
-         *  @menu("Rendering/CameraCtrl")
-         * class NewScript extends cc.Component {
+         * @ccclass
+         * @editable.menu("Rendering/CameraCtrl")
+         * class NewScript extends Component {
          *     // ...
          * }
          * ```
          */
-        export const menu: any;
+        export const menu: (path: string) => ClassDecorator;
         /**
-         * 设置脚本生命周期方法调用的优先级。优先级小于 0 的组件将会优先执行，优先级大于 0 的组件将会延后执行。优先级仅会影响 onLoad, onEnable, start, update 和 lateUpdate，而 onDisable 和 onDestroy 不受影响。
-         *
-         * @method executionOrder
-         * @param {Number} order - The execution order of lifecycle methods for Component. Those less than 0 will execute before while those greater than 0 will execute after.
+         * @en Set the component priority, it decides at which order the life cycle functions of components will be invoked. Smaller priority get invoked before larger priority.
+         * This will affect `onLoad`, `onEnable`, `start`, `update` and `lateUpdate`, but `onDisable` and `onDestroy` won't be affected.
+         * @zh 设置脚本生命周期方法调用的优先级。优先级小于 0 的组件将会优先执行，优先级大于 0 的组件将会延后执行。优先级仅会影响 onLoad, onEnable, start, update 和 lateUpdate，而 onDisable 和 onDestroy 不受影响。
+         * @param priority - The execution order of life cycle methods for Component. Smaller priority get invoked before larger priority.
          * @example
-         * ```typescript
-         * const {ccclass, executionOrder} = cc._decorator;
+         * ```ts
+         * import { _decorator, Component } from 'cc';
+         * const {ccclass, executionOrder} = _decorator;
          *
-         *  @ccclass
-         *  @executionOrder(1)
-         * class CameraCtrl extends cc.Component {
+         * @ccclass
+         * @executionOrder(1)
+         * class CameraCtrl extends Component {
          *     // ...
          * }
          * ```
          */
-        export const executionOrder: any;
+        export const executionOrder: (priority: number) => ClassDecorator;
         /**
-         * 防止多个相同类型（或子类型）的组件被添加到同一个节点。
-         *
-         * @method disallowMultiple
+         * @en Forbid add multiple instances of the component to the same node.
+         * @zh 防止多个相同类型（或子类型）的组件被添加到同一个节点。
          * @example
-         * ```typescript
-         * const {ccclass, disallowMultiple} = cc._decorator;
+         * ```ts
+         * import { _decorator, Component } from 'cc';
+         * const {ccclass, disallowMultiple} = _decorator;
          *
-         *  @ccclass
-         *  @disallowMultiple
-         * class CameraCtrl extends cc.Component {
+         * @ccclass
+         * @editable.disallowMultiple
+         * class CameraCtrl extends Component {
          *     // ...
          * }
          * ```
          */
         export const disallowMultiple: any;
         /**
-         * 当指定了 "executeInEditMode" 以后，playOnFocus 可以在选中当前组件所在的节点时，提高编辑器的场景刷新频率到 60 FPS，否则场景就只会在必要的时候进行重绘。
-         *
-         * @method playOnFocus
+         * @en When {{executeInEditMode}} is set, this decorator will decide when a node with the component is on focus whether the editor should running in high FPS mode.
+         * @zh 当指定了 "executeInEditMode" 以后，playOnFocus 可以在选中当前组件所在的节点时，提高编辑器的场景刷新频率到 60 FPS，否则场景就只会在必要的时候进行重绘。
          * @example
-         * ```typescript
-         * const {ccclass, playOnFocus, executeInEditMode} = cc._decorator;
+         * ```ts
+         * import { _decorator, Component } from 'cc';
+         * const {ccclass, playOnFocus, executeInEditMode} = _decorator;
          *
-         *  @ccclass
-         *  @executeInEditMode
-         *  @playOnFocus
-         * class CameraCtrl extends cc.Component {
+         * @ccclass
+         * @editable.executeInEditMode
+         * @playOnFocus
+         * class CameraCtrl extends Component {
          *     // ...
          * }
          * ```
          */
         export const playOnFocus: any;
         /**
-         * 自定义当前组件在 **属性检查器** 中渲染时所用的网页 url。
-         *
-         * @method inspector
-         * @param {String} url
+         * @en Use a customized inspector page in the **inspector**
+         * @zh 自定义当前组件在 **属性检查器** 中渲染时所用的 UI 页面描述。
+         * @param url The url of the page definition in js
          * @example
-         * ```typescript
-         * const {ccclass, inspector} = cc._decorator;
+         * ```ts
+         * import { Component } from 'cc';
+         * import { editable } from 'cc._decorators';
          *
-         *  @ccclass
-         *  @inspector("packages://inspector/inspectors/comps/camera-ctrl.js")
-         * class NewScript extends cc.Component {
+         * @ccclass
+         * @editable.inspector("packages://inspector/inspectors/comps/camera-ctrl.js")
+         * class NewScript extends Component {
          *     // ...
          * }
          * ```
          */
-        export const inspector: any;
+        export const inspector: (url: string) => ClassDecorator;
         /**
-         * 自定义当前组件在编辑器中显示的图标 url。
-         *
-         * @method icon
-         * @param {String} url
+         * @en Define the icon of the component.
+         * @zh 自定义当前组件在编辑器中显示的图标 url。
+         * @param url
          * @private
          * @example
-         * ```typescript
-         * const {ccclass, icon} = cc._decorator;
+         * ```ts
+         * import { Component } from 'cc';
+         * import { editable } from 'cc._decorators';
          *
          *  @ccclass
-         *  @icon("xxxx.png")
-         * class NewScript extends cc.Component {
+         *  @editable.icon("xxxx.png")
+         * class NewScript extends Component {
          *     // ...
          * }
          * ```
          */
-        export const icon: any;
+        export const icon: (url: string) => ClassDecorator;
         /**
-         * 指定当前组件的帮助文档的 url，设置过后，在 **属性检查器** 中就会出现一个帮助图标，用户点击将打开指定的网页。
-         *
-         * @method help
-         * @param {String} url
+         * @en Define the help documentation url, if given, the component section in the **inspector** will have a help documentation icon reference to the web page given.
+         * @zh 指定当前组件的帮助文档的 url，设置过后，在 **属性检查器** 中就会出现一个帮助图标，用户点击将打开指定的网页。
+         * @param url The url of the help documentation
          * @example
-         * ```typescript
-         * const {ccclass, help} = cc._decorator;
+         * ```ts
+         * import { Component } from 'cc';
+         * import { editable } from 'cc._decorators';
          *
-         *  @ccclass
-         *  @help("app://docs/html/components/spine.html")
-         * class NewScript extends cc.Component {
+         * @ccclass
+         * @editable.help("app://docs/html/components/spine.html")
+         * class NewScript extends Component {
          *     // ...
          * }
          * ```
          */
-        export const help: any;
+        export const help: (url: string) => ClassDecorator;
         /**
-         * 将该属性标记为 cc 整数。
+         * @en Declare the property as string
+         * @zh 将该属性标记为字符串。
+         */
+        export const string: PropertyDecorator;
+        /**
+         * @en Declare the property as integer
+         * @zh 将该属性标记为整数。
          */
         export const integer: PropertyDecorator;
         /**
-         * 将该属性标记为 cc 浮点数。
+         * @en Declare the property as float
+         * @zh 将该属性标记为浮点数。
          */
         export const float: PropertyDecorator;
         /**
-         * 将该属性标记为 cc 布尔值。
+         * @en Declare the property as boolean
+         * @zh 将该属性标记为布尔值。
          */
         export const boolean: PropertyDecorator;
         /**
-         * 将该属性标记为 cc 字符串。
+         * @en Declare the property as the given type
+         * @zh 标记该属性的类型。
+         * @param type
          */
-        export const string: PropertyDecorator;
-        export namespace __private {
-            export class cocos_core_data_utils_attribute_PrimitiveType<T> {
-                name: string;
-                default: T;
-                constructor(name: string, defaultValue: T);
-                toString(): string;
-            }
-            export interface cocos_core_data_utils_attribute_defines_IExposedAttributes {
-                /**
-                 * 指定属性的类型。
-                 */
-                type?: any;
-                /**
-                 *
-                 */
-                url?: string;
-                /**
-                 * 控制是否在编辑器中显示该属性。
-                 */
-                visible?: boolean | (() => boolean);
-                /**
-                 * 该属性在编辑器中的显示名称。
-                 */
-                displayName?: string;
-                /**
-                 *
-                 */
-                displayOrder?: number;
-                /**
-                 * 该属性在编辑器中的工具提示内容。
-                 */
-                tooltip?: string;
-                /**
-                 *
-                 */
-                multiline?: boolean;
-                /**
-                 * 指定该属性是否为可读的。
-                 */
-                readonly?: boolean;
-                /**
-                 * 当该属性为数值类型时，指定了该属性允许的最小值。
-                 */
-                min?: number;
-                /**
-                 * 当该属性为数值类型时，指定了该属性允许的最大值。
-                 */
-                max?: number;
-                /**
-                 * 当该属性为数值类型时并在编辑器中提供了滑动条时，指定了滑动条的步长。
-                 */
-                step?: number;
-                /**
-                 * 当该属性为数值类型时，指定了该属性允许的范围。
-                 */
-                range?: number[];
-                /**
-                 * 当该属性为数值类型时，是否在编辑器中提供滑动条来调节值。
-                 */
-                slide?: boolean;
-                /**
-                 * 该属性是否参与序列化和反序列化。
-                 */
-                serializable?: boolean;
-                /**
-                 * 该属性的曾用名。
-                 */
-                formerlySerializedAs?: string;
-                /**
-                 * 该属性是否仅仅在编辑器环境中生效。
-                 */
-                editorOnly?: boolean;
-                /**
-                 * 是否覆盖基类中的同名属性。
-                 */
-                override?: boolean;
-                /**
-                 *
-                 */
-                animatable?: boolean;
-                /**
-                 *
-                 */
-                unit?: string;
-                /**
-                 * 转换为弧度
-                 */
-                radian?: boolean;
-            }
-        }
+        export function type(type: Function | [Function] | any): PropertyDecorator;
+        export function type<T>(type: __private.cocos_core_data_utils_attribute_PrimitiveType<T> | [__private.cocos_core_data_utils_attribute_PrimitiveType<T>]): PropertyDecorator;
     }
-    /**
-     * @en Defines a CCClass using the given specification
-     * @zh 定义一个 CCClass，传入参数必须是一个包含类型参数的字面量对象
-     *
-     * @method Class
-     *
-     * @param {Object} [options]
-     * @param {String} [options.name] - The class name used for serialization.
-     * @param {Function} [options.extends] - The base class.
-     * @param {Function} [options.ctor] - The constructor.
-     * @param {Function} [options.__ctor__] - The same as ctor, but less encapsulated.
-     * @param {Object} [options.properties] - The property definitions.
-     * @param {Object} [options.statics] - The static members.
-     * @param {Function[]} [options.mixins]
-     *
-     * @param {Object} [options.editor] - attributes for Component listed below.
-     * @param {Boolean} [options.editor.executeInEditMode=false] - Allows the current component to run in edit mode. By default, all components are executed only at runtime, meaning that they will not have their callback functions executed while the Editor is in edit mode.
-     * @param {Function} [options.editor.requireComponent] - Automatically add required component as a dependency.
-     * @param {String} [options.editor.menu] - The menu path to register a component to the editors "Component" menu. Eg. "Rendering/Camera".
-     * @param {Number} [options.editor.executionOrder=0] - The execution order of lifecycle methods for Component. Those less than 0 will execute before while those greater than 0 will execute after. The order will only affect onLoad, onEnable, start, update and lateUpdate while onDisable and onDestroy will not be affected.
-     * @param {Boolean} [options.editor.disallowMultiple] - If specified to a type, prevents Component of the same type (or subtype) to be added more than once to a Node.
-     * @param {Boolean} [options.editor.playOnFocus=false] - This property is only available when executeInEditMode is set. If specified, the editor's scene view will keep updating this node in 60 fps when it is selected, otherwise, it will update only if necessary.
-     * @param {String} [options.editor.inspector] - Customize the page url used by the current component to render in the Properties.
-     * @param {String} [options.editor.icon] - Customize the icon that the current component displays in the editor.
-     * @param {String} [options.editor.help] - The custom documentation URL
-     *
-     * @param {Function} [options.update] - lifecycle method for Component, see {{#crossLink "Component/update:method"}}{{/crossLink}}
-     * @param {Function} [options.lateUpdate] - lifecycle method for Component, see {{#crossLink "Component/lateUpdate:method"}}{{/crossLink}}
-     * @param {Function} [options.onLoad] - lifecycle method for Component, see {{#crossLink "Component/onLoad:method"}}{{/crossLink}}
-     * @param {Function} [options.start] - lifecycle method for Component, see {{#crossLink "Component/start:method"}}{{/crossLink}}
-     * @param {Function} [options.onEnable] - lifecycle method for Component, see {{#crossLink "Component/onEnable:method"}}{{/crossLink}}
-     * @param {Function} [options.onDisable] - lifecycle method for Component, see {{#crossLink "Component/onDisable:method"}}{{/crossLink}}
-     * @param {Function} [options.onDestroy] - lifecycle method for Component, see {{#crossLink "Component/onDestroy:method"}}{{/crossLink}}
-     * @param {Function} [options.onFocusInEditor] - lifecycle method for Component, see {{#crossLink "Component/onFocusInEditor:method"}}{{/crossLink}}
-     * @param {Function} [options.onLostFocusInEditor] - lifecycle method for Component, see {{#crossLink "Component/onLostFocusInEditor:method"}}{{/crossLink}}
-     * @param {Function} [options.resetInEditor] - lifecycle method for Component, see {{#crossLink "Component/resetInEditor:method"}}{{/crossLink}}
-     * @param {Function} [options.onRestore] - for Component only, see {{#crossLink "Component/onRestore:method"}}{{/crossLink}}
-     * @param {Function} [options._getLocalBounds] - for Component only, see {{#crossLink "Component/_getLocalBounds:method"}}{{/crossLink}}
-     *
-     * @return {Function} - the created class
-     *
-     * @example
-     * ```typescript
-     * // define base class
-     * var Node = cc.Class();
-     * // define sub class
-     * var Sprite = cc.Class({
-     *     name: 'Sprite',
-     *     extends: Node,
-     *
-     *     ctor: function () {
-     *         this.url = "";
-     *         this.id = 0;
-     *     },
-     *
-     *     statics: {
-     *         // define static members
-     *         count: 0,
-     *         getBounds: function (spriteList) {
-     *             // compute bounds...
-     *         }
-     *     },
-     *
-     *     properties {
-     *         width: {
-     *             default: 128,
-     *             type: 'Integer',
-     *             tooltip: 'The width of sprite'
-     *         },
-     *         height: 128,
-     *         size: {
-     *             get: function () {
-     *                 return cc.v2(this.width, this.height);
-     *             }
-     *         }
-     *     },
-     *
-     *     load: function () {
-     *         // load this.url...
-     *     };
-     * });
-     *
-     * // instantiate
-     *
-     * var obj = new Sprite();
-     * obj.url = 'sprite.png';
-     * obj.load();
-     * ```
-     */
     function CCClass(options: any): any;
     export namespace CCClass {
         export var _isCCClass: (constructor: any) => any;
@@ -7338,49 +6461,12 @@ declare module "cc.core" {
         export var escapeForJS: (s: any) => string;
         export var IDENTIFIER_RE: RegExp;
         export var getNewValueTypeCode: (value: any) => string;
-        export namespace __private {
-            export namespace cocos_core_data_utils_attribute {
-                export function createAttrsSingle(owner: Object, ownerConstructor: Function, superAttrs?: any): any;
-                export function createAttrs(subclass: any): any;
-                export function attr(constructor: any, propertyName: string): {
-                    [propertyName: string]: any;
-                };
-                export function attr(constructor: any, propertyName: string, newAttributes: Object): void;
-                export function getClassAttrs(constructor: any): any;
-                export function getClassAttrsProto(constructor: Function): any;
-                export function setClassAttr(ctor: any, propName: any, key: any, value: any): void;
-                export class PrimitiveType<T> {
-                    name: string;
-                    default: T;
-                    constructor(name: string, defaultValue: T);
-                    toString(): string;
-                }
-                export function getTypeChecker(type: string, attributeName: string): (constructor: Function, mainPropertyName: string) => void;
-                export function getObjTypeChecker(typeCtor: any): (classCtor: any, mainPropName: any) => void;
-            }
-            /**
-             * Tag the class with any meta attributes, then return all current attributes assigned to it.
-             * This function holds only the attributes, not their implementations.
-             * @param constructor The class or instance. If instance, the attribute will be dynamic and only available for the specified instance.
-             * @param propertyName The name of property or function, used to retrieve the attributes.
-             * @param [newAttributes] The attribute table to mark, new attributes will merged with existed attributes.
-             * Attribute whose key starts with '_' will be ignored.
-             * @private
-             */
-            export function cocos_core_data_utils_attribute_attr(constructor: any, propertyName: string): {
-                [propertyName: string]: any;
-            };
-            export function cocos_core_data_utils_attribute_attr(constructor: any, propertyName: string, newAttributes: Object): void;
-        }
     }
     /**
      * @en
      * The base class of most of all the objects in Fireball.
      * @zh
      * 大部分对象的基类。
-     * @class Object
-     *
-     * @main
      * @private
      */
     export class CCObject {
@@ -7396,12 +6482,12 @@ declare module "cc.core" {
          * Destroy this Object, and release all its own references to other objects.<br/>
          * Actual object destruction will delayed until before rendering.
          * From the next frame, this object is not usable any more.
-         * You can use cc.isValid(obj) to check whether the object is destroyed before accessing it.
+         * You can use `isValid(obj)` to check whether the object is destroyed before accessing it.
          * @zh
          * 销毁该对象，并释放所有它对其它对象的引用。<br/>
          * 实际销毁操作会延迟到当前帧渲染前执行。从下一帧开始，该对象将不再可用。
-         * 您可以在访问对象之前使用 cc.isValid(obj) 来检查对象是否已被销毁。
-         * @return {Boolean} whether it is the first time the destroy being called
+         * 您可以在访问对象之前使用 `isValid(obj)` 来检查对象是否已被销毁。
+         * @return whether it is the first time the destroy being called
          * @example
          * ```
          * obj.destroy();
@@ -7432,51 +6518,44 @@ declare module "cc.core" {
         _destruct(): void;
         _destroyImmediate(): void;
     }
-    /**
-     * @module cc
-     */
-    /**
-     * @en
-     * Checks whether the object is non-nil and not yet destroyed.<br>
-     * When an object's `destroy` is called, it is actually destroyed after the end of this frame.
-     * So `isValid` will return false from the next frame, while `isValid` in the current frame will still be true.
-     * If you want to determine whether the current frame has called `destroy`, use `cc.isValid(obj, true)`,
-     * but this is often caused by a particular logical requirements, which is not normally required.
-     *
-     * @zh
-     * 检查该对象是否不为 null 并且尚未销毁。<br>
-     * 当一个对象的 `destroy` 调用以后，会在这一帧结束后才真正销毁。<br>
-     * 因此从下一帧开始 `isValid` 就会返回 false，而当前帧内 `isValid` 仍然会是 true。<br>
-     * 如果希望判断当前帧是否调用过 `destroy`，请使用 `cc.isValid(obj, true)`，不过这往往是特殊的业务需求引起的，通常情况下不需要这样。
-     *
-     * @method isValid
-     * @param value
-     * @param [strictMode=false] - If true, Object called destroy() in this frame will also treated as invalid.
-     * @return whether is valid
-     * @example
-     * ```
-     * import * as cc from 'cc';
-     * var node = new cc.Node();
-     * cc.log(cc.isValid(node));    // true
-     * node.destroy();
-     * cc.log(cc.isValid(node));    // true, still valid in this frame
-     * // after a frame...
-     * cc.log(cc.isValid(node));    // false, destroyed in the end of last frame
-     * ```
-     */
+    export namespace CCObject {
+        export enum Flags {
+            Destroyed,
+            DontSave,
+            EditorOnly,
+            Dirty,
+            DontDestroy,
+            PersistentMask,
+            Destroying,
+            Deactivating,
+            LockedInEditor,
+            HideInHierarchy,
+            IsPreloadStarted,
+            IsOnLoadStarted,
+            IsOnLoadCalled,
+            IsOnEnableCalled,
+            IsStartCalled,
+            IsEditorOnEnableCalled,
+            IsPositionLocked,
+            IsRotationLocked,
+            IsScaleLocked,
+            IsAnchorLocked,
+            IsSizeLocked
+        }
+    }
     export function isValid(value: any, strictMode?: boolean): boolean;
     /**
      * @module cc
      */
     /**
-     * @en Deserialize json to cc.Asset
+     * @en Deserialize json to `Asset`.
      * @zh 将 JSON 反序列化为对象实例。
      *
      * 当指定了 target 选项时，如果 target 引用的其它 asset 的 uuid 不变，则不会改变 target 对 asset 的引用，
      * 也不会将 uuid 保存到 result 对象中。
      *
      * @method deserialize
-     * @param {String|Object} data - the serialized cc.Asset json string or json object.
+     * @param {String|Object} data - the serialized `Asset` json string or json object.
      * @param {Details} [details] - additional loading result
      * @param {Object} [options]
      * @return {object} the main data(asset)
@@ -7486,45 +6565,40 @@ declare module "cc.core" {
         export var reportMissingClass: (id: any) => void;
     }
     /**
-     * @en Clones the object `original` and returns the clone, or instantiate a node from the Prefab.
-     * @zh 克隆指定的任意类型的对象，或者从 Prefab 实例化出新节点。
-     *
-     * （Instantiate 时，function 和 dom 等非可序列化对象会直接保留原有引用，Asset 会直接进行浅拷贝，可序列化类型会进行深拷贝。）
-     *
-     * @method instantiate
-     * @param {Prefab|Node|Object} original - An existing object that you want to make a copy of.
-     * @return {Node|Object} the newly instantiated object
+     * @zh 从 Prefab 实例化出新节点。
+     * @en Instantiate a node from the Prefab.
+     * @param prefab The prefab.
+     * @returns The instantiated node.
      * @example
-     * ```typescript
-     * // instantiate node from prefab
-     * var scene = cc.director.getScene();
-     * var node = cc.instantiate(prefabAsset);
-     * node.parent = scene;
-     * // clone node
-     * var scene = cc.director.getScene();
-     * var node = cc.instantiate(targetNode);
-     * node.parent = scene;
+     * ```ts
+     * import { instantiate, director } from 'cc';
+     * // Instantiate node from prefab.
+     * const node = instantiate(prefabAsset);
+     * node.parent = director.getScene();
      * ```
      */
-    function instantiate(original: any, internal_force?: any): any;
+    function instantiate(prefab: Prefab): Node;
+    /**
+     * @en Clones the object `original.
+     * @zh 克隆指定的任意类型的对象。
+     * @param original An existing object that you want to make a copy of.
+     * It can be any JavaScript object(`typeof original === 'object'`) but:
+     * - it shall not be array or null;
+     * - it shall not be object of `Asset`;
+     * - if it's an object of `CCObject`, it should not have been destroyed.
+     * @returns The newly instantiated object.
+     * @example
+     * ```ts
+     * import { instantiate, director } from 'cc';
+     * // Clone a node.
+     * const node = instantiate(targetNode);
+     * node.parent = director.getScene();
+     * ```
+     */
+    function instantiate<T>(original: T): T;
     export namespace instantiate {
         export var _clone: typeof __private.cocos_core_data_instantiate_doInstantiate;
-        export namespace __private {
-            /**
-             * @en
-             * Do instantiate object, the object to instantiate must be non-nil.
-             * @zh
-             * 这是一个通用的 instantiate 方法，可能效率比较低。
-             * 之后可以给各种类型重写快速实例化的特殊实现，但应该在单元测试中将结果和这个方法的结果进行对比。
-             * 值得注意的是，这个方法不可重入。
-             *
-             * @param {Object} obj - 该方法仅供内部使用，用户需负责保证参数合法。什么参数是合法的请参考 cc.instantiate 的实现。
-             * @param {Node} [parent] - 只有在该对象下的场景物体会被克隆。
-             * @return {Object}
-             * @private
-             */
-            function cocos_core_data_instantiate_doInstantiate(obj: any, parent?: any): any;
-        }
+        export var _clone: typeof __private.cocos_core_data_instantiate_doInstantiate;
     }
     /**
      * 指定编辑器以整数形式对待该属性或数组元素。
@@ -7541,7 +6615,7 @@ declare module "cc.core" {
      * array = [];
      * ```
      */
-    export const CCInteger: _decorator.__private.cocos_core_data_utils_attribute_PrimitiveType<number>;
+    export const CCInteger: __private.cocos_core_data_utils_attribute_PrimitiveType<number>;
     /**
      * 指定编辑器以浮点数形式对待该属性或数组元素。
      * 例如：
@@ -7557,7 +6631,7 @@ declare module "cc.core" {
      * array = [];
      * ```
      */
-    export const CCFloat: _decorator.__private.cocos_core_data_utils_attribute_PrimitiveType<number>;
+    export const CCFloat: __private.cocos_core_data_utils_attribute_PrimitiveType<number>;
     /**
      * 指定编辑器以布尔值形式对待该属性或数组元素。
      * 例如：
@@ -7573,7 +6647,7 @@ declare module "cc.core" {
      * array = [];
      * ```
      */
-    export const CCBoolean: _decorator.__private.cocos_core_data_utils_attribute_PrimitiveType<boolean>;
+    export const CCBoolean: __private.cocos_core_data_utils_attribute_PrimitiveType<boolean>;
     /**
      * 指定编辑器以字符串形式对待该属性或数组元素。
      * 例如：
@@ -7589,7 +6663,7 @@ declare module "cc.core" {
      * array = [];
      * ```
      */
-    export const CCString: _decorator.__private.cocos_core_data_utils_attribute_PrimitiveType<string>;
+    export const CCString: __private.cocos_core_data_utils_attribute_PrimitiveType<string>;
     export class CompactValueTypeArray {
         static StorageUnit: typeof __private.cocos_core_data_utils_compact_value_type_array_StorageUnit;
         static ElementType: typeof __private.cocos_core_data_utils_compact_value_type_array_ElementType;
@@ -7813,101 +6887,33 @@ declare module "cc.core" {
         getType(): string;
     }
     /**
-     * !#en
+     * @en
      * EventTarget is an object to which an event is dispatched when something has occurred.
-     * Entity are the most common event targets, but other objects can be event targets too.
+     * [[Node]]s are the most common event targets, but other objects can be event targets too.
+     * If a class cannot extend from EventTarget, it can consider using [[Eventify]].
      *
-     * Event targets are an important part of the Fireball event model.
-     * The event target serves as the focal point for how events flow through the scene graph.
-     * When an event such as a mouse click or a keypress occurs, Fireball dispatches an event object
-     * into the event flow from the root of the hierarchy. The event object then makes its way through
-     * the scene graph until it reaches the event target, at which point it begins its return trip through
-     * the scene graph. This round-trip journey to the event target is conceptually divided into three phases:
-     * - The capture phase comprises the journey from the root to the last node before the event target's node
-     * - The target phase comprises only the event target node
-     * - The bubbling phase comprises any subsequent nodes encountered on the return trip to the root of the tree
-     * See also: http://www.w3.org/TR/DOM-Level-3-Events/#event-flow
-     *
-     * Event targets can implement the following methods:
-     *  - _getCapturingTargets
-     *  - _getBubblingTargets
-     *
-     * If a class cannot extend from EventTarget, it can consider implements IEventTarget interface.
-     *
-     * !#zh
-     * 事件目标是具有注册监听器、派发事件能力的类，Node 是最常见的事件目标，
+     * @zh
+     * 事件目标是具有注册监听器、派发事件能力的类，[[Node]] 是最常见的事件目标，
      * 但是其他类也可以继承自事件目标以获得管理监听器和派发事件的能力。
-     * 如果无法继承自 EventTarget，也可以考虑自实现 IEventTarget
+     * 如果无法继承自 EventTarget，也可以使用 [[Eventify]]
      */
-    export class EventTarget extends __private.cocos_core_event_callbacks_invoker_CallbacksInvoker {
-        /**
-         * @en
-         * Register an callback of a specific event type on the EventTarget.
-         * This type of event should be triggered via `emit`.
-         * @zh
-         * 注册事件目标的特定事件类型回调。这种类型的事件应该被 `emit` 触发。
-         *
-         * @param type - A string representing the event type to listen for.
-         * @param callback - The callback that will be invoked when the event is dispatched.
-         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-         * @param target - The target (this object) to invoke the callback, can be null
-         * @return - Just returns the incoming callback so you can save the anonymous function easier.
-         * @example
-         * eventTarget.on('fire', function () {
-         *     cc.log("fire in the hole");
-         * }, node);
-         */
-        on(type: string, callback: Function, target?: Object): Function | undefined;
-        /**
-         * @en
-         * Removes the listeners previously registered with the same type, callback, target and or useCapture,
-         * if only type is passed as parameter, all listeners registered with that type will be removed.
-         * @zh
-         * 删除之前用同类型，回调，目标或 useCapture 注册的事件监听器，如果只传递 type，将会删除 type 类型的所有事件监听器。
-         *
-         * @param type - A string representing the event type being removed.
-         * @param callback - The callback to remove.
-         * @param target - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
-         * @example
-         * // register fire eventListener
-         * var callback = eventTarget.on('fire', function () {
-         *     cc.log("fire in the hole");
-         * }, target);
-         * // remove fire event listener
-         * eventTarget.off('fire', callback, target);
-         * // remove all fire event listeners
-         * eventTarget.off('fire');
-         */
-        off(type: string, callback?: Function, target?: Object): void;
-        /**
-         * @en Removes all callbacks previously registered with the same target (passed as parameter).
-         * This is not for removing all listeners in the current event target,
-         * and this is not for removing all listeners the target parameter have registered.
-         * It's only for removing all listeners (callback and target couple) registered on the current event target by the target parameter.
-         * @zh 在当前 EventTarget 上删除指定目标（target 参数）注册的所有事件监听器。
-         * 这个函数无法删除当前 EventTarget 的所有事件监听器，也无法删除 target 参数所注册的所有事件监听器。
-         * 这个函数只能删除 target 参数在当前 EventTarget 上注册的所有事件监听器。
-         * @param target - The target to be searched for all related listeners
-         */
-        targetOff(keyOrTarget?: string | Object): void;
-        /**
-         * @en
-         * Register an callback of a specific event type on the EventTarget,
-         * the callback will remove itself after the first time it is triggered.
-         * @zh
-         * 注册事件目标的特定事件类型回调，回调会在第一时间被触发后删除自身。
-         *
-         * @param type - A string representing the event type to listen for.
-         * @param callback - The callback that will be invoked when the event is dispatched.
-         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-         * @param target - The target (this object) to invoke the callback, can be null
-         * @example
-         * eventTarget.once('fire', function () {
-         *     cc.log("this is the callback and will be invoked only once");
-         * }, node);
-         */
-        once(type: string, callback: Function, target?: Object): Function | undefined;
-    }
+    export const EventTarget: new (...args: any[]) => __private.cocos_core_event_event_target_Empty & import("cocos/core/event/eventify").IEventified;
+    export type EventTarget = InstanceType<typeof EventTarget>;
+    /**
+     * @en Generate a new class from the given base class, after polyfill all functionalities in [[IEventified]] as if it's extended from [[EventTarget]]
+     * @zh 生成一个类，该类继承自指定的基类，并以和 [[EventTarget]] 等同的方式实现了 [[IEventified]] 的所有接口。
+     * @param base The base class
+     * @example
+     * ```ts
+     * class Base { say() { console.log('Hello!'); } }
+     * class MyClass extends Eventify(Base) { }
+     * function (o: MyClass) {
+     *     o.say(); // Ok: Extend from `Base`
+     *     o.emit('sing', 'The ghost'); // Ok: `MyClass` implements IEventified
+     * }
+     * ```
+     */
+    export function Eventify<TBase>(base: __private.cocos_core_event_eventify_Constructor<TBase>): __private.cocos_core_event_eventify_Constructor<TBase & __private.cocos_core_event_eventify_IEventified>;
     /**
      * 原生资源的基类。内部使用。
      * @private
@@ -7930,37 +6936,31 @@ declare module "cc.core" {
      * You may want to override:<br/>
      * - createNode<br/>
      * - getset functions of _nativeAsset<br/>
-     * - cc.Object._serialize<br/>
-     * - cc.Object._deserialize<br/>
+     * - `Object._serialize`<br/>
+     * - `Object._deserialize`<br/>
      * @zh
      * Creator 中的资源基类。<br/>
      *
      * 您可能需要重写：<br/>
      * - createNode <br/>
      * - _nativeAsset 的 getset 方法<br/>
-     * - cc.Object._serialize<br/>
-     * - cc.Object._deserialize<br/>
+     * - `Object._serialize`<br/>
+     * - `Object._deserialize`<br/>
      *
      * @class Asset
      * @extends RawAsset
      */
-    export class Asset extends RawAsset implements __private.cocos_core_event_event_target_factory_IEventTarget {
+    export class Asset extends __private.cocos_core_assets_asset_Asset_base {
         /**
          * @en Indicates whether its dependent raw assets can support deferred load if the owner scene (or prefab) is marked as `asyncLoadAssets`.
          * @zh 当场景或 Prefab 被标记为 `asyncLoadAssets`，禁止延迟加载该资源所依赖的其它 RawAsset。
-         *
-         * @property {Boolean} preventDeferredLoadDependents
          * @default false
-         * @static
          */
         static preventDeferredLoadDependents: boolean;
         /**
          * @en Indicates whether its native object should be preloaded from native url.
          * @zh 禁止预加载原生对象。
-         *
-         * @property {Boolean} preventPreloadNativeObject
          * @default false
-         * @static
          */
         static preventPreloadNativeObject: boolean;
         /**
@@ -7985,22 +6985,6 @@ declare module "cc.core" {
          * @default ""
          */
         _native: string;
-        constructor(...args: ConstructorParameters<typeof RawAsset>);
-        /**
-         * @en
-         * IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
-         * @zh
-         * IEventTarget 实现，它们将被 applyMixins 在 EventTarget 中用相同的实现覆盖
-         */
-        _callbackTable: any;
-        on(type: string, callback: Function, target?: Object | undefined): Function | undefined;
-        off(type: string, callback?: Function | undefined, target?: Object | undefined): void;
-        targetOff(keyOrTarget?: string | Object | undefined): void;
-        once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
-        dispatchEvent(event: Event): void;
-        hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
-        removeAll(keyOrTarget?: string | Object | undefined): void;
-        emit(key: string, ...args: any[]): void;
         get nativeUrl(): string;
         get _nativeAsset(): any;
         set _nativeAsset(obj: any);
@@ -8066,26 +7050,20 @@ declare module "cc.core" {
         static OptimizationPolicy: {
             /**
              * 根据创建次数自动调整优化策略。初次创建实例时，行为等同 SINGLE_INSTANCE，多次创建后将自动采用 MULTI_INSTANCE。
-             * @property {Number} AUTO
              */
             AUTO: number;
             /**
              * 优化单次创建性能。<br>
              * 该选项会跳过针对这个 prefab 的代码生成优化操作。当该 prefab 加载后，一般只会创建一个实例时，请选择此项。
-             * @property {Number} SINGLE_INSTANCE
              */
             SINGLE_INSTANCE: number;
             /**
              * 优化多次创建性能。<br>
              * 该选项会启用针对这个 prefab 的代码生成优化操作。当该 prefab 加载后，一般会创建多个实例时，请选择此项。如果该 prefab 在场景中的节点启用了自动关联，并且在场景中有多份实例，也建议选择此项。
-             * @property {Number} MULTI_INSTANCE
              */
             MULTI_INSTANCE: number;
         };
         static OptimizationPolicyThreshold: number;
-        /**
-         * @property {Node} data - the main cc.Node in the prefab
-         */
         data: any;
         /**
          * @zh
@@ -8094,12 +7072,12 @@ declare module "cc.core" {
          * Indicates the optimization policy for instantiating this prefab.
          * Set to a suitable value based on usage, can optimize the time it takes to instantiate this prefab.
          *
-         * @property {Prefab.OptimizationPolicy} optimizationPolicy
          * @default Prefab.OptimizationPolicy.AUTO
          * @since 1.10.0
          * @example
-         * ```typescript
-         * prefab.optimizationPolicy = cc.Prefab.OptimizationPolicy.MULTI_INSTANCE;
+         * ```ts
+         * import { Prefab } from 'cc';
+         * prefab.optimizationPolicy = Prefab.OptimizationPolicy.MULTI_INSTANCE;
          * ```
          */
         optimizationPolicy: number;
@@ -8138,7 +7116,6 @@ declare module "cc.core" {
         /**
          * @en Indicates the raw assets of this scene can be load after scene launched.
          * @zh 指示该场景依赖的资源可否在场景切换后再延迟加载。
-         * @property {Boolean} asyncLoadAssets
          * @default false
          */
         asyncLoadAssets: boolean;
@@ -8149,7 +7126,6 @@ declare module "cc.core" {
      *
      * @zh
      * 精灵图集资源类。
-     * 可通过 cc.SpriteAtlas 获取该组件。
      */
     export class SpriteAtlas extends Asset {
         spriteFrames: __private.cocos_core_assets_sprite_atlas_ISpriteFrameList;
@@ -8159,7 +7135,7 @@ declare module "cc.core" {
          *
          * @returns - 精灵贴图。
          */
-        getTexture(): import("cocos/core/assets/texture-base").TextureBase | null;
+        getTexture(): RenderTexture | import("cocos/core/assets/texture-base").TextureBase | null;
         /**
          * @zh
          * 根据键值获取精灵。
@@ -8222,7 +7198,6 @@ declare module "cc.core" {
          * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
          * https://github.com/TooTallNate/node-weak
          *
-         * @property {object} _uuidToAsset
          * @private
          */
         _uuidToAsset: {};
@@ -8340,6 +7315,7 @@ declare module "cc.core" {
          * @param data 新的原始图像源。
          */
         reset(data: __private.cocos_core_assets_image_asset_ImageSource): void;
+        destroy(): boolean;
         _serialize(): "" | {
             fmt: string;
             w: number;
@@ -8358,7 +7334,7 @@ declare module "cc.core" {
         get image(): ImageAsset | null;
         set image(value: ImageAsset | null);
         _mipmaps: ImageAsset[];
-        constructor();
+        initialize(): void;
         onLoaded(): void;
         /**
          * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级。重置后，贴图的像素数据将变为未定义。
@@ -8403,15 +7379,11 @@ declare module "cc.core" {
         releaseTexture(): void;
         _serialize(exporting?: any): any;
         _deserialize(serializedData: any, handle: any): void;
-        initialize(): void;
         protected _getGfxTextureCreateInfo(presumed: __private.cocos_core_assets_simple_texture_PresumedGFXTextureInfo): {
             type: GFXTextureType;
             width: number;
             height: number;
-        } & Pick<IGFXTextureInfo, "usage" | "flags" | "format" | "mipLevel">;
-        protected _getGfxTextureViewCreateInfo(presumed: __private.cocos_core_assets_simple_texture_PresumedGFXTextureViewInfo): {
-            type: GFXTextureViewType;
-        } & Pick<IGFXTextureViewInfo, "format" | "texture">;
+        } & Pick<IGFXTextureInfo, "usage" | "format" | "flags" | "levelCount">;
         protected _checkTextureLoaded(): void;
     }
     /**
@@ -8431,7 +7403,7 @@ declare module "cc.core" {
          * @param out 出口立方体贴图，若未定义则将创建为新的立方体贴图。
          * @returns `out`
          * @example
-         * ```typescript
+         * ```ts
          * const textures = new Array<Texture2D>(6);
          * textures[TextureCube.FaceIndex.front] = frontImage;
          * textures[TextureCube.FaceIndex.back] = backImage;
@@ -8444,7 +7416,6 @@ declare module "cc.core" {
          */
         static fromTexture2DArray(textures: Texture2D[], out?: TextureCube): TextureCube;
         _mipmaps: __private.cocos_core_assets_texture_cube_ITextureCubeMipmap[];
-        constructor();
         onLoaded(): void;
         /**
          * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级。重置后，贴图的像素数据将变为未定义。
@@ -8474,16 +7445,7 @@ declare module "cc.core" {
             }[];
         };
         _deserialize(serializedData: __private.cocos_core_assets_texture_cube_ITextureCubeSerializeData, handle: any): void;
-        protected _getGfxTextureCreateInfo(presumed: __private.cocos_core_assets_simple_texture_PresumedGFXTextureInfo): {
-            type: GFXTextureType;
-            width: number;
-            height: number;
-            arrayLayer: number;
-        } & Pick<IGFXTextureInfo, "usage" | "flags" | "format" | "mipLevel">;
-        protected _getGfxTextureViewCreateInfo(presumed: __private.cocos_core_assets_simple_texture_PresumedGFXTextureViewInfo): {
-            type: GFXTextureViewType;
-            layerCount: number;
-        } & Pick<IGFXTextureViewInfo, "format" | "texture">;
+        protected _getGfxTextureCreateInfo(presumed: __private.cocos_core_assets_simple_texture_PresumedGFXTextureInfo): IGFXTextureInfo;
     }
     /**
      * @en
@@ -8491,7 +7453,6 @@ declare module "cc.core" {
      *
      * @zh
      * TTF 字体资源类。
-     * 可通过 cc.TTFFont 获取该组件。
      */
     export class TTFFont extends Font {
         _fontFamily: any;
@@ -8504,7 +7465,6 @@ declare module "cc.core" {
      *
      * @zh
      * 艺术数字字体资源类。
-     * 可通过 cc.LabelAtlas 获取该组件。
      *
      */
     export class LabelAtlas extends BitmapFont {
@@ -8515,7 +7475,6 @@ declare module "cc.core" {
      *
      * @zh
      * 位图字体资源类。
-     * 可通过 cc.BitmapFont 获取该组件。
      */
     export class BitmapFont extends Font {
         fntDataStr: string;
@@ -8541,7 +7500,6 @@ declare module "cc.core" {
      *
      * @zh
      * 字体资源类。
-     * 可通过 cc.Font 获取该组件。
      */
     export class Font extends Asset {
     }
@@ -8553,7 +7511,7 @@ declare module "cc.core" {
          * @param target 回调函数的 `this` 参数。
          * @returns 图像资源，返回时可能还未完成加载；加载完成或失败时会调用回调函数。
          */
-        export function loadImage<T>(url: string, callback?: LoadImageCallback<T>, target?: T): ImageAsset;
+        export function loadImage<T extends object>(url: string, callback?: LoadImageCallback<T>, target?: T): ImageAsset;
         /**
          * 缓存指定的图像源，为它指定链接。此后，可以通过该链接直接加载它。
          * @param url 指定的链接。
@@ -8603,7 +7561,7 @@ declare module "cc.core" {
          * @zh
          * 当前 effect 使用的所有 shader。
          */
-        shaders: renderer.__private.cocos_core_assets_effect_asset_IShaderInfo[];
+        shaders: __private.cocos_core_assets_effect_asset_IShaderInfo[];
         /**
          * @zh
          * 每个 shader 需要预编译的宏定义组合。
@@ -8626,7 +7584,7 @@ declare module "cc.core" {
         static getHash(material: Material): number;
         protected _effectAsset: EffectAsset | null;
         protected _techIdx: number;
-        protected _defines: renderer.IDefineMap[];
+        protected _defines: renderer.MacroRecord[];
         protected _states: renderer.PassOverrides[];
         protected _props: Record<string, __private.cocos_core_assets_material_MaterialPropertyFull | __private.cocos_core_assets_material_MaterialPropertyFull[]>[];
         protected _passes: renderer.Pass[];
@@ -8662,7 +7620,7 @@ declare module "cc.core" {
          * @param overrides The shader macro override values.
          * @param passIdx The pass to apply to. Will apply to all passes if not specified.
          */
-        recompileShaders(overrides: renderer.IDefineMap, passIdx?: number): void;
+        recompileShaders(overrides: renderer.MacroRecord, passIdx?: number): void;
         /**
          * @en Override the passes with the specified pipeline states. Allowed only on material instances.
          * @zh 使用指定管线状态重载当前的 pass（数组）。只允许对材质实例执行。
@@ -8705,7 +7663,7 @@ declare module "cc.core" {
          * @param name The property or uniform name.
          * @param passIdx The target pass index. If not specified, return the first found value in all passes.
          */
-        getProperty(name: string, passIdx?: number): number | math.Vec3 | math.Mat4 | math.Quat | math.Mat3 | math.Vec2 | math.Vec4 | math.Color | GFXTextureView | __private.cocos_core_assets_texture_base_TextureBase | SpriteFrame | __private.cocos_core_assets_material_MaterialPropertyFull[] | null;
+        getProperty(name: string, passIdx?: number): number | math.Vec3 | math.Mat4 | math.Quat | math.Mat3 | math.Vec2 | math.Vec4 | math.Color | GFXTexture | RenderTexture | __private.cocos_core_assets_texture_base_TextureBase | SpriteFrame | __private.cocos_core_assets_material_MaterialPropertyFull[] | null;
         /**
          * @en Copy the target material.
          * @zh 复制目标材质到当前实例。
@@ -8728,7 +7686,7 @@ declare module "cc.core" {
         get minPosition(): math.Vec3 | undefined;
         get maxPosition(): math.Vec3 | undefined;
         get struct(): Mesh.IStruct;
-        get data(): Uint8Array | null;
+        get data(): Uint8Array;
         get hash(): number;
         get jointBufferIndices(): number[];
         constructor();
@@ -8753,7 +7711,7 @@ declare module "cc.core" {
          * @param info 网格重置选项。
          */
         reset(info: Mesh.ICreateInfo): void;
-        get renderingSubMeshes(): renderer.__private.cocos_core_assets_mesh_RenderingSubMesh[];
+        get renderingSubMeshes(): __private.cocos_core_assets_mesh_RenderingSubMesh[];
         getBoneSpaceBounds(skeleton: Skeleton): (geometry.aabb | null)[];
         /**
          * 合并指定的网格到此网格中。
@@ -8896,72 +7854,32 @@ declare module "cc.core" {
              */
             data: Uint8Array;
         }
-        export namespace __private {
-            export interface cocos_core_assets_morph_MorphTarget {
-                /**
-                 * Displacement of each target attribute.
-                 */
-                displacements: Mesh.IBufferView[];
-            }
-            export interface cocos_core_assets_morph_SubMeshMorph {
-                /**
-                 * Attributes to morph.
-                 */
-                attributes: GFXAttributeName[];
-                /**
-                 * Targets.
-                 */
-                targets: cocos_core_assets_morph_MorphTarget[];
-                /**
-                 * Initial weights of each target.
-                 */
-                weights?: number[];
-            }
-            export interface cocos_core_assets_morph_Morph {
-                /**
-                 * Morph data of each sub-mesh.
-                 */
-                subMeshMorphs: Array<cocos_core_assets_morph_SubMeshMorph | null>;
-                /**
-                 * Common initial weights of each sub-mesh.
-                 */
-                weights?: number[];
-            }
-        }
     }
     /**
      * 骨骼资源。
      * 骨骼资源记录了每个关节（相对于`SkinningModelComponent.skinningRoot`）的路径以及它的绑定姿势矩阵。
      */
     export class Skeleton extends Asset {
-        get bindposes(): math.Mat4[];
-        set bindposes(value: math.Mat4[]);
         get joints(): string[];
         set joints(value: string[]);
+        get bindposes(): math.Mat4[];
+        set bindposes(value: math.Mat4[]);
+        get inverseBindposes(): math.Mat4[];
         get hash(): number;
         destroy(): boolean;
     }
-    export class RenderTexture extends __private.cocos_core_assets_texture_base_TextureBase {
-        static DepthStencilFormat: typeof __private.cocos_core_assets_asset_enum_DepthStencilFormat;
+    export class RenderTexture extends Asset {
         get width(): number;
-        set width(value: number);
         get height(): number;
-        set height(value: number);
-        get depthStencilFormat(): __private.cocos_core_assets_asset_enum_DepthStencilFormat;
-        set depthStencilFormat(value: __private.cocos_core_assets_asset_enum_DepthStencilFormat);
-        getGFXWindow(): GFXWindow | null;
-        getGFXTextureView(): GFXTextureView | null;
-        getGFXStencilTexture(): GFXTextureView | null;
-        reset(info?: __private.cocos_core_assets_render_texture_IRenderTextureCreateInfo): void;
+        get window(): RenderWindow | null;
+        initialize(info: __private.cocos_core_assets_render_texture_IRenderTextureCreateInfo): void;
+        reset(info: __private.cocos_core_assets_render_texture_IRenderTextureCreateInfo): void;
         destroy(): boolean;
+        resize(width: number, height: number): void;
+        getGFXTexture(): GFXTexture | null;
+        getGFXSampler(): GFXSampler;
         onLoaded(): void;
-        _serialize(exporting?: any): any;
-        _deserialize(serializeData: any, handle: any): void;
-        protected _tryResetWindow(): void;
-        protected _createWindow(device: GFXDevice): GFXWindow | undefined;
-    }
-    export class RenderPipelineAsset extends Asset {
-        renderPipeline: RenderPipeline | null;
+        protected _initWindow(info?: __private.cocos_core_assets_render_texture_IRenderTextureCreateInfo): void;
     }
     /**
      * @zh
@@ -8998,7 +7916,7 @@ declare module "cc.core" {
         /**
          * @zh Texture 对象资源。
          */
-        texture?: __private.cocos_core_assets_texture_base_TextureBase;
+        texture?: __private.cocos_core_assets_texture_base_TextureBase | RenderTexture;
         /**
          * @zh 精灵帧原始尺寸。
          */
@@ -9038,8 +7956,8 @@ declare module "cc.core" {
     }
     /**
      * @en
-     * A cc.SpriteFrame has:<br/>
-     *  - texture: A cc.Texture2D that will be used by render components<br/>
+     * A `SpriteFrame` has:<br/>
+     *  - texture: A `Texture2D` that will be used by render components<br/>
      *  - rectangle: A rectangle of the texture
      *
      * @zh
@@ -9047,13 +7965,14 @@ declare module "cc.core" {
      * 一个 SpriteFrame 包含：<br/>
      *  - 纹理：会被渲染组件使用的 Texture2D 对象。<br/>
      *  - 矩形：在纹理中的矩形区域。
-     * 可通过 cc.SpriteFrame 获取该组件。
+     * 可通过 `SpriteFrame` 获取该组件。
      *
      * @example
-     * ```typescript
+     * ```ts
+     * import { loader } from 'cc';
      * // First way to use a SpriteFrame
      * const url = "assets/PurpleMonster/icon/spriteFrame";
-     * cc.loader.loadRes(url, (err, spriteFrame) => {
+     * loader.loadRes(url, (err, spriteFrame) => {
      *   const node = new Node("New Sprite");
      *   const sprite = node.addComponent(SpriteComponent);
      *   sprite.spriteFrame = spriteFrame;
@@ -9063,7 +7982,7 @@ declare module "cc.core" {
      * // Second way to use a SpriteFrame
      * const self = this;
      * const url = "test_assets/PurpleMonster";
-     * cc.loader.loadRes(url, (err, imageAsset) => {
+     * loader.loadRes(url, (err, imageAsset) => {
      *  if(err){
      *    return;
      *  }
@@ -9093,6 +8012,14 @@ declare module "cc.core" {
      * ```
      */
     export class SpriteFrame extends Asset {
+        /**
+         * @en
+         * Create a SpriteFrame object by an image asset or an native image asset
+         * @zh
+         * 通过 Image 资源或者原始 image 资源创建一个 SpriteFrame 对象
+         * @param imageSourceOrImageAsset ImageAsset or ImageSource, ImageSource support HTMLCanvasElement HTMLImageElement IMemoryImageSource
+         */
+        static createWithImage(imageSourceOrImageAsset: __private.cocos_core_assets_image_asset_ImageSource | ImageAsset): SpriteFrame;
         get insetTop(): number;
         set insetTop(value: number);
         get insetBottom(): number;
@@ -9109,8 +8036,8 @@ declare module "cc.core" {
         set offset(value: math.Vec2);
         get rotated(): boolean;
         set rotated(rotated: boolean);
-        get texture(): __private.cocos_core_assets_texture_base_TextureBase;
-        set texture(value: __private.cocos_core_assets_texture_base_TextureBase);
+        get texture(): RenderTexture | __private.cocos_core_assets_texture_base_TextureBase;
+        set texture(value: RenderTexture | __private.cocos_core_assets_texture_base_TextureBase);
         get atlasUuid(): string;
         set atlasUuid(value: string);
         get width(): number;
@@ -9134,7 +8061,7 @@ declare module "cc.core" {
         protected _rotated: boolean;
         protected _capInsets: number[];
         protected _atlasUuid: string;
-        protected _texture: __private.cocos_core_assets_texture_base_TextureBase;
+        protected _texture: __private.cocos_core_assets_texture_base_TextureBase | RenderTexture;
         protected _flipUv: boolean;
         constructor();
         /**
@@ -9226,8 +8153,8 @@ declare module "cc.core" {
          * @deprecated 即将在 1.2 废除，请使用 `spritFrame.offset = offset`。
          */
         setOffset(offset: math.Vec2): void;
-        getGFXTextureView(): GFXTextureView | null;
-        getGFXSampler(): GFXSampler | null;
+        getGFXTexture(): GFXTexture | null;
+        getGFXSampler(): GFXSampler;
         /**
          * 重置 SpriteFrame 数据。
          * @param info SpriteFrame 初始化数据。
@@ -9239,7 +8166,7 @@ declare module "cc.core" {
          *
          * @param texture
          */
-        checkRect(texture: __private.cocos_core_assets_texture_base_TextureBase): boolean;
+        checkRect(texture: __private.cocos_core_assets_texture_base_TextureBase | RenderTexture): boolean;
         onLoaded(): void;
         destroy(): boolean;
         _calculateSlicedUV(): void;
@@ -9251,7 +8178,7 @@ declare module "cc.core" {
         _serialize(exporting?: any): any;
         _deserialize(serializeData: any, handle: any): void;
         protected _textureLoaded(): void;
-        protected _refreshTexture(texture: __private.cocos_core_assets_texture_base_TextureBase): void;
+        protected _refreshTexture(texture: __private.cocos_core_assets_texture_base_TextureBase | RenderTexture): void;
     }
     /**
      * @en Outputs a message to the Cocos Creator Console (editor) or Web Console (runtime).
@@ -9303,7 +8230,7 @@ declare module "cc.core" {
     export function logID(id: number, ...optionalParams: any[]): void;
     export function errorID(id: number, ...optionalParams: any[]): void;
     export function warnID(id: number, ...optionalParams: any[]): void;
-    export function assertID(condition: boolean, id: number, ...optionalParams: any[]): void;
+    export function assertID(condition: any, id: number, ...optionalParams: any[]): void;
     /**
      * @en Returns whether or not to display the FPS and debug information.
      * @zh 是否显示 FPS 信息和部分调试信息。
@@ -9314,9 +8241,6 @@ declare module "cc.core" {
      * @zh 设置是否在左下角显示 FPS 和部分调试。
      */
     export function setDisplayStats(displayStats: boolean): void;
-    /**
-     * @category core
-     */
     /**
      * @en The screen API provides an easy way for web content to be presented using the user's entire screen.
      * It's designed for web platforms and some mobile browsers don't provide such behavior, e.g. Safari
@@ -10151,7 +9075,6 @@ declare module "cc.core" {
          * </p>
          * Currently not useful in 3D engine
          */
-        FIX_ARTIFACTS_BY_STRECHING_TEXEL_TMX: boolean;
         /**
          * @en
          * Whether or not enabled tiled map auto culling. If you set the TiledMap skew or rotation,
@@ -10163,12 +9086,6 @@ declare module "cc.core" {
          * @default true
          */
         ENABLE_TILEDMAP_CULLING: boolean;
-        /**
-         * @en Position of the FPS (Default: 0,0 (bottom-left corner))<br/>
-         * Currently not useful in 3D engine
-         * @zh 在 3D 引擎中暂时无效。
-         */
-        DIRECTOR_STATS_POSITION: math.Vec2;
         /**
          * @en
          * The timeout to determine whether a touch is no longer active and should be removed.
@@ -10228,7 +9145,6 @@ declare module "cc.core" {
          * 同时，在少部分使用软件级别抗锯齿算法的设备或浏览器上，这个选项会对性能产生比较大的影响。
          * 你可以在 {{game.init}} 之前设置这个值，否则它不会生效。
          * 仅支持 Web
-         * @property {Boolean} ENABLE_WEBGL_ANTIALIAS
          * @default false
          */
         ENABLE_WEBGL_ANTIALIAS: boolean;
@@ -10255,7 +9171,6 @@ declare module "cc.core" {
          * Whether to enable multi-touch.
          * @zh
          * 是否开启多点触摸
-         * @property {Boolean} ENABLE_MULTI_TOUCH
          * @default true
          */
         ENABLE_MULTI_TOUCH: boolean;
@@ -10294,11 +9209,11 @@ declare module "cc.core" {
         resizeWithBrowserSize(enabled: boolean): void;
         /**
          * @en
-         * Sets the callback function for cc.view's resize action,<br/>
+         * Sets the callback function for `view`'s resize action,<br/>
          * this callback will be invoked before applying resolution policy, <br/>
          * so you can do any additional modifications within the callback.<br/>
          * Useful only on web.
-         * @zh 设置 cc.view 调整视窗尺寸行为的回调函数，
+         * @zh 设置 `view` 调整视窗尺寸行为的回调函数，
          * 这个回调函数会在应用适配模式之前被调用，
          * 因此你可以在这个回调函数内添加任意附加改变，
          * 仅在 Web 平台下有效。
@@ -10309,12 +9224,12 @@ declare module "cc.core" {
          * @en
          * Sets the orientation of the game, it can be landscape, portrait or auto.
          * When set it to landscape or portrait, and screen w/h ratio doesn't fit,
-         * cc.view will automatically rotate the game canvas using CSS.
+         * `view` will automatically rotate the game canvas using CSS.
          * Note that this function doesn't have any effect in native,
          * in native, you need to set the application orientation in native project settings
          * @zh 设置游戏屏幕朝向，它能够是横版，竖版或自动。
          * 当设置为横版或竖版，并且屏幕的宽高比例不匹配时，
-         * cc.view 会自动用 CSS 旋转游戏场景的 canvas，
+         * `view` 会自动用 CSS 旋转游戏场景的 canvas，
          * 这个方法不会对 native 部分产生任何影响，对于 native 而言，你需要在应用设置中的设置排版。
          * @param orientation - Possible values: macro.ORIENTATION_LANDSCAPE | macro.ORIENTATION_PORTRAIT | macro.ORIENTATION_AUTO
          */
@@ -10554,6 +9469,13 @@ declare module "cc.core" {
         protected _fixContainer(): void;
     }
     /**
+     * @en
+     * Emit when canvas resize.
+     * @zh
+     * 当画布大小改变时发送。
+     * @event canvas-resize
+     */
+    /**
      * ContentStrategy class is the root strategy class of content's scale strategy,
      * it controls the behavior of how to scale the scene and setup the viewport for the game
      *
@@ -10679,15 +9601,15 @@ declare module "cc.core" {
     export const view: View;
     /**
      * @en
-     * This class has been deprecated, please use cc.systemEvent or cc.EventTarget instead.
+     * This class has been deprecated, please use `systemEvent` or `EventTarget` instead.
      * See [Listen to and launch events](../../../manual/en/scripting/events.md) for details.<br>
      * <br>
-     * cc.eventManager is a singleton object which manages event listener subscriptions and event dispatching.
+     * `eventManager` is a singleton object which manages event listener subscriptions and event dispatching.
      * The EventListener list is managed in such way so that event listeners can be added and removed
      * while events are being dispatched.
      *
      * @zh
-     * 该类已废弃，请使用 cc.systemEvent 或 cc.EventTarget 代替，详见 [监听和发射事件](../../../manual/zh/scripting/events.md)。<br>
+     * 该类已废弃，请使用 `systemEvent` 或 `EventTarget` 代替，详见 [监听和发射事件](../../../manual/zh/scripting/events.md)。<br>
      * <br>
      * 事件管理器，它主要管理事件监听器注册和派发系统事件。
      *
@@ -10698,16 +9620,28 @@ declare module "cc.core" {
      */
     export const eventManager: __private.cocos_core_platform_event_manager_event_manager_EventManager;
     /**
+     * @en the device accelerometer reports values for each axis in units of g-force.
+     * @zh 设备重力传感器传递的各个轴的数据。
+     */
+    export class Acceleration {
+        x: number;
+        y: number;
+        z: number;
+        timestamp: number;
+        constructor(x?: number, y?: number, z?: number, timestamp?: number);
+    }
+    /**
      * @en
      * The System event, it currently supports keyboard events and accelerometer events.<br/>
-     * You can get the SystemEvent instance with cc.systemEvent.<br/>
+     * You can get the `SystemEvent` instance with `systemEvent`.<br/>
      * @zh
      * 系统事件，它目前支持按键事件和重力感应事件。<br/>
-     * 你可以通过 cc.systemEvent 获取到 SystemEvent 的实例。<br/>
+     * 你可以通过 `systemEvent` 获取到 `SystemEvent` 的实例。<br/>
      * @example
      * ```
-     * cc.systemEvent.on(cc.SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
-     * cc.systemEvent.off(cc.SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
+     * import { systemEvent, SystemEvent } from 'cc';
+     * systemEvent.on(SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
+     * systemEvent.off(SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
      * ```
      */
     export class SystemEvent extends EventTarget {
@@ -11118,12 +10052,12 @@ declare module "cc.core" {
          * @en The acceleration object
          * @zh 加速度对象
          */
-        acc: Object;
+        acc: Acceleration;
         /**
          * @param acc - The acceleration
          * @param bubbles - Indicate whether the event bubbles up through the hierarchy or not.
          */
-        constructor(acc: Object, bubbles?: boolean);
+        constructor(acc: Acceleration, bubbles?: boolean);
     }
     /**
      * @en
@@ -11392,22 +10326,22 @@ declare module "cc.core" {
          * 设置 debug 模式，在浏览器中这个选项会被忽略。
          * 各种设置选项的意义：
          *  - 0 - 没有消息被打印出来。
-         *  - 1 - cc.error，cc.assert，cc.warn，cc.log 将打印在 console 中。
-         *  - 2 - cc.error，cc.assert，cc.warn 将打印在 console 中。
-         *  - 3 - cc.error，cc.assert 将打印在 console 中。
-         *  - 4 - cc.error，cc.assert，cc.warn，cc.log 将打印在 canvas 中（仅适用于 web 端）。
-         *  - 5 - cc.error，cc.assert，cc.warn 将打印在 canvas 中（仅适用于 web 端）。
-         *  - 6 - cc.error，cc.assert 将打印在 canvas 中（仅适用于 web 端）。
+         *  - 1 - `error`，`assert`，`warn`，`log` 将打印在 console 中。
+         *  - 2 - `error`，`assert`，`warn` 将打印在 console 中。
+         *  - 3 - `error`，`assert` 将打印在 console 中。
+         *  - 4 - `error`，`assert`，`warn`，`log` 将打印在 canvas 中（仅适用于 web 端）。
+         *  - 5 - `error`，`assert`，`warn` 将打印在 canvas 中（仅适用于 web 端）。
+         *  - 6 - `error`，`assert` 将打印在 canvas 中（仅适用于 web 端）。
          * @en
          * Set debug mode, only valid in non-browser environment.
          * Possible values:
          * 0 - No message will be printed.
-         * 1 - cc.error, cc.assert, cc.warn, cc.log will print in console.
-         * 2 - cc.error, cc.assert, cc.warn will print in console.
-         * 3 - cc.error, cc.assert will print in console.
-         * 4 - cc.error, cc.assert, cc.warn, cc.log will print on canvas, available only on web.
-         * 5 - cc.error, cc.assert, cc.warn will print on canvas, available only on web.
-         * 6 - cc.error, cc.assert will print on canvas, available only on web.
+         * 1 - `error`，`assert`，`warn`，`log` will print in console.
+         * 2 - `error`，`assert`，`warn` will print in console.
+         * 3 - `error`，`assert` will print in console.
+         * 4 - `error`，`assert`，`warn`，`log` will print on canvas, available only on web.
+         * 5 - `error`，`assert`，`warn` will print on canvas, available only on web.
+         * 6 - `error`，`assert` will print on canvas, available only on web.
          */
         debugMode?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
         /**
@@ -11487,6 +10421,10 @@ declare module "cc.core" {
          * GPU instancing options
          */
         customJointTextureLayouts?: renderer.ICustomJointTextureLayout[];
+        /**
+         * Physics system config
+         */
+        physics?: __private.cocos_physics_framework_physics_config_IPhysicsConfig;
     }
     /**
      * @en An object to boot the game.
@@ -11502,12 +10440,12 @@ declare module "cc.core" {
          * @zh 游戏进入后台时触发的事件。<br>
          * 请注意，在 WEB 平台，这个事件不一定会 100% 触发，这完全取决于浏览器的回调行为。<br>
          * 在原生平台，它对应的是应用被切换到后台事件，下拉菜单和上拉状态栏等不一定会触发这个事件，这取决于系统行为。
-         * @property EVENT_HIDE
          * @example
-         * ```typescript
-         * cc.game.on(Game.EVENT_HIDE, function () {
-         *     cc.audioEngine.pauseMusic();
-         *     cc.audioEngine.pauseAllEffects();
+         * ```ts
+         * import { game, audioEngine } from 'cc';
+         * game.on(Game.EVENT_HIDE, function () {
+         *     audioEngine.pauseMusic();
+         *     audioEngine.pauseAllEffects();
          * });
          * ```
          */
@@ -11519,15 +10457,11 @@ declare module "cc.core" {
          * @zh 游戏进入前台运行时触发的事件。<br>
          * 请注意，在 WEB 平台，这个事件不一定会 100% 触发，这完全取决于浏览器的回调行为。<br>
          * 在原生平台，它对应的是应用被切换到前台事件。
-         * @property EVENT_SHOW
-         * @constant
          */
-        static EVENT_SHOW: string;
+        static readonly EVENT_SHOW: string;
         /**
          * @en Event triggered after game inited, at this point all engine objects and game scripts are loaded
          * @zh 游戏启动后的触发事件，此时加载所有的引擎对象和游戏脚本。
-         * @property EVENT_GAME_INITED
-         * @constant
          */
         static EVENT_GAME_INITED: string;
         /**
@@ -11537,64 +10471,55 @@ declare module "cc.core" {
          * @zh 在引擎初始化之后触发的事件，此时您能够使用引擎所有的类。<br>
          * 它在 cocos creator v1.x 版本中名字为 EVENT_RENDERER_INITED ,在 v2.0 版本中更名为 EVENT_ENGINE_INITED
          * 并在 cocos creator 3d 版本中将 EVENT_RENDERER_INITED 用作为渲染器初始化的事件。
-         * @property EVENT_ENGINE_INITED
-         * @constant
          */
         static EVENT_ENGINE_INITED: string;
         /**
          * @en Event triggered after renderer inited, at this point you will be able to use all gfx renderer feature.<br>
          * @zh 在渲染器初始化之后触发的事件，此事件在 EVENT_ENGINE_INITED 之前触发，此时开始可使用 gfx 渲染框架。
-         * @property EVENT_RENDERER_INITED
-         * @readonly
          */
         static readonly EVENT_RENDERER_INITED: string;
         /**
+         * @en Event triggered when game restart
+         * @zh 调用restart后，触发事件
+         */
+        static EVENT_RESTART: string;
+        /**
          * @en Web Canvas 2d API as renderer backend.
          * @zh 使用 Web Canvas 2d API 作为渲染器后端。
-         * @property RENDER_TYPE_CANVAS
-         * @constant
          */
         static RENDER_TYPE_CANVAS: number;
         /**
          * @en WebGL API as renderer backend.
          * @zh 使用 WebGL API 作为渲染器后端。
-         * @property RENDER_TYPE_WEBGL
-         * @constant
          */
         static RENDER_TYPE_WEBGL: number;
         /**
          * @en OpenGL API as renderer backend.
          * @zh 使用 OpenGL API 作为渲染器后端。
-         * @property RENDER_TYPE_OPENGL
-         * @constant
          */
         static RENDER_TYPE_OPENGL: number;
         /**
          * @en The outer frame of the game canvas; parent of game container.
          * @zh 游戏画布的外框，container 的父容器。
-         * @property frame
          */
         frame: Object | null;
         /**
          * @en The container of game canvas.
          * @zh 游戏画布的容器。
-         * @property container
          */
         container: HTMLDivElement | null;
         /**
          * @en The canvas of the game.
          * @zh 游戏的画布。
-         * @property canvas
          */
         canvas: HTMLCanvasElement | null;
         /**
          * @en The renderer backend of the game.
          * @zh 游戏的渲染器类型。
-         * @property renderType
          */
         renderType: number;
-        eventTargetOn: (type: string, callback: Function, target?: Object | undefined) => Function | undefined;
-        eventTargetOnce: (type: string, callback: Function, target?: Object | undefined) => Function | undefined;
+        eventTargetOn: <TFunction extends Function>(type: string, callback: TFunction, thisArg?: any, once?: boolean | undefined) => TFunction;
+        eventTargetOnce: <TFunction extends Function>(type: string, callback: TFunction, thisArg?: any) => TFunction;
         /**
          * @en
          * The current game configuration,
@@ -11602,7 +10527,6 @@ declare module "cc.core" {
          * @zh
          * 当前的游戏配置
          * 注意：请不要直接修改这个对象，它不会有任何效果。
-         * @property config
          */
         config: IGameConfig;
         /**
@@ -11618,7 +10542,7 @@ declare module "cc.core" {
         _isCloning: boolean;
         _inited: boolean;
         _rendererInitialized: boolean;
-        _gfxDevice: WebGL2GFXDevice | WebGLGFXDevice | null;
+        _gfxDevice: GFXDevice | null;
         _intervalId: number | null;
         _lastTime: Date | null;
         _frameTime: number | null;
@@ -11645,8 +10569,8 @@ declare module "cc.core" {
         /**
          * @en Pause the game main loop. This will pause:<br>
          * game logic execution, rendering process, event manager, background music and all audio effects.<br>
-         * This is different with cc.director.pause which only pause the game logic execution.<br>
-         * @zh 暂停游戏主循环。包含：游戏逻辑，渲染，事件处理，背景音乐和所有音效。这点和只暂停游戏逻辑的 cc.director.pause 不同。
+         * This is different with `director.pause` which only pause the game logic execution.<br>
+         * @zh 暂停游戏主循环。包含：游戏逻辑，渲染，事件处理，背景音乐和所有音效。这点和只暂停游戏逻辑的 `director.pause` 不同。
          */
         pause(): void;
         /**
@@ -11689,7 +10613,7 @@ declare module "cc.core" {
          * @param {Object} [target] - The target (this object) to invoke the callback, can be null
          * @return {Function} - Just returns the incoming callback so you can save the anonymous function easier.
          */
-        on(type: string, callback: Function, target?: object): any;
+        on(type: string, callback: Function, target?: object, once?: boolean): any;
         /**
          * @en
          * Register an callback of a specific event type on the game object,<br>
@@ -11771,7 +10695,7 @@ declare module "cc.core" {
      * and consumes less memory to use the 'update callback'. *
      * @zh
      * Scheduler 是负责触发回调函数的类。<br>
-     * 通常情况下，建议使用 cc.director.getScheduler() 来获取系统定时器。<br>
+     * 通常情况下，建议使用 `director.getScheduler()` 来获取系统定时器。<br>
      * 有两种不同类型的定时器：<br>
      *     - update 定时器：每一帧都会触发。您可以自定义优先级。<br>
      *     - 自定义定时器：自定义定时器可以每一帧或者自定义的时间间隔触发。<br>
@@ -11783,13 +10707,11 @@ declare module "cc.core" {
         /**
          * @en Priority level reserved for system services.
          * @zh 系统服务的优先级。
-         * @property PRIORITY_SYSTEM
          */
         static PRIORITY_SYSTEM: number;
         /**
          * @en Minimum priority level for user scheduling.
          * @zh 用户调度最低优先级。
-         * @property PRIORITY_NON_SYSTEM
          */
         static PRIORITY_NON_SYSTEM: number;
         static ID: string;
@@ -11837,7 +10759,7 @@ declare module "cc.core" {
          *   If paused is YES, then it won't be called until it is resumed.<br/>
          *   If 'interval' is 0, it will be called every frame, but if so, it recommended to use 'scheduleUpdateForTarget:' instead.<br/>
          *   If the callback function is already scheduled, then only the interval parameter will be updated without re-scheduling it again.<br/>
-         *   repeat let the action be repeated repeat + 1 times, use cc.macro.REPEAT_FOREVER to let the action run continuously<br/>
+         *   repeat let the action be repeated repeat + 1 times, use `macro.REPEAT_FOREVER` to let the action run continuously<br/>
          *   delay is the amount of time the action will wait before it'll start<br/>
          * </p>
          * @zh
@@ -11847,13 +10769,13 @@ declare module "cc.core" {
          * 如果 interval 值为 0，那么回调函数每一帧都会被调用，但如果是这样，
          * 建议使用 scheduleUpdateForTarget 代替。<br/>
          * 如果回调函数已经被定时器使用，那么只会更新之前定时器的时间间隔参数，不会设置新的定时器。<br/>
-         * repeat 值可以让定时器触发 repeat + 1 次，使用 cc.macro.REPEAT_FOREVER
+         * repeat 值可以让定时器触发 repeat + 1 次，使用 `macro.REPEAT_FOREVER`
          * 可以让定时器一直循环触发。<br/>
          * delay 值指定延迟时间，定时器会在延迟指定的时间之后开始计时。
          * @param {Function} callback
          * @param {Object} target
          * @param {Number} interval
-         * @param {Number} [repeat=cc.macro.REPEAT_FOREVER]
+         * @param {Number} [repeat]
          * @param {Number} [delay=0]
          * @param {Boolean} [paused=fasle]
          */
@@ -11988,15 +10910,15 @@ declare module "cc.core" {
     /**
      * @en
      * <p>
-     *    ATTENTION: USE cc.director INSTEAD OF cc.Director.<br/>
-     *    cc.director is a singleton object which manage your game's logic flow.<br/>
-     *    Since the cc.director is a singleton, you don't need to call any constructor or create functions,<br/>
+     *    ATTENTION: USE `director` INSTEAD OF `Director`.<br/>
+     *    `director` is a singleton object which manage your game's logic flow.<br/>
+     *    Since the `director` is a singleton, you don't need to call any constructor or create functions,<br/>
      *    the standard way to use it is by calling:<br/>
-     *      - cc.director.methodName(); <br/>
+     *      - `director.methodName();` <br/>
      *
      *    It creates and handle the main Window and manages how and when to execute the Scenes.<br/>
      *    <br/>
-     *    The cc.director is also responsible for:<br/>
+     *    The `director` is also responsible for:<br/>
      *      - initializing the OpenGL context<br/>
      *      - setting the OpenGL pixel format (default on is RGB565)<br/>
      *      - setting the OpenGL buffer depth (default on is 0-bit)<br/>
@@ -12005,14 +10927,14 @@ declare module "cc.core" {
      *      - setting the orientation (default one is Portrait)<br/>
      *      <br/>
      *    <br/>
-     *    The cc.director also sets the default OpenGL context:<br/>
+     *    The `director` also sets the default OpenGL context:<br/>
      *      - GL_TEXTURE_2D is enabled<br/>
      *      - GL_VERTEX_ARRAY is enabled<br/>
      *      - GL_COLOR_ARRAY is enabled<br/>
      *      - GL_TEXTURE_COORD_ARRAY is enabled<br/>
      * </p>
      * <p>
-     *   cc.director also synchronizes timers with the refresh rate of the display.<br/>
+     *   `director` also synchronizes timers with the refresh rate of the display.<br/>
      *   Features and Limitations:<br/>
      *      - Scheduled timers & drawing are synchronizes with the refresh rate of the display<br/>
      *      - Only supports animation intervals of 1/60 1/30 & 1/15<br/>
@@ -12020,15 +10942,15 @@ declare module "cc.core" {
      *
      * @zh
      * <p>
-     *     注意：用 cc.director 代替 cc.Director。<br/>
-     *     cc.director 一个管理你的游戏的逻辑流程的单例对象。<br/>
-     *     由于 cc.director 是一个单例，你不需要调用任何构造函数或创建函数，<br/>
+     *     注意：用 `director` 代替 `Director`。<br/>
+     *     `director` 一个管理你的游戏的逻辑流程的单例对象。<br/>
+     *     由于 `director` 是一个单例，你不需要调用任何构造函数或创建函数，<br/>
      *     使用它的标准方法是通过调用：<br/>
-     *       - cc.director.methodName();
+     *       - `director.methodName();`
      *     <br/>
      *     它创建和处理主窗口并且管理什么时候执行场景。<br/>
      *     <br/>
-     *     cc.director 还负责：<br/>
+     *     `director` 还负责：<br/>
      *      - 初始化 OpenGL 环境。<br/>
      *      - 设置OpenGL像素格式。(默认是 RGB565)<br/>
      *      - 设置OpenGL缓冲区深度 (默认是 0-bit)<br/>
@@ -12036,14 +10958,14 @@ declare module "cc.core" {
      *      - 设置投影 (默认是 3D)<br/>
      *      - 设置方向 (默认是 Portrait)<br/>
      *    <br/>
-     *    cc.director 设置了 OpenGL 默认环境 <br/>
+     *    `director` 设置了 OpenGL 默认环境 <br/>
      *      - GL_TEXTURE_2D   启用。<br/>
      *      - GL_VERTEX_ARRAY 启用。<br/>
      *      - GL_COLOR_ARRAY  启用。<br/>
      *      - GL_TEXTURE_COORD_ARRAY 启用。<br/>
      * </p>
      * <p>
-     *   cc.director 也同步定时器与显示器的刷新速率。
+     *   `director` 也同步定时器与显示器的刷新速率。
      *   <br/>
      *   特点和局限性: <br/>
      *      - 将计时器 & 渲染与显示器的刷新频率同步。<br/>
@@ -12062,8 +10984,6 @@ declare module "cc.core" {
         /**
          * @en The event which will be triggered when the singleton of Director initialized.
          * @zh Director 单例初始化时触发的事件
-         * @property {String} EVENT_INIT
-         * @readonly
          */
         static readonly EVENT_INIT = "director_init";
         /**
@@ -12074,8 +10994,6 @@ declare module "cc.core" {
         /**
          * @en The event which will be triggered when the singleton of Director reset.
          * @zh Director 单例重置时触发的事件
-         * @property {String} EVENT_RESET
-         * @readonly
          */
         static readonly EVENT_RESET = "director_reset";
         /**
@@ -12087,8 +11005,6 @@ declare module "cc.core" {
         /**
          * @en The event which will be triggered before loading a new scene.
          * @zh 加载新场景之前所触发的事件。
-         * @property {String} EVENT_BEFORE_SCENE_LOADING
-         * @readonly
          */
         static readonly EVENT_BEFORE_SCENE_LOADING = "director_before_scene_loading";
         /**
@@ -12100,8 +11016,6 @@ declare module "cc.core" {
         /**
          * @en The event which will be triggered before launching a new scene.
          * @zh 运行新场景之前所触发的事件。
-         * @property {String} EVENT_BEFORE_SCENE_LAUNCH
-         * @readonly
          */
         static readonly EVENT_BEFORE_SCENE_LAUNCH = "director_before_scene_launch";
         /**
@@ -12113,8 +11027,6 @@ declare module "cc.core" {
         /**
          * @en The event which will be triggered after launching a new scene.
          * @zh 运行新场景之后所触发的事件。
-         * @property {String} EVENT_AFTER_SCENE_LAUNCH
-         * @readonly
          */
         static readonly EVENT_AFTER_SCENE_LAUNCH = "director_after_scene_launch";
         /**
@@ -12125,8 +11037,6 @@ declare module "cc.core" {
         /**
          * @en The event which will be triggered at the beginning of every frame.
          * @zh 每个帧的开始时所触发的事件。
-         * @property {String} EVENT_BEFORE_UPDATE
-         * @readonly
          */
         static readonly EVENT_BEFORE_UPDATE = "director_before_update";
         /**
@@ -12137,8 +11047,6 @@ declare module "cc.core" {
         /**
          * @en The event which will be triggered after engine and components update logic.
          * @zh 将在引擎和组件 “update” 逻辑之后所触发的事件。
-         * @property {String} EVENT_AFTER_UPDATE
-         * @readonly
          */
         static readonly EVENT_AFTER_UPDATE = "director_after_update";
         /**
@@ -12149,34 +11057,25 @@ declare module "cc.core" {
         /**
          * @en The event which will be triggered before the rendering process.
          * @zh 渲染过程之前所触发的事件。
-         * @property {String} EVENT_BEFORE_DRAW
-         * @readonly
          */
         static readonly EVENT_BEFORE_DRAW = "director_before_draw";
         /**
          * @en The event which will be triggered after the rendering process.
          * @zh 渲染过程之后所触发的事件。
-         * @event Director.EVENT_AFTER_DRAW
          */
         /**
          * @en The event which will be triggered after the rendering process.
          * @zh 渲染过程之后所触发的事件。
-         * @property {String} EVENT_AFTER_DRAW
-         * @readonly
          */
         static readonly EVENT_AFTER_DRAW = "director_after_draw";
         /**
          * The event which will be triggered before the physics process.<br/>
          * 物理过程之前所触发的事件。
-         * @event Director.EVENT_BEFORE_PHYSICS
-         * @readonly
          */
         static readonly EVENT_BEFORE_PHYSICS = "director_before_physics";
         /**
          * The event which will be triggered after the physics process.<br/>
          * 物理过程之后所触发的事件。
-         * @event Director.EVENT_AFTER_PHYSICS
-         * @readonly
          */
         static readonly EVENT_AFTER_PHYSICS = "director_after_physics";
         static instance: Director;
@@ -12222,10 +11121,10 @@ declare module "cc.core" {
          * Returns the size of the OpenGL view in pixels.<br/>
          * It takes into account any possible rotation (device orientation) of the window.<br/>
          * On Mac winSize and winSizeInPixels return the same value.
-         * (The pixel here refers to the resource resolution. If you want to get the physics resolution of device, you need to use cc.view.getFrameSize())
+         * (The pixel here refers to the resource resolution. If you want to get the physics resolution of device, you need to use `view.getFrameSize()`)
          * @zh
          * 获取视图大小，以像素为单位（这里的像素指的是资源分辨率。
-         * 如果要获取屏幕物理分辨率，需要用 cc.view.getFrameSize()）
+         * 如果要获取屏幕物理分辨率，需要用 `view.getFrameSize()`）
          * @deprecated since v2.0
          */
         getWinSizeInPixels(): import("cocos/core/math").Size;
@@ -12233,9 +11132,9 @@ declare module "cc.core" {
          * @en Pause the director's ticker, only involve the game logic execution.<br>
          * It won't pause the rendering process nor the event manager.<br>
          * If you want to pause the entire game including rendering, audio and event,<br>
-         * please use cc.game.pause
+         * please use `game.pause`.
          * @zh 暂停正在运行的场景，该暂停只会停止游戏逻辑执行，但是不会停止渲染和 UI 响应。<br>
-         * 如果想要更彻底得暂停游戏，包含渲染，音频和事件，请使用 cc.game.pause 。
+         * 如果想要更彻底得暂停游戏，包含渲染，音频和事件，请使用 `game.pause` 。
          */
         pause(): void;
         /**
@@ -12245,15 +11144,15 @@ declare module "cc.core" {
          */
         purgeCachedData(): void;
         /**
-         * @en Purge the cc.director itself, including unschedule all schedule,<br>
+         * @en Purge the `director` itself, including unschedule all schedule,<br>
          * remove all event listeners, clean up and exit the running scene, stops all animations, clear cached data.
-         * @zh 清除 cc.director 本身，包括停止所有的计时器，<br>
+         * @zh 清除 `director` 本身，包括停止所有的计时器，<br>
          * 移除所有的事件监听器，清理并退出当前运行的场景，停止所有动画，清理缓存数据。
          */
         purgeDirector(): void;
         /**
-         * @en Reset the cc.director, can be used to restart the director after purge
-         * @zh 重置 cc.director，可用于在清除后重启 director
+         * @en Reset the director, can be used to restart the director after purge
+         * @zh 重置此 Director，可用于在清除后重启 Director。
          */
         reset(): void;
         /**
@@ -12290,12 +11189,12 @@ declare module "cc.core" {
         /**
          * @en
          * Pre-loads the scene to reduces loading time. You can call this method at any time you want.<br>
-         * After calling this method, you still need to launch the scene by `cc.director.loadScene`.<br>
-         * It will be totally fine to call `cc.director.loadScene` at any time even if the preloading is not<br>
+         * After calling this method, you still need to launch the scene by `director.loadScene`.<br>
+         * It will be totally fine to call `director.loadScene` at any time even if the preloading is not<br>
          * yet finished, the scene will be launched after loaded automatically.
          * @zh 预加载场景，你可以在任何时候调用这个方法。
-         * 调用完后，你仍然需要通过 `cc.director.loadScene` 来启动场景，因为这个方法不会执行场景加载操作。<br>
-         * 就算预加载还没完成，你也可以直接调用 `cc.director.loadScene`，加载完成后场景就会启动。
+         * 调用完后，你仍然需要通过 `director.loadScene` 来启动场景，因为这个方法不会执行场景加载操作。<br>
+         * 就算预加载还没完成，你也可以直接调用 `director.loadScene`，加载完成后场景就会启动。
          * @param sceneName 场景名称。
          * @param onLoaded 加载回调。
          */
@@ -12303,12 +11202,12 @@ declare module "cc.core" {
         /**
          * @en
          * Pre-loads the scene to reduces loading time. You can call this method at any time you want.<br>
-         * After calling this method, you still need to launch the scene by `cc.director.loadScene`.<br>
-         * It will be totally fine to call `cc.director.loadScene` at any time even if the preloading is not<br>
+         * After calling this method, you still need to launch the scene by `director.loadScene`.<br>
+         * It will be totally fine to call `director.loadScene` at any time even if the preloading is not<br>
          * yet finished, the scene will be launched after loaded automatically.
          * @zh 预加载场景，你可以在任何时候调用这个方法。
-         * 调用完后，你仍然需要通过 `cc.director.loadScene` 来启动场景，因为这个方法不会执行场景加载操作。<br>
-         * 就算预加载还没完成，你也可以直接调用 `cc.director.loadScene`，加载完成后场景就会启动。
+         * 调用完后，你仍然需要通过 `director.loadScene` 来启动场景，因为这个方法不会执行场景加载操作。<br>
+         * 就算预加载还没完成，你也可以直接调用 `director.loadScene`，加载完成后场景就会启动。
          * @param sceneName 场景名称。
          * @param onProgress 加载进度回调。
          * @param onLoaded 加载回调。
@@ -12342,11 +11241,11 @@ declare module "cc.core" {
          * (Implementation can be found in directorCanvas.js/directorWebGL.js)
          * @zh
          * 设置场景的默认擦除颜色。<br>
-         * 支持全透明，但不支持透明度为中间值。要支持全透明需手工开启 cc.macro.ENABLE_TRANSPARENT_CANVAS。
+         * 支持全透明，但不支持透明度为中间值。要支持全透明需手工开启 `macro.ENABLE_TRANSPARENT_CANVAS`。
          * @deprecated since v2.0
          */
         setClearColor(clearColor: math.Color): void;
-        get root(): renderer.__private.cocos_core_root_Root | null;
+        get root(): __private.cocos_core_root_Root | null;
         /**
          * @en Returns current logic Scene.
          * @zh 获取当前逻辑场景。
@@ -12372,9 +11271,9 @@ declare module "cc.core" {
         getAnimationInterval(): number;
         /**
          * @en Sets animation interval, this doesn't control the main loop.<br>
-         * To control the game's frame rate overall, please use cc.game.setFrameRate
+         * To control the game's frame rate overall, please use `game.setFrameRate`
          * @zh 设置动画间隔，这不控制主循环。<br>
-         * 要控制游戏的帧速率，请使用 cc.game.setFrameRate
+         * 要控制游戏的帧速率，请使用 `game.setFrameRate`
          * @deprecated since v2.0
          * @param value - The animation interval desired.
          */
@@ -12400,18 +11299,18 @@ declare module "cc.core" {
          */
         isPaused(): boolean;
         /**
-         * @en Returns the cc.Scheduler associated with this director.
-         * @zh 获取和 director 相关联的 cc.Scheduler。
+         * @en Returns the scheduler associated with this director.
+         * @zh 获取和 director 相关联的调度器。
          */
         getScheduler(): Scheduler;
         /**
-         * @en Sets the cc.Scheduler associated with this director.
-         * @zh 设置和 director 相关联的 cc.Scheduler。
+         * @en Sets the scheduler associated with this director.
+         * @zh 设置和 director 相关联的调度器。
          */
         setScheduler(scheduler: Scheduler): void;
         /**
-         * @en register a system.
-         * @zh 注册一个 system。
+         * @en Register a system.
+         * @zh 注册一个系统。
          */
         registerSystem(name: string, sys: System, priority: number): void;
         unregisterSystem(sys: System): void;
@@ -12421,8 +11320,8 @@ declare module "cc.core" {
          */
         getSystem(name: string): System | undefined;
         /**
-         * @en Returns the cc.AnimationManager associated with this director. Please use getSystem(AnimationManager.ID)
-         * @zh 获取和 director 相关联的 cc.AnimationManager（动画管理器）。请使用 getSystem(AnimationManager.ID) 来替代
+         * @en Returns the `AnimationManager` associated with this director. Please use getSystem(AnimationManager.ID)
+         * @zh 获取和 director 相关联的 `AnimationManager`（动画管理器）。请使用 getSystem(AnimationManager.ID) 来替代
          * @deprecated
          */
         getAnimationManager(): any;
@@ -12456,69 +11355,68 @@ declare module "cc.core" {
     }
     /**
      * 导演类。
-     * @property director
      */
     export const director: Director;
-    export interface IGFXBinding {
-        binding: number;
-        bindingType: GFXBindingType;
-        name: string;
-    }
-    export interface IGFXBindingLayoutInfo {
-        bindings: IGFXBinding[];
-    }
-    export class GFXBindingUnit {
-        binding: number;
-        type: GFXBindingType;
-        name: string;
-        buffer: GFXBuffer | null;
-        texView: GFXTextureView | null;
-        sampler: GFXSampler | null;
+    export const DESCRIPTOR_BUFFER_TYPE: number;
+    export const DESCRIPTOR_SAMPLER_TYPE = GFXDescriptorType.SAMPLER;
+    export interface IGFXDescriptorSetInfo {
+        layout: GFXDescriptorSetLayout;
     }
     /**
-     * @en GFX binding layout.
-     * @zh GFX 绑定布局。
+     * @en GFX descriptor sets.
+     * @zh GFX 描述符集组。
      */
-    export abstract class GFXBindingLayout extends GFXObject {
+    export abstract class GFXDescriptorSet extends GFXObject {
+        get layout(): GFXDescriptorSetLayout;
         protected _device: GFXDevice;
-        protected _bindingUnits: GFXBindingUnit[];
+        protected _layout: GFXDescriptorSetLayout | null;
+        protected _buffers: GFXBuffer[];
+        protected _textures: GFXTexture[];
+        protected _samplers: GFXSampler[];
         protected _isDirty: boolean;
         constructor(device: GFXDevice);
-        abstract initialize(info: IGFXBindingLayoutInfo): boolean;
+        abstract initialize(info: IGFXDescriptorSetInfo): boolean;
         abstract destroy(): void;
         abstract update(): void;
         /**
-         * @en Bind buffer to the specified binding unit.
-         * @zh 在指定的 binding 位置上绑定缓冲。
+         * @en Bind buffer to the specified descriptor.
+         * @zh 在指定的描述符位置上绑定缓冲。
          * @param binding The target binding.
          * @param buffer The buffer to be bound.
          */
         bindBuffer(binding: number, buffer: GFXBuffer): void;
         /**
-         * @en Bind sampler to the specified binding unit.
-         * @zh 在指定的 binding 位置上绑定采样器。
+         * @en Bind sampler to the specified descriptor.
+         * @zh 在指定的描述符位置上绑定采样器。
          * @param binding The target binding.
          * @param sampler The sampler to be bound.
          */
         bindSampler(binding: number, sampler: GFXSampler): void;
         /**
-         * @en Bind texture view to the specified binding unit.
-         * @zh 在指定的 binding 位置上绑定纹理视图。
+         * @en Bind texture to the specified descriptor.
+         * @zh 在指定的描述符位置上绑定纹理。
          * @param binding The target binding.
-         * @param texView The texture view to be bound.
+         * @param texture The texture to be bound.
          */
-        bindTextureView(binding: number, texView: GFXTextureView): void;
+        bindTexture(binding: number, texture: GFXTexture): void;
         /**
-         * @en Get the specified binding unit.
-         * @zh 得到指定的 binding 位置上的GFX绑定单元。
+         * @en Get buffer from the specified binding location.
+         * @zh 获取当前指定绑定位置上的缓冲。
          * @param binding The target binding.
          */
-        getBindingUnit(binding: number): GFXBindingUnit | null;
-    }
-    export interface IGFXUniformInfo {
-        name: string;
-        type: GFXType;
-        count: number;
+        getBuffer(binding: number): GFXBuffer;
+        /**
+         * @en Get sampler from the specified binding location.
+         * @zh 获取当前指定绑定位置上的采样器。
+         * @param binding The target binding.
+         */
+        getSampler(binding: number): GFXSampler;
+        /**
+         * @en Get texture from the specified binding location.
+         * @zh 获取当前指定绑定位置上的贴图。
+         * @param binding The target binding.
+         */
+        getTexture(binding: number): GFXTexture;
     }
     export interface IGFXDrawInfo {
         vertexCount: number;
@@ -12544,6 +11442,11 @@ declare module "cc.core" {
         stride?: number;
         flags?: GFXBufferFlags;
     }
+    export interface IGFXBufferViewInfo {
+        buffer: GFXBuffer;
+        offset: number;
+        range: number;
+    }
     /**
      * @en GFX buffer.
      * @zh GFX 缓冲。
@@ -12566,7 +11469,7 @@ declare module "cc.core" {
         protected _bufferView: Uint8Array | null;
         protected _indirectBuffer: IGFXIndirectBuffer | null;
         constructor(device: GFXDevice);
-        abstract initialize(info: IGFXBufferInfo): boolean;
+        abstract initialize(info: IGFXBufferInfo | IGFXBufferViewInfo): boolean;
         abstract destroy(): void;
         /**
          * @en Resize the buffer.
@@ -12583,20 +11486,8 @@ declare module "cc.core" {
          */
         abstract update(buffer: GFXBufferSource, offset?: number, size?: number): void;
     }
-    export interface IGFXCommandAllocatorInfo {
-    }
-    /**
-     * @en GFX command allocator.
-     * @zh GFX 命令分配器。
-     */
-    export abstract class GFXCommandAllocator extends GFXObject {
-        protected _device: GFXDevice;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXCommandAllocatorInfo): boolean;
-        abstract destroy(): void;
-    }
     export interface IGFXCommandBufferInfo {
-        allocator: GFXCommandAllocator;
+        queue: GFXQueue;
         type: GFXCommandBufferType;
     }
     export interface IGFXDepthBias {
@@ -12623,11 +11514,12 @@ declare module "cc.core" {
      */
     export abstract class GFXCommandBuffer extends GFXObject {
         get type(): GFXCommandBufferType;
+        get queue(): GFXQueue;
         get numDrawCalls(): number;
         get numInstances(): number;
         get numTris(): number;
         protected _device: GFXDevice;
-        protected _allocator: GFXCommandAllocator | null;
+        protected _queue: GFXQueue | null;
         protected _type: GFXCommandBufferType;
         protected _numDrawCalls: number;
         protected _numInstances: number;
@@ -12638,8 +11530,11 @@ declare module "cc.core" {
         /**
          * @en Begin recording commands.
          * @zh 开始记录命令。
+         * @param renderPass [Secondary Command Buffer Only] The render pass the subsequent commands will be executed in
+         * @param subpass [Secondary Command Buffer Only] The subpass the subsequent commands will be executed in
+         * @param frameBuffer [Secondary Command Buffer Only, Optional] The framebuffer to be used in the subpass
          */
-        abstract begin(): void;
+        abstract begin(renderPass?: GFXRenderPass, subpass?: number, frameBuffer?: GFXFramebuffer): void;
         /**
          * @en End recording commands.
          * @zh 结束记录命令。
@@ -12655,7 +11550,7 @@ declare module "cc.core" {
          * @param clearDepth The clearing depth.
          * @param clearStencil The clearing stencil.
          */
-        abstract beginRenderPass(framebuffer: GFXFramebuffer, renderArea: IGFXRect, clearFlag: GFXClearFlag, clearColors: IGFXColor[], clearDepth: number, clearStencil: number): void;
+        abstract beginRenderPass(renderPass: GFXRenderPass, framebuffer: GFXFramebuffer, renderArea: GFXRect, clearColors: GFXColor[], clearDepth: number, clearStencil: number): void;
         /**
          * @en End render pass.
          * @zh 结束 RenderPass。
@@ -12668,11 +11563,11 @@ declare module "cc.core" {
          */
         abstract bindPipelineState(pipelineState: GFXPipelineState): void;
         /**
-         * @en Bind binding layout.
-         * @zh 绑定 GFX 绑定布局。
-         * @param bindingLayout The binding layout to be bound.
+         * @en Bind descriptor set.
+         * @zh 绑定 GFX 描述符集。
+         * @param descriptorSet The descriptor set to be bound.
          */
-        abstract bindBindingLayout(bindingLayout: GFXBindingLayout): void;
+        abstract bindDescriptorSet(set: number, descriptorSets: GFXDescriptorSet, dynamicOffsets?: number[]): void;
         /**
          * @en Bind input assembler.
          * @zh 绑定GFX输入汇集器。
@@ -12684,13 +11579,13 @@ declare module "cc.core" {
          * @zh 设置视口。
          * @param viewport The new viewport.
          */
-        abstract setViewport(viewport: IGFXViewport): void;
+        abstract setViewport(viewport: GFXViewport): void;
         /**
          * @en Set scissor range.
          * @zh 设置剪裁区域。
          * @param scissor The new scissor range.
          */
-        abstract setScissor(scissor: IGFXRect): void;
+        abstract setScissor(scissor: GFXRect): void;
         /**
          * @en Set line width.
          * @zh 设置线宽。
@@ -12755,7 +11650,7 @@ declare module "cc.core" {
          * @param dstLayout The target texture layout.
          * @param regions The region descriptions.
          */
-        abstract copyBufferToTexture(srcBuff: GFXBuffer, dstTex: GFXTexture, dstLayout: GFXTextureLayout, regions: GFXBufferTextureCopy[]): void;
+        abstract copyBuffersToTexture(buffers: ArrayBufferView[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
         /**
          * @en Execute specified command buffers.
          * @zh 执行一组命令缓冲。
@@ -12789,7 +11684,7 @@ declare module "cc.core" {
      * @param type The target type.
      */
     export function GFXGetTypeSize(type: GFXType): number;
-    export function getTypedArrayConstructor(info: IGFXFormatInfo): __private.TypedArrayConstructor;
+    export function getTypedArrayConstructor(info: GFXFormatInfo): __private.TypedArrayConstructor;
     /**
      * @category gfx
      */
@@ -12806,19 +11701,15 @@ declare module "cc.core" {
         FRAMEBUFFER = 5,
         SAMPLER = 6,
         SHADER = 7,
-        PIPELINE_LAYOUT = 8,
-        PIPELINE_STATE = 9,
-        BINDING_LAYOUT = 10,
-        INPUT_ASSEMBLER = 11,
-        COMMAND_ALLOCATOR = 12,
+        DESCRIPTOR_SET_LAYOUT = 8,
+        PIPELINE_LAYOUT = 9,
+        PIPELINE_STATE = 10,
+        DESCRIPTOR_SET = 11,
+        INPUT_ASSEMBLER = 12,
         COMMAND_BUFFER = 13,
-        QUEUE = 14,
-        WINDOW = 15
-    }
-    export enum GFXStatus {
-        UNREADY = 0,
-        FAILED = 1,
-        SUCCESS = 2
+        FENCE = 14,
+        QUEUE = 15,
+        WINDOW = 16
     }
     /**
      * @en GFX base object.
@@ -12826,9 +11717,7 @@ declare module "cc.core" {
      */
     export class GFXObject {
         get gfxType(): GFXObjectType;
-        get status(): GFXStatus;
         protected _gfxType: GFXObjectType;
-        protected _status: GFXStatus;
         constructor(gfxType: GFXObjectType);
     }
     export enum GFXAttributeName {
@@ -12925,62 +11814,91 @@ declare module "cc.core" {
         RGB32UI = 33,
         RGB32I = 34,
         RGBA8 = 35,
-        SRGB8_A8 = 36,
-        RGBA8SN = 37,
-        RGBA8UI = 38,
-        RGBA8I = 39,
-        RGBA16F = 40,
-        RGBA16UI = 41,
-        RGBA16I = 42,
-        RGBA32F = 43,
-        RGBA32UI = 44,
-        RGBA32I = 45,
-        R5G6B5 = 46,
-        R11G11B10F = 47,
-        RGB5A1 = 48,
-        RGBA4 = 49,
-        RGB10A2 = 50,
-        RGB10A2UI = 51,
-        RGB9E5 = 52,
-        D16 = 53,
-        D16S8 = 54,
-        D24 = 55,
-        D24S8 = 56,
-        D32F = 57,
-        D32F_S8 = 58,
-        BC1 = 59,
-        BC1_ALPHA = 60,
-        BC1_SRGB = 61,
-        BC1_SRGB_ALPHA = 62,
-        BC2 = 63,
-        BC2_SRGB = 64,
-        BC3 = 65,
-        BC3_SRGB = 66,
-        BC4 = 67,
-        BC4_SNORM = 68,
-        BC5 = 69,
-        BC5_SNORM = 70,
-        BC6H_UF16 = 71,
-        BC6H_SF16 = 72,
-        BC7 = 73,
-        BC7_SRGB = 74,
-        ETC_RGB8 = 75,
-        ETC2_RGB8 = 76,
-        ETC2_SRGB8 = 77,
-        ETC2_RGB8_A1 = 78,
-        ETC2_SRGB8_A1 = 79,
-        ETC2_RGBA8 = 80,
-        ETC2_SRGB8_A8 = 81,
-        EAC_R11 = 82,
-        EAC_R11SN = 83,
-        EAC_RG11 = 84,
-        EAC_RG11SN = 85,
-        PVRTC_RGB2 = 86,
-        PVRTC_RGBA2 = 87,
-        PVRTC_RGB4 = 88,
-        PVRTC_RGBA4 = 89,
-        PVRTC2_2BPP = 90,
-        PVRTC2_4BPP = 91
+        BGRA8 = 36,
+        SRGB8_A8 = 37,
+        RGBA8SN = 38,
+        RGBA8UI = 39,
+        RGBA8I = 40,
+        RGBA16F = 41,
+        RGBA16UI = 42,
+        RGBA16I = 43,
+        RGBA32F = 44,
+        RGBA32UI = 45,
+        RGBA32I = 46,
+        R5G6B5 = 47,
+        R11G11B10F = 48,
+        RGB5A1 = 49,
+        RGBA4 = 50,
+        RGB10A2 = 51,
+        RGB10A2UI = 52,
+        RGB9E5 = 53,
+        D16 = 54,
+        D16S8 = 55,
+        D24 = 56,
+        D24S8 = 57,
+        D32F = 58,
+        D32F_S8 = 59,
+        BC1 = 60,
+        BC1_ALPHA = 61,
+        BC1_SRGB = 62,
+        BC1_SRGB_ALPHA = 63,
+        BC2 = 64,
+        BC2_SRGB = 65,
+        BC3 = 66,
+        BC3_SRGB = 67,
+        BC4 = 68,
+        BC4_SNORM = 69,
+        BC5 = 70,
+        BC5_SNORM = 71,
+        BC6H_UF16 = 72,
+        BC6H_SF16 = 73,
+        BC7 = 74,
+        BC7_SRGB = 75,
+        ETC_RGB8 = 76,
+        ETC2_RGB8 = 77,
+        ETC2_SRGB8 = 78,
+        ETC2_RGB8_A1 = 79,
+        ETC2_SRGB8_A1 = 80,
+        ETC2_RGBA8 = 81,
+        ETC2_SRGB8_A8 = 82,
+        EAC_R11 = 83,
+        EAC_R11SN = 84,
+        EAC_RG11 = 85,
+        EAC_RG11SN = 86,
+        PVRTC_RGB2 = 87,
+        PVRTC_RGBA2 = 88,
+        PVRTC_RGB4 = 89,
+        PVRTC_RGBA4 = 90,
+        PVRTC2_2BPP = 91,
+        PVRTC2_4BPP = 92,
+        ASTC_RGBA_4x4 = 93,
+        ASTC_RGBA_5x4 = 94,
+        ASTC_RGBA_5x5 = 95,
+        ASTC_RGBA_6x5 = 96,
+        ASTC_RGBA_6x6 = 97,
+        ASTC_RGBA_8x5 = 98,
+        ASTC_RGBA_8x6 = 99,
+        ASTC_RGBA_8x8 = 100,
+        ASTC_RGBA_10x5 = 101,
+        ASTC_RGBA_10x6 = 102,
+        ASTC_RGBA_10x8 = 103,
+        ASTC_RGBA_10x10 = 104,
+        ASTC_RGBA_12x10 = 105,
+        ASTC_RGBA_12x12 = 106,
+        ASTC_SRGBA_4x4 = 107,
+        ASTC_SRGBA_5x4 = 108,
+        ASTC_SRGBA_5x5 = 109,
+        ASTC_SRGBA_6x5 = 110,
+        ASTC_SRGBA_6x6 = 111,
+        ASTC_SRGBA_8x5 = 112,
+        ASTC_SRGBA_8x6 = 113,
+        ASTC_SRGBA_8x8 = 114,
+        ASTC_SRGBA_10x5 = 115,
+        ASTC_SRGBA_10x6 = 116,
+        ASTC_SRGBA_10x8 = 117,
+        ASTC_SRGBA_10x10 = 118,
+        ASTC_SRGBA_12x10 = 119,
+        ASTC_SRGBA_12x12 = 120
     }
     export enum GFXBufferUsageBit {
         NONE = 0,
@@ -13107,7 +12025,10 @@ declare module "cc.core" {
     export enum GFXTextureType {
         TEX1D = 0,
         TEX2D = 1,
-        TEX3D = 2
+        TEX3D = 2,
+        CUBE = 3,
+        TEX1D_ARRAY = 4,
+        TEX2D_ARRAY = 5
     }
     export enum GFXTextureUsageBit {
         NONE = 0,
@@ -13137,28 +12058,24 @@ declare module "cc.core" {
         BAKUP_BUFFER = 4
     }
     export type GFXTextureFlags = GFXTextureFlagBit;
-    export enum GFXTextureViewType {
-        TV1D = 0,
-        TV2D = 1,
-        TV3D = 2,
-        CUBE = 3,
-        TV1D_ARRAY = 4,
-        TV2D_ARRAY = 5
+    export enum GFXShaderStageFlagBit {
+        NONE = 0,
+        VERTEX = 1,
+        CONTROL = 2,
+        EVALUATION = 4,
+        GEOMETRY = 8,
+        FRAGMENT = 16,
+        COMPUTE = 32,
+        ALL = 63
     }
-    export enum GFXShaderType {
-        VERTEX = 0,
-        HULL = 1,
-        DOMAIN = 2,
-        GEOMETRY = 3,
-        FRAGMENT = 4,
-        COMPUTE = 5,
-        COUNT = 6
-    }
-    export enum GFXBindingType {
+    export type GFXShaderStageFlags = GFXShaderStageFlagBit;
+    export enum GFXDescriptorType {
         UNKNOWN = 0,
         UNIFORM_BUFFER = 1,
-        SAMPLER = 2,
-        STORAGE_BUFFER = 3
+        DYNAMIC_UNIFORM_BUFFER = 2,
+        STORAGE_BUFFER = 4,
+        DYNAMIC_STORAGE_BUFFER = 8,
+        SAMPLER = 16
     }
     export enum GFXCommandBufferType {
         PRIMARY = 0,
@@ -13190,16 +12107,18 @@ declare module "cc.core" {
         COMPUTE = 1,
         RAY_TRACING = 2
     }
-    export enum GFXDynamicState {
-        VIEWPORT = 0,
-        SCISSOR = 1,
-        LINE_WIDTH = 2,
-        DEPTH_BIAS = 3,
-        BLEND_CONSTANTS = 4,
-        DEPTH_BOUNDS = 5,
-        STENCIL_WRITE_MASK = 6,
-        STENCIL_COMPARE_MASK = 7
+    export enum GFXDynamicStateFlagBit {
+        NONE = 0,
+        VIEWPORT = 1,
+        SCISSOR = 2,
+        LINE_WIDTH = 4,
+        DEPTH_BIAS = 8,
+        BLEND_CONSTANTS = 16,
+        DEPTH_BOUNDS = 32,
+        STENCIL_WRITE_MASK = 64,
+        STENCIL_COMPARE_MASK = 128
     }
+    export type GFXDynamicStateFlags = GFXDynamicStateFlagBit;
     export enum GFXStencilFace {
         FRONT = 0,
         BACK = 1,
@@ -13210,25 +12129,28 @@ declare module "cc.core" {
         COMPUTE = 1,
         TRANSFER = 2
     }
-    export interface IGFXRect {
+    export class GFXRect {
         x: number;
         y: number;
         width: number;
         height: number;
+        constructor(x?: number, y?: number, width?: number, height?: number);
     }
-    export interface IGFXViewport {
+    export class GFXViewport {
         left: number;
         top: number;
         width: number;
         height: number;
         minDepth: number;
         maxDepth: number;
+        constructor(left?: number, top?: number, width?: number, height?: number, minDepth?: number, maxDepth?: number);
     }
-    export interface IGFXColor {
+    export class GFXColor {
         r: number;
         g: number;
         b: number;
         a: number;
+        constructor(r?: number, g?: number, b?: number, a?: number);
     }
     export enum GFXClearFlag {
         NONE = 0,
@@ -13238,36 +12160,39 @@ declare module "cc.core" {
         DEPTH_STENCIL = 6,
         ALL = 7
     }
-    export interface IGFXOffset {
+    export class GFXOffset {
         x: number;
         y: number;
         z: number;
+        constructor(x?: number, y?: number, z?: number);
     }
-    export interface IGFXExtent {
+    export class GFXExtent {
         width: number;
         height: number;
         depth: number;
+        constructor(width?: number, height?: number, depth?: number);
     }
     export class GFXTextureSubres {
-        baseMipLevel: number;
-        levelCount: number;
+        mipLevel: number;
         baseArrayLayer: number;
         layerCount: number;
+        constructor(mipLevel?: number, baseArrayLayer?: number, layerCount?: number);
     }
     export class GFXTextureCopy {
         srcSubres: GFXTextureSubres;
-        srcOffset: IGFXOffset;
+        srcOffset: GFXOffset;
         dstSubres: GFXTextureSubres;
-        dstOffset: IGFXOffset;
-        extent: IGFXExtent;
+        dstOffset: GFXOffset;
+        extent: GFXExtent;
+        constructor(srcSubres?: GFXTextureSubres, srcOffset?: GFXOffset, dstSubres?: GFXTextureSubres, dstOffset?: GFXOffset, extent?: GFXExtent);
     }
     export class GFXBufferTextureCopy {
-        buffOffset: number;
         buffStride: number;
         buffTexHeight: number;
-        texOffset: IGFXOffset;
-        texExtent: IGFXExtent;
+        texOffset: GFXOffset;
+        texExtent: GFXExtent;
         texSubres: GFXTextureSubres;
+        constructor(buffStride?: number, buffTexHeight?: number, texOffset?: GFXOffset, texExtent?: GFXExtent, texSubres?: GFXTextureSubres);
     }
     export enum GFXFormatType {
         NONE = 0,
@@ -13278,25 +12203,32 @@ declare module "cc.core" {
         UFLOAT = 5,
         FLOAT = 6
     }
-    export interface IGFXFormatInfo {
-        name: string;
-        size: number;
-        count: number;
-        type: GFXFormatType;
-        hasAlpha: boolean;
-        hasDepth: boolean;
-        hasStencil: boolean;
-        isCompressed: boolean;
+    export class GFXFormatInfo {
+        readonly name: string;
+        readonly size: number;
+        readonly count: number;
+        readonly type: GFXFormatType;
+        readonly hasAlpha: boolean;
+        readonly hasDepth: boolean;
+        readonly hasStencil: boolean;
+        readonly isCompressed: boolean;
+        constructor(name: string, size: number, count: number, type: GFXFormatType, hasAlpha: boolean, hasDepth: boolean, hasStencil: boolean, isCompressed: boolean);
     }
-    export interface IGFXMemoryStatus {
+    export class GFXMemoryStatus {
         bufferSize: number;
         textureSize: number;
     }
-    export const GFXFormatInfos: IGFXFormatInfo[];
+    export const GFXFormatInfos: readonly GFXFormatInfo[];
     export enum GFXAPI {
         UNKNOWN = 0,
-        WEBGL = 1,
-        WEBGL2 = 2
+        GL = 1,
+        GLES2 = 2,
+        GLES3 = 3,
+        METAL = 4,
+        VULKAN = 5,
+        DX12 = 6,
+        WEBGL = 7,
+        WEBGL2 = 8
     }
     export enum GFXFeature {
         COLOR_FLOAT = 0,
@@ -13306,16 +12238,26 @@ declare module "cc.core" {
         TEXTURE_FLOAT_LINEAR = 4,
         TEXTURE_HALF_FLOAT_LINEAR = 5,
         FORMAT_R11G11B10F = 6,
-        FORMAT_D24S8 = 7,
-        FORMAT_ETC1 = 8,
-        FORMAT_ETC2 = 9,
-        FORMAT_DXT = 10,
-        FORMAT_PVRTC = 11,
-        FORMAT_ASTC = 12,
-        MSAA = 13,
-        ELEMENT_INDEX_UINT = 14,
-        INSTANCED_ARRAYS = 15,
-        COUNT = 16
+        FORMAT_D16 = 7,
+        FORMAT_D16S8 = 8,
+        FORMAT_D24 = 9,
+        FORMAT_D24S8 = 10,
+        FORMAT_D32F = 11,
+        FORMAT_D32FS8 = 12,
+        FORMAT_ETC1 = 13,
+        FORMAT_ETC2 = 14,
+        FORMAT_DXT = 15,
+        FORMAT_PVRTC = 16,
+        FORMAT_ASTC = 17,
+        FORMAT_RGB8 = 18,
+        MSAA = 19,
+        ELEMENT_INDEX_UINT = 20,
+        INSTANCED_ARRAYS = 21,
+        COUNT = 22
+    }
+    export class GFXBindingMappingInfo {
+        bufferOffsets: number[];
+        samplerOffsets: number[];
     }
     export interface IGFXDeviceInfo {
         canvasElm: HTMLElement;
@@ -13325,6 +12267,18 @@ declare module "cc.core" {
         devicePixelRatio?: number;
         nativeWidth?: number;
         nativeHeight?: number;
+        /**
+         * For non-vulkan backends, to maintain compatibility and maximize
+         * descriptor cache-locality, descriptor-set-based binding numbers need
+         * to be mapped to backend-specific bindings based on maximum limit
+         * of available descriptor slots in each set.
+         *
+         * Because the binding numbers are guaranteed to be consecutive for each
+         * descriptor type inside each set, the mapping procedure can be reduced
+         * to a simple shifting operation. This data structure specifies the
+         * exact offsets for each descriptor type in each set.
+         */
+        bindingMappingInfo?: GFXBindingMappingInfo;
     }
     /**
      * @en GFX Device.
@@ -13340,8 +12294,6 @@ declare module "cc.core" {
         get height(): number;
         get nativeWidth(): number;
         get nativeHeight(): number;
-        get mainWindow(): GFXWindow;
-        get commandAllocator(): GFXCommandAllocator;
         get renderer(): string;
         get vendor(): string;
         get maxVertexAttributes(): number;
@@ -13353,6 +12305,7 @@ declare module "cc.core" {
         get maxUniformBlockSize(): number;
         get maxTextureSize(): number;
         get maxCubeMapTextureSize(): number;
+        get uboOffsetAlignment(): number;
         get depthBits(): number;
         get stencilBits(): number;
         get colorFormat(): GFXFormat;
@@ -13361,9 +12314,10 @@ declare module "cc.core" {
         get numDrawCalls(): number;
         get numInstances(): number;
         get numTris(): number;
-        get memoryStatus(): IGFXMemoryStatus;
-        get reverseCW(): boolean;
-        set reverseCW(val: boolean);
+        get memoryStatus(): GFXMemoryStatus;
+        get clipSpaceMinZ(): number;
+        get screenSpaceSignY(): number;
+        get UVSpaceSignY(): number;
         protected _canvas: HTMLCanvasElement | null;
         protected _canvas2D: HTMLCanvasElement | null;
         protected _gfxAPI: GFXAPI;
@@ -13378,8 +12332,6 @@ declare module "cc.core" {
         protected _height: number;
         protected _nativeWidth: number;
         protected _nativeHeight: number;
-        protected _mainWindow: GFXWindow | null;
-        protected _cmdAllocator: GFXCommandAllocator | null;
         protected _maxVertexAttributes: number;
         protected _maxVertexUniformVectors: number;
         protected _maxFragmentUniformVectors: number;
@@ -13389,17 +12341,20 @@ declare module "cc.core" {
         protected _maxUniformBlockSize: number;
         protected _maxTextureSize: number;
         protected _maxCubeMapTextureSize: number;
+        protected _uboOffsetAlignment: number;
         protected _depthBits: number;
         protected _stencilBits: number;
         protected _colorFmt: GFXFormat;
         protected _depthStencilFmt: GFXFormat;
-        protected _reverseCW: boolean;
         protected _shaderIdGen: number;
         protected _macros: Map<string, string>;
         protected _numDrawCalls: number;
         protected _numInstances: number;
         protected _numTris: number;
-        protected _memoryStatus: IGFXMemoryStatus;
+        protected _memoryStatus: GFXMemoryStatus;
+        protected _clipSpaceMinZ: number;
+        protected _screenSpaceSignY: number;
+        protected _UVSpaceSignY: number;
         abstract initialize(info: IGFXDeviceInfo): boolean;
         abstract destroy(): void;
         /**
@@ -13410,23 +12365,33 @@ declare module "cc.core" {
          */
         abstract resize(width: number, height: number): void;
         /**
+         * @en Begin current frame.
+         * @zh 开始当前帧。
+         */
+        abstract acquire(): void;
+        /**
+         * @en Present current frame.
+         * @zh 呈现当前帧。
+         */
+        abstract present(): void;
+        /**
+         * @en Create command buffer.
+         * @zh 创建命令缓冲。
+         * @param info GFX command buffer description info.
+         */
+        abstract createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
+        /**
          * @en Create buffer.
          * @zh 创建缓冲。
          * @param info GFX buffer description info.
          */
-        abstract createBuffer(info: IGFXBufferInfo): GFXBuffer;
+        abstract createBuffer(info: IGFXBufferInfo | IGFXBufferViewInfo): GFXBuffer;
         /**
          * @en Create texture.
          * @zh 创建纹理。
          * @param info GFX texture description info.
          */
-        abstract createTexture(info: IGFXTextureInfo): GFXTexture;
-        /**
-         * @en Create texture view.
-         * @zh 创建纹理视图。
-         * @param info GFX texture view description info.
-         */
-        abstract createTextureView(info: IGFXTextureViewInfo): GFXTextureView;
+        abstract createTexture(info: IGFXTextureInfo | IGFXTextureViewInfo): GFXTexture;
         /**
          * @en Create sampler.
          * @zh 创建采样器。
@@ -13434,17 +12399,17 @@ declare module "cc.core" {
          */
         abstract createSampler(info: IGFXSamplerInfo): GFXSampler;
         /**
-         * @en Create binding layout.
-         * @zh 创建绑定布局。
-         * @param info GFX binding layout description info.
+         * @en Create descriptor sets.
+         * @zh 创建描述符集组。
+         * @param info GFX descriptor sets description info.
          */
-        abstract createBindingLayout(info: IGFXBindingLayoutInfo): GFXBindingLayout;
+        abstract createDescriptorSet(info: IGFXDescriptorSetInfo): GFXDescriptorSet;
         /**
          * @en Create shader.
          * @zh 创建着色器。
          * @param info GFX shader description info.
          */
-        abstract createShader(info: IGFXShaderInfo): GFXShader;
+        abstract createShader(info: GFXShaderInfo): GFXShader;
         /**
          * @en Create input assembler.
          * @zh 创建纹理。
@@ -13464,6 +12429,12 @@ declare module "cc.core" {
          */
         abstract createFramebuffer(info: IGFXFramebufferInfo): GFXFramebuffer;
         /**
+         * @en Create descriptor set layout.
+         * @zh 创建描述符集布局。
+         * @param info GFX descriptor set layout description info.
+         */
+        abstract createDescriptorSetLayout(info: IGFXDescriptorSetLayoutInfo): GFXDescriptorSetLayout;
+        /**
          * @en Create pipeline layout.
          * @zh 创建管线布局。
          * @param info GFX pipeline layout description info.
@@ -13476,34 +12447,17 @@ declare module "cc.core" {
          */
         abstract createPipelineState(info: IGFXPipelineStateInfo): GFXPipelineState;
         /**
-         * @en Create command allocator.
-         * @zh 创建命令分配器。
-         * @param info GFX command allocator description info.
-         */
-        abstract createCommandAllocator(info: IGFXCommandAllocatorInfo): GFXCommandAllocator;
-        /**
-         * @en Create command buffer.
-         * @zh 创建命令缓冲。
-         * @param info GFX command buffer description info.
-         */
-        abstract createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
-        /**
          * @en Create queue.
          * @zh 创建队列。
          * @param info GFX queue description info.
          */
         abstract createQueue(info: IGFXQueueInfo): GFXQueue;
         /**
-         * @en Create window.
-         * @zh 创建窗口。
-         * @param info GFX window description info.
+         * @en Create fence.
+         * @zh 创建同步信号。
+         * @param info GFX fence description info.
          */
-        abstract createWindow(info: IGFXWindowInfo): GFXWindow;
-        /**
-         * @en Present current frame.
-         * @zh 呈现当前帧。
-         */
-        abstract present(): void;
+        abstract createFence(info: IGFXFenceInfo): GFXFence;
         /**
          * @en Copy buffers to texture.
          * @zh 拷贝缓冲到纹理。
@@ -13537,7 +12491,7 @@ declare module "cc.core" {
          * @param dstRect The target region.
          * @param filter Filtering mode for the process.
          */
-        abstract blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
+        abstract blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: GFXRect, dstRect: GFXRect, filter: GFXFilter): void;
         /**
          * @en Whether the device has specific feature.
          * @zh 是否具备特性。
@@ -13559,24 +12513,23 @@ declare module "cc.core" {
     }
     export interface IGFXFramebufferInfo {
         renderPass: GFXRenderPass;
-        colorViews: GFXTextureView[];
-        depthStencilView: GFXTextureView | null;
-        isOffscreen?: boolean;
+        colorTextures: (GFXTexture | null)[];
+        depthStencilTexture: GFXTexture | null;
+        colorMipmapLevels?: number[];
+        depStencilMipmapLevel?: number;
     }
     /**
      * @en GFX frame buffer.
      * @zh GFX 帧缓冲。
      */
     export abstract class GFXFramebuffer extends GFXObject {
-        get renderPass(): GFXRenderPass | null;
-        get colorViews(): GFXTextureView[];
-        get depthStencilView(): GFXTextureView | null;
-        get isOffscreen(): boolean;
+        get renderPass(): GFXRenderPass;
+        get colorTextures(): (GFXTexture | null)[];
+        get depthStencilTexture(): GFXTexture | null;
         protected _device: GFXDevice;
         protected _renderPass: GFXRenderPass | null;
-        protected _colorViews: GFXTextureView[];
-        protected _depthStencilView: GFXTextureView | null;
-        protected _isOffscreen: boolean;
+        protected _colorTextures: (GFXTexture | null)[];
+        protected _depthStencilTexture: GFXTexture | null;
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXFramebufferInfo): boolean;
         abstract destroy(): void;
@@ -13587,6 +12540,7 @@ declare module "cc.core" {
         isNormalized?: boolean;
         stream?: number;
         isInstanced?: boolean;
+        location?: number;
     }
     export interface IGFXInputAssemblerInfo {
         attributes: IGFXAttribute[];
@@ -13602,6 +12556,7 @@ declare module "cc.core" {
         get vertexBuffers(): GFXBuffer[];
         get indexBuffer(): GFXBuffer | null;
         get attributes(): IGFXAttribute[];
+        get attributesHash(): number;
         get vertexCount(): number;
         set vertexCount(count: number);
         get firstVertex(): number;
@@ -13630,6 +12585,7 @@ declare module "cc.core" {
         protected _instanceCount: number;
         protected _firstInstance: number;
         protected _isIndirect: boolean;
+        protected _attributesHash: number;
         protected _indirectBuffer: GFXBuffer | null;
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXInputAssemblerInfo): boolean;
@@ -13640,21 +12596,41 @@ declare module "cc.core" {
          * @param stream The stream index of the vertex buffer.
          */
         getVertexBuffer(stream?: number): GFXBuffer | null;
+        protected computeAttributesHash(): number;
     }
-    export interface IGFXPushConstantRange {
-        shaderType: GFXShaderType;
-        offset: number;
+    export interface IGFXDescriptorSetLayoutBinding {
+        descriptorType: GFXDescriptorType;
         count: number;
+        stageFlags: GFXShaderStageFlags;
+        immutableSamplers?: GFXSampler[];
+    }
+    export interface IGFXDescriptorSetLayoutInfo {
+        bindings: IGFXDescriptorSetLayoutBinding[];
+    }
+    export const DESCRIPTOR_DYNAMIC_TYPE: number;
+    /**
+     * @en GFX descriptor sets layout.
+     * @zh GFX 描述符集布局。
+     */
+    export abstract class GFXDescriptorSetLayout extends GFXObject {
+        get bindings(): IGFXDescriptorSetLayoutBinding[];
+        protected _device: GFXDevice;
+        protected _bindings: IGFXDescriptorSetLayoutBinding[];
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXDescriptorSetLayoutInfo): boolean;
+        abstract destroy(): void;
     }
     export interface IGFXPipelineLayoutInfo {
-        pushConstantsRanges?: IGFXPushConstantRange[];
-        layouts: GFXBindingLayout[];
+        setLayouts: GFXDescriptorSetLayout[];
     }
+    /**
+     * @en GFX pipeline layout.
+     * @zh GFX 管线布局。
+     */
     export abstract class GFXPipelineLayout extends GFXObject {
-        get layouts(): GFXBindingLayout[];
+        get setLayouts(): GFXDescriptorSetLayout[];
         protected _device: GFXDevice;
-        protected _pushConstantsRanges: IGFXPushConstantRange[];
-        protected _layouts: GFXBindingLayout[];
+        protected _setLayouts: GFXDescriptorSetLayout[];
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXPipelineLayoutInfo): boolean;
         abstract destroy(): void;
@@ -13725,7 +12701,7 @@ declare module "cc.core" {
     export class GFXBlendState {
         isA2C: boolean;
         isIndepend: boolean;
-        blendColor: number[];
+        blendColor: GFXColor;
         targets: GFXBlendTarget[];
     }
     /**
@@ -13738,14 +12714,13 @@ declare module "cc.core" {
     export interface IGFXPipelineStateInfo {
         primitive: GFXPrimitiveMode;
         shader: GFXShader;
+        pipelineLayout: GFXPipelineLayout;
         inputState: GFXInputState;
         rasterizerState: GFXRasterizerState;
         depthStencilState: GFXDepthStencilState;
         blendState: GFXBlendState;
-        dynamicStates?: GFXDynamicState[];
-        layout: GFXPipelineLayout;
+        dynamicStates?: GFXDynamicStateFlags;
         renderPass: GFXRenderPass;
-        hash: number;
     }
     /**
      * @en GFX pipeline state.
@@ -13753,29 +12728,49 @@ declare module "cc.core" {
      */
     export abstract class GFXPipelineState extends GFXObject {
         get shader(): GFXShader;
+        get pipelineLayout(): GFXPipelineLayout;
         get primitive(): GFXPrimitiveMode;
         get rasterizerState(): GFXRasterizerState;
         get depthStencilState(): GFXDepthStencilState;
         get blendState(): GFXBlendState;
         get inputState(): GFXInputState;
-        get dynamicStates(): GFXDynamicState[];
-        get pipelineLayout(): GFXPipelineLayout;
+        get dynamicStates(): GFXDynamicStateFlags;
         get renderPass(): GFXRenderPass;
-        get hash(): number;
         protected _device: GFXDevice;
         protected _shader: GFXShader | null;
+        protected _pipelineLayout: GFXPipelineLayout | null;
         protected _primitive: GFXPrimitiveMode;
         protected _is: GFXInputState | null;
         protected _rs: GFXRasterizerState | null;
         protected _dss: GFXDepthStencilState | null;
         protected _bs: GFXBlendState | null;
-        protected _dynamicStates: GFXDynamicState[];
-        protected _layout: GFXPipelineLayout | null;
+        protected _dynamicStates: GFXDynamicStateFlags;
         protected _renderPass: GFXRenderPass | null;
-        protected _hash: number;
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXPipelineStateInfo): boolean;
         abstract destroy(): void;
+    }
+    export interface IGFXFenceInfo {
+    }
+    /**
+     * @en GFX Fence.
+     * @zh GFX 同步信号。
+     */
+    export abstract class GFXFence extends GFXObject {
+        protected _device: GFXDevice;
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXFenceInfo): boolean;
+        abstract destroy(): void;
+        /**
+         * @en Wait for this fence.
+         * @zh 等待当前 fence 信号。
+         */
+        abstract wait(): void;
+        /**
+         * @en Reset this fence to unsignaled state.
+         * @zh 重置当前 fence。
+         */
+        abstract reset(): void;
     }
     export interface IGFXQueueInfo {
         type: GFXQueueType;
@@ -13788,16 +12783,18 @@ declare module "cc.core" {
         get type(): number;
         protected _device: GFXDevice;
         protected _type: GFXQueueType;
+        protected _isAsync: boolean;
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXQueueInfo): boolean;
         abstract destroy(): void;
+        isAsync(): boolean;
         /**
          * @en Submit command buffers.
          * @zh 提交命令缓冲数组。
          * @param cmdBuffs The command buffers to be submitted.
          * @param fence The syncing fence.
          */
-        abstract submit(cmdBuffs: GFXCommandBuffer[], fence?: any): void;
+        abstract submit(cmdBuffs: GFXCommandBuffer[], fence?: GFXFence): void;
     }
     /**
      * @en Color attachment.
@@ -13805,9 +12802,9 @@ declare module "cc.core" {
      */
     export class GFXColorAttachment {
         format: GFXFormat;
+        sampleCount: number;
         loadOp: GFXLoadOp;
         storeOp: GFXStoreOp;
-        sampleCount: number;
         beginLayout: GFXTextureLayout;
         endLayout: GFXTextureLayout;
     }
@@ -13817,11 +12814,11 @@ declare module "cc.core" {
      */
     export class GFXDepthStencilAttachment {
         format: GFXFormat;
+        sampleCount: number;
         depthLoadOp: GFXLoadOp;
         depthStoreOp: GFXStoreOp;
         stencilLoadOp: GFXLoadOp;
         stencilStoreOp: GFXStoreOp;
-        sampleCount: number;
         beginLayout: GFXTextureLayout;
         endLayout: GFXTextureLayout;
     }
@@ -13830,12 +12827,13 @@ declare module "cc.core" {
         inputs: number[];
         colors: number[];
         resolves: number[];
-        depthStencil: number;
+        depthStencil?: number;
         preserves: number[];
     }
     export interface IGFXRenderPassInfo {
-        colorAttachments?: GFXColorAttachment[];
-        depthStencilAttachment?: GFXDepthStencilAttachment;
+        colorAttachments: GFXColorAttachment[];
+        depthStencilAttachment: GFXDepthStencilAttachment | null;
+        subPasses?: IGFXSubPassInfo[];
     }
     /**
      * @en GFX render pass.
@@ -13845,9 +12843,16 @@ declare module "cc.core" {
         protected _device: GFXDevice;
         protected _colorInfos: GFXColorAttachment[];
         protected _depthStencilInfo: GFXDepthStencilAttachment | null;
+        protected _subPasses: IGFXSubPassInfo[];
+        protected _hash: number;
+        get colorAttachments(): GFXColorAttachment[];
+        get depthStencilAttachment(): GFXDepthStencilAttachment | null;
+        get subPasses(): IGFXSubPassInfo[];
+        get hash(): number;
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXRenderPassInfo): boolean;
         abstract destroy(): void;
+        protected computeHash(): number;
     }
     export interface IGFXSamplerInfo {
         name?: string;
@@ -13859,7 +12864,7 @@ declare module "cc.core" {
         addressW?: GFXAddress;
         maxAnisotropy?: number;
         cmpFunc?: GFXComparisonFunc;
-        borderColor?: IGFXColor;
+        borderColor?: GFXColor;
         minLOD?: number;
         maxLOD?: number;
         mipLODBias?: number;
@@ -13878,7 +12883,7 @@ declare module "cc.core" {
         addressW: GFXAddress;
         maxAnisotropy: number;
         cmpFunc: GFXComparisonFunc;
-        borderColor: IGFXColor;
+        borderColor: GFXColor;
         minLOD: number;
         maxLOD: number;
         mipLODBias: number;
@@ -13896,14 +12901,9 @@ declare module "cc.core" {
         abstract initialize(info: IGFXSamplerInfo): boolean;
         abstract destroy(): void;
     }
-    export interface IGFXShaderMacro {
-        macro: string;
-        value: string;
-    }
-    export interface IGFXShaderStage {
-        type: GFXShaderType;
+    export class GFXShaderStage {
+        stage: GFXShaderStageFlagBit;
         source: string;
-        macros?: IGFXShaderMacro[];
     }
     /**
      * @en GFX uniform.
@@ -13919,25 +12919,29 @@ declare module "cc.core" {
      * @zh GFX uniform 块。
      */
     export class GFXUniformBlock {
+        set: number;
         binding: number;
         name: string;
         members: GFXUniform[];
+        count: number;
     }
     /**
      * @en GFX uniform sampler.
      * @zh GFX Uniform 采样器。
      */
     export class GFXUniformSampler {
+        set: number;
         binding: number;
         name: string;
         type: GFXType;
         count: number;
     }
-    export interface IGFXShaderInfo {
+    export class GFXShaderInfo {
         name: string;
-        stages: IGFXShaderStage[];
-        blocks?: GFXUniformBlock[];
-        samplers?: GFXUniformSampler[];
+        stages: GFXShaderStage[];
+        attributes: IGFXAttribute[];
+        blocks: GFXUniformBlock[];
+        samplers: GFXUniformSampler[];
     }
     /**
      * @en GFX shader.
@@ -13946,47 +12950,18 @@ declare module "cc.core" {
     export abstract class GFXShader extends GFXObject {
         get id(): number;
         get name(): string;
+        get attributes(): IGFXAttribute[];
+        get blocks(): GFXUniformBlock[];
+        get samplers(): GFXUniformSampler[];
         protected _device: GFXDevice;
         protected _id: number;
         protected _name: string;
-        protected _stages: IGFXShaderStage[];
+        protected _stages: GFXShaderStage[];
+        protected _attributes: IGFXAttribute[];
         protected _blocks: GFXUniformBlock[];
         protected _samplers: GFXUniformSampler[];
         constructor(device: GFXDevice);
-        abstract initialize(info: IGFXShaderInfo): boolean;
-        abstract destroy(): void;
-    }
-    export interface IGFXTextureViewInfo {
-        texture: GFXTexture;
-        type: GFXTextureViewType;
-        format: GFXFormat;
-        baseLevel?: number;
-        levelCount?: number;
-        baseLayer?: number;
-        layerCount?: number;
-    }
-    /**
-     * @en GFX texture view.
-     * @zh GFX 纹理视图。
-     */
-    export abstract class GFXTextureView extends GFXObject {
-        get texture(): GFXTexture;
-        get type(): GFXTextureViewType;
-        get format(): GFXFormat;
-        get baseLevel(): number;
-        get levelCount(): number;
-        get baseLayer(): number;
-        get layerCount(): number;
-        protected _device: GFXDevice;
-        protected _texture: GFXTexture | null;
-        protected _type: GFXTextureViewType;
-        protected _format: GFXFormat;
-        protected _baseLevel: number;
-        protected _levelCount: number;
-        protected _baseLayer: number;
-        protected _layerCount: number;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXTextureViewInfo): boolean;
+        abstract initialize(info: GFXShaderInfo): boolean;
         abstract destroy(): void;
     }
     export function IsPowerOf2(x: number): boolean;
@@ -13997,10 +12972,19 @@ declare module "cc.core" {
         width: number;
         height: number;
         depth?: number;
-        arrayLayer?: number;
-        mipLevel?: number;
+        layerCount?: number;
+        levelCount?: number;
         samples?: GFXSampleCount;
         flags?: GFXTextureFlags;
+    }
+    export interface IGFXTextureViewInfo {
+        texture: GFXTexture;
+        type: GFXTextureType;
+        format: GFXFormat;
+        baseLevel?: number;
+        levelCount?: number;
+        baseLayer?: number;
+        layerCount?: number;
     }
     /**
      * @en GFX texture.
@@ -14013,8 +12997,8 @@ declare module "cc.core" {
         get width(): number;
         get height(): number;
         get depth(): number;
-        get arrayLayer(): number;
-        get mipLevel(): number;
+        get layerCount(): number;
+        get levelCount(): number;
         get samples(): GFXSampleCount;
         get flags(): GFXTextureFlags;
         get size(): number;
@@ -14026,8 +13010,8 @@ declare module "cc.core" {
         protected _width: number;
         protected _height: number;
         protected _depth: number;
-        protected _arrayLayer: number;
-        protected _mipLevel: number;
+        protected _layerCount: number;
+        protected _levelCount: number;
         protected _samples: GFXSampleCount;
         protected _flags: GFXTextureFlags;
         protected _isPowerOf2: boolean;
@@ -14044,514 +13028,165 @@ declare module "cc.core" {
          */
         abstract resize(width: number, height: number): void;
     }
-    export interface IGFXWindowInfo {
-        title?: string;
-        left?: number;
-        top?: number;
-        width: number;
-        height: number;
-        colorFmt: GFXFormat;
-        depthStencilFmt: GFXFormat;
-        isOffscreen?: boolean;
-    }
+    export const pipeline: typeof __private.cocos_core_pipeline_define;
     /**
-     * @en GFX window.
-     * @zh GFX 窗口。
+     * @en Render pipeline describes how we handle the rendering process for all render objects in the related render scene root.
+     * It contains some general pipeline configurations, necessary rendering resources and some [[RenderFlow]]s.
+     * The rendering process function [[render]] is invoked by [[Root]] for all [[RenderView]]s.
+     * @zh 渲染管线对象决定了引擎对相关渲染场景下的所有渲染对象实施的完整渲染流程。
+     * 这个类主要包含一些通用的管线配置，必要的渲染资源和一些 [[RenderFlow]]。
+     * 渲染流程函数 [[render]] 会由 [[Root]] 发起调用并对所有 [[RenderView]] 执行预设的渲染流程。
      */
-    export abstract class GFXWindow extends GFXObject {
-        get width(): number;
-        get height(): number;
-        get colorFormat(): GFXFormat;
-        get detphStencilFormat(): GFXFormat;
-        get isOffscreen(): boolean;
-        get renderPass(): GFXRenderPass;
-        get colorTexView(): GFXTextureView | null;
-        get depthStencilTexView(): GFXTextureView | null;
-        get framebuffer(): GFXFramebuffer;
-        protected _device: GFXDevice;
-        protected _title: string;
-        protected _left: number;
-        protected _top: number;
-        protected _width: number;
-        protected _height: number;
-        protected _nativeWidth: number;
-        protected _nativeHeight: number;
-        protected _colorFmt: GFXFormat;
-        protected _depthStencilFmt: GFXFormat;
-        protected _isOffscreen: boolean;
-        protected _renderPass: GFXRenderPass | null;
-        protected _colorTex: GFXTexture | null;
-        protected _colorTexView: GFXTextureView | null;
-        protected _depthStencilTex: GFXTexture | null;
-        protected _depthStencilTexView: GFXTextureView | null;
-        protected _framebuffer: GFXFramebuffer | null;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXWindowInfo): boolean;
-        abstract destroy(): void;
-        /**
-         * @en Resize window.
-         * @zh 重置窗口大小。
-         * @param width The new width.
-         * @param height The new height.
-         */
-        abstract resize(width: number, height: number): void;
-    }
-    /**
-     * @zh
-     * 渲染过程阶段。
-     */
-    export enum RenderPassStage {
-        DEFAULT = 100
-    }
-    export const JointUniformCapacity = 30;
-    /**
-     * @zh
-     * 渲染流程。
-     */
-    export abstract class RenderPipeline {
-        get root(): renderer.__private.cocos_core_root_Root;
-        get device(): GFXDevice;
-        get name(): string;
-        get renderObjects(): renderer.__private.cocos_core_pipeline_define_IRenderObject[];
+    export abstract class RenderPipeline extends Asset {
+        get globalDescriptorSetLayout(): Readonly<__private.cocos_core_pipeline_define_IDescriptorSetLayoutInfo>;
+        get localDescriptorSetLayout(): Readonly<__private.cocos_core_pipeline_define_IDescriptorSetLayoutInfo>;
+        get macros(): renderer.MacroRecord;
         get flows(): RenderFlow[];
-        get activeFlows(): RenderFlow[];
-        get usePostProcess(): boolean;
-        get isHDRSupported(): boolean;
-        get isHDR(): boolean;
-        get shadingScale(): number;
-        set lightMeterScale(scale: number);
-        get lightMeterScale(): number;
-        get useMSAA(): boolean;
-        get useSMAA(): boolean;
-        get quadIA(): GFXInputAssembler;
-        get globalBindings(): Map<string, renderer.__private.cocos_core_pipeline_define_IInternalBindingInst>;
-        get defaultTexture(): GFXTexture;
-        get fpScale(): number;
-        get fpScaleInv(): number;
-        get macros(): renderer.IDefineMap;
-        get defaultGlobalUBOData(): Float32Array;
-        get currShading(): string;
-        get prevShading(): string;
-        get useDynamicBatching(): boolean;
-        protected _root: renderer.__private.cocos_core_root_Root;
-        protected _device: GFXDevice;
-        protected _renderObjects: renderer.__private.cocos_core_pipeline_define_IRenderObject[];
+        get tag(): number;
+        /**
+         * @en Tag
+         * @zh 标签
+         * @readonly
+         */
+        protected _tag: number;
+        /**
+         * @en Flows
+         * @zh 渲染流程列表
+         * @readonly
+         */
         protected _flows: RenderFlow[];
-        protected _activeFlows: RenderFlow[];
-        protected _isHDRSupported: boolean;
-        protected _isHDR: boolean;
-        protected _lightMeterScale: number;
-        protected _fboCount: number;
-        protected _colorFmt: GFXFormat;
-        protected _depthStencilFmt: GFXFormat;
-        protected _shadingWidth: number;
-        protected _shadingHeight: number;
-        protected _shadingScale: number;
-        protected _curIdx: string;
-        protected _prevIdx: string;
-        protected _usePostProcess: boolean;
-        protected _useMSAA: boolean;
-        protected _useSMAA: boolean;
-        protected _quadVB: GFXBuffer | null;
-        protected _quadIB: GFXBuffer | null;
-        protected _quadIA: GFXInputAssembler | null;
-        protected _uboGlobal: __private.cocos_core_pipeline_define_UBOGlobal;
-        protected _globalBindings: Map<string, renderer.__private.cocos_core_pipeline_define_IInternalBindingInst>;
-        protected _defaultTex: GFXTexture | null;
-        protected _defaultTexView: GFXTextureView | null;
-        protected _fpScale: number;
-        protected _fpScaleInv: number;
-        protected _macros: renderer.IDefineMap;
-        protected _useDynamicBatching: boolean;
-        protected renderTextures: __private.cocos_core_pipeline_pipeline_serialization_RenderTextureDesc[];
-        protected framebuffers: __private.cocos_core_pipeline_pipeline_serialization_FrameBufferDesc[];
-        protected renderPasses: __private.cocos_core_pipeline_pipeline_serialization_RenderPassDesc[];
-        protected _renderTextures: Map<string, GFXTexture>;
-        protected _textureViews: Map<string, GFXTextureView>;
-        protected _frameBuffers: Map<string, GFXFramebuffer>;
-        protected _renderPasses: Map<number, GFXRenderPass>;
+        protected _globalDescriptorSetLayout: __private.cocos_core_pipeline_define_IDescriptorSetLayoutInfo;
+        protected _localDescriptorSetLayout: __private.cocos_core_pipeline_define_IDescriptorSetLayoutInfo;
+        protected _macros: renderer.MacroRecord;
+        get device(): GFXDevice;
+        get descriptorSetLayout(): GFXDescriptorSetLayout;
+        get descriptorSet(): GFXDescriptorSet;
+        get commandBuffers(): GFXCommandBuffer[];
+        protected _device: GFXDevice;
+        protected _descriptorSetLayout: GFXDescriptorSetLayout;
+        protected _descriptorSet: GFXDescriptorSet;
+        protected _commandBuffers: GFXCommandBuffer[];
         /**
-         * 构造函数。
-         * @param root Root类实例。
+         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
+         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
+         * @param info The render pipeline information
          */
-        constructor();
-        getTextureView(name: string): GFXTextureView | undefined;
-        getRenderTexture(name: string): GFXTexture | undefined;
-        getFrameBuffer(name: string): GFXFramebuffer | undefined;
+        initialize(info: __private.cocos_core_pipeline_render_pipeline_IRenderPipelineInfo): boolean;
         /**
-         * @zh
-         * 初始化函数，用于不从资源加载RenderPipeline的情况。
-         * @param info 渲染管线描述信息。
+         * @en Activate the render pipeline after loaded, it mainly activate the flows
+         * @zh 当渲染管线资源加载完成后，启用管线，主要是启用管线内的 flow
          */
-        initialize(info: __private.cocos_core_pipeline_render_pipeline_IRenderPipelineInfo): void;
+        activate(): boolean;
         /**
-         * 当RenderPipeline资源加载完成后，启用相应的flow
-         * @param desc
-         */
-        activate(root: renderer.__private.cocos_core_root_Root): boolean;
-        /**
-         * @zh
-         * 销毁函数。
-         */
-        abstract destroy(): any;
-        /**
-         * @zh
-         * 渲染函数。
-         * @param view 渲染视图。
+         * @en Render function, it basically run the render process of all flows in sequence for the given view.
+         * @zh 渲染函数，对指定的渲染视图按顺序执行所有渲染流程。
+         * @param view Render view。
          */
         render(view: RenderView): void;
         /**
-         * @zh
-         * 重构函数。
+         * @en Internal destroy function
+         * @zh 内部销毁函数。
          */
-        rebuild(): void;
-        /**
-         * @zh
-         * 重置大小。
-         * @param width 屏幕宽度。
-         * @param height 屏幕高度。
-         */
-        resize(width: number, height: number): void;
-        /**
-         * @zh
-         * 交换帧缓冲。
-         */
-        swapFBOs(): void;
-        /**
-         * @zh
-         * 添加渲染过程。
-         * @param stage 渲染阶段。
-         * @param renderPass 渲染过程。
-         */
-        addRenderPass(stage: number, renderPass: GFXRenderPass): void;
-        /**
-         * @zh
-         * 得到指定阶段的渲染过程。
-         * @param stage 渲染阶段。
-         */
-        getRenderPass(stage: number): GFXRenderPass | null;
-        /**
-         * @zh
-         * 移除指定阶段的渲染过程。
-         * @param stage 渲染阶段。
-         */
-        removeRenderPass(stage: number): void;
-        /**
-         * @zh
-         * 清空渲染过程。
-         */
-        clearRenderPasses(): void;
-        /**
-         * @zh
-         * 销毁全部渲染流程。
-         */
-        destroyFlows(): void;
-        /**
-         * @zh
-         * 得到指定名称的渲染流程。
-         * @param name 名称。
-         */
-        getFlow(name: string): RenderFlow | null;
-        /**
-         * @zh
-         * 更新宏定义。
-         */
-        updateMacros(): void;
-        /**
-         * @zh
-         * 更新指定渲染视图的UBO。
-         * @param view 渲染视图。
-         */
-        updateUBOs(view: RenderView): void;
-        /**
-         * @zh
-         * 场景裁剪。
-         * @param view 渲染视图。
-         */
-        sceneCulling(view: RenderView): void;
-        protected _initRenderResource(): boolean;
-        /**
-         * @zh
-         * 内部销毁函数。
-         */
-        protected _destroy(): void;
-        /**
-         * @zh
-         * 重置帧缓冲大小。
-         * @param width 屏幕宽度。
-         * @param height 屏幕高度。
-         */
-        protected resizeFBOs(width: number, height: number): void;
-        /**
-         * @zh
-         * 创建四边形输入汇集器。
-         */
-        protected createQuadInputAssembler(): boolean;
-        /**
-         * @zh
-         * 销毁四边形输入汇集器。
-         */
-        protected destroyQuadInputAssembler(): void;
-        /**
-         * @zh
-         * 创建所有UBO。
-         */
-        protected createUBOs(): boolean;
-        /**
-         * @zh
-         * 销毁全部UBO。
-         */
-        protected destroyUBOs(): void;
-        /**
-         * @zh
-         * 添加可见对象。
-         * @param model 模型。
-         * @param camera 相机。
-         */
-        protected addVisibleModel(model: renderer.Model, camera: renderer.Camera): void;
+        destroy(): boolean;
     }
     /**
-     * @zh
-     * 渲染流程。
+     * @en Render flow is a sub process of the [[RenderPipeline]], it dispatch the render task to all the [[RenderStage]]s.
+     * @zh 渲染流程是渲染管线（[[RenderPipeline]]）的一个子过程，它将渲染任务派发到它的所有渲染阶段（[[RenderStage]]）中执行。
      */
     export abstract class RenderFlow {
-        get device(): GFXDevice;
-        get pipeline(): RenderPipeline;
         get name(): string;
         get priority(): number;
+        get tag(): number;
         get stages(): RenderStage[];
-        get material(): Material | null;
-        get type(): __private.cocos_core_pipeline_pipeline_serialization_RenderFlowType;
-        /**
-         * @zh
-         * GFX设备。
-         */
-        protected _device: GFXDevice | null;
-        /**
-         * @zh
-         * 渲染管线。
-         */
+        protected _name: string;
+        protected _priority: number;
+        protected _tag: number;
+        protected _stages: RenderStage[];
         protected _pipeline: RenderPipeline;
         /**
-         * @zh
-         * 名称。
+         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
+         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
+         * @param info The render flow information
          */
-        protected _name: string;
+        initialize(info: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo): boolean;
         /**
-         * @zh
-         * 优先级。
-         */
-        protected _priority: number;
-        /**
-         * @zh
-         * 材质。
-         */
-        protected _material: Material | null;
-        protected _type: __private.cocos_core_pipeline_pipeline_serialization_RenderFlowType;
-        /**
-         * @zh
-         * 渲染阶段数组。
-         */
-        protected _stages: RenderStage[];
-        /**
-         * 构造函数。
-         * @param pipeline 渲染管线。
-         */
-        constructor();
-        /**
-         * @zh
-         * 初始化函数。
-         * @param info 渲染流程描述信息。
-         */
-        initialize(info: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo): void;
-        /**
-         * 把序列化数据转换成运行时数据
+         * @en Activate the current render flow in the given pipeline
+         * @zh 为指定的渲染管线开启当前渲染流程
+         * @param pipeline The render pipeline to activate this render flow
          */
         activate(pipeline: RenderPipeline): void;
         /**
-         * @zh
-         * 销毁函数。
-         */
-        abstract destroy(): any;
-        /**
-         * @zh
-         * 重构函数。
-         */
-        abstract rebuild(): any;
-        /**
-         * @zh
-         * 重置大小。
-         * @param width 屏幕宽度。
-         * @param height 屏幕高度。
-         */
-        resize(width: number, height: number): void;
-        /**
-         * @zh
-         * 渲染函数。
-         * @param view 渲染视图。
+         * @en Render function, it basically run all render stages in sequence for the given view.
+         * @zh 渲染函数，对指定的渲染视图按顺序执行所有渲染阶段。
+         * @param view Render view。
          */
         render(view: RenderView): void;
         /**
-         * @zh
-         * 销毁全部渲染阶段。
+         * @en Destroy function.
+         * @zh 销毁函数。
          */
-        destroyStages(): void;
-        protected _activateStages(): void;
+        destroy(): void;
     }
     /**
-     * @zh
-     * 渲染阶段。
+     * @en The render stage actually renders render objects to the output window or other [[GFXFrameBuffer]].
+     * Typically, a render stage collects render objects it's responsible for, clear the camera,
+     * record and execute command buffer, and at last present the render result.
+     * @zh 渲染阶段是实质上的渲染执行者，它负责收集渲染数据并执行渲染将渲染结果输出到屏幕或其他 [[GFXFrameBuffer]] 中。
+     * 典型的渲染阶段会收集它所管理的渲染对象，按照 [[Camera]] 的清除标记进行清屏，记录并执行渲染指令缓存，并最终呈现渲染结果。
      */
     export abstract class RenderStage {
-        get flow(): RenderFlow;
-        get pipeline(): RenderPipeline;
+        get name(): string;
         get priority(): number;
-        get framebuffer(): GFXFramebuffer | null;
+        get tag(): number;
         /**
-         * @zh
-         * 名称。
+         * @en Name
+         * @zh 名称。
          */
         protected _name: string;
         /**
-         * @zh
-         * 优先级。
+         * @en Priority
+         * @zh 优先级。
          */
         protected _priority: number;
-        protected frameBuffer: string;
-        protected renderQueues: __private.cocos_core_pipeline_render_stage_RenderQueueDesc[];
-        protected _renderQueues: __private.cocos_core_pipeline_render_queue_RenderQueue[];
         /**
-         * @zh
-         * 渲染流程。
+         * @en Type
+         * @zh 类型。
          */
+        protected _tag: number;
+        protected _pipeline: RenderPipeline;
         protected _flow: RenderFlow;
         /**
-         * @zh
-         * 渲染管线。
-         */
-        protected _pipeline: RenderPipeline;
-        /**
-         * @zh
-         * GFX设备。
-         */
-        protected _device: GFXDevice | null;
-        /**
-         * @zh
-         * 渲染流程。
-         */
-        protected _framebuffer: GFXFramebuffer | null;
-        /**
-         * @zh
-         * 命令缓冲。
-         */
-        protected _cmdBuff: GFXCommandBuffer | null;
-        /**
-         * @zh
-         * 清空颜色数组。
-         */
-        protected _clearColors: IGFXColor[] | null;
-        /**
-         * @zh
-         * 清空深度。
-         */
-        protected _clearDepth: number;
-        /**
-         * @zh
-         * 清空模板。
-         */
-        protected _clearStencil: number;
-        /**
-         * @zh
-         * 渲染区域。
-         */
-        protected _renderArea: IGFXRect | null;
-        /**
-         * @zh
-         * 着色过程。
-         */
-        protected _pass: renderer.Pass | null;
-        /**
-         * @zh
-         * GFX管线状态。
-         */
-        protected _pso: GFXPipelineState | null;
-        /**
-         * 构造函数。
-         * @param flow 渲染流程。
-         */
-        constructor();
-        /**
-         * @zh
-         * 初始化函数，用于不从资源加载RenderPipeline时使用。
-         * @param info 渲染阶段描述信息。
+         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
+         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
+         * @param info The render stage information
          */
         initialize(info: __private.cocos_core_pipeline_render_stage_IRenderStageInfo): boolean;
         /**
-         * 把序列化数据转换成运行时数据
+         * @en Activate the current render stage in the given render flow
+         * @zh 为指定的渲染流程开启当前渲染阶段
+         * @param flow The render flow to activate this render stage
          */
-        activate(flow: RenderFlow): void;
+        activate(pipeline: RenderPipeline, flow: RenderFlow): void;
         /**
-         * @zh
-         * 销毁函数。
+         * @en Destroy function
+         * @zh 销毁函数。
          */
         abstract destroy(): any;
         /**
-         * @zh
-         * 渲染函数。
-         * @param view 渲染视图。
+         * @en Render function
+         * @zh 渲染函数。
+         * @param view The render view
          */
         abstract render(view: RenderView): any;
-        /**
-         * @zh
-         * 重置大小。
-         * @param width 屏幕宽度。
-         * @param height 屏幕高度。
-         */
-        abstract resize(width: number, height: number): any;
-        /**
-         * @zh
-         * 重构函数。
-         */
-        abstract rebuild(): any;
-        /**
-         * @zh
-         * 设置清空颜色。
-         */
-        setClearColor(color: IGFXColor): void;
-        /**
-         * @zh
-         * 设置清空颜色数组。
-         */
-        setClearColors(colors: IGFXColor[]): void;
-        /**
-         * @zh
-         * 设置清空深度。
-         */
-        setClearDepth(depth: number): void;
-        /**
-         * @zh
-         * 设置清空模板。
-         */
-        setClearStencil(stencil: number): void;
-        /**
-         * @zh
-         * 设置渲染区域。
-         */
-        setRenderArea(width: number, height: number): void;
-        sortRenderQueue(): void;
-        executeCommandBuffer(view: RenderView): void;
-        createCmdBuffer(): void;
-        protected renderQueueClearFunc(rq: __private.cocos_core_pipeline_render_queue_RenderQueue): void;
-        protected renderQueueSortFunc(rq: __private.cocos_core_pipeline_render_queue_RenderQueue): void;
     }
     /**
-     * @zh
-     * 渲染视图。
+     * @en Render view represents a view from its camera, it also manages a list of [[RenderFlow]]s which will be executed for it.
+     * @zh 渲染视图代表了它的相机所拍摄的视图，它也管理一组在视图上执行的 [[RenderFlow]]。
      */
     export class RenderView {
         get name(): string;
-        get window(): GFXWindow | null;
-        set window(val: GFXWindow | null);
+        get window(): RenderWindow;
+        set window(val: RenderWindow);
         get priority(): number;
         set priority(val: number);
         set visibility(vis: number);
@@ -14559,124 +13194,176 @@ declare module "cc.core" {
         get camera(): renderer.Camera;
         get isEnable(): boolean;
         get flows(): RenderFlow[];
-        static registerCreateFunc(root: renderer.__private.cocos_core_root_Root): void;
         /**
-         * @zh
-         * 初始化函数。
-         * @param info 渲染视图描述信息。
+         * @en The constructor
+         * @zh 构造函数。
+         * @param camera
          */
-        initialize(info: renderer.__private.cocos_core_pipeline_render_view_IRenderViewInfo): boolean;
+        constructor(camera: renderer.Camera);
         /**
-         * @zh
-         * 销毁函数。
+         * @en Initialization function with a render view information descriptor
+         * @zh 使用一个渲染视图描述信息来初始化。
+         * @param info Render view information descriptor
+         */
+        initialize(info: __private.cocos_core_pipeline_render_view_IRenderViewInfo): boolean;
+        /**
+         * @en The destroy function
+         * @zh 销毁函数。
          */
         destroy(): void;
         /**
-         * @zh
-         * 启用该渲染视图。
+         * @en Enable or disable this render view
+         * @zh 启用或禁用该渲染视图。
+         * @param isEnable Whether to enable or disable this view
          */
         enable(isEnable: boolean): void;
+        /**
+         * @en Set the execution render flows with their names, the flows found in the pipeline will then be executed for this view in the render process
+         * @zh 使用对应的名字列表设置需要执行的渲染流程，所有在渲染管线中找到的对应渲染流程都会用来对当前视图执行渲染。
+         * @param flows The names of all [[RenderFlow]]s
+         */
         setExecuteFlows(flows: string[] | undefined): void;
+        onGlobalPipelineStateChanged(): void;
+    }
+    export class RenderWindow {
+        get width(): number;
+        get height(): number;
+        get framebuffer(): GFXFramebuffer;
+        get shouldSyncSizeWithSwapchain(): boolean;
+        get hasOnScreenAttachments(): boolean;
+        get hasOffScreenAttachments(): boolean;
+        static registerCreateFunc(root: __private.cocos_core_root_Root): void;
+        protected _title: string;
+        protected _width: number;
+        protected _height: number;
+        protected _nativeWidth: number;
+        protected _nativeHeight: number;
+        protected _renderPass: GFXRenderPass | null;
+        protected _colorTextures: (GFXTexture | null)[];
+        protected _depthStencilTexture: GFXTexture | null;
+        protected _framebuffer: GFXFramebuffer | null;
+        protected _swapchainBufferIndices: number;
+        protected _shouldSyncSizeWithSwapchain: boolean;
+        protected _hasOnScreenAttachments: boolean;
+        protected _hasOffScreenAttachments: boolean;
+        initialize(device: GFXDevice, info: __private.cocos_core_pipeline_render_window_IRenderWindowInfo): boolean;
+        destroy(): void;
+        /**
+         * @en Resize window.
+         * @zh 重置窗口大小。
+         * @param width The new width.
+         * @param height The new height.
+         */
+        resize(width: number, height: number): void;
     }
     /**
-     * @zh
-     * 前向渲染管线。
+     * @en The forward render pipeline
+     * @zh 前向渲染管线。
      */
     export class ForwardPipeline extends RenderPipeline {
-        get lightsUBO(): GFXBuffer;
-        static initInfo: __private.cocos_core_pipeline_render_pipeline_IRenderPipelineInfo;
+        get isHDR(): boolean;
+        set isHDR(val: boolean);
+        get shadingScale(): number;
+        get fpScale(): number;
+        get shadowUBO(): Float32Array;
+        protected renderTextures: __private.cocos_core_pipeline_pipeline_serialization_RenderTextureConfig[];
+        protected materials: __private.cocos_core_pipeline_pipeline_serialization_MaterialConfig[];
+        fog: __private.cocos_core_renderer_scene_fog_Fog;
+        ambient: renderer.Ambient;
+        skybox: renderer.Skybox;
+        planarShadows: renderer.PlanarShadows;
+        shadowMap: __private.cocos_core_renderer_scene_shadow_Shadow;
         /**
-         * @zh
-         * 全部光源的UBO结构描述。
+         * @en The list for render objects, only available after the scene culling of the current frame.
+         * @zh 渲染对象数组，仅在当前帧的场景剔除完成后有效。
+         * @readonly
          */
-        protected _uboLights: __private.cocos_core_pipeline_define_UBOForwardLight;
+        renderObjects: __private.cocos_core_pipeline_define_IRenderObject[];
+        shadowObjects: __private.cocos_core_pipeline_define_IRenderObject[];
+        protected _isHDR: boolean;
+        protected _shadingScale: number;
+        protected _fpScale: number;
+        protected _renderPasses: Map<GFXClearFlag, GFXRenderPass>;
+        protected _globalUBO: Float32Array;
+        protected _shadowUBO: Float32Array;
+        initialize(info: __private.cocos_core_pipeline_render_pipeline_IRenderPipelineInfo): boolean;
+        activate(): boolean;
+        getRenderPass(clearFlags: GFXClearFlag): GFXRenderPass;
         /**
-         * @zh
-         * 全部光源的UBO缓冲。
-         */
-        protected _lightsUBO: GFXBuffer | null;
-        /**
-         * 构造函数。
-         * @param root Root类实例。
-         */
-        constructor();
-        initialize(info: __private.cocos_core_pipeline_render_pipeline_IRenderPipelineInfo): void;
-        activate(root: renderer.__private.cocos_core_root_Root): boolean;
-        /**
-         * @zh
-         * 销毁函数。
-         */
-        destroy(): void;
-        /**
-         * @zh
-         * 重构函数。
-         */
-        rebuild(): void;
-        /**
-         * @zh
-         * 更新UBO。
+         * @en Update all UBOs
+         * @zh 更新全部 UBO。
          */
         updateUBOs(view: RenderView): void;
-        /**
-         * @zh
-         * 场景裁剪。
-         * @param view 渲染视图。
-         */
-        sceneCulling(view: RenderView): void;
+        destroy(): boolean;
     }
     /**
-     * @zh
-     * 前向渲染流程。
+     * @en The forward flow in forward render pipeline
+     * @zh 前向渲染流程。
      */
     export class ForwardFlow extends RenderFlow {
+        /**
+         * @en The shared initialization information of forward render flow
+         * @zh 共享的前向渲染流程初始化参数
+         */
         static initInfo: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo;
-        /**
-         * 构造函数。
-         * @param pipeline 渲染管线。
-         */
-        constructor();
-        initialize(info: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo): void;
+        initialize(info: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo): boolean;
+        activate(pipeline: RenderPipeline): void;
         render(view: RenderView): void;
-        /**
-         * @zh
-         * 销毁函数。
-         */
         destroy(): void;
-        /**
-         * @zh
-         * 重构函数。
-         */
-        rebuild(): void;
     }
     /**
-     * @zh
-     * 前向渲染阶段。
+     * @en The forward render stage
+     * @zh 前向渲染阶段。
      */
     export class ForwardStage extends RenderStage {
         static initInfo: __private.cocos_core_pipeline_render_stage_IRenderStageInfo;
+        protected renderQueues: __private.cocos_core_pipeline_pipeline_serialization_RenderQueueDesc[];
+        protected _renderQueues: __private.cocos_core_pipeline_render_queue_RenderQueue[];
+        constructor();
+        initialize(info: __private.cocos_core_pipeline_render_stage_IRenderStageInfo): boolean;
+        activate(pipeline: ForwardPipeline, flow: ForwardFlow): void;
+        destroy(): void;
+        render(view: RenderView): void;
+        /**
+         * @en Clear the given render queue
+         * @zh 清空指定的渲染队列
+         * @param rq The render queue
+         */
+        protected renderQueueClearFunc(rq: __private.cocos_core_pipeline_render_queue_RenderQueue): void;
+        /**
+         * @en Sort the given render queue
+         * @zh 对指定的渲染队列执行排序
+         * @param rq The render queue
+         */
+        protected renderQueueSortFunc(rq: __private.cocos_core_pipeline_render_queue_RenderQueue): void;
+    }
+    /**
+     * @zh 阴影贴图绘制流程
+     */
+    export class ShadowFlow extends RenderFlow {
+        get shadowFrameBuffer(): GFXFramebuffer | null;
+        static initInfo: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo;
+        initialize(info: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo): boolean;
+        activate(pipeline: ForwardPipeline): void;
+        render(view: RenderView): void;
+    }
+    /**
+     * @zh
+     * 阴影渲染阶段。
+     */
+    export class ShadowStage extends RenderStage {
+        static initInfo: __private.cocos_core_pipeline_render_stage_IRenderStageInfo;
+        setShadowFrameBuffer(shadowFrameBuffer: GFXFramebuffer): void;
         /**
          * 构造函数。
          * @param flow 渲染阶段。
          */
         constructor();
-        activate(flow: RenderFlow): void;
         /**
          * @zh
          * 销毁函数。
          */
         destroy(): void;
-        /**
-         * @zh
-         * 重置大小。
-         * @param width 屏幕宽度。
-         * @param height 屏幕高度。
-         */
-        resize(width: number, height: number): void;
-        /**
-         * @zh
-         * 重构函数。
-         */
-        rebuild(): void;
         /**
          * @zh
          * 渲染函数。
@@ -14685,44 +13372,14 @@ declare module "cc.core" {
         render(view: RenderView): void;
     }
     /**
-     * @zh
-     * 色调映射渲染流程。
-     */
-    export class ToneMapFlow extends RenderFlow {
-        static initInfo: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo;
-        constructor();
-        initialize(info: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo): boolean;
-        destroy(): void;
-        rebuild(): void;
-    }
-    /**
-     * @zh
-     * 色调映射渲染阶段。
-     *
-     */
-    export class ToneMapStage extends RenderStage {
-        static initInfo: __private.cocos_core_pipeline_render_stage_IRenderStageInfo;
-        constructor();
-        activate(flow: RenderFlow): void;
-        destroy(): void;
-        resize(width: number, height: number): void;
-        rebuild(): void;
-        render(view: RenderView): void;
-    }
-    /**
-     * 加载相关模块
-     * @category loader
-     */
-    /**
      * @class url
      * @static
      */
     export let url: {
         /**
          * The base url of raw assets.
-         * @property {Object} _rawAssets
          * @private
-         * @readOnly
+         * @editable.readOnly
          */
         _rawAssets: string;
         normalize: (url: any) => any;
@@ -14734,32 +13391,25 @@ declare module "cc.core" {
          * @return {String}
          * @example {@link cocos/core/platform/url/raw.js}
          */
-        raw: (url: any) => any;
+        raw: (url: any) => string;
         _init: (assets: any) => void;
     };
     /**
-     * The downloader pipe, it can download several types of files:
+     * @en The downloader pipe in {{loader}}, it can download several types of files:
      * 1. Text
      * 2. Image
      * 3. Script
      * 4. Audio
-     * 5. Assets
+     * 5. Binary
      * All unknown type will be downloaded as plain text.
-     * You can pass custom supported types in the constructor.
-     * @class Pipeline.Downloader
-     */
-    /**
-     * Constructor of Downloader, you can pass custom supported types.
-     *
-     * @method constructor
-     * @param {Object} extMap Custom supported types with corresponded handler
-     * @example
-     * ```
-     *  let downloader = new Downloader({
-     *      // This will match all url with `.scene` extension or all url with `scene` type
-     *      'scene' : function (url, callback) {}
-     *  });
-     * ```
+     * You can pass custom supported types in the {{loader.addDownloadHandlers}}.
+     * @zh {{loader}} 中的下载管线，可以下载下列类型的文件：
+     * 1. Text
+     * 2. Image
+     * 3. Script
+     * 4. Audio
+     * 5. Binary
+     * 所有未知类型会被当做文本来下载，也可以通过 {{loader.addDownloadHandlers}} 来定制下载行为
      */
     export class Downloader implements __private.cocos_core_load_pipeline_pipeline_IPipe {
         static ID: string;
@@ -14768,51 +13418,49 @@ declare module "cc.core" {
         async: boolean;
         pipeline: Pipeline | null;
         constructor(extMap?: any);
+        /**
+         * @en Set sub package configurations, only available in certain platforms
+         * @zh 设置子包配置，只在部分平台支持
+         * @param subPackages
+         */
         setSubPackages(subPackages: any): void;
         /**
          * @en Add custom supported types handler or modify existing type handler.
          * @zh 添加自定义支持的类型处理程序或修改现有的类型处理程序。
-         * @method addHandlers
-         * @param {Object} extMap Custom supported types with corresponded handler
+         * @param extMap Custom supported types with corresponded handler
          */
-        addHandlers(extMap: any): void;
+        addHandlers(extMap: Map<string, Function>): void;
         _handleLoadQueue(): void;
         handle(item: any, callback: any): undefined;
         /**
-         * @en
-         * Load subpackage with name.
-         * @zh
-         * 通过子包名加载子包代码。
-         * @method loadSubpackage
-         * @param {String} name - Subpackage name
-         * @param {Function} [completeCallback] -  Callback invoked when subpackage loaded
+         * @en Load sub package with name.
+         * @zh 通过子包名加载子包代码。
+         * @param name - Sub package name
+         * @param completeCallback -  Callback invoked when sub package loaded
          * @param {Error} completeCallback.error - error information
          */
-        loadSubpackage(name: any, completeCallback: any): void;
+        loadSubpackage(name: string, completeCallback?: Function): void;
     }
     /**
-     * The loader pipe, it can load several types of files:
+     * @en The loader pipe in {{loader}}, it can load several types of files:
      * 1. Images
      * 2. JSON
      * 3. Plist
      * 4. Audio
      * 5. Font
-     * 6. Cocos Creator scene
+     * 6. Binary
+     * 7. Cocos Assets
      * It will not interfere with items of unknown type.
-     * You can pass custom supported types in the constructor.
-     * @class Pipeline.Loader
-     */
-    /**
-     * Constructor of Loader, you can pass custom supported types.
-     *
-     * @param {Object} extMap Custom supported types with corresponded handler
-     * @example
-     * ```
-     * let loader = new Loader({
-     *    // This will match all url with `.scene` extension or all url with `scene` type
-     *    'scene' : function (url, callback) {}
-     * });
-     * ```
+     * You can pass custom supported types in the {{loader.addLoadHandlers}}.
+     * @zh {{loader}} 中的解析加载管线，可以解析加载下列类型的资源：
+     * 1. Images
+     * 2. JSON
+     * 3. Plist
+     * 4. Audio
+     * 5. Font
+     * 6. Binary
+     * 7. Cocos Assets
+     * 所有未知类型不会被处理，也可以通过 {{loader.addLoadHandlers}} 来定制加载行为
      */
     export class Loader implements __private.cocos_core_load_pipeline_pipeline_IPipe {
         static ID: string;
@@ -14821,10 +13469,12 @@ declare module "cc.core" {
         pipeline: Pipeline | null;
         constructor(extMap?: any);
         /**
-         * Add custom supported types handler or modify existing type handler.
-         * @param {Object} extMap Custom supported types with corresponded handler
+         * @en Add custom supported types handler or modify existing type handler.
+         * @zh 添加自定义支持的类型处理程序或修改现有的类型处理程序。
+         * @param extMap Custom supported types with corresponded handler
+         * @param extMap Custom supported types with corresponded handler
          */
-        addHandlers(extMap?: any): void;
+        addHandlers(extMap: Map<string, Function>): void;
         handle(item: any, callback: any): any;
     }
     /**
@@ -14841,18 +13491,23 @@ declare module "cc.core" {
      * 一个 item 列表可以在 pipeline 中流动，它将输出加载项经过所有 pipe 之后的结果。<br/>
      * 它们穿过 pipeline 就像水在管子里流动，将会按顺序流过每个 pipe。<br/>
      * 最后当所有加载项都流出 pipeline 时，整个加载流程就结束了。
-     * @class Pipeline
      */
     export class Pipeline {
+        /**
+         * @en The item states of the LoadingItems, its value could be {{ItemState.WORKING}} | {{ItemState.COMPLETE}} | {{ItemState.ERROR}}
+         * @zh LoadingItems 队列中的加载项状态，状态的值可能是 {{ItemState.WORKING}} | {{ItemState.COMPLETE}} | {{ItemState.ERROR}}
+         */
         static ItemState: any;
         protected _pipes: Array<__private.cocos_core_load_pipeline_pipeline_IPipe>;
         _cache: any;
         /**
-         * 构造函数，通过一系列的 pipe 来构造一个新的 pipeline，pipes 将会在给定的顺序中被锁定。<br/>
+         * @en The constructor of the Pipeline, the order of pipes will remain as given.
+         * A pipe is an {{IPipe}} object which must have an `id` and a `handle` function, the `id` must be unique.
+         * It should also include an `async` property to identify whether the pipe's `handle` function is asynchronous.
+         * @zh 构造函数，通过一系列的 pipe 来构造一个新的 pipeline，pipes 将会在给定的顺序中被锁定。<br/>
          * 一个 pipe 就是一个对象，它包含了字符串类型的 ‘id’ 和 ‘handle’ 函数，在 pipeline 中 id 必须是唯一的。<br/>
          * 它还可以包括 ‘async’ 属性以确定它是否是一个异步过程。
-         *
-         * @param {Array} pipes
+         * @param pipes All pipes for constructing the pipeline
          * @example
          * ```
          *  let pipeline = new Pipeline([
@@ -14865,40 +13520,31 @@ declare module "cc.core" {
          *  ]);
          * ```
          */
-        constructor(pipes: any);
+        constructor(pipes: __private.cocos_core_load_pipeline_pipeline_IPipe[]);
         /**
-         * @en
-         * Insert a new pipe at the given index of the pipeline. <br/>
+         * @en Insert a new pipe at the given index of the pipeline. <br/>
          * A pipe must contain an `id` in string and a `handle` function, the id must be unique in the pipeline.
-         * @zh
-         * 在给定的索引位置插入一个新的 pipe。<br/>
+         * @zh 在给定的索引位置插入一个新的 pipe。<br/>
          * 一个 pipe 必须包含一个字符串类型的 ‘id’ 和 ‘handle’ 函数，该 id 在 pipeline 必须是唯一标识。
-         * @method insertPipe
-         * @param {Object} pipe The pipe to be inserted
-         * @param {Number} index The index to insert
+         * @param pipe The pipe to be inserted
+         * @param index The index to insert
          */
-        insertPipe(pipe: any, index: any): void;
+        insertPipe(pipe: __private.cocos_core_load_pipeline_pipeline_IPipe, index: number): void;
         /**
-         * @en
-         * Insert a pipe to the end of an existing pipe. The existing pipe must be a valid pipe in the pipeline.
-         * @zh
-         * 在当前 pipeline 的一个已知 pipe 后面插入一个新的 pipe。
-         * @method insertPipeAfter
-         * @param {Object} refPipe An existing pipe in the pipeline.
-         * @param {Object} newPipe The pipe to be inserted.
+         * @en Insert a pipe to the end of an existing pipe. The existing pipe must be a valid pipe in the pipeline.
+         * @zh 在当前 pipeline 的一个已知 pipe 后面插入一个新的 pipe。
+         * @param refPipe An existing pipe in the pipeline.
+         * @param newPipe The pipe to be inserted.
          */
-        insertPipeAfter(refPipe: any, newPipe: any): void;
+        insertPipeAfter(refPipe: __private.cocos_core_load_pipeline_pipeline_IPipe, newPipe: __private.cocos_core_load_pipeline_pipeline_IPipe): void;
         /**
-         * @en
-         * Add a new pipe at the end of the pipeline. <br/>
+         * @en Add a new pipe at the end of the pipeline. <br/>
          * A pipe must contain an `id` in string and a `handle` function, the id must be unique in the pipeline.
-         * @zh
-         * 添加一个新的 pipe 到 pipeline 尾部。 <br/>
+         * @zh 添加一个新的 pipe 到 pipeline 尾部。 <br/>
          * 该 pipe 必须包含一个字符串类型 ‘id’ 和 ‘handle’ 函数，该 id 在 pipeline 必须是唯一标识。
-         * @method appendPipe
-         * @param {Object} pipe The pipe to be appended
+         * @param pipe The pipe to be appended
          */
-        appendPipe(pipe: any): void;
+        appendPipe(pipe: __private.cocos_core_load_pipeline_pipeline_IPipe): void;
         /**
          * @en
          * Let new items flow into the pipeline. <br/>
@@ -14914,7 +13560,7 @@ declare module "cc.core" {
          * 你也可以指定它的 ‘type’ 属性类型，默认情况下，该类型是 ‘url’ 的后缀名。<br/>
          * 也通过添加一个 包含 ‘skips’ 属性的 item 对象，你就可以跳过 skips 中包含的 pipe。<br/>
          * 该对象可以包含任何附加属性。
-         * @param {Array} items
+         * @param items The {{IItem}} to be appended to the current pipeline
          * @example
          * ```
          *  pipeline.flowIn([
@@ -14928,7 +13574,7 @@ declare module "cc.core" {
          *  ]);
          * ```
          */
-        flowIn(items: any): void;
+        flowIn(items: Array<IItem>): void;
         /**
          * @en
          * Let new items flow into the pipeline and give a callback when the list of items are all completed. <br/>
@@ -14941,13 +13587,18 @@ declare module "cc.core" {
          * 这个 API 的使用通常是为了加载依赖项。<br/>
          * 例如：<br/>
          * 我们需要加载一个场景配置的 JSON 文件，该场景会将所有的依赖项全部都加载完毕以后，进行回调表示加载完毕。
-         * @deprecated since v1.3
-         * @param {Array} urlList
-         * @param {Function} callback
-         * @return {Array} Items accepted by the pipeline
+         * @param owner The owner item
+         * @param urlList The list of urls to be appended as dependencies of the owner.
+         * @param callback The callback to be invoked when all dependencies are completed.
+         * @return Items accepted by the pipeline
          */
-        flowInDeps(owner: any, urlList: any, callback: any): IItem[];
-        flowOut(item: any): void;
+        flowInDeps(owner: IItem, urlList: object[], callback: Function): IItem[];
+        /**
+         * @en This function is invoked when an item has completed all pipes, it will flow out of the pipeline.
+         * @zh 这个函数会在 `item` 完成了所有管道，它会被标记为 `complete` 并流出管线。
+         * @param item The item which is completed
+         */
+        flowOut(item: IItem): void;
         /**
          * @en
          * Copy the item states from one source item to all destination items. <br/>
@@ -14963,38 +13614,37 @@ declare module "cc.core" {
          * 你希望让这些新的依赖项进入 pipeline，但是又不希望它们通过源 item 已经经过的 pipe，<br/>
          * 但是你可能希望他们源 item 已经通过并跳过所有 pipes，<br/>
          * 这个时候就可以使用这个 API。
-         * @method copyItemStates
-         * @param {Object} srcItem The source item
-         * @param {Array|Object} dstItems A single destination item or an array of destination items
+         * @param srcItem The source item
+         * @param dstItems A single destination item or an array of destination items
          */
-        copyItemStates(srcItem: any, dstItems: any): void;
+        copyItemStates(srcItem: IItem, dstItems: IItem | Array<IItem>): void;
         /**
          * @en Returns an item in pipeline.
          * @zh 根据 id 获取一个 item
-         * @method getItem
-         * @param {Object} id The id of the item
-         * @return {Object}
+         * @param id The id of the item
          */
-        getItem(id: any): any;
+        getItem(id: string): IItem | null;
         /**
          * @en Removes an completed item in pipeline.
          * It will only remove the cache in the pipeline or loader, its dependencies won't be released.
-         * cc.loader provided another method to completely cleanup the resource and its dependencies,
-         * please refer to [[CCLoader.release]]
+         * `loader` provided another method to completely cleanup the resource and its dependencies,
+         * please refer to {{Loader.release}}
          * @zh 移除指定的已完成 item。
          * 这将仅仅从 pipeline 或者 loader 中删除其缓存，并不会释放它所依赖的资源。
-         * cc.loader 中提供了另一种删除资源及其依赖的清理方法，请参考 [[CCLoader.release]]
-         * @method removeItem
-         * @param {Object} id The id of the item
-         * @return {Boolean} succeed or not
+         * `loader` 中提供了另一种删除资源及其依赖的清理方法，请参考 {{Loader.release}}
+         * @param id The id of the item
+         * @return succeed or not
          */
-        removeItem(id: any): any;
+        removeItem(id: string): boolean;
         /**
          * @en Clear the current pipeline, this function will clean up the items.
          * @zh 清空当前 pipeline，该函数将清理 items。
          */
         clear(): void;
     }
+    /**
+     * Singleton object of CCLoader
+     */
     export const loader: __private.cocos_core_load_pipeline_CCLoader_CCLoader;
     export interface IItem {
         queueId: any;
@@ -15042,105 +13692,81 @@ declare module "cc.core" {
      * <br/>
      * 对象可容纳其他自定义属性。<br/>
      * 每个 LoadingItems 对象都会在 onComplete 回调之后被销毁，所以请不要持有它的引用并在结束回调之后依赖它的内容执行任何逻辑，有这种需求的话你可以提前复制它的内容。
-     *
-     * @class LoadingItems
-     * @extends CallbacksInvoker
      */
     export class LoadingItems extends __private.cocos_core_event_callbacks_invoker_CallbacksInvoker {
         /**
-         * @en The item states of the LoadingItems, its value could be LoadingItems.ItemState.WORKING | LoadingItems.ItemState.COMPLETET | LoadingItems.ItemState.ERROR
-         * @zh LoadingItems 队列中的加载项状态，状态的值可能是 LoadingItems.ItemState.WORKING | LoadingItems.ItemState.COMPLETET | LoadingItems.ItemState.ERROR
-         * @enum LoadingItems.ItemState
-         */
-        /**
-         * @property {Number} WORKING
-         */
-        /**
-         * @property {Number} COMPLETET
-         */
-        /**
-         * @property {Number} ERROR
+         * @en The item states of the LoadingItems, its value could be {{ItemState.WORKING}} | {{ItemState.COMPLETE}} | {{ItemState.ERROR}}
+         * @zh LoadingItems 队列中的加载项状态，状态的值可能是 {{ItemState.WORKING}} | {{ItemState.COMPLETE}} | {{ItemState.ERROR}}
          */
         static ItemState: any;
         /**
          * @en This is a callback which will be invoked while an item flow out the pipeline.
          * You can pass the callback function in LoadingItems.create or set it later.
          * @zh 这个回调函数将在 item 加载结束后被调用。你可以在构造时传递这个回调函数或者是在构造之后直接设置。
-         * @method onProgress
-         * @param {Number} completedCount The number of the items that are already completed.
-         * @param {Number} totalCount The total number of the items.
-         * @param {Object} item The latest item which flow out the pipeline.
+         * @param completedCount The number of the items that are already completed.
+         * @param totalCount The total number of the items.
+         * @param item The latest item which flow out the pipeline.
          * @example
          * ```
-         *  loadingItems.onProgress (completedCount, totalCount, item) {
-         *      let progress = (100 * completedCount / totalCount).toFixed(2);
-         *      cc.log(progress + '%');
-         *  }
+         * import { log } from 'cc';
+         * loadingItems.onProgress (completedCount, totalCount, item) {
+         *     let progress = (100 * completedCount / totalCount).toFixed(2);
+         *     log(progress + '%');
+         * }
          * ```
          */
-        onProgress: Function | undefined;
+        onProgress: ((completedCount: number, totalCount: number, IItem: any) => void) | undefined;
         /**
          * @en This is a callback which will be invoked while all items is completed,
          * You can pass the callback function in LoadingItems.create or set it later.
          * @zh 该函数将在加载队列全部完成时被调用。你可以在构造时传递这个回调函数或者是在构造之后直接设置。
-         * @method onComplete
-         * @param {Array} errors All errored urls will be stored in this array, if no error happened, then it will be null
-         * @param {LoadingItems} items All items.
+         * @param errors All errored urls will be stored in this array, if no error happened, then it will be null
+         * @param items All items.
          * @example
          * ```
-         *  loadingItems.onComplete (errors, items) {
-         *      if (error)
-         *          cc.log('Completed with ' + errors.length + ' errors');
-         *      else
-         *          cc.log('Completed ' + items.totalCount + ' items');
-         *  }
+         * import { log } from 'cc';
+         * loadingItems.onComplete (errors, items) {
+         *     if (error) {
+         *         log('Completed with ' + errors.length + ' errors');
+         *     } else {
+         *         log('Completed ' + items.totalCount + ' items');
+         *     }
+         * }
          * ```
          */
-        onComplete: Function | undefined;
+        onComplete: ((errors: string[] | null, items: LoadingItems) => void) | undefined;
         /**
          * @en The map of all items.
          * @zh 存储所有加载项的对象。
-         * @property map
-         * @type {Object}
          */
-        map: any;
+        map: Map<string, IItem>;
         /**
          * @en The map of completed items.
          * @zh 存储已经完成的加载项。
-         * @property completed
-         * @type {Object}
          */
         completed: {};
         /**
          * @en Total count of all items.
          * @zh 所有加载项的总数。
-         * @property totalCount
-         * @type {Number}
          */
         totalCount: number;
         /**
          * @en Total count of completed items.
          * @zh 所有完成加载项的总数。
-         * @property completedCount
-         * @type {Number}
          */
         completedCount: number;
         /**
          * @en Activated or not.
          * @zh 是否启用。
-         * @property active
-         * @type {Boolean}
          */
         active: boolean;
-        _ownerQueue: null;
+        _ownerQueue: LoadingItems | null;
         constructor(pipeline: any, urlList: any, onProgress: any, onComplete: any);
         /**
          * @en The constructor function of LoadingItems, this will use recycled LoadingItems in the internal pool if possible.
          * You can pass onProgress and onComplete callbacks to visualize the loading process.
          * @zh LoadingItems 的构造函数，这种构造方式会重用内部对象缓冲池中的 LoadingItems 队列，以尽量避免对象创建。
          * 你可以传递 onProgress 和 onComplete 回调函数来获知加载进度信息。
-         * @method create
-         * @static
          * @param {Pipeline} pipeline The pipeline to process the queue.
          * @param {Array} urlList The items array.
          * @param {Function} [onProgress] The progression callback, refer to [[onProgress]]
@@ -15148,126 +13774,108 @@ declare module "cc.core" {
          * @return {LoadingItems} The LoadingItems queue object
          * @example
          * ```
-         *  cc.LoadingItems.create(cc.loader, ['a.png', 'b.plist'], function (completedCount, totalCount, item) {
-         *      let progress = (100 * completedCount / totalCount).toFixed(2);
-         *      cc.log(progress + '%');
-         *  }, function (errors, items) {
-         *      if (errors) {
-         *          for (let i = 0; i < errors.length; ++i) {
-         *              cc.log('Error url: ' + errors[i] + ', error: ' + items.getError(errors[i]));
-         *          }
-         *      }
-         *      else {
-         *          let result_a = items.getContent('a.png');
-         *          // ...
-         *      }
-         *  })
+         * import { log, LoadingItems } from 'cc';
+         * LoadingItems.create(loader, ['a.png', 'b.plist'], function (completedCount, totalCount, item) {
+         *     let progress = (100 * completedCount / totalCount).toFixed(2);
+         *     log(progress + '%');
+         * }, function (errors, items) {
+         *     if (errors) {
+         *         for (let i = 0; i < errors.length; ++i) {
+         *             log('Error url: ' + errors[i] + ', error: ' + items.getError(errors[i]));
+         *         }
+         *     }
+         *     else {
+         *         let result_a = items.getContent('a.png');
+         *         // ...
+         *     }
+         * })
          * ```
          */
         static create(pipeline: any, urlList: any, onProgress?: any, onComplete?: any): LoadingItems;
         /**
          * @en Retrieve the LoadingItems queue object for an item.
          * @zh 通过 item 对象获取它的 LoadingItems 队列。
-         * @method getQueue
-         * @static
-         * @param {Object} item The item to query
-         * @return {LoadingItems} The LoadingItems queue object
+         * @param item The item to query
+         * @return The LoadingItems queue object
          */
-        static getQueue(item: any): any;
+        static getQueue(item: IItem): LoadingItems | null;
         /**
          * @en Complete an item in the LoadingItems queue, please do not call this method unless you know what's happening.
          * @zh 通知 LoadingItems 队列一个 item 对象已完成，请不要调用这个函数，除非你知道自己在做什么。
-         * @method itemComplete
-         * @param {Object} item The item which has completed
+         * @param item The item which has completed
          */
-        static itemComplete(item: any): void;
+        static itemComplete(item: IItem): void;
         static initQueueDeps(queue: any): void;
         static registerQueueDep(owner: any, depId: any): false | undefined;
         static finishDep(depId: any): void;
         /**
          * @en Add urls to the LoadingItems queue.
          * @zh 向一个 LoadingItems 队列添加加载项。
-         * @method append
-         * @param {Array} urlList 要追加的url列表，url可以是对象或字符串
-         * @param {any} [owner]
-         * @return {Array} 在已接受的url列表中，可以拒绝某些无效项
+         * @param urlList 要追加的url列表，url可以是对象或字符串
+         * @param owner
+         * @return 在已接受的url列表中，可以拒绝某些无效项
          */
-        append(urlList: any, owner?: any): IItem[];
+        append(urlList: object[], owner?: any): IItem[];
         _childOnProgress(item: any): void;
         /**
          * @en Complete a LoadingItems queue, please do not call this method unless you know what's happening.
          * @zh 完成一个 LoadingItems 队列，请不要调用这个函数，除非你知道自己在做什么。
-         * @method allComplete
          */
         allComplete(): void;
         /**
          * @en Check whether all items are completed.
          * @zh 检查是否所有加载项都已经完成。
-         * @method isCompleted
-         * @return {Boolean}
          */
         isCompleted(): boolean;
         /**
          * @en Check whether an item is completed.
          * @zh 通过 id 检查指定加载项是否已经加载完成。
-         * @method isItemCompleted
-         * @param {String} id The item's id.
-         * @return {Boolean}
+         * @param id The item's id.
          */
-        isItemCompleted(id: any): boolean;
+        isItemCompleted(id: string): boolean;
         /**
          * @en Check whether an item exists.
          * @zh 通过 id 检查加载项是否存在。
-         * @method exists
-         * @param {String} id The item's id.
-         * @return {Boolean}
+         * @param id The item's id.
          */
-        exists(id: any): boolean;
+        exists(id: string): boolean;
         /**
          * @en Returns the content of an internal item.
          * @zh 通过 id 获取指定对象的内容。
-         * @method getContent
-         * @param {String} id The item's id.
-         * @return {Object}
+         * @param id The item's id.
          */
-        getContent(id: any): null;
+        getContent(id: string): any;
         /**
          * @en Returns the error of an internal item.
          * @zh 通过 id 获取指定对象的错误信息。
-         * @method getError
-         * @param {String} id The item's id.
-         * @return {Object}
+         * @param id The item's id.
          */
-        getError(id: any): null;
+        getError(id: string): any;
         /**
          * @en Remove an item, can only remove completed item, ongoing item can not be removed.
          * @zh 移除加载项，这里只会移除已经完成的加载项，正在进行的加载项将不能被删除。
-         * @param {String} url
+         * @param url
          */
-        removeItem(url: any): void;
+        removeItem(url: string): void;
         /**
          * @en Complete an item in the LoadingItems queue, please do not call this method unless you know what's happening.
          * @zh 通知 LoadingItems 队列一个 item 对象已完成，请不要调用这个函数，除非你知道自己在做什么。
-         * @method itemComplete
-         * @param {String} id The item url
+         * @param id The item url
          */
-        itemComplete(id: any): void;
+        itemComplete(id: string): void;
         /**
          * @en Destroy the LoadingItems queue, the queue object won't be garbage collected, it will be recycled, so every after destroy is not reliable.
          * @zh 销毁一个 LoadingItems 队列，这个队列对象会被内部缓冲池回收，所以销毁后的所有内部信息都是不可依赖的。
-         * @method destroy
          */
         destroy(): void;
         /**
          * @en Add a listener for an item, the callback will be invoked when the item is completed.
          * @zh 监听加载项（通过 key 指定）的完成事件。
-         * @method addListener
-         * @param {String} key
-         * @param {Function} callback - can be null
-         * @param {Object} target - can be null
-         * @return {Boolean} whether the key is new
+         * @param key - The item key
+         * @param callback - Callback function when item loaded
+         * @param target - Callback callee
          */
-        addListener(key: any, callback: any, target: any): void;
+        addListener(key: string, callback: Function, target?: any): Function;
         /**
          * @en
          * Check if the specified key has any registered callback.
@@ -15275,13 +13883,12 @@ declare module "cc.core" {
          * @zh
          * 检查指定的加载项是否有完成事件监听器。
          * 如果同时还指定了一个回调方法，并且回调有注册，它只会返回 true。
-         * @method hasListener
-         * @param {String} key
-         * @param {Function} [callback]
-         * @param {Object} [target]
-         * @return {Boolean}
+         * @param key - The item key
+         * @param callback - Callback function when item loaded
+         * @param target - Callback callee
+         * @return Whether the corresponding listener for the item is registered
          */
-        hasListener(key: any, callback?: any, target?: any): boolean;
+        hasListener(key: string, callback?: Function, target?: any): boolean;
         /**
          * @en
          * Removes a listener.
@@ -15289,42 +13896,35 @@ declare module "cc.core" {
          * @zh
          * 移除指定加载项已经注册的完成事件监听器。
          * 只会删除 key, callback, target 均匹配的监听器。
-         * @method remove
-         * @param {String} key
-         * @param {Function} callback
-         * @param {Object} target
-         * @return {Boolean} removed
+         * @param key - The item key
+         * @param callback - Callback function when item loaded
+         * @param target - Callback callee
          */
-        removeListener(key: any, callback?: any, target?: any): void;
+        removeListener(key: string, callback?: Function, target?: any): void;
         /**
-         * @en
-         * Removes all callbacks registered in a certain event
+         * @en Removes all callbacks registered in a certain event
          * type or all callbacks registered with a certain target.
          * @zh 删除指定目标的所有完成事件监听器。
-         * @method removeAllListeners
-         * @param {String|Object} key - The event key to be removed or the target to be removed
+         * @param {String|Object} key - The item key to be removed or the target to be removed
          */
         removeAllListeners(key: any): void;
     }
     /**
-     * @category loader
+     * @hidden
      */
     export type LoadCompleteCallback<T> = (error: Error | null | undefined, asset?: T) => void;
     export type LoadProgressCallback = (completedCount: number, totalCount: number, item: any) => void;
     /**
-     * A base node for CCNode, it will:
-     * - maintain scene hierarchy and active logic
-     * - notifications if some properties changed
-     * - define some interfaces shares between CCNode
-     * - define machanisms for Enity Component Systems
-     * - define prefab and serialize functions
-     *
-     * @class _BaseNode
-     * @extends Object
-     * @uses EventTarget
-     * @method constructor
-     * @param {String} [name]
-     * @protected
+     * @en The base class for [[Node]], it:
+     * - maintains scene hierarchy and life cycle logic
+     * - provides EventTarget ability
+     * - emits events if some properties changed, ref: [[SystemEventType]]
+     * - manages components
+     * @zh [[Node]] 的基类，他会负责：
+     * - 维护场景树以及节点生命周期管理
+     * - 提供 EventTarget 的事件管理和注册能力
+     * - 派发节点状态相关的事件，参考：[[SystemEventType]]
+     * - 管理组件
      */
     export class BaseNode extends CCObject implements ISchedulable {
         get components(): ReadonlyArray<Component>;
@@ -15352,51 +13952,28 @@ declare module "cc.core" {
         protected _parent: this | null;
         protected _children: this[];
         protected _active: boolean;
-        /**
-         * @default []
-         * @readOnly
-         */
         protected _components: Component[];
-        /**
-         * The PrefabInfo object
-         * @type {PrefabInfo}
-         */
         protected _prefab: any;
-        /**
-         * @en which scene this node belongs to.
-         * @zh 此节点属于哪个场景。
-         * @type {cc.Scene}}
-         */
         protected _scene: any;
         protected _activeInHierarchy: boolean;
         protected _id: string;
         protected _name: string;
         protected _eventProcessor: __private.cocos_core_scene_graph_node_event_processor_NodeEventProcessor;
         protected _eventMask: number;
-        /**
-         * Register all related EventTargets,
-         * all event callbacks will be removed in _onPreDestroy
-         * protected __eventTargets: EventTarget[] = [];
-         */
-        protected __eventTargets: any[];
         protected _siblingIndex: number;
         protected _registerIfAttached: ((this: BaseNode, register: any) => void) | undefined;
-        /**
-         * @method constructor
-         * @param {String} [name]
-         */
         constructor(name?: string);
         /**
          * @en
-         * Properties configuration function <br/>
-         * All properties in attrs will be set to the node, <br/>
-         * when the setter of the node is available, <br/>
-         * the property will be set via setter function.<br/>
+         * Properties configuration function.
+         * All properties in attrs will be set to the node,
+         * when the setter of the node is available,
+         * the property will be set via setter function.
          * @zh 属性配置函数。在 attrs 的所有属性将被设置为节点属性。
          * @param attrs - Properties to be set to node
          * @example
          * ```
-         * var attrs = { key: 0, num: 100 };
+         * var attrs = { name: 'New Name', active: false };
          * node.attr(attrs);
          * ```
          */
@@ -15404,34 +13981,22 @@ declare module "cc.core" {
         /**
          * @en Get parent of the node.
          * @zh 获取该节点的父节点。
-         * @example
-         * ```
-         * var parent = this.node.getParent();
-         * ```
          */
         getParent(): this | null;
         /**
          * @en Set parent of the node.
          * @zh 设置该节点的父节点。
-         * @example
-         * ```
-         * node.setParent(newNode);
-         * ```
          */
-        setParent(value: this | null, keepWorldTransform?: boolean): void;
+        setParent(value: this | Scene | null, keepWorldTransform?: boolean): void;
         /**
-         * @en Returns a child from the container given its uuid.
+         * @en Returns a child with the same uuid.
          * @zh 通过 uuid 获取节点的子节点。
          * @param uuid - The uuid to find the child node.
          * @return a Node whose uuid equals to the input parameter
-         * @example
-         * ```
-         * var child = node.getChildByUuid(uuid);
-         * ```
          */
         getChildByUuid(uuid: string): this | null;
         /**
-         * @en Returns a child from the container given its name.
+         * @en Returns a child with the same name.
          * @zh 通过名称获取节点的子节点。
          * @param name - A name to find the child node.
          * @return a CCNode object whose name equals to the input parameter
@@ -15442,48 +14007,41 @@ declare module "cc.core" {
          */
         getChildByName(name: string): this | null;
         /**
-         * @en Returns a child from the container given its path.
+         * @en Returns a child with the given path.
          * @zh 通过路径获取节点的子节点。
          * @param path - A path to find the child node.
-         * @return a CCNode object whose name equals to the input parameter
+         * @return a Node object whose path equals to the input parameter
          * @example
          * ```
-         * var child = node.getChildByPath("Test Node");
+         * var child = node.getChildByPath("subNode/Test Node");
          * ```
          */
         getChildByPath(path: string): this | null;
-        addChild(child: this): void;
         /**
-         * @en
-         * Inserts a child to the node at a specified index.
-         * @zh
-         * 插入子节点到指定位置
+         * @en Add a child to the current node, it will be pushed to the end of [[children]] array.
+         * @zh 添加一个子节点，它会被添加到 [[children]] 数组的末尾。
+         * @param child - the child node to be added
+         */
+        addChild(child: this | Node): void;
+        /**
+         * @en Inserts a child to the node at a specified index.
+         * @zh 插入子节点到指定位置
          * @param child - the child node to be inserted
-         * 要插入的子节点
          * @param siblingIndex - the sibling index to place the child in
-         * 用于放置子节点的同级索引
          * @example
          * ```
          * node.insertChild(child, 2);
          * ```
          */
-        insertChild(child: this, siblingIndex: number): void;
+        insertChild(child: this | Node, siblingIndex: number): void;
         /**
-         * @en Get the sibling index.
-         * @zh 获取同级索引。
-         * @example
-         * ```
-         * var index = node.getSiblingIndex();
-         * ```
+         * @en Get the sibling index of the current node in its parent's children array.
+         * @zh 获取当前节点在父节点的 children 数组中的位置。
          */
         getSiblingIndex(): number;
         /**
-         * @en Set the sibling index of this node.
-         * @zh 设置节点同级索引。
-         * @example
-         * ```
-         * node.setSiblingIndex(1);
-         * ```
+         * @en Set the sibling index of the current node in its parent's children array.
+         * @zh 设置当前节点在父节点的 children 数组中的位置。
          */
         setSiblingIndex(index: number): void;
         /**
@@ -15493,11 +14051,11 @@ declare module "cc.core" {
          * This function call is not recursive, it's based on stack.
          * Please don't walk any other node inside the walk process.
          * @zh 遍历该节点的子树里的所有节点并按规则执行回调函数。
-         * 对子树中的所有节点，包含当前节点，会执行两次回调，prefunc 会在访问它的子节点之前调用，postfunc 会在访问所有子节点之后调用。
+         * 对子树中的所有节点，包含当前节点，会执行两次回调，preFunc 会在访问它的子节点之前调用，postFunc 会在访问所有子节点之后调用。
          * 这个函数的实现不是基于递归的，而是基于栈展开递归的方式。
          * 请不要在 walk 过程中对任何其他的节点嵌套执行 walk。
-         * @param prefunc The callback to process node when reach the node for the first time
-         * @param postfunc The callback to process node when re-visit the node after walked all children in its sub tree
+         * @param preFunc The callback to process node when reach the node for the first time
+         * @param postFunc The callback to process node when re-visit the node after walked all children in its sub tree
          * @example
          * ```
          * node.walk(function (target) {
@@ -15507,114 +14065,89 @@ declare module "cc.core" {
          * });
          * ```
          */
-        walk(prefunc: (target: this) => void, postfunc?: (target: this) => void): void;
+        walk(preFunc: (target: this) => void, postFunc?: (target: this) => void): void;
         /**
          * @en
-         * Remove itself from its parent node. <br/>
-         * If the node orphan, then nothing happens.
+         * Remove itself from its parent node.
+         * If the node have no parent, then nothing happens.
          * @zh
-         * 从父节点中删除该节点。<br/>
-         * 如果这个节点是一个孤节点，那么什么都不会发生。
-         * @see cc.Node#removeFromParentAndCleanup
-         * @example
-         * ```
-         * node.removeFromParent();
-         * ```
+         * 从父节点中删除该节点。
+         * 如果这个节点是一个孤立节点，那么什么都不会发生。
          */
         removeFromParent(): void;
         /**
-         * @en
-         * Removes a child from the container.
-         * @zh
-         * 移除节点中指定的子节点。
+         * @en Removes a child from the container.
+         * @zh 移除节点中指定的子节点。
          * @param child - The child node which will be removed.
-         * 将被移除的子节点
-         * @example
-         * ```
-         * node.removeChild(newNode);
-         * ```
          */
-        removeChild(child: this): void;
+        removeChild(child: this | Node): void;
         /**
-         * @en
-         * Removes all children from the container.
-         * @zh
-         * 移除节点所有的子节点。
-         * @example
-         * ```
-         * node.removeAllChildren();
-         * ```
+         * @en Removes all children from the container.
+         * @zh 移除节点所有的子节点。
          */
         removeAllChildren(): void;
         /**
          * @en Is this node a child of the given node?
          * @zh 是否是指定节点的子节点？
          * @return True if this node is a child, deep child or identical to the given node.
-         * @return 如果此节点是子节点、深度子节点或与给定节点相同，则为True。
-         * @example
-         * ```
-         * node.isChildOf(newNode);
-         * ```
          */
-        isChildOf(parent: this | null): boolean;
+        isChildOf(parent: this | Scene | null): boolean;
         /**
          * @en
-         * Returns the component of supplied type if the node has one attached, null if it doesn't.<br/>
+         * Returns the component of supplied type if the node has one attached, null if it doesn't.
          * You can also get component in the node by passing in the name of the script.
          * @zh
-         * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
+         * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。
          * 传入参数也可以是脚本的名称。
+         * @param classConstructor The class of the target component
          * @example
          * ```
          * // get sprite component.
-         * var sprite = node.getComponent(cc.SpriteComponent);
+         * var sprite = node.getComponent(SpriteComponent);
          * ```
          */
         getComponent<T extends Component>(classConstructor: __private.cocos_core_scene_graph_base_node_Constructor<T>): T | null;
         /**
          * @en
-         * Returns the component of supplied type if the node has one attached, null if it doesn't.<br/>
+         * Returns the component of supplied type if the node has one attached, null if it doesn't.
          * You can also get component in the node by passing in the name of the script.
          * @zh
-         * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
+         * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。
          * 传入参数也可以是脚本的名称。
+         * @param className The class name of the target component
          * @example
          * ```
-         * // get custom test calss.
+         * // get custom test class.
          * var test = node.getComponent("Test");
          * ```
          */
         getComponent(className: string): Component | null;
         /**
-         * @en Returns all components of supplied type in the node.
+         * @en Returns all components of given type in the node.
          * @zh 返回节点上指定类型的所有组件。
-         * @example
-         * ```
-         * var sprites = node.getComponents(cc.SpriteComponent);
-         * ```
+         * @param classConstructor The class of the target component
          */
         getComponents<T extends Component>(classConstructor: __private.cocos_core_scene_graph_base_node_Constructor<T>): T[];
         /**
-         * @en Returns all components of supplied type in the node.
+         * @en Returns all components of given type in the node.
          * @zh 返回节点上指定类型的所有组件。
-         * @example
-         * ```
-         * var tests = node.getComponents("Test");
-         * ```
+         * @param className The class name of the target component
          */
         getComponents(className: string): Component[];
         /**
-         * @en Returns the component of supplied type in any of its children using depth first search.
+         * @en Returns the component of given type in any of its children using depth first search.
          * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
+         * @param classConstructor The class of the target component
          * @example
          * ```
-         * var sprite = node.getComponentInChildren(cc.SpriteComponent);
+         * var sprite = node.getComponentInChildren(SpriteComponent);
          * ```
          */
         getComponentInChildren<T extends Component>(classConstructor: __private.cocos_core_scene_graph_base_node_Constructor<T>): T | null;
         /**
-         * @en Returns the component of supplied type in any of its children using depth first search.
+         * @en Returns the component of given type in any of its children using depth first search.
          * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
+         * @param className The class name of the target component
          * @example
          * ```
          * var Test = node.getComponentInChildren("Test");
@@ -15622,17 +14155,19 @@ declare module "cc.core" {
          */
         getComponentInChildren(className: string): Component | null;
         /**
-         * @en Returns all components of supplied type in self or any of its children.
+         * @en Returns all components of given type in self or any of its children.
          * @zh 递归查找自身或所有子节点中指定类型的组件
+         * @param classConstructor The class of the target component
          * @example
          * ```
-         * var sprites = node.getComponentsInChildren(cc.SpriteComponent);
+         * var sprites = node.getComponentsInChildren(SpriteComponent);
          * ```
          */
         getComponentsInChildren<T extends Component>(classConstructor: __private.cocos_core_scene_graph_base_node_Constructor<T>): T[];
         /**
-         * @en Returns all components of supplied type in self or any of its children.
+         * @en Returns all components of given type in self or any of its children.
          * @zh 递归查找自身或所有子节点中指定类型的组件
+         * @param className The class name of the target component
          * @example
          * ```
          * var tests = node.getComponentsInChildren("Test");
@@ -15642,21 +14177,25 @@ declare module "cc.core" {
         /**
          * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
          * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
+         * @param classConstructor The class of the component to add
+         * @throws `TypeError` if the `classConstructor` does not specify a cc-class constructor extending the `Component`.
          * @example
          * ```
-         * var sprite = node.addComponent(cc.SpriteComponent);
+         * var sprite = node.addComponent(SpriteComponent);
          * ```
          */
-        addComponent<T extends Component>(classConstructor: __private.cocos_core_scene_graph_base_node_Constructor<T>): T | null;
+        addComponent<T extends Component>(classConstructor: __private.cocos_core_scene_graph_base_node_Constructor<T>): T;
         /**
          * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
          * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
+         * @param className The class name of the component to add
+         * @throws `TypeError` if the `className` does not specify a cc-class constructor extending the `Component`.
          * @example
          * ```
          * var test = node.addComponent("Test");
          * ```
          */
-        addComponent(className: string): Component | null;
+        addComponent(className: string): Component;
         /**
          * @en
          * Removes a component identified by the given name or removes the component object given.
@@ -15664,11 +14203,11 @@ declare module "cc.core" {
          * @zh
          * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
          * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
+         * @param classConstructor The class of the component to remove
          * @deprecated please destroy the component to remove it.
-         * 请销毁组件以移除它。
          * @example
          * ```
-         * node.removeComponent(cc.SpriteComponent);
+         * node.removeComponent(SpriteComponent);
          * ```
          */
         removeComponent<T extends Component>(classConstructor: __private.cocos_core_scene_graph_base_node_Constructor<T>): void;
@@ -15679,10 +14218,12 @@ declare module "cc.core" {
          * @zh
          * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
          * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
+         * @param classNameOrInstance The class name of the component to remove or the component instance to be removed
          * @deprecated please destroy the component to remove it.
          * @example
          * ```
-         * const sprite = node.getComponent(CC.Sprite);
+         * import { SpriteComponent } from 'cc';
+         * const sprite = node.getComponent(SpriteComponent);
          * if (sprite) {
          *     node.removeComponent(sprite);
          * }
@@ -15690,25 +14231,122 @@ declare module "cc.core" {
          * ```
          */
         removeComponent(classNameOrInstance: string | Component): void;
+        /**
+         * @en
+         * Register a callback of a specific event type on Node.
+         * Use this method to register touch or mouse event permit propagation based on scene graph,
+         * These kinds of event are triggered with dispatchEvent, the dispatch process has three steps:
+         * 1. Capturing phase: dispatch in capture targets (`_getCapturingTargets`), e.g. parents in node tree, from root to the real target
+         * 2. At target phase: dispatch to the listeners of the real target
+         * 3. Bubbling phase: dispatch in bubble targets (`_getBubblingTargets`), e.g. parents in node tree, from the real target to root
+         * In any moment of the dispatching process, it can be stopped via `event.stopPropagation()` or `event.stopPropagationImmidiate()`.
+         * It's the recommended way to register touch/mouse event for Node,
+         * please do not use `eventManager` directly for Node.
+         * You can also register custom event and use `emit` to trigger custom event on Node.
+         * For such events, there won't be capturing and bubbling phase, your event will be dispatched directly to its listeners registered on the same node.
+         * You can also pass event callback parameters with `emit` by passing parameters after `type`.
+         * @zh
+         * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的 this 对象。
+         * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：
+         * 1. 捕获阶段：派发事件给捕获目标（通过 `_getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。
+         * 2. 目标阶段：派发给目标节点的监听器。
+         * 3. 冒泡阶段：派发事件给冒泡目标（通过 `_getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发直到根节点。
+         * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。
+         * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 `eventManager`。
+         * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器
+         * 你可以通过在 emit 方法调用时在 type 之后传递额外的参数作为事件回调的参数列表
+         * @param type - A string representing the event type to listen for.<br>See {{#crossLink "Node/EventTyupe/POSITION_CHANGED"}}Node Events{{/crossLink}} for all builtin events.
+         * @param callback - The callback that will be invoked when the event is dispatched. The callback is ignored if it is a duplicate (the callbacks are unique).
+         * @param target - The target (this object) to invoke the callback, can be null
+         * @param useCapture - When set to true, the listener will be triggered at capturing phase which is ahead of the final target emit, otherwise it will be triggered during bubbling phase.
+         * @return - Just returns the incoming callback so you can save the anonymous function easier.
+         * @example
+         * ```ts
+         * this.node.on(SystemEventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
+         * node.on(SystemEventType.TOUCH_START, callback, this);
+         * node.on(SystemEventType.TOUCH_MOVE, callback, this);
+         * node.on(SystemEventType.TOUCH_END, callback, this);
+         * ```
+         */
         on(type: string | SystemEventType, callback: Function, target?: Object, useCapture?: any): void;
+        /**
+         * @en
+         * Removes the callback previously registered with the same type, callback, target and or useCapture.
+         * This method is merely an alias to removeEventListener.
+         * @zh 删除之前与同类型，回调，目标或 useCapture 注册的回调。
+         * @param type - A string representing the event type being removed.
+         * @param callback - The callback to remove.
+         * @param target - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
+         * @param useCapture - When set to true, the listener will be triggered at capturing phase which is ahead of the final target emit, otherwise it will be triggered during bubbling phase.
+         * @example
+         * ```ts
+         * this.node.off(SystemEventType.TOUCH_START, this.memberFunction, this);
+         * node.off(SystemEventType.TOUCH_START, callback, this.node);
+         * ```
+         */
         off(type: string, callback?: Function, target?: Object, useCapture?: any): void;
+        /**
+         * @en
+         * Register an callback of a specific event type on the Node,
+         * the callback will remove itself after the first time it is triggered.
+         * @zh
+         * 注册节点的特定事件类型回调，回调会在第一时间被触发后删除自身。
+         *
+         * @param type - A string representing the event type to listen for.
+         * @param callback - The callback that will be invoked when the event is dispatched.
+         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+         * @param target - The target (this object) to invoke the callback, can be null
+         */
         once(type: string, callback: Function, target?: Object, useCapture?: any): void;
-        emit(type: string, ...args: any[]): void;
+        /**
+         * @en
+         * Trigger an event directly with the event name and necessary arguments.
+         * @zh
+         * 通过事件名发送自定义事件
+         * @param type - event type
+         * @param arg1 - First argument in callback
+         * @param arg2 - Second argument in callback
+         * @param arg3 - Third argument in callback
+         * @param arg4 - Fourth argument in callback
+         * @param arg5 - Fifth argument in callback
+         * @example
+         * ```ts
+         * eventTarget.emit('fire', event);
+         * eventTarget.emit('fire', message, emitter);
+         * ```
+         */
+        emit(type: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
+        /**
+         * @en
+         * Dispatches an event into the event flow.
+         * The event target is the EventTarget object upon which the dispatchEvent() method is called.
+         * @zh 分发事件到事件流中。
+         * @param event - The Event object that is dispatched into the event flow
+         */
         dispatchEvent(event: Event): void;
-        hasEventListener(type: string): boolean;
+        /**
+         * @en Checks whether the EventTarget object has any callback registered for a specific type of event.
+         * @zh 检查事件目标对象是否有为特定类型的事件注册的回调。
+         * @param type - The type of event.
+         * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
+         * @param target - The callback callee of the event listener
+         * @return True if a callback of the specified type is registered; false otherwise.
+         */
+        hasEventListener(type: string, callback?: Function, target?: Object): boolean;
+        /**
+         * @en Removes all callbacks previously registered with the same target.
+         * @zh 移除目标上的所有注册事件。
+         * @param target - The target to be searched for all related callbacks
+         */
         targetOff(target: string | Object): void;
         destroy(): boolean;
         /**
          * @en
-         * Destroy all children from the node, and release all their own references to other objects.<br/>
+         * Destroy all children from the node, and release all their own references to other objects.
          * Actual destruct operation will delayed until before rendering.
          * @zh
-         * 销毁所有子节点，并释放所有它们对其它对象的引用。<br/>
+         * 销毁所有子节点，并释放所有它们对其它对象的引用。
          * 实际销毁操作会延迟到当前帧渲染前执行。
-         * @example
-         * ```
-         * node.destroyAllChildren();
-         * ```
          */
         destroyAllChildren(): void;
         _removeComponent(component: Component): void;
@@ -15724,7 +14362,12 @@ declare module "cc.core" {
         protected _onPreDestroyBase(): boolean;
         protected _disableChildComps(): void;
         protected _onSiblingIndexChanged?(siblingIndex: number): void;
-        protected _checkMultipleComp?(constructor: Function): boolean;
+        /**
+         * Ensures that this node has already had the specified component(s). If not, this method throws.
+         * @param constructor Constructor of the component.
+         * @throws If one or more component of same type have been existed in this node.
+         */
+        protected _checkMultipleComp?(constructor: Function): void;
     }
     /**
      * @zh
@@ -15733,33 +14376,46 @@ declare module "cc.core" {
      * * 持有各类组件
      * * 维护空间变换（坐标、旋转、缩放）信息
      */
+    /**
+     * !#en
+     * Class of all entities in Cocos Creator scenes.
+     * Basic functionalities include:
+     * * Hierarchy management with parent and children
+     * * Components management
+     * * Coordinate system with position, scale, rotation in 3d space
+     * !#zh
+     * Cocos Creator 场景中的所有节点类。
+     * 基本特性有：
+     * * 具有层级关系
+     * * 持有各类组件
+     * * 维护 3D 空间左边变换（坐标、旋转、缩放）信息
+     */
     export class Node extends BaseNode {
         static bookOfChange: Map<string, number>;
         /**
-         * @zh
-         * 节点可能发出的事件类型
+         * @en Event types emitted by Node
+         * @zh 节点可能发出的事件类型
          */
         static EventType: typeof SystemEventType;
         /**
-         * @zh
-         * 空间变换操作的坐标系
+         * @en Coordinates space
+         * @zh 空间变换操作的坐标系
          */
         static NodeSpace: typeof __private.cocos_core_scene_graph_node_enum_NodeSpace;
         /**
-         * @zh
-         * 节点变换更新的具体部分
-         * @deprecated 请使用 [Node.TransformBit]
+         * @en Bit masks for Node transformation parts
+         * @zh 节点变换更新的具体部分
+         * @deprecated please use [[Node.TransformBit]]
          */
         static TransformDirtyBit: typeof __private.cocos_core_scene_graph_node_enum_TransformBit;
         /**
-         * @zh
-         * 节点变换更新的具体部分,可用于判断 TRANSFORM_CHANGED 事件的具体类型
+         * @en Bit masks for Node transformation parts, can be used to determine which part changed in [[SystemEventType.TRANSFORM_CHANGED]] event
+         * @zh 节点变换更新的具体部分，可用于判断 [[SystemEventType.TRANSFORM_CHANGED]] 事件的具体类型
          */
         static TransformBit: typeof __private.cocos_core_scene_graph_node_enum_TransformBit;
         /**
-         * @zh
-         * 指定对象是否是普通的场景节点？
-         * @param obj 待测试的节点
+         * @en Determine whether the given object is a normal Node. Will return false if [[Scene]] given.
+         * @zh 指定对象是否是普通的节点？如果传入 [[Scene]] 会返回 false。
          */
         static isNode(obj: object | null): obj is Node;
         _uiProps: __private.cocos_core_scene_graph_node_ui_properties_NodeUIProperties;
@@ -15797,255 +14453,259 @@ declare module "cc.core" {
         get layer(): number;
         get hasChangedFlags(): number;
         set hasChangedFlags(val: number);
-        get width(): number;
-        set width(value: number);
-        get height(): number;
-        set height(value: number);
-        get anchorX(): number;
-        set anchorX(value: number);
-        get anchorY(): number;
-        set anchorY(value: number);
         /**
-         * @zh
-         * 设置父节点
-         * @param value 父节点
-         * @param keepWorldTransform 是否保留当前世界变换
+         * @en Set parent of the node.
+         * @zh 设置该节点的父节点。
+         * @param value Parent node
+         * @param keepWorldTransform Whether keep node's current world transform unchanged after this operation
          */
         setParent(value: this | null, keepWorldTransform?: boolean): void;
         _onSetParent(oldParent: this | null, keepWorldTransform: boolean): void;
         _onBatchCreated(): void;
         _onBatchRestored(): void;
         _onBeforeSerialize(): void;
+        _onPostActivated(active: boolean): void;
         /**
-         * @zh
-         * 移动节点
-         * @param trans 位置增量
-         * @param ns 操作空间
+         * @en Perform a translation on the node
+         * @zh 移动节点
+         * @param trans The increment on position
+         * @param ns The operation coordinate space
          */
         translate(trans: math.Vec3, ns?: __private.cocos_core_scene_graph_node_enum_NodeSpace): void;
         /**
-         * @zh
-         * 旋转节点
-         * @param trans 旋转增量
-         * @param ns 操作空间
+         * @en Perform a rotation on the node
+         * @zh 旋转节点
+         * @param trans The increment on position
+         * @param ns The operation coordinate space
          */
         rotate(rot: math.Quat, ns?: __private.cocos_core_scene_graph_node_enum_NodeSpace): void;
         /**
-         * @zh
-         * 设置当前节点旋转为面向目标位置，默认前方为 -z 方向
-         * @param pos 目标位置
-         * @param up 坐标系的上方向
+         * @en Set the orientation of the node to face the target position, the node is facing minus z direction by default
+         * @zh 设置当前节点旋转为面向目标位置，默认前方为 -z 方向
+         * @param pos Target position
+         * @param up Up direction
          */
         lookAt(pos: math.Vec3, up?: math.Vec3): void;
         /**
-         * @en
-         * invalidate the world transform information
+         * @en Invalidate the world transform information
          * for this node and all its children recursively
-         * @zh
-         * 递归标记节点世界变换为 dirty
+         * @zh 递归标记节点世界变换为 dirty
+         * @param dirtyBit The dirty bits to setup to children, can be composed with multiple dirty bits
          */
         invalidateChildren(dirtyBit: __private.cocos_core_scene_graph_node_enum_TransformBit): void;
         /**
-         * @en
-         * update the world transform information if outdated
-         * @zh
-         * 更新节点的世界变换信息
+         * @en Update the world transform information if outdated
+         * @zh 更新节点的世界变换信息
          */
         updateWorldTransform(): void;
         /**
-         * @zh
-         * 设置本地坐标
-         * @param position 目标本地坐标
+         * @en Set position in local coordinate system
+         * @zh 设置本地坐标
+         * @param position Target position
          */
         setPosition(position: math.Vec3): void;
         /**
-         * @zh
-         * 设置本地坐标
-         * @param x 目标本地坐标的 X 分量
-         * @param y 目标本地坐标的 Y 分量
-         * @param z 目标本地坐标的 Z 分量
-         * @param w 目标本地坐标的 W 分量
+         * @en Set position in local coordinate system
+         * @zh 设置本地坐标
+         * @param x X axis position
+         * @param y Y axis position
+         * @param z Z axis position
          */
         setPosition(x: number, y: number, z: number): void;
         /**
-         * @zh
-         * 获取本地坐标
-         * @param out 输出到此目标 vector
+         * @en Get position in local coordinate system, please try to pass `out` vector and reuse it to avoid garbage.
+         * @zh 获取本地坐标，注意，尽可能传递复用的 [[Vec3]] 以避免产生垃圾。
+         * @param out Set the result to out vector
+         * @return If `out` given, the return value equals to `out`, otherwise a new vector will be generated and return
          */
         getPosition(out?: math.Vec3): math.Vec3;
         /**
-         * @zh
-         * 设置本地旋转
-         * @param rotation 目标本地旋转
+         * @en Set rotation in local coordinate system with a quaternion representing the rotation
+         * @zh 用四元数设置本地旋转
+         * @param rotation Rotation in quaternion
          */
         setRotation(rotation: math.Quat): void;
         /**
-         * @zh
-         * 设置本地旋转
-         * @param x 目标本地旋转的 X 分量
-         * @param y 目标本地旋转的 Y 分量
-         * @param z 目标本地旋转的 Z 分量
-         * @param w 目标本地旋转的 W 分量
+         * @en Set rotation in local coordinate system with a quaternion representing the rotation
+         * @zh 用四元数设置本地旋转
+         * @param x X value in quaternion
+         * @param y Y value in quaternion
+         * @param z Z value in quaternion
+         * @param w W value in quaternion
          */
         setRotation(x: number, y: number, z: number, w: number): void;
         /**
-         * @zh
-         * 通过欧拉角设置本地旋转
-         * @param x - 目标欧拉角的 X 分量
-         * @param y - 目标欧拉角的 Y 分量
-         * @param z - 目标欧拉角的 Z 分量
+         * @en Set rotation in local coordinate system with euler angles
+         * @zh 用欧拉角设置本地旋转
+         * @param x X axis rotation
+         * @param y Y axis rotation
+         * @param z Z axis rotation
          */
         setRotationFromEuler(x: number, y: number, z: number): void;
         /**
-         * @zh
-         * 获取本地旋转
-         * @param out 输出到此目标 quaternion
+         * @en Get rotation as quaternion in local coordinate system, please try to pass `out` quaternion and reuse it to avoid garbage.
+         * @zh 获取本地旋转，注意，尽可能传递复用的 [[Quat]] 以避免产生垃圾。
+         * @param out Set the result to out quaternion
+         * @return If `out` given, the return value equals to `out`, otherwise a new quaternion will be generated and return
          */
         getRotation(out?: math.Quat): math.Quat;
         /**
-         * @zh
-         * 设置本地缩放
-         * @param scale 目标本地缩放
+         * @en Set scale in local coordinate system
+         * @zh 设置本地缩放
+         * @param scale Target scale
          */
         setScale(scale: math.Vec3): void;
         /**
-         * @zh
-         * 设置本地缩放
-         * @param x 目标本地缩放的 X 分量
-         * @param y 目标本地缩放的 Y 分量
-         * @param z 目标本地缩放的 Z 分量
+         * @en Set scale in local coordinate system
+         * @zh 设置本地缩放
+         * @param x X axis scale
+         * @param y Y axis scale
+         * @param z Z axis scale
          */
         setScale(x: number, y: number, z: number): void;
         /**
-         * @zh
-         * 获取本地缩放
-         * @param out 输出到此目标 vector
+         * @en Get scale in local coordinate system, please try to pass `out` vector and reuse it to avoid garbage.
+         * @zh 获取本地缩放，注意，尽可能传递复用的 [[Vec3]] 以避免产生垃圾。
+         * @param out Set the result to out vector
+         * @return If `out` given, the return value equals to `out`, otherwise a new vector will be generated and return
          */
         getScale(out?: math.Vec3): math.Vec3;
+        /**
+         * @en Inversely transform a point from world coordinate system to local coordinate system.
+         * @zh 逆向变换一个空间点，一般用于将世界坐标转换到本地坐标系中。
+         * @param out The result point in local coordinate system will be stored in this vector
+         * @param p A position in world coordinate system
+         */
         inverseTransformPoint(out: math.Vec3, p: math.Vec3): math.Vec3;
         /**
-         * @zh
-         * 设置世界坐标
-         * @param position 目标世界坐标
+         * @en Set position in world coordinate system
+         * @zh 设置世界坐标
+         * @param position Target position
          */
         setWorldPosition(position: math.Vec3): void;
         /**
-         * @zh
-         * 设置世界坐标
-         * @param x 目标世界坐标的 X 分量
-         * @param y 目标世界坐标的 Y 分量
-         * @param z 目标世界坐标的 Z 分量
-         * @param w 目标世界坐标的 W 分量
+         * @en Set position in world coordinate system
+         * @zh 设置世界坐标
+         * @param x X axis position
+         * @param y Y axis position
+         * @param z Z axis position
          */
         setWorldPosition(x: number, y: number, z: number): void;
         /**
-         * @zh
-         * 获取世界坐标
-         * @param out 输出到此目标 vector
+         * @en Get position in world coordinate system, please try to pass `out` vector and reuse it to avoid garbage.
+         * @zh 获取世界坐标，注意，尽可能传递复用的 [[Vec3]] 以避免产生垃圾。
+         * @param out Set the result to out vector
+         * @return If `out` given, the return value equals to `out`, otherwise a new vector will be generated and return
          */
         getWorldPosition(out?: math.Vec3): math.Vec3;
         /**
-         * @zh
-         * 设置世界旋转
-         * @param rotation 目标世界旋转
+         * @en Set rotation in world coordinate system with a quaternion representing the rotation
+         * @zh 用四元数设置世界坐标系下的旋转
+         * @param rotation Rotation in quaternion
          */
         setWorldRotation(rotation: math.Quat): void;
         /**
-         * @zh
-         * 设置世界旋转
-         * @param x 目标世界旋转的 X 分量
-         * @param y 目标世界旋转的 Y 分量
-         * @param z 目标世界旋转的 Z 分量
-         * @param w 目标世界旋转的 W 分量
+         * @en Set rotation in world coordinate system with a quaternion representing the rotation
+         * @zh 用四元数设置世界坐标系下的旋转
+         * @param x X value in quaternion
+         * @param y Y value in quaternion
+         * @param z Z value in quaternion
+         * @param w W value in quaternion
          */
         setWorldRotation(x: number, y: number, z: number, w: number): void;
         /**
-         * @zh
-         * 通过欧拉角设置世界旋转
-         * @param x - 目标欧拉角的 X 分量
-         * @param y - 目标欧拉角的 Y 分量
-         * @param z - 目标欧拉角的 Z 分量
+         * @en Set rotation in world coordinate system with euler angles
+         * @zh 用欧拉角设置世界坐标系下的旋转
+         * @param x X axis rotation
+         * @param y Y axis rotation
+         * @param z Z axis rotation
          */
         setWorldRotationFromEuler(x: number, y: number, z: number): void;
         /**
-         * @zh
-         * 获取世界旋转
-         * @param out 输出到此目标 quaternion
+         * @en Get rotation as quaternion in world coordinate system, please try to pass `out` quaternion and reuse it to avoid garbage.
+         * @zh 获取世界坐标系下的旋转，注意，尽可能传递复用的 [[Quat]] 以避免产生垃圾。
+         * @param out Set the result to out quaternion
+         * @return If `out` given, the return value equals to `out`, otherwise a new quaternion will be generated and return
          */
         getWorldRotation(out?: math.Quat): math.Quat;
         /**
-         * @zh
-         * 设置世界缩放
-         * @param scale 目标世界缩放
+         * @en Set scale in world coordinate system
+         * @zh 设置世界坐标系下的缩放
+         * @param scale Target scale
          */
         setWorldScale(scale: math.Vec3): void;
         /**
-         * @zh
-         * 设置世界缩放
-         * @param x 目标世界缩放的 X 分量
-         * @param y 目标世界缩放的 Y 分量
-         * @param z 目标世界缩放的 Z 分量
+         * @en Set scale in world coordinate system
+         * @zh 设置世界坐标系下的缩放
+         * @param x X axis scale
+         * @param y Y axis scale
+         * @param z Z axis scale
          */
         setWorldScale(x: number, y: number, z: number): void;
         /**
-         * @zh
-         * 获取世界缩放
-         * @param out 输出到此目标 vector
+         * @en Get scale in world coordinate system, please try to pass `out` vector and reuse it to avoid garbage.
+         * @zh 获取世界缩放，注意，尽可能传递复用的 [[Vec3]] 以避免产生垃圾。
+         * @param out Set the result to out vector
+         * @return If `out` given, the return value equals to `out`, otherwise a new vector will be generated and return
          */
         getWorldScale(out?: math.Vec3): math.Vec3;
         /**
-         * @zh
-         * 获取世界变换矩阵
-         * @param out 输出到此目标矩阵
+         * @en Get a world transform matrix
+         * @zh 获取世界变换矩阵
+         * @param out Set the result to out matrix
+         * @return If `out` given, the return value equals to `out`, otherwise a new matrix will be generated and return
          */
         getWorldMatrix(out?: math.Mat4): math.Mat4;
         /**
-         * @zh
-         * 获取只包含旋转和缩放的世界变换矩阵
-         * @param out 输出到此目标矩阵
+         * @en Get a world transform matrix with only rotation and scale
+         * @zh 获取只包含旋转和缩放的世界变换矩阵
+         * @param out Set the result to out matrix
+         * @return If `out` given, the return value equals to `out`, otherwise a new matrix will be generated and return
          */
         getWorldRS(out?: math.Mat4): math.Mat4;
         /**
-         * @zh
-         * 获取只包含旋转和位移的世界变换矩阵
-         * @param out 输出到此目标矩阵
+         * @en Get a world transform matrix with only rotation and translation
+         * @zh 获取只包含旋转和位移的世界变换矩阵
+         * @param out Set the result to out matrix
+         * @return If `out` given, the return value equals to `out`, otherwise a new matrix will be generated and return
          */
         getWorldRT(out?: math.Mat4): math.Mat4;
         /**
-         * @zh
-         * 一次性设置所有局部变换（平移、旋转、缩放）信息
+         * @en Set local transformation with rotation, position and scale separately.
+         * @zh 一次性设置所有局部变换（平移、旋转、缩放）信息
+         * @param rot The rotation
+         * @param pos The position
+         * @param scale The scale
          */
-        setRTS(rot?: math.Quat, pos?: math.Vec3, scale?: math.Vec3): void;
-        getAnchorPoint(out?: math.Vec2): math.Vec2;
-        setAnchorPoint(point: math.Vec2 | number, y?: number): void;
-        getContentSize(out?: math.Size): math.Size;
-        setContentSize(size: math.Size | number, height?: number): void;
+        setRTS(rot?: math.Quat | math.Vec3, pos?: math.Vec3, scale?: math.Vec3): void;
+        /**
+         * @en Pause all system events which is dispatched by [[SystemEvent]]
+         * @zh 暂停所有 [[SystemEvent]] 派发的系统事件
+         * @param recursive Whether pause system events recursively for the child node tree
+         */
         pauseSystemEvents(recursive: boolean): void;
+        /**
+         * @en Resume all paused system events which is dispatched by [[SystemEvent]]
+         * @zh 恢复所有 [[SystemEvent]] 派发的系统事件
+         * @param recursive Whether resume system events recursively for the child node tree
+         */
         resumeSystemEvents(recursive: boolean): void;
-        _onPostActivated(active: any): void;
-        _onPreDestroy(): void;
     }
     /**
      * @en
-     * cc.Scene is a subclass of cc.Node that is used only as an abstract concept.<br/>
-     * cc.Scene and cc.Node are almost identical with the difference that users can not modify cc.Scene manually.
+     * Scene is a subclass of [[BaseNode]], composed by nodes, representing the root of a runnable environment in the game.
+     * It's managed by [[Director]] and user can switch from a scene to another using [[Director.loadScene]]
      * @zh
-     * cc.Scene 是 cc._BaseNode 的子类，仅作为一个抽象的概念。<br/>
-     * cc.Scene 和 cc._BaseNode 有点不同，用户不应直接修改 cc.Scene。
+     * Scene 是 [[BaseNode]] 的子类，由节点所构成，代表着游戏中可运行的某一个整体环境。
+     * 它由 [[Director]] 管理，用户可以使用 [[Director.loadScene]] 来切换场景
      */
     export class Scene extends BaseNode {
         get renderScene(): renderer.RenderScene | null;
-        get globals(): __private.cocos_core_scene_graph_scene_globals_SceneGlobals;
         /**
          * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
          * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
          */
         autoReleaseAssets: boolean;
-        /**
-         * @en Per-scene level rendering info
-         * @zh 场景级别的渲染信息
-         */
-        _globals: __private.cocos_core_scene_graph_scene_globals_SceneGlobals;
         _renderScene: renderer.RenderScene | null;
         dependAssets: null;
         protected _inited: boolean;
@@ -16056,19 +14716,54 @@ declare module "cc.core" {
         protected _mat: Readonly<math.Mat4>;
         protected _dirtyFlags: number;
         constructor(name: string);
+        /**
+         * @en Destroy the current scene and all its nodes, this action won't destroy related assets
+         * @zh 销毁当前场景中的所有节点，这个操作不会销毁资源
+         */
         destroy(): boolean;
-        addComponent(typeOrClassName: string | Function): null;
+        /**
+         * @en Only for compatibility purpose, user should not add any component to the scene
+         * @zh 仅为兼容性保留，用户不应该在场景上直接添加任何组件
+         */
+        addComponent(typeOrClassName: string | Function): Component;
         _onHierarchyChanged(): void;
         _onBatchCreated(): void;
         _onBatchRestored(): void;
+        /**
+         * Refer to [[Node.getPosition]]
+         */
         getPosition(out?: math.Vec3): math.Vec3;
+        /**
+         * Refer to [[Node.getRotation]]
+         */
         getRotation(out?: math.Quat): math.Quat;
+        /**
+         * Refer to [[Node.getScale]]
+         */
         getScale(out?: math.Vec3): math.Vec3;
+        /**
+         * Refer to [[Node.getWorldPosition]]
+         */
         getWorldPosition(out?: math.Vec3): math.Vec3;
+        /**
+         * Refer to [[Node.getWorldRotation]]
+         */
         getWorldRotation(out?: math.Quat): math.Quat;
+        /**
+         * Refer to [[Node.getWorldScale]]
+         */
         getWorldScale(out?: math.Vec3): math.Vec3;
+        /**
+         * Refer to [[Node.getWorldMatrix]]
+         */
         getWorldMatrix(out?: math.Mat4): math.Mat4;
+        /**
+         * Refer to [[Node.getWorldRS]]
+         */
         getWorldRS(out?: math.Mat4): math.Mat4;
+        /**
+         * Refer to [[Node.getWorldRT]]
+         */
         getWorldRT(out?: math.Mat4): math.Mat4;
         get position(): Readonly<math.Vec3>;
         get worldPosition(): Readonly<math.Vec3>;
@@ -16078,16 +14773,26 @@ declare module "cc.core" {
         get worldScale(): Readonly<math.Vec3>;
         get eulerAngles(): Readonly<math.Vec3>;
         get worldMatrix(): Readonly<math.Mat4>;
+        /**
+         * Refer to [[Node.updateWorldTransform]]
+         */
         updateWorldTransform(): void;
         protected _instantiate(): void;
         protected _load(): void;
         protected _activate(active: boolean): void;
     }
     /**
-     * 场景节点层管理器，用于射线检测、物理碰撞和用户自定义脚本逻辑。
+     * @zh 节点层管理器，层数据是以掩码数据方式存储在 [[Node.layer]] 中，用于射线检测、物理碰撞和用户自定义脚本逻辑。
      * 每个节点可属于一个或多个层，可通过 “包含式” 或 “排除式” 两种检测器进行层检测。
+     * @en Node's layer manager, it's stored as bit mask data in [[Node.layer]].
+     * Layer information is widely used in raycast, physics and user logic.
+     * Every node can be assigned to multiple layers with different bit masks, you can setup layer with inclusive or exclusive operation.
      */
     export class Layers {
+        /**
+         * @en All layers in an Enum
+         * @zh 以 Enum 形式存在的所有层列表
+         */
         static Enum: {
             NONE: number;
             IGNORE_RAYCAST: number;
@@ -16100,6 +14805,10 @@ declare module "cc.core" {
             DEFAULT: number;
             ALL: number;
         };
+        /**
+         * @en All layers in [[BitMask]] type
+         * @zh 包含所有层的 [[BitMask]]
+         */
         static BitMask: {
             NONE: number;
             IGNORE_RAYCAST: number;
@@ -16117,8 +14826,8 @@ declare module "cc.core" {
          * Make a layer mask accepting nothing but the listed layers
          * @zh
          * 创建一个包含式层检测器，只接受列表中的层
-         * @param includes 可接受的层数组
-         * @return 指定功能的层检测器
+         * @param includes All accepted layers
+         * @return A filter which can detect all accepted layers
          */
         static makeMaskInclude(includes: number[]): number;
         /**
@@ -16126,28 +14835,33 @@ declare module "cc.core" {
          * Make a layer mask accepting everything but the listed layers
          * @zh
          * 创建一个排除式层检测器，只拒绝列表中的层
-         * @param  excludes 将拒绝的层数组
-         * @return 指定功能的层检测器
+         * @param excludes All excluded layers
+         * @return A filter which can detect for excluded layers
          */
         static makeMaskExclude(excludes: number[]): number;
         /**
          * @zh 添加一个新层，用户可编辑 0 - 19 位为用户自定义层
-         * @param name 层名字
-         * @param bitNum 层序号
+         * @en Add a new layer, user can use layers from bit position 0 to 19, other bits are reserved.
+         * @param name Layer's name
+         * @param bitNum Layer's bit position
          */
         static addLayer(name: string, bitNum: number): void;
         /**
-         * @zh
-         * 移除一个层，用户可编辑 0 - 19 位为用户自定义层
-         * @param bitNum 层序号
+         * @en Remove a layer, user can remove layers from bit position 0 to 19, other bits are reserved.
+         * @zh 移除一个层，用户可编辑 0 - 19 位为用户自定义层
+         * @param bitNum Layer's bit position
          */
         static deleteLayer(bitNum: number): void;
     }
     /**
-     * Finds a node by hierarchy path, the path is case-sensitive.
+     * @en Finds a node by hierarchy path, the path is case-sensitive.
      * It will traverse the hierarchy by splitting the path using '/' character.
      * This function will still returns the node even if it is inactive.
      * It is recommended to not use this function every frame instead cache the result at startup.
+     * @zh 通过路径从节点树中查找节点的方法，路径是大小写敏感的，并且通过 `/` 来分隔节点层级。
+     * 即使节点的状态是未启用的也可以找到，建议将结果缓存，而不是每次需要都去查找。
+     * @param path The path of the target node
+     * @param referenceNode If given, the search will be limited in the sub node tree of the reference node
      */
     export function find(path: string, referenceNode?: Node): Node | null;
     /**
@@ -16162,34 +14876,51 @@ declare module "cc.core" {
      *    In this way, they can be easily kept inside the bounding box.<br/>
      * Currently, it's used by RichText component and TileMap component.
      * @zh
-     * Cocos Creator 3d场景中的私有节点类。<br/>
+     * Cocos Creator 3d 场景中的私有节点类。<br/>
      * 私有节点在编辑器中不可见，对用户透明。<br/>
      * 通常私有节点是被一些特殊的组件创建出来作为父节点的一部分而存在的，理论上来说，它们不是子节点，而是父节点的组成部分。<br/>
      * 私有节点有两个非常重要的特性：<br/>
      * 1. 它有着最小的渲染排序的 Z 轴深度，并且无法被更改，因为它们不能被显示在其他正常子节点之上。<br/>
      * 2. 它的定位也是特殊的，对于私有节点来说，父节点包围盒的左下角是它的局部坐标系原点，这个原点相当于父节点的位置减去它锚点的偏移。这样私有节点可以比较容易被控制在包围盒之中。<br/>
      * 目前在引擎中，RichText 和 TileMap 都有可能生成私有节点。
-     * @class PrivateNode
-     * @param {String} name
-     * @extends Node
      */
     export class PrivateNode extends Node {
-        /**
-         * @param {String} [name]
-         */
         constructor(name: string);
     }
     /**
      * @en The class used to perform activating and deactivating operations of node and component.
-     * @zh 用于执行节点和组件的激活和停用操作的类。
+     * @zh 用于执行节点和组件的激活和停用操作的管理器。
      */
     export class NodeActivator {
         resetComp: any;
         protected _activatingStack: any[];
         constructor();
+        /**
+         * @en Reset all activation or des-activation tasks
+         * @zh 重置所有激活或非激活任务
+         */
         reset(): void;
+        /**
+         * @en Activate or des-activate a node
+         * @zh 激活或者停用某个节点
+         * @param node Target node
+         * @param active Which state to set the node to
+         */
         activateNode(node: any, active: any): void;
+        /**
+         * @en Activate or des-activate a component
+         * @zh 激活或者停用某个组件
+         * @param comp Target component
+         * @param preloadInvoker The invoker for `_preload` method, normally from [[ComponentScheduler]]
+         * @param onLoadInvoker The invoker for `onLoad` method, normally from [[ComponentScheduler]]
+         * @param onEnableInvoker The invoker for `onEnable` method, normally from [[ComponentScheduler]]
+         */
         activateComp(comp: any, preloadInvoker?: any, onLoadInvoker?: any, onEnableInvoker?: any): void;
+        /**
+         * @en Destroy a component
+         * @zh 销毁一个组件
+         * @param comp Target component
+         */
         destroyComp(comp: any): void;
         protected _activateNodeRecursively(node: any, preloadInvoker: any, onLoadInvoker: any, onEnableInvoker: any): void;
         protected _deactivateNodeRecursively(node: any): void;
@@ -16221,16 +14952,15 @@ declare module "cc.core" {
         /**
          * @en The node this component is attached to. A component is always attached to a node.
          * @zh 该组件被附加到的节点。组件总会附加到一个节点。
-         * @property node
          * @type {Node}
          * @example
-         * ```typescript
-         * cc.log(comp.node);
+         * ```ts
+         * import { log } from 'cc';
+         * log(comp.node);
          * ```
          */
         node: Node;
         /**
-         * @property _enabled
          * @type {Boolean}
          * @private
          */
@@ -16245,8 +14975,9 @@ declare module "cc.core" {
          * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
          * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
          * @example
-         * ```typescript
-         * var sprite = node.addComponent(cc.SpriteComponent);
+         * ```ts
+         * import { SpriteComponent } from 'cc';
+         * const sprite = node.addComponent(SpriteComponent);
          * ```
          */
         addComponent<T extends Component>(classConstructor: __private.Constructor<T>): T | null;
@@ -16254,8 +14985,8 @@ declare module "cc.core" {
          * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
          * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
          * @example
-         * ```typescript
-         * var test = node.addComponent("Test");
+         * ```ts
+         * const test = node.addComponent("Test");
          * ```
          */
         addComponent(className: string): Component | null;
@@ -16267,9 +14998,10 @@ declare module "cc.core" {
          * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
          * 传入参数也可以是脚本的名称。
          * @example
-         * ```typescript
+         * ```ts
+         * import { SpriteComponent } from 'cc';
          * // get sprite component.
-         * var sprite = node.getComponent(cc.SpriteComponent);
+         * const sprite = node.getComponent(SpriteComponent);
          * ```
          */
         getComponent<T extends Component>(classConstructor: __private.Constructor<T>): T | null;
@@ -16281,7 +15013,7 @@ declare module "cc.core" {
          * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。<br/>
          * 传入参数也可以是脚本的名称。
          * @example
-         * ```typescript
+         * ```ts
          * // get custom test calss.
          * var test = node.getComponent("Test");
          * ```
@@ -16291,8 +15023,9 @@ declare module "cc.core" {
          * @en Returns all components of supplied type in the node.
          * @zh 返回节点上指定类型的所有组件。
          * @example
-         * ```typescript
-         * var sprites = node.getComponents(cc.SpriteComponent);
+         * ```ts
+         * import { SpriteComponent } from 'cc';
+         * const sprites = node.getComponents(SpriteComponent);
          * ```
          */
         getComponents<T extends Component>(classConstructor: __private.Constructor<T>): T[];
@@ -16300,8 +15033,8 @@ declare module "cc.core" {
          * @en Returns all components of supplied type in the node.
          * @zh 返回节点上指定类型的所有组件。
          * @example
-         * ```typescript
-         * var tests = node.getComponents("Test");
+         * ```ts
+         * const tests = node.getComponents("Test");
          * ```
          */
         getComponents(className: string): Component[];
@@ -16309,8 +15042,9 @@ declare module "cc.core" {
          * @en Returns the component of supplied type in any of its children using depth first search.
          * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
          * @example
-         * ```typescript
-         * var sprite = node.getComponentInChildren(cc.SpriteComponent);
+         * ```ts
+         * import { SpriteComponent } from 'cc';
+         * const sprite = node.getComponentInChildren(SpriteComponent);
          * ```
          */
         getComponentInChildren<T extends Component>(classConstructor: __private.Constructor<T>): T | null;
@@ -16318,7 +15052,7 @@ declare module "cc.core" {
          * @en Returns the component of supplied type in any of its children using depth first search.
          * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
          * @example
-         * ```typescript
+         * ```ts
          * var Test = node.getComponentInChildren("Test");
          * ```
          */
@@ -16327,8 +15061,9 @@ declare module "cc.core" {
          * @en Returns all components of supplied type in self or any of its children.
          * @zh 递归查找自身或所有子节点中指定类型的组件。
          * @example
-         * ```typescript
-         * var sprites = node.getComponentsInChildren(cc.SpriteComponent);
+         * ```ts
+         * import { SpriteComponent } from 'cc';
+         * const sprites = node.getComponentsInChildren(SpriteComponent);
          * ```
          */
         getComponentsInChildren<T extends Component>(classConstructor: __private.Constructor<T>): T[];
@@ -16336,12 +15071,12 @@ declare module "cc.core" {
          * @en Returns all components of supplied type in self or any of its children.
          * @zh 递归查找自身或所有子节点中指定类型的组件。
          * @example
-         * ```typescript
-         * var tests = node.getComponentsInChildren("Test");
+         * ```ts
+         * const tests = node.getComponentsInChildren("Test");
          * ```
          */
         getComponentsInChildren(className: string): Component[];
-        destroy(): any;
+        destroy(): boolean;
         _onPreDestroy(): void;
         _instantiate(cloned: any): any;
         /**
@@ -16357,11 +15092,9 @@ declare module "cc.core" {
          * @param {Number} repeat    将被重复执行（repeat+ 1）次，您可以使用 cc.macro.REPEAT_FOREVER 进行无限次循环。
          * @param {Number} delay     第一次执行前等待的时间（延时执行）。
          * @example
-         * ```typescript
-         * var timeCallback = function (dt) {
-         *   cc.log("time: " + dt);
-         * }
-         * this.schedule(timeCallback, 1);
+         * ```ts
+         * import { log } from 'cc';
+         * this.schedule((dt) => void log(`time: ${dt}`), 1);
          * ```
          */
         schedule(callback: any, interval?: number, repeat?: number, delay?: number): void;
@@ -16373,20 +15106,18 @@ declare module "cc.core" {
          * @param {function} callback  回调函数。
          * @param {Number} delay  第一次执行前等待的时间（延时执行）。
          * @example
-         * ```typescript
-         * var timeCallback = function (dt) {
-         *   cc.log("time: " + dt);
-         * }
-         * this.scheduleOnce(timeCallback, 2);
+         * ```ts
+         * import { log } from 'cc';
+         * this.scheduleOnce((dt) => void log(`time: ${dt}`), 2);
          * ```
          */
         scheduleOnce(callback: any, delay?: number): void;
         /**
-         * @en Unschedules a custom callback function.
+         * @en Un-schedules a custom callback function.
          * @zh 取消调度一个自定义的回调函数。
          * @param {function} callback_fn  回调函数。
          * @example
-         * ```typescript
+         * ```ts
          * this.unschedule(_callback);
          * ```
          */
@@ -16398,7 +15129,7 @@ declare module "cc.core" {
          * @zh 取消调度所有已调度的回调函数：定制的回调函数以及 'update' 回调函数。动作不受此方法影响。
          * @method unscheduleAllCallbacks
          * @example
-         * ```typescript
+         * ```ts
          * this.unscheduleAllCallbacks();
          * ```
          */
@@ -16542,12 +15273,11 @@ declare module "cc.core" {
     /**
      * @zh
      * “EventHandler” 类用来设置场景中的事件回调，该类允许用户设置回调目标节点，目标组件名，组件方法名，并可通过 emit 方法调用目标函数。
-     * 可通过 cc.Component.EventHandler 获得该事件。
      *
      * @example
-     * ```typescript
-     *
-     * var eventHandler = new cc.Component.EventHandler();
+     * ```ts
+     * import { Component } from 'cc';
+     * const eventHandler = new Component.EventHandler();
      * eventHandler.target = newTarget;
      * eventHandler.component = "MainMenu";
      * eventHandler.handler = "OnClick";
@@ -16592,8 +15322,9 @@ declare module "cc.core" {
          *
          * @param params - 派发参数数组。
          * @example
-         * ```typescript
-         * var eventHandler = new cc.Component.EventHandler();
+         * ```ts
+         * import { Component } from 'cc';
+         * const eventHandler = new Component.EventHandler();
          * eventHandler.target = newTarget;
          * eventHandler.component = "MainMenu";
          * eventHandler.handler = "OnClick"
@@ -16721,8 +15452,8 @@ declare module "cc.core" {
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        updateAssembler(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-        postUpdateAssembler(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
+        updateAssembler(render: __private.cocos_core_renderer_ui_ui_UI): void;
+        postUpdateAssembler(render: __private.cocos_core_renderer_ui_ui_UI): void;
     }
     /**
      * @en
@@ -16732,9 +15463,11 @@ declare module "cc.core" {
      * 实例后的材质的着色器属性类型。
      */
     export enum InstanceMaterialType {
-        ADDCOLOR = 0,
-        ADDCOLORANDTEXTURE = 1,
-        GRAYSCALE = 2
+        ADD_COLOR = 0,
+        ADD_COLOR_AND_TEXTURE = 1,
+        GRAYSCALE = 2,
+        USE_ALPHA_SEPARATED = 3,
+        USE_ALPHA_SEPARATED_AND_GRAY = 4
     }
     /**
      * @en
@@ -16743,16 +15476,21 @@ declare module "cc.core" {
      * @zh
      * 所有支持渲染的 UI 组件的基类。
      */
-    export class UIRenderComponent extends UIComponent {
+    export class UIRenderComponent extends RenderableComponent {
         get srcBlendFactor(): GFXBlendFactor;
         set srcBlendFactor(value: GFXBlendFactor);
         get dstBlendFactor(): GFXBlendFactor;
         set dstBlendFactor(value: GFXBlendFactor);
         get color(): Readonly<math.Color>;
         set color(value: Readonly<math.Color>);
-        get sharedMaterial(): Material | null;
-        set sharedMaterial(value: Material | null);
-        get material(): Material | null;
+        protected _uiMaterial: Material | null;
+        protected _uiMaterialIns: renderer.MaterialInstance | null;
+        protected getUIRenderMaterial(): Material | renderer.MaterialInstance | null;
+        getUIMaterialInstance(): renderer.MaterialInstance;
+        protected _uiMaterialDirty: boolean;
+        protected _uiMatInsDirty: boolean;
+        get uiMaterial(): Material | null;
+        set uiMaterial(val: Material | null);
         get renderData(): __private.cocos_core_renderer_ui_render_data_RenderData | null;
         set delegateSrc(value: Node);
         static BlendState: typeof GFXBlendFactor;
@@ -16761,14 +15499,12 @@ declare module "cc.core" {
         protected _srcBlendFactor: GFXBlendFactor;
         protected _dstBlendFactor: GFXBlendFactor;
         protected _color: math.Color;
-        protected _sharedMaterial: Material | null;
         protected _assembler: __private.cocos_core_renderer_ui_base_IAssembler | null;
         protected _postAssembler: __private.cocos_core_renderer_ui_base_IAssembler | null;
         protected _renderData: __private.cocos_core_renderer_ui_render_data_RenderData | null;
         protected _renderDataFlag: boolean;
         protected _renderFlag: boolean;
         protected _delegateSrc: Node | null;
-        protected _material: Material | null;
         protected _instanceMaterialType: InstanceMaterialType;
         protected _blendTemplate: {
             blendState: {
@@ -16777,9 +15513,8 @@ declare module "cc.core" {
                     blendDst: GFXBlendFactor;
                 }[];
             };
-            depthStencilState: {};
-            rasterizerState: {};
         };
+        protected _lastParent: Node | null;
         __preload(): void;
         onEnable(): void;
         onDisable(): void;
@@ -16812,18 +15547,17 @@ declare module "cc.core" {
          * 渲染数据销毁。
          */
         destroyRenderData(): void;
-        updateAssembler(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-        postUpdateAssembler(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-        protected _render(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-        protected _postRender(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
+        updateAssembler(render: __private.cocos_core_renderer_ui_ui_UI): void;
+        postUpdateAssembler(render: __private.cocos_core_renderer_ui_ui_UI): void;
+        protected _render(render: __private.cocos_core_renderer_ui_ui_UI): void;
+        protected _postRender(render: __private.cocos_core_renderer_ui_ui_UI): void;
         protected _checkAndUpdateRenderData(): void;
         protected _canRender(): boolean;
         protected _postCanRender(): void;
         protected _updateColor(): void;
-        protected _updateMaterial(material: Material | null): void;
-        protected _updateBlendFunc(): void;
+        _updateBlendFunc(): Material | renderer.MaterialInstance | null;
         protected _nodeStateChange(type: __private.cocos_core_scene_graph_node_enum_TransformBit): void;
-        protected _instanceMaterial(): void;
+        _updateBuiltinMaterial(): Material;
         protected _flushAssembler?(): void;
     }
     /**
@@ -16870,8 +15604,9 @@ declare module "cc.core" {
          * @param size - 节点内容变换的尺寸或者宽度。
          * @param height - 节点内容未变换的高度。
          * @example
-         * ```typescript
-         * node.setContentSize(cc.size(100, 100));
+         * ```ts
+         * import { Size } from 'cc';
+         * node.setContentSize(new Size(100, 100));
          * node.setContentSize(100, 100);
          * ```
          */
@@ -16896,8 +15631,9 @@ declare module "cc.core" {
          * @param point - 节点锚点或节点 x 轴锚。
          * @param y - 节点 y 轴锚。
          * @example
-         * ```typescript
-         * node.setAnchorPoint(cc.v2(1, 1));
+         * ```ts
+         * import { Vec2 } from 'cc';
+         * node.setAnchorPoint(new Vec2(1, 1));
          * node.setAnchorPoint(1, 1);
          * ```
          */
@@ -16922,7 +15658,7 @@ declare module "cc.core" {
          * @param out - 转换后坐标。
          * @returns - 返回与目标节点的相对位置。
          * @example
-         * ```typescript
+         * ```ts
          * const newVec3 = uiTransform.convertToNodeSpaceAR(cc.v3(100, 100, 0));
          * ```
          */
@@ -16938,7 +15674,7 @@ declare module "cc.core" {
          * @param out - 转换后坐标。
          * @returns - 返回 UI 世界坐标系。
          * @example
-         * ```typescript
+         * ```ts
          * const newVec3 = uiTransform.convertToWorldSpaceAR(3(100, 100, 0));
          * ```
          */
@@ -16953,7 +15689,7 @@ declare module "cc.core" {
          *
          * @return - 节点大小的包围盒
          * @example
-         * ```typescript
+         * ```ts
          * const boundingBox = uiTransform.getBoundingBox();
          * ```
          */
@@ -16969,7 +15705,7 @@ declare module "cc.core" {
          *
          * @returns - 返回世界坐标系下包围盒。
          * @example
-         * ```typescript
+         * ```ts
          * const newRect = uiTransform.getBoundingBoxToWorld();
          * ```
          */
@@ -17063,6 +15799,10 @@ declare module "cc.core" {
                 vert: string;
                 frag: string;
             };
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
             builtins: {
                 globals: {
                     blocks: {
@@ -17092,6 +15832,7 @@ declare module "cc.core" {
                 name: string;
                 defines: string[];
                 binding: number;
+                stageFlags: number;
                 members: {
                     name: string;
                     type: number;
@@ -17103,6 +15844,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 binding: number;
             }[];
             attributes: {
@@ -17110,6 +15852,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 format: number;
                 location: number;
             }[];
@@ -17168,6 +15911,10 @@ declare module "cc.core" {
                 vert: string;
                 frag: string;
             };
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
             builtins: {
                 globals: {
                     blocks: {
@@ -17197,6 +15944,7 @@ declare module "cc.core" {
                 name: string;
                 defines: never[];
                 binding: number;
+                stageFlags: number;
                 members: {
                     name: string;
                     type: number;
@@ -17208,6 +15956,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: never[];
+                stageFlags: number;
                 binding: number;
             }[];
             attributes: {
@@ -17215,6 +15964,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: never[];
+                stageFlags: number;
                 format: number;
                 location: number;
             }[];
@@ -17236,16 +15986,9 @@ declare module "cc.core" {
                     cullMode: number;
                 };
                 program: string;
-                priority: number;
                 depthStencilState: {
                     depthTest: boolean;
                     depthWrite: boolean;
-                };
-                properties: {
-                    mainTexture: {
-                        value: string;
-                        type: number;
-                    };
                 };
             }[];
         }[];
@@ -17257,6 +16000,10 @@ declare module "cc.core" {
                 frag: string;
             };
             glsl1: {
+                vert: string;
+                frag: string;
+            };
+            glsl4: {
                 vert: string;
                 frag: string;
             };
@@ -17273,7 +16020,10 @@ declare module "cc.core" {
                         name: string;
                         defines: string[];
                     }[];
-                    samplers: never[];
+                    samplers: {
+                        name: string;
+                        defines: string[];
+                    }[];
                 };
             };
             defines: {
@@ -17281,18 +16031,13 @@ declare module "cc.core" {
                 type: string;
             }[];
             blocks: never[];
-            samplers: {
-                name: string;
-                type: number;
-                count: number;
-                defines: string[];
-                binding: number;
-            }[];
+            samplers: never[];
             attributes: {
                 name: string;
                 type: number;
                 count: number;
                 defines: never[];
+                stageFlags: number;
                 format: number;
                 location: number;
             }[];
@@ -17302,7 +16047,7 @@ declare module "cc.core" {
         _uuid: string;
         techniques: {
             name: string;
-            passes: {
+            passes: ({
                 program: string;
                 properties: {
                     tilingOffset: {
@@ -17399,7 +16144,141 @@ declare module "cc.core" {
                         value: string;
                     };
                 };
-            }[];
+                phase?: undefined;
+                propertyIndex?: undefined;
+                embeddedMacros?: undefined;
+                blendState?: undefined;
+                depthStencilState?: undefined;
+                rasterizerState?: undefined;
+            } | {
+                phase: string;
+                propertyIndex: number;
+                embeddedMacros: {
+                    CC_FORWARD_ADD: boolean;
+                };
+                blendState: {
+                    targets: {
+                        blend: boolean;
+                        blendSrc: number;
+                        blendDst: number;
+                        blendSrcAlpha: number;
+                        blendDstAlpha: number;
+                    }[];
+                };
+                program: string;
+                depthStencilState: {
+                    depthFunc: number;
+                    depthTest: boolean;
+                    depthWrite: boolean;
+                };
+                properties: {
+                    tilingOffset: {
+                        value: number[];
+                        type: number;
+                    };
+                    mainColor: {
+                        value: number[];
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    albedoScale: {
+                        value: number[];
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    alphaThreshold: {
+                        value: number[];
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    occlusion: {
+                        value: number[];
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    roughness: {
+                        value: number[];
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    metallic: {
+                        value: number[];
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    normalStrenth: {
+                        value: number[];
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    emissive: {
+                        value: number[];
+                        type: number;
+                    };
+                    emissiveScale: {
+                        value: number[];
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    mainTexture: {
+                        value: string;
+                        type: number;
+                        handleInfo: (string | number)[];
+                    };
+                    normalMap: {
+                        value: string;
+                        type: number;
+                    };
+                    pbrMap: {
+                        value: string;
+                        type: number;
+                    };
+                    metallicRoughnessMap: {
+                        value: string;
+                        type: number;
+                    };
+                    occlusionMap: {
+                        value: string;
+                        type: number;
+                    };
+                    emissiveMap: {
+                        value: string;
+                        type: number;
+                    };
+                    albedo: {
+                        type: number;
+                        value: number[];
+                    };
+                    albedoScaleAndCutoff: {
+                        type: number;
+                        value: number[];
+                    };
+                    pbrParams: {
+                        type: number;
+                        value: number[];
+                    };
+                    emissiveScaleParam: {
+                        type: number;
+                        value: number[];
+                    };
+                    albedoMap: {
+                        type: number;
+                        value: string;
+                    };
+                };
+                rasterizerState?: undefined;
+            } | {
+                phase: string;
+                rasterizerState: {
+                    cullMode: number;
+                };
+                program: string;
+                properties?: undefined;
+                propertyIndex?: undefined;
+                embeddedMacros?: undefined;
+                blendState?: undefined;
+                depthStencilState?: undefined;
+            })[];
         }[];
         shaders: {
             name: string;
@@ -17409,6 +16288,10 @@ declare module "cc.core" {
                 frag: string;
             };
             glsl1: {
+                vert: string;
+                frag: string;
+            };
+            glsl4: {
                 vert: string;
                 frag: string;
             };
@@ -17454,6 +16337,7 @@ declare module "cc.core" {
                 name: string;
                 defines: never[];
                 binding: number;
+                stageFlags: number;
                 members: {
                     name: string;
                     type: number;
@@ -17465,6 +16349,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 binding: number;
             }[];
             attributes: ({
@@ -17472,17 +16357,19 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 format: number;
-                isInstanced: boolean;
                 location: number;
+                isInstanced?: undefined;
             } | {
                 name: string;
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 format: number;
+                isInstanced: boolean;
                 location: number;
-                isInstanced?: undefined;
             })[];
         }[];
     } | {
@@ -17539,6 +16426,10 @@ declare module "cc.core" {
                 vert: string;
                 frag: string;
             };
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
             builtins: {
                 globals: {
                     blocks: {
@@ -17568,6 +16459,7 @@ declare module "cc.core" {
                 name: string;
                 defines: never[];
                 binding: number;
+                stageFlags: number;
                 members: {
                     name: string;
                     type: number;
@@ -17579,6 +16471,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: never[];
+                stageFlags: number;
                 binding: number;
             }[];
             attributes: {
@@ -17586,6 +16479,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: never[];
+                stageFlags: number;
                 format: number;
                 location: number;
             }[];
@@ -17642,6 +16536,10 @@ declare module "cc.core" {
                 vert: string;
                 frag: string;
             };
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
             builtins: {
                 globals: {
                     blocks: {
@@ -17681,6 +16579,7 @@ declare module "cc.core" {
                 name: string;
                 defines: string[];
                 binding: number;
+                stageFlags: number;
                 members: {
                     name: string;
                     type: number;
@@ -17692,6 +16591,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 binding: number;
             }[];
             attributes: ({
@@ -17699,17 +16599,19 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 format: number;
-                isInstanced: boolean;
                 location: number;
+                isInstanced?: undefined;
             } | {
                 name: string;
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 format: number;
+                isInstanced: boolean;
                 location: number;
-                isInstanced?: undefined;
             })[];
         }[];
     } | {
@@ -17753,6 +16655,10 @@ declare module "cc.core" {
                 vert: string;
                 frag: string;
             };
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
             builtins: {
                 globals: {
                     blocks: {
@@ -17788,17 +16694,19 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 format: number;
-                isInstanced: boolean;
                 location: number;
+                isInstanced?: undefined;
             } | {
                 name: string;
                 type: number;
                 count: number;
                 defines: string[];
+                stageFlags: number;
                 format: number;
+                isInstanced: boolean;
                 location: number;
-                isInstanced?: undefined;
             })[];
         }[];
     } | {
@@ -17825,6 +16733,10 @@ declare module "cc.core" {
                 frag: string;
             };
             glsl1: {
+                vert: string;
+                frag: string;
+            };
+            glsl4: {
                 vert: string;
                 frag: string;
             };
@@ -17860,6 +16772,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: never[];
+                stageFlags: number;
                 format: number;
                 location: number;
             }[];
@@ -17898,6 +16811,10 @@ declare module "cc.core" {
                 vert: string;
                 frag: string;
             };
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
             builtins: {
                 globals: {
                     blocks: {
@@ -17919,6 +16836,7 @@ declare module "cc.core" {
                 name: string;
                 defines: never[];
                 binding: number;
+                stageFlags: number;
                 members: {
                     name: string;
                     type: number;
@@ -17930,6 +16848,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: never[];
+                stageFlags: number;
                 binding: number;
             }[];
             attributes: {
@@ -17937,6 +16856,7 @@ declare module "cc.core" {
                 type: number;
                 count: number;
                 defines: never[];
+                stageFlags: number;
                 format: number;
                 location: number;
             }[];
@@ -18028,14 +16948,15 @@ declare module "cc.core" {
         worldToScreen(worldPos: math.Vec3, out?: math.Vec3): math.Vec3;
         screenToWorld(screenPos: math.Vec3, out?: math.Vec3): math.Vec3;
         /**
-         * @zh 3D 节点转 UI 本地节点坐标。
-         * 注意：千万不要设置负责做转换的 uiNode 和最终设置位置的 uiNode 是同一个 node，否则可能出现跳动现象。
-         * @param wpos 3D 节点事件坐标
+         * @en 3D node to UI local node coordinates. The converted value is the offset under the UI node.
+         *
+         * @zh 3D 节点转 UI 本地节点坐标。转换后的值是该 UI 节点下的偏移。
+         * @param wpos 3D 节点世界坐标
          * @param uiNode UI 节点
          * @param out 返回在当前传入的 UI 节点下的偏移量
          *
          * @example
-         * ```typescript
+         * ```ts
          * this.convertToUINode(target.worldPosition, uiNode.parent, out);
          * uiNode.position = out;
          * ```
@@ -18048,6 +16969,14 @@ declare module "cc.core" {
         protected _chechTargetTextureEvent(old: RenderTexture | null): void;
         protected _updateTargetTexture(): void;
     }
+    export namespace CameraComponent {
+        export type ProjectionType = __private.EnumAlias<typeof __private.cocos_core_3d_framework_camera_component_ProjectionType>;
+        export type FOVAxis = __private.EnumAlias<typeof __private.cocos_core_3d_framework_camera_component_FOVAxis>;
+        export type ClearFlag = __private.EnumAlias<typeof __private.cocos_core_3d_framework_camera_component_ClearFlag>;
+        export type Aperture = __private.EnumAlias<typeof __private.cocos_core_3d_framework_camera_component_Aperture>;
+        export type Shutter = __private.EnumAlias<typeof __private.cocos_core_3d_framework_camera_component_Shutter>;
+        export type ISO = __private.EnumAlias<typeof __private.cocos_core_3d_framework_camera_component_ISO>;
+    }
     export class LightComponent extends Component {
         static Type: typeof renderer.LightType;
         static PhotometricTerm: {
@@ -18057,18 +16986,18 @@ declare module "cc.core" {
         protected _color: math.Color;
         protected _useColorTemperature: boolean;
         protected _colorTemperature: number;
-        protected _bakeType: __private.cocos_core_3d_framework_light_component_LightBakeType;
+        protected _staticSettings: __private.cocos_core_3d_framework_light_component_StaticLightSettings;
         protected _type: renderer.LightType;
         protected _lightType: typeof renderer.Light;
         protected _light: renderer.Light | null;
-        get bakeType(): __private.cocos_core_3d_framework_light_component_LightBakeType;
-        set bakeType(val: __private.cocos_core_3d_framework_light_component_LightBakeType);
         get color(): Readonly<math.Color>;
         set color(val: Readonly<math.Color>);
         get useColorTemperature(): boolean;
         set useColorTemperature(enable: boolean);
         get colorTemperature(): number;
         set colorTemperature(val: number);
+        get staticSettings(): __private.cocos_core_3d_framework_light_component_StaticLightSettings;
+        set staticSettings(val: __private.cocos_core_3d_framework_light_component_StaticLightSettings);
         get type(): renderer.LightType;
         constructor();
         onLoad(): void;
@@ -18080,6 +17009,10 @@ declare module "cc.core" {
         protected _attachToScene(): void;
         protected _detachFromScene(): void;
     }
+    export namespace LightComponent {
+        export type Type = __private.EnumAlias<typeof renderer.LightType>;
+        export type PhotometricTerm = __private.EnumAlias<typeof __private.cocos_core_3d_framework_light_component_PhotometricTerm>;
+    }
     /**
      * 模型组件。
      * @class ModelComponent
@@ -18087,12 +17020,24 @@ declare module "cc.core" {
     export class ModelComponent extends RenderableComponent {
         static ShadowCastingMode: {
             /**
-             * @zh Disable shadow projection.
+             * @en Disable shadow projection.
              * @zh 不投射阴影。
              */
             OFF: number;
             /**
-             * @zh Enable shadow projection.
+             * @en Enable shadow projection.
+             * @zh 开启阴影投射。
+             */
+            ON: number;
+        };
+        static ShadowReceivingMode: {
+            /**
+             * @en Disable shadow projection.
+             * @zh 不接收阴影。
+             */
+            OFF: number;
+            /**
+             * @en Enable shadow projection.
              * @zh 开启阴影投射。
              */
             ON: number;
@@ -18100,36 +17045,46 @@ declare module "cc.core" {
         lightmapSettings: __private.cocos_core_3d_framework_model_component_ModelLightmapSettings;
         protected _mesh: Mesh | null;
         protected _shadowCastingMode: number;
+        protected _shadowReceivingMode: number;
         get shadowCastingMode(): number;
         set shadowCastingMode(val: number);
+        get receiveShadow(): number;
+        set receiveShadow(val: number);
         get mesh(): Mesh | null;
         set mesh(val: Mesh | null);
-        get model(): renderer.__private.cocos_core_renderer_models_morph_model_MorphModel | null;
+        get model(): renderer.Model | null;
         get enableMorph(): boolean;
         set enableMorph(value: boolean);
-        protected _modelType: typeof renderer.__private.cocos_core_renderer_models_morph_model_MorphModel;
-        protected _model: renderer.__private.cocos_core_renderer_models_morph_model_MorphModel | null;
+        protected _modelType: typeof renderer.Model;
+        protected _model: renderer.Model | null;
         constructor();
         onLoad(): void;
+        onRestore(): void;
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
         setWeights(weights: number[], subMeshIndex: number): void;
         setInstancedAttribute(name: string, value: ArrayLike<number>): void;
-        _updateLightmap(lightmap: Texture2D | null, uoff: number, voff: number, uscale: number, vscale: number): void;
+        _updateLightmap(lightmap: Texture2D | null, uOff: number, vOff: number, uScale: number, vScale: number): void;
         protected _updateModels(): void;
         protected _createModel(): void;
         protected _attachToScene(): void;
         protected _detachFromScene(): void;
         protected _updateModelParams(): void;
+        protected _onUpdateLightingmap(): void;
         protected _onMaterialModified(idx: number, material: Material | null): void;
         protected _onRebuildPSO(idx: number, material: Material): void;
         protected _onMeshChanged(old: Mesh | null): void;
         protected _clearMaterials(): void;
         protected _getBuiltinMaterial(): Material;
-        protected _onVisiblityChange(val: number): void;
+        protected _onVisibilityChange(val: number): void;
         protected _updateCastShadow(): void;
+        protected _updateReceiveShadow(): void;
         protected _isBatchingEnabled(): boolean;
+    }
+    export namespace ModelComponent {
+        export type ShadowCastingMode = __private.EnumAlias<typeof __private.cocos_core_3d_framework_model_component_ModelShadowCastingMode>;
+        export type ShadowReceivingMode = __private.EnumAlias<typeof __private.cocos_core_3d_framework_model_component_ModelShadowReceivingMode>;
     }
     /**
      * @en The Skinning Model Component.
@@ -18143,7 +17098,7 @@ declare module "cc.core" {
         set skeleton(val: Skeleton | null);
         get skinningRoot(): Node | null;
         set skinningRoot(value: Node | null);
-        get model(): renderer.BakedSkinningModel | renderer.SkinningModel | null;
+        get model(): renderer.SkinningModel | renderer.BakedSkinningModel | null;
         constructor();
         __preload(): void;
         uploadAnimation(clip: AnimationClip | null): void;
@@ -18260,7 +17215,7 @@ declare module "cc.core" {
         protected _onMaterialModified(index: number, material: Material | null): void;
         protected _onRebuildPSO(index: number, material: Material | null): void;
         protected _clearMaterials(): void;
-        protected _onVisiblityChange(val: any): void;
+        protected _onVisibilityChange(val: any): void;
     }
     export class DirectionalLightComponent extends LightComponent {
         protected _illuminance: number;
@@ -18398,13 +17353,9 @@ declare module "cc.core" {
         get delay(): number;
         set delay(value: number);
         /**
-         * @en The curves list.
-         * @zh 曲线列表。
-         */
-        /**
          * @en The iteration duration of this animation in seconds. (length)
          * @zh 单次动画的持续时间，秒。（动画长度）
-         * @readOnly
+         * @editable.readOnly
          */
         duration: number;
         /**
@@ -18424,7 +17375,6 @@ declare module "cc.core" {
          */
         weight: number;
         frameRate: number;
-        _lastframeEventOn: boolean;
         protected _wrapMode: __private.cocos_core_animation_types_WrapMode;
         protected _repeatCount: number;
         /**
@@ -18447,21 +17397,44 @@ declare module "cc.core" {
         /**
          * May be `null` due to failed to initialize.
          */
-        protected _commonTargetStatuses: Array<null | {
+        protected _commonTargetStatuses: (null | {
             target: __private.cocos_core_animation_bound_target_IBufferedTarget;
             changed: boolean;
-        }>;
+        })[];
         protected _curveLoaded: boolean;
         protected _ignoreIndex: number;
         constructor(clip: AnimationClip, name?: string);
         get curveLoaded(): boolean;
-        initialize(root: Node, propertyCurves?: keyof IRuntimeCurve[]): void;
+        initialize(root: Node, propertyCurves?: readonly IRuntimeCurve[]): void;
         destroy(): void;
-        _emit(type: any, state: any): void;
-        emit<K extends string>(type: K, ...args: __private.cocos_core_event_defines_EventArgumentsOf<K, __private.cocos_core_animation_animation_state_IAnimationEventDefinitionMap>): void;
-        on<K extends string>(type: K, callback: __private.cocos_core_event_defines_EventCallbackOf<K, __private.cocos_core_animation_animation_state_IAnimationEventDefinitionMap>, target?: any): void;
-        once<K extends string>(type: K, callback: __private.cocos_core_event_defines_EventCallbackOf<K, __private.cocos_core_animation_animation_state_IAnimationEventDefinitionMap>, target?: any): void;
+        /**
+         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
+         * To process animation events, use `AnimationComponent` instead.
+         */
+        emit(...args: any[]): void;
+        /**
+         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
+         * To process animation events, use `AnimationComponent` instead.
+         */
+        on(type: string, callback: Function, target?: any): void | null;
+        /**
+         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
+         * To process animation events, use `AnimationComponent` instead.
+         */
+        once(type: string, callback: Function, target?: any): void | null;
+        /**
+         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
+         * To process animation events, use `AnimationComponent` instead.
+         */
         off(type: string, callback: Function, target?: any): void;
+        /**
+         * @zh
+         * 是否允许触发 `LastFrame` 事件。
+         * @en
+         * Whether `LastFrame` should be triggered.
+         * @param allowed True if the last frame events may be triggered.
+         */
+        allowLastFrameEvent(allowed: boolean): void;
         _setEventTarget(target: any): void;
         setTime(time: number): void;
         update(delta: number): void;
@@ -18478,22 +17451,59 @@ declare module "cc.core" {
         protected _sampleCurves(ratio: number): void;
     }
     export namespace animation {
+        /**
+         * @en
+         * Value proxy factory for setting uniform on material target.
+         * @zh
+         * 用于设置材质目标上指定 Uniform 的曲线值代理工厂。
+         */
         export class UniformProxyFactory implements IValueProxyFactory {
+            /**
+             * @en Pass index.
+             * @zh Pass 索引。
+             */
             passIndex: number;
+            /**
+             * @en Uniform name.
+             * @zh Uniform 名称。
+             */
             uniformName: string;
             /**
-             * Use when your target is a single channel of the uniform instead of who uniform.
+             * @en
+             * Specify the aimed channel of the uniform.
+             * Use this when you're aiming at a single channel of the uniform instead of who uniform.
+             * For example, only green(1) channel of a color uniform.
+             * @zh
+             * 指定目标 Uniform 的通道。
+             * 当你希望设置 Uniform 单独的通道而非整个 Uniform 时应该当使用此字段。
+             * 例如，仅设置颜色 Uniform 的红色通道。
              */
             channelIndex: number | undefined;
             constructor(uniformName?: string, passIndex?: number);
             forTarget(target: Material): IValueProxy;
         }
+        /**
+         * @en
+         * Value proxy factory for setting morph weights of specified sub-mesh on model component target.
+         * @zh
+         * 用于设置模型组件目标上指定子网格形变权重的曲线值代理工厂。
+         */
         export class MorphWeightsValueProxy implements IValueProxyFactory {
+            /**
+             * @en Sub-mesh index.
+             * @zh 子网格索引。
+             */
             subMeshIndex: number;
             forTarget(target: ModelComponent): {
                 set: (value: number[]) => void;
             };
         }
+        /**
+         * @en
+         * Value proxy factory for setting morph weights of each sub-mesh on model component target.
+         * @zh
+         * 用于设置模型组件目标上所有子网格形变权重的曲线值代理工厂。
+         */
         export class MorphWeightsAllValueProxy implements IValueProxyFactory {
             forTarget(target: ModelComponent): {
                 set: (value: number[]) => void;
@@ -18567,23 +17577,6 @@ declare module "cc.core" {
             lerp(to: CubicSplineNumberValue, t: number, dt: number): number;
             getNoLerp(): number;
         }
-        export namespace __private {
-            export interface cocos_core_animation_types_ILerpable {
-                /**
-                 * 在当前曲线值与目标曲线值之间插值。
-                 * @param to 目标曲线值。
-                 * @param t 插值比率。
-                 * @param dt 当前曲线值与目标曲线值的时间间隔，单位为秒。
-                 * @returns 插值结果。
-                 */
-                lerp(to: any, t: number, dt: number): any;
-                /**
-                 * 当直接使用曲线值作为采样结果时的结果值，它应该等同于插值比率为 0 时的插值结果。
-                 * @returns 插值比率为 0 时的插值结果。
-                 */
-                getNoLerp?(): any;
-            }
-        }
     }
     /**
      * Alias of `HierarchyPath`.
@@ -18614,9 +17607,6 @@ declare module "cc.core" {
     }
     export function bezier(C1: number, C2: number, C3: number, C4: number, t: number): number;
     export function bezierByTime(controlPoints: BezierControlPoints, x: number): number;
-    /**
-     * @category animation
-     */
     export type BezierControlPoints = [number, number, number, number];
     /**
      * 采样动画曲线。
@@ -18739,7 +17729,10 @@ declare module "cc.core" {
         events: IAnimationEvent[];
     }
     /**
-     * 动画剪辑。
+     * @zh 动画剪辑表示一段使用动画编辑器编辑的关键帧动画或是外部美术工具生产的骨骼动画。
+     * 它的数据主要被分为几层：轨道、关键帧和曲线。
+     * @en The animation clip represents a sequence of key frame animation created with the animation editor or skeletal animation other DCC tools.
+     * The data is divided in different levels: tracks, key frames, curves.
      */
     export class AnimationClip extends Asset {
         static preventDeferredLoadDependents: boolean;
@@ -18749,31 +17742,37 @@ declare module "cc.core" {
          * @zh 使用一组序列帧图片来创建动画剪辑
          * @example
          * ```
-         * const clip = cc.AnimationClip.createWithSpriteFrames(spriteFrames, 10);
+         * import { AnimationClip } from 'cc';
+         * const clip = AnimationClip.createWithSpriteFrames(spriteFrames, 10);
          * ```
          */
         static createWithSpriteFrames(spriteFrames: SpriteFrame[], sample: number): AnimationClip | null;
         /**
-         * @zh 动画帧率，单位为帧/秒。
+         * @zh 动画帧率，单位为帧/秒。注意此属性仅用于编辑器动画编辑。
+         * @en Animation frame rate: frames per second.
+         * Note this property is only used for animation editing in Editor.
          */
         sample: number;
         /**
          * @zh 动画的播放速度。
+         * @en Animation playback speed.
          */
         speed: number;
         /**
          * @zh 动画的循环模式。
+         * @en Animation loop mode.
          */
         wrapMode: __private.cocos_core_animation_types_WrapMode;
         /**
          * @zh 动画包含的事件数据。
+         * @en Associated event data.
          */
         events: AnimationClip.IEvent[];
         get duration(): number;
         set duration(value: number);
         get keys(): number[][];
         set keys(value: number[][]);
-        get eventGroups(): keyof IAnimationEventGroup[];
+        get eventGroups(): readonly IAnimationEventGroup[];
         get stepness(): number;
         set stepness(value: number);
         get hash(): number;
@@ -18783,22 +17782,26 @@ declare module "cc.core" {
         get commonTargets(): AnimationClip.ICommonTarget[];
         set commonTargets(value: AnimationClip.ICommonTarget[]);
         onLoaded(): void;
-        getPropertyCurves(): keyof IRuntimeCurve[];
+        getPropertyCurves(): readonly IRuntimeCurve[];
         /**
-         * @zh 提交事件数据的修改。<br/>
+         * @zh 提交事件数据的修改。
          * 当你修改了 `this.events` 时，必须调用 `this.updateEventDatas()` 使修改生效。
-         * @protected
+         * @en
+         * Commit event data update.
+         * You should call this function after you changed the `events` data to take effect.
+         * @internal
          */
         updateEventDatas(): void;
         /**
          * @en Gets the event group shall be processed at specified ratio.
          * @zh 获取事件组应按指定比例处理。
          * @param ratio The ratio.
-         * @protected
+         * @internal
          */
         getEventGroupIndexAtRatio(ratio: number): number;
         /**
          * @zh 返回本动画是否包含事件数据。
+         * @en Returns if this animation contains event data.
          * @protected
          */
         hasEvents(): boolean;
@@ -18842,51 +17845,43 @@ declare module "cc.core" {
         destruct(): void;
         addAnimation(anim: AnimationState): void;
         removeAnimation(anim: AnimationState): void;
-        pushDelayEvent(target: Node, func: string, args: any[]): void;
+        pushDelayEvent(fn: Function, thisArg: any, args: any[]): void;
+        addSockets(root: Node, sockets: Socket[]): void;
+        removeSockets(root: Node, sockets: Socket[]): void;
     }
+    export const AnimationComponent_base: new (...args: any[]) => Component & __private.cocos_core_event_eventify_IEventified;
     /**
-     * @en The event type supported by Animation
-     * @zh Animation 支持的事件类型。
+     * @en
+     * Animation component governs a group of animation states to control playback of the states.
+     * For convenient, it stores a group of animation clips.
+     * Each of those clips would have an associated animation state uniquely created.
+     * Animation component is eventful, it dispatch a serials playback status events.
+     * See [[EventType]].
+     * @zh
+     * 动画组件管理一组动画状态，控制它们的播放。
+     * 为了方便，动画组件还存储了一组动画剪辑。
+     * 每个剪辑都会独自创建一个关联的动画状态对象。
+     * 动画组件具有事件特性，它会派发一系列播放状态相关的事件。
+     * 参考 [[EventType]]
      */
-    export enum EventType {
-        PLAY = "play",
-        STOP = "stop",
-        PAUSE = "pause",
-        RESUME = "resume",
-        LASTFRAME = "lastframe",
-        FINISHED = "finished"
-    }
-    /**
-     * 动画组件管理动画状态来控制动画的播放。
-     * 它提供了方便的接口用来预创建指定动画剪辑的动画状态，并提供了一系列事件：
-     *  - play : 开始播放时
-     *  - stop : 停止播放时
-     *  - pause : 暂停播放时
-     *  - resume : 恢复播放时
-     *  - lastframe : 假如动画循环次数大于 1，当动画播放到最后一帧时
-     *  - finished : 动画播放完成时
-     */
-    export class AnimationComponent extends Component implements __private.cocos_core_event_event_target_factory_IEventTarget {
+    export class AnimationComponent extends AnimationComponent_base {
         get clips(): (AnimationClip | null)[];
         set clips(value: (AnimationClip | null)[]);
         get defaultClip(): AnimationClip | null;
         set defaultClip(value: AnimationClip | null);
-        static EventType: typeof EventType;
+        static EventType: typeof __private.cocos_core_animation_animation_state_EventType;
         /**
-         * @zh
-         * 是否在动画组件开始运行时自动播放默认动画剪辑。
-         * 注意，若在组件开始运行前调用了 `crossFade` 或 `play()`，此字段将不会生效。
          * @en
          * Whether the default clip should get into playing when this components starts.
          * Note, this field takes no effect if `crossFade()` or `play()` has been called before this component starts.
+         * @zh
+         * 是否在组件开始运行时自动播放默认剪辑。
+         * 注意，若在组件开始运行前调用了 `crossFade` 或 `play()`，此字段将不会生效。
          */
         playOnLoad: boolean;
-        _callbackTable: __private.cocos_core_event_callbacks_invoker_ICallbackTable;
         protected _crossFade: __private.cocos_core_animation_cross_fade_CrossFade;
-        protected _nameToState: {
-            [name: string]: AnimationState;
-        };
-        protected _clips: Array<(AnimationClip | null)>;
+        protected _nameToState: Record<string, AnimationState>;
+        protected _clips: (AnimationClip | null)[];
         protected _defaultClip: AnimationClip | null;
         onLoad(): void;
         start(): void;
@@ -18894,58 +17889,86 @@ declare module "cc.core" {
         onDisable(): void;
         onDestroy(): void;
         /**
+         * @en
+         * Switch to play specified animation state, without fading.
+         * @zh
          * 立即切换到指定动画状态。
-         * @param [name] 目标动画状态的名称；若未指定，使用默认动画剪辑的名称。
+         * @param name The name of the animation to be played, if absent, the default clip will be played
          */
         play(name?: string): void;
         /**
-         * 在指定周期内从当前动画状态平滑地切换到指定动画状态。
-         * @param name 目标动画状态的名称。
-         * @param duration 切换周期，单位为秒。
+         * @en
+         * Smoothly switch to play specified animation state.
+         * @zn
+         * 平滑地切换到指定动画状态。
+         * @param name The name of the animation to switch to
+         * @param duration The duration of the cross fade, default value is 0.3s
          */
         crossFade(name: string, duration?: number): void;
         /**
-         * 暂停所有动画状态，并暂停动画切换。
+         * @en
+         * Pause all animation states and all switching.
+         * @zh
+         * 暂停所有动画状态，并暂停所有切换。
          */
         pause(): void;
         /**
-         * 恢复所有动画状态，并继续动画切换。
+         * @en
+         * Resume all animation states and all switching.
+         * @zh
+         * 恢复所有动画状态，并恢复所有切换。
          */
         resume(): void;
         /**
-         * 停止所有动画状态，并停止动画切换。
+         * @en
+         * Stop all animation states and all switching.
+         * @zh
+         * 停止所有动画状态，并停止所有切换。
          */
         stop(): void;
         /**
+         * @en
+         * Get specified animation state.
+         * @zh
          * 获取指定的动画状态。
-         * @deprecated 将在 V1.0.0 移除，请转用 `this.getState()`。
+         * @deprecated please use [[getState]]
          */
         getAnimationState(name: string): AnimationState;
         /**
+         * @en
+         * Get specified animation state.
+         * @zh
          * 获取指定的动画状态。
-         * @param name 动画状态的名称。
-         * @returns 不存在指定名称的动画状态时返回空，否则返回指定的动画状态。
+         * @param name The name of the animation
+         * @returns If no animation found, return null, otherwise the correspond animation state is returned
          */
         getState(name: string): AnimationState;
         /**
-         * 使用指定的动画剪辑创建一个动画状态，并将其命名为指定的名称。
-         * 若指定名称的动画状态已存在，已存在的动画状态将先被设为停止并被移除。
-         * @param clip 动画剪辑。
-         * @param name 动画状态的名称，若未指定，则使用动画剪辑的名称。
-         * @returns 新创建的动画状态。
+         * @en
+         * Creates a state for specified clip.
+         * If there is already a clip with same name, the existing animation state will be stopped and overridden.
+         * @zh
+         * 使用指定的动画剪辑创建一个动画状态。
+         * 若指定名称的动画状态已存在，已存在的动画状态将先被设为停止并被覆盖。
+         * @param clip The animation clip
+         * @param name The animation state name, if absent, the default clip's name will be used
+         * @returns The animation state created
          */
         createState(clip: AnimationClip, name?: string): AnimationState;
         /**
-         * 停止并移除指定名称的动画状态。
-         * @param name 动画状态的名称。
+         * @en
+         * Stops and removes specified clip.
+         * @zh
+         * 停止并移除指定的动画状态。
+         * @param name The name of the animation state
          */
         removeState(name: string): void;
         /**
          * 添加一个动画剪辑到 `this.clips`中并以此剪辑创建动画状态。
-         * @deprecated 将在 V1.0.0 移除，请转用 `this.createState()`。
-         * @param clip 动画剪辑。
-         * @param name 动画状态的名称，若未指定，则使用动画剪辑的名称。
-         * @returns 新创建的动画状态。
+         * @deprecated please use [[createState]]
+         * @param clip The animation clip
+         * @param name The animation state name, if absent, the default clip's name will be used
+         * @returns The created animation state
          */
         addClip(clip: AnimationClip, name?: string): AnimationState;
         /**
@@ -18957,8 +17980,8 @@ declare module "cc.core" {
          * 从动画列表中移除指定的动画剪辑，<br/>
          * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。<br/>
          * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。<br/>
-         * @deprecated 将在 V1.0.0 移除，请转用 `this.removeState()`。
-         * @param {Boolean} [force=false] - If force is true, then will always remove the clip and any animation states based on it.
+         * @deprecated please use [[removeState]]
+         * @param force - If force is true, then will always remove the clip and any animation states based on it.
          */
         removeClip(clip: AnimationClip, force?: boolean): void;
         /**
@@ -18971,13 +17994,12 @@ declare module "cc.core" {
          * 注册动画事件回调。<bg>
          * 回调的事件里将会附上发送事件的 AnimationState。<bg>
          * 当播放一个动画时，会自动将事件注册到对应的 AnimationState 上，停止播放时会将事件从这个 AnimationState 上取消注册。
-         * @param type - 表示要侦听的事件类型的字符串。
-         * @param callback - 调度事件时将调用的回调。
-         *                   如果回调是重复的（回调是唯一的），则忽略回调。
-         * @param target - 调用回调的目标（此对象）可以为null
-         * @return 只返回传入的回调，以便可以更轻松地保存匿名函数。
+         * @param type The event type to listen to
+         * @param callback The callback when event triggered
+         * @param target The callee when invoke the callback, could be absent
+         * @return The registered callback
          * @example
-         * ```typescript
+         * ```ts
          * onPlay: function (type, state) {
          *     // callback
          * }
@@ -18986,40 +18008,34 @@ declare module "cc.core" {
          * animation.on('play', this.onPlay, this);
          * ```
          */
-        on(type: string, callback: (state: AnimationState) => void, target?: Object): Function | undefined;
+        on<TFunction extends Function>(type: __private.cocos_core_animation_animation_state_EventType, callback: TFunction, thisArg?: any, once?: boolean): TFunction;
+        once<TFunction extends Function>(type: __private.cocos_core_animation_animation_state_EventType, callback: TFunction, thisArg?: any): TFunction;
         /**
          * @en
          * Unregister animation event callback.
          * @zh
          * 取消注册动画事件回调。
-         * @param {String} type - 要删除的事件类型的字符串。
-         * @param {Function} callback - 要删除的回调
-         * @param {Object} target - 调用回调的目标（此对象），如果没有给出，则只删除没有目标的回调
+         * @param {String} type The event type to unregister
+         * @param {Function} callback The callback to unregister
+         * @param {Object} target The callee of the callback, could be absent
          * @example
-         * ```typescript
+         * ```ts
          * // unregister event to all animation
          * animation.off('play', this.onPlay, this);
          * ```
          */
-        off(type: string, callback: Function, target?: Object): void;
-        /**
-         * @en IEventTarget implementations, they will be overwrote with the same implementation in EventTarget by applyMixins
-         * @zh IEventTarget 实现，它们将被 applyMixins 在 EventTarget 中用相同的实现覆盖。
-         */
-        targetOff(keyOrTarget?: string | Object | undefined): void;
-        once(type: string, callback: Function, target?: Object | undefined): Function | undefined;
-        dispatchEvent(event: Event): void;
-        hasEventListener(key: string, callback?: Function | undefined, target?: Object | undefined): boolean;
-        removeAll(keyOrTarget?: string | Object | undefined): void;
-        emit(key: string, ...args: any[]): void;
+        off(type: __private.cocos_core_animation_animation_state_EventType, callback?: Function, thisArg?: any): void;
         protected _createState(clip: AnimationClip, name?: string): AnimationState;
         protected _doCreateState(clip: AnimationClip, name: string): AnimationState;
     }
-    export type CurveData = math.Vec3 | math.Quat | math.Mat4;
+    export namespace AnimationComponent {
+        export type EventType = __private.EnumAlias<typeof __private.cocos_core_animation_animation_state_EventType>;
+    }
+    export type CurveData = math.Vec3[] | math.Quat[] | math.Mat4[];
     export type ConvertedProps = Record<string, IPropertyCurve>;
     export interface IPropertyCurve {
         keys: number;
-        values: CurveData[];
+        values: CurveData;
     }
     export interface ISkeletalCurveInfo {
         frames: number;
@@ -19044,7 +18060,6 @@ declare module "cc.core" {
     }
     export interface ISocketData {
         target: Node;
-        transform: renderer.IJointTransform;
         frames: ITransform[];
     }
     export class SkeletalAnimationState extends AnimationState {
@@ -19076,7 +18091,7 @@ declare module "cc.core" {
     }
     /**
      * @en
-     * Skeletal animaiton component, offers the following features on top of [[AnimationComponent]]:
+     * Skeletal animation component, offers the following features on top of [[AnimationComponent]]:
      * * Choice between baked animation and real-time calculation, to leverage efficiency and expressiveness.
      * * Joint socket system: Create any socket node directly under the animation component root node,
      *   find your target joint and register both to the socket list, so that the socket node would be in-sync with the joint.
@@ -19160,14 +18175,14 @@ declare module "cc.core" {
     export type Constructor<T = {}> = new (...args: any[]) => T;
     export interface IPoolHandlerComponent extends Component {
         unuse(): void;
-        reuse(...args: any[]): void;
+        reuse(args: any): void;
     }
     /**
      * @en
-     *  cc.NodePool is the cache pool designed for node type.<br/>
+     *  `NodePool` is the cache pool designed for node type.<br/>
      *  It can helps you to improve your game performance for objects which need frequent release and recreate operations<br/>
      *
-     * It's recommended to create cc.NodePool instances by node type, the type corresponds to node type in game design, not the class,
+     * It's recommended to create `NodePool` instances by node type, the type corresponds to node type in game design, not the class,
      * for example, a prefab is a specific node type. <br/>
      * When you create a node pool, you can pass a Component which contains `unuse`, `reuse` functions to control the content of node.<br/>
      *
@@ -19176,9 +18191,9 @@ declare module "cc.core" {
      *      2. Blocks in candy crash (massive creation and recreation)<br/>
      *      etc...
      * @zh
-     * cc.NodePool 是用于管理节点对象的对象缓存池。<br/>
+     * `NodePool` 是用于管理节点对象的对象缓存池。<br/>
      * 它可以帮助您提高游戏性能，适用于优化对象的反复创建和销毁<br/>
-     * 以前 cocos2d-x 中的 cc.pool 和新的节点事件注册系统不兼容，因此请使用 cc.NodePool 来代替。
+     * 以前 cocos2d-x 中的 pool 和新的节点事件注册系统不兼容，因此请使用 `NodePool` 来代替。
      *
      * 新的 NodePool 需要实例化之后才能使用，每种不同的节点对象池需要一个不同的对象池实例，这里的种类对应于游戏中的节点设计，一个 prefab 相当于一个种类的节点。<br/>
      * 在创建缓冲池时，可以传入一个包含 unuse, reuse 函数的组件类型用于节点的回收和复用逻辑。<br/>
@@ -19202,12 +18217,13 @@ declare module "cc.core" {
          * 使用构造函数来创建一个节点专用的对象池，您可以传递一个组件类型或名称，用于处理节点回收和复用时的事件逻辑。
          * @param poolHandlerComp @en The constructor or the class name of the component to control the unuse/reuse logic. @zh 处理节点回收和复用事件逻辑的组件类型或名称。
          * @example
+         * import { NodePool, Prefab } from 'cc';
          *  properties: {
-         *      template: cc.Prefab
+         *      template: Prefab
          *     },
          *     onLoad () {
          *       // MyTemplateHandler is a component with 'unuse' and 'reuse' to handle events when node is reused or recycled.
-         *       this.myPool = new cc.NodePool('MyTemplateHandler');
+         *       this.myPool = new NodePool('MyTemplateHandler');
          *     }
          *  }
          */
@@ -19230,8 +18246,9 @@ declare module "cc.core" {
          * 这个函数会自动将目标节点从父节点上移除，但是不会进行 cleanup 操作。
          * 这个函数会调用 poolHandlerComp 的 unuse 函数，如果组件和函数都存在的话。
          * @example
-         *   let myNode = cc.instantiate(this.template);
-         *   this.myPool.put(myNode);
+         * import { instantiate } from 'cc';
+         * const myNode = instantiate(this.template);
+         * this.myPool.put(myNode);
          */
         put(obj: Node): void;
         /**
@@ -19262,6 +18279,7 @@ declare module "cc.core" {
      * 基础图形网格，可以在运行时构建一些基础的网格。
      */
     export class Primitive extends Mesh {
+        static PrimitiveType: typeof PrimitiveType;
         /**
          * @en
          * The type of the primitive mesh, set it before you call onLoaded.
@@ -19285,2167 +18303,18 @@ declare module "cc.core" {
          */
         onLoaded(): void;
     }
-    export namespace __private {
-        export enum cocos_core_data_utils_compact_value_type_array_StorageUnit {
-            Uint8 = 0,
-            Uint16 = 1,
-            Uint32 = 2,
-            Int8 = 3,
-            Int16 = 4,
-            Int32 = 5,
-            Float32 = 6,
-            Float64 = 7
-        }
-        export enum cocos_core_data_utils_compact_value_type_array_ElementType {
-            Scalar = 0,
-            Vec2 = 1,
-            Vec3 = 2,
-            Vec4 = 3,
-            Quat = 4,
-            Mat4 = 5
-        }
-        export class cocos_core_event_callbacks_invoker_CallbackInfo {
-            callback: Function;
-            target: Object | undefined;
-            once: boolean;
-            set(callback: Function, target?: Object, once?: boolean): void;
-        }
-        /**
-         * @zh 事件监听器列表的简单封装。
-         * @en A simple list of event callbacks
-         */
-        export class cocos_core_event_callbacks_invoker_CallbackList {
-            callbackInfos: Array<cocos_core_event_callbacks_invoker_CallbackInfo | null>;
-            isInvoking: boolean;
-            containCanceled: boolean;
-            /**
-             * @zh 从列表中移除与指定目标相同回调函数的事件。
-             * @en Remove the event listeners with the given callback from the list
-             *
-             * @param cb - The callback to be removed
-             */
-            removeByCallback(cb: Function): void;
-            /**
-             * @zh 从列表中移除与指定目标相同调用者的事件。
-             * @en Remove the event listeners with the given target from the list
-             * @param target
-             */
-            removeByTarget(target: Object): void;
-            /**
-             * @zh 移除指定编号事件。
-             * @en Remove the event listener at the given index
-             * @param index
-             */
-            cancel(index: number): void;
-            /**
-             * @zh 注销所有事件。
-             * @en Cancel all event listeners
-             */
-            cancelAll(): void;
-            /**
-             * @zh 立即删除所有取消的回调。（在移除过程中会更加紧凑的排列数组）
-             * @en Delete all canceled callbacks and compact array
-             */
-            purgeCanceled(): void;
-            /**
-             * @zh 清除并重置所有数据。
-             * @en Clear all data
-             */
-            clear(): void;
-        }
-        export interface cocos_core_event_callbacks_invoker_ICallbackTable {
-            [x: string]: cocos_core_event_callbacks_invoker_CallbackList | undefined;
-        }
-        /**
-         * @zh CallbacksInvoker 用来根据事件名（Key）管理事件监听器列表并调用回调方法。
-         * @en CallbacksInvoker is used to manager and invoke event listeners with different event keys,
-         * each key is mapped to a CallbackList.
-         */
-        export class cocos_core_event_callbacks_invoker_CallbacksInvoker {
-            _callbackTable: cocos_core_event_callbacks_invoker_ICallbackTable;
-            /**
-             * @zh 向一个事件名注册一个新的事件监听器，包含回调函数和调用者
-             * @en Register an event listener to a given event key with callback and target.
-             *
-             * @param key - Event type
-             * @param callback - Callback function when event triggered
-             * @param target - Callback callee
-             * @param once - Whether invoke the callback only once (and remove it)
-             */
-            on(key: string, callback: Function, target?: Object, once?: boolean): void;
-            /**
-             * @zh 检查指定事件是否已注册回调。
-             * @en Checks whether there is correspond event listener registered on the given event
-             * @param key - Event type
-             * @param callback - Callback function when event triggered
-             * @param target - Callback callee
-             */
-            hasEventListener(key: string, callback?: Function, target?: Object | null): boolean;
-            /**
-             * @zh 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
-             * @en Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
-             * @param keyOrTarget - The event type or target with which the listeners will be removed
-             */
-            removeAll(keyOrTarget?: string | Object): void;
-            /**
-             * @zh 删除以指定事件，回调函数，目标注册的回调。
-             * @en Remove event listeners registered with the given event key, callback and target
-             * @param key - Event type
-             * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
-             * @param target - The callback callee of the event listener
-             */
-            off(key: string, callback?: Function, target?: Object): void;
-            /**
-             * @zh 派发一个指定事件，并传递需要的参数
-             * @en Trigger an event directly with the event name and necessary arguments.
-             * @param key - event type
-             * @param args - Arguments when the event triggered
-             */
-            emit(key: string, ...args: any[]): void;
-        }
-        /**
-         * @param error - null or the error info
-         * @param node - the created node or null
-         */
-        export type cocos_core_assets_asset_CreateNodeCallback = (error: Error | null, node: Node) => void;
-        /**
-         * @en Interface for all classes that self implement the EventTarget protocol, they are normally not sub class of EventTarget
-         * @zh 所有自己实现 EventTarget 功能的类都实现了这个 Interface，他们可能无法直接继承自 EventTarget
-         */
-        export interface cocos_core_event_event_target_factory_IEventTarget extends EventTarget {
-        }
-        export interface cocos_core_assets_sprite_atlas_ISpriteFrameList {
-            [key: string]: SpriteFrame | null;
-        }
-        /**
-         * 内存图像源。
-         */
-        export interface cocos_core_assets_image_asset_IMemoryImageSource {
-            _data: ArrayBufferView | null;
-            _compressed: boolean;
-            width: number;
-            height: number;
-            format: number;
-        }
-        /**
-         * 图像资源的原始图像源。可以来源于 HTML 元素也可以来源于内存。
-         */
-        export type cocos_core_assets_image_asset_ImageSource = HTMLCanvasElement | HTMLImageElement | cocos_core_assets_image_asset_IMemoryImageSource;
-        /**
-         * @en
-         * The texture pixel format, default value is RGBA8888,<br>
-         * you should note that textures loaded by normal image files (png, jpg) can only support RGBA8888 format,<br>
-         * other formats are supported by compressed file types or raw data.
-         * @zh
-         * 纹理像素格式，默认值为RGBA8888，<br>
-         * 你应该注意到普通图像文件（png，jpg）加载的纹理只能支持RGBA8888格式，<br>
-         * 压缩文件类型或原始数据支持其他格式。
-         */
-        export enum cocos_core_assets_asset_enum_PixelFormat {
-            RGB565 = 46,
-            RGB5A1 = 48,
-            RGBA4444 = 49,
-            RGB888 = 24,
-            RGB32F = 32,
-            RGBA8888 = 35,
-            RGBA32F = 43,
-            A8 = 1,
-            I8 = 2,
-            AI8 = 3,
-            RGB_PVRTC_2BPPV1 = 86,
-            RGBA_PVRTC_2BPPV1 = 87,
-            RGB_PVRTC_4BPPV1 = 88,
-            RGBA_PVRTC_4BPPV1 = 89,
-            RGB_ETC1 = 75,
-            RGB_ETC2 = 76,
-            RGBA_ETC2 = 80
-        }
-        /**
-         * 贴图创建选项。
-         */
-        export interface cocos_core_assets_texture_2d_ITexture2DCreateInfo {
-            /**
-             * 像素宽度。
-             */
-            width: number;
-            /**
-             * 像素高度。
-             */
-            height: number;
-            /**
-             * 像素格式。
-             * @default PixelFormat.RGBA8888
-             */
-            format?: cocos_core_assets_asset_enum_PixelFormat;
-            /**
-             * mipmap 层级。
-             * @default 1
-             */
-            mipmapLevel?: number;
-        }
-        export type cocos_core_assets_simple_texture_PresumedGFXTextureInfo = Pick<IGFXTextureInfo, "usage" | "flags" | "format" | "mipLevel">;
-        export type cocos_core_assets_simple_texture_PresumedGFXTextureViewInfo = Pick<IGFXTextureViewInfo, "texture" | "format">;
-        /**
-         * @en
-         * The texture wrap mode.
-         * @zh
-         * 纹理环绕方式。
-         */
-        export enum cocos_core_assets_asset_enum_WrapMode {
-            REPEAT = 0,
-            CLAMP_TO_EDGE = 2,
-            MIRRORED_REPEAT = 1,
-            CLAMP_TO_BORDER = 3
-        }
-        /**
-         * @en
-         * The texture filter mode
-         * @zh
-         * 纹理过滤模式。
-         */
-        export enum cocos_core_assets_asset_enum_Filter {
-            NONE = 0,
-            LINEAR = 2,
-            NEAREST = 1
-        }
-        /**
-         * 贴图资源基类。它定义了所有贴图共用的概念。
-         */
-        export class cocos_core_assets_texture_base_TextureBase extends Asset {
-            get isCompressed(): boolean;
-            get width(): number;
-            get height(): number;
-            static PixelFormat: typeof cocos_core_assets_asset_enum_PixelFormat;
-            static WrapMode: typeof cocos_core_assets_asset_enum_WrapMode;
-            static Filter: typeof cocos_core_assets_asset_enum_Filter;
-            protected _format: number;
-            protected _premultiplyAlpha: boolean;
-            protected _flipY: boolean;
-            protected _minFilter: number;
-            protected _magFilter: number;
-            protected _mipFilter: number;
-            protected _wrapS: number;
-            protected _wrapT: number;
-            protected _wrapR: number;
-            protected _anisotropy: number;
-            protected _width: number;
-            protected _height: number;
-            constructor(flipY?: boolean);
-            /**
-             * 获取标识符。
-             * @returns 此贴图的标识符。
-             */
-            getId(): string;
-            /**
-             * 获取像素格式。
-             * @returns 此贴图的像素格式。
-             */
-            getPixelFormat(): number;
-            /**
-             * 返回是否开启了预乘透明通道功能。
-             * @returns 此贴图是否开启了预乘透明通道功能。
-             */
-            hasPremultipliedAlpha(): boolean;
-            /**
-             * 获取各向异性。
-             * @returns 此贴图的各向异性。
-             */
-            getAnisotropy(): number;
-            /**
-             * 设置此贴图的缠绕模式。
-             * 注意，若贴图尺寸不是 2 的整数幂，缠绕模式仅允许 `WrapMode.CLAMP_TO_EDGE`。
-             * @param wrapS S(U) 坐标的采样模式。
-             * @param wrapT T(V) 坐标的采样模式。
-             * @param wrapR R(W) 坐标的采样模式。
-             */
-            setWrapMode(wrapS: cocos_core_assets_asset_enum_WrapMode, wrapT: cocos_core_assets_asset_enum_WrapMode, wrapR?: cocos_core_assets_asset_enum_WrapMode): void;
-            /**
-             * 设置此贴图的过滤算法。
-             * @param minFilter 缩小过滤算法。
-             * @param magFilter 放大过滤算法。
-             */
-            setFilters(minFilter: cocos_core_assets_asset_enum_Filter, magFilter: cocos_core_assets_asset_enum_Filter): void;
-            /**
-             * 设置此贴图的 mip 过滤算法。
-             * @param mipFilter mip 过滤算法。
-             */
-            setMipFilter(mipFilter: cocos_core_assets_asset_enum_Filter): void;
-            /**
-             * 设置渲染时是否运行将此贴图进行翻转。
-             * @param flipY 翻转则为 `true`，否则为 `false`。
-             */
-            setFlipY(flipY: boolean): void;
-            /**
-             * 设置此贴图是否预乘透明通道。
-             * @param premultiply
-             */
-            setPremultiplyAlpha(premultiply: boolean): void;
-            /**
-             * 设置此贴图的各向异性。
-             * @param anisotropy 各向异性。
-             */
-            setAnisotropy(anisotropy: number): void;
-            /**
-             * 销毁此贴图，并释放占有的所有 GPU 资源。
-             */
-            destroy(): boolean;
-            /**
-             * 获取此贴图底层的 GFX 贴图视图对象。
-             */
-            getGFXTextureView(): GFXTextureView | null;
-            /**
-             * 获取此贴图内部使用的 GFX 采样器信息。
-             * @private
-             */
-            getSamplerHash(): number;
-            /**
-             * 获取此贴图底层的 GFX 采样信息。
-             */
-            getGFXSampler(): GFXSampler | null;
-            /**
-             * @return
-             */
-            _serialize(exporting?: any): any;
-            /**
-             *
-             * @param data
-             */
-            _deserialize(serializedData: any, handle: any): void;
-            protected _getGFXDevice(): GFXDevice | null;
-            protected _getGFXFormat(): number;
-            protected _setGFXFormat(format?: cocos_core_assets_asset_enum_PixelFormat): void;
-        }
-        /**
-         * 简单贴图基类。
-         * 简单贴图内部创建了 GFX 贴图和该贴图上的 GFX 贴图视图。
-         * 简单贴图允许指定不同的 Mipmap 层级。
-         */
-        export class cocos_core_assets_simple_texture_SimpleTexture extends cocos_core_assets_texture_base_TextureBase {
-            protected _gfxTexture: GFXTexture | null;
-            protected _gfxTextureView: GFXTextureView | null;
-            get mipmapLevel(): number;
-            /**
-             * 获取此贴图底层的 GFX 贴图对象。
-             */
-            getGFXTexture(): GFXTexture | null;
-            getGFXTextureView(): GFXTextureView | null;
-            destroy(): boolean;
-            /**
-             * 更新 0 级 Mipmap。
-             */
-            updateImage(): void;
-            /**
-             * 更新指定层级范围内的 Mipmap。当 Mipmap 数据发生了改变时应调用此方法提交更改。
-             * 若指定的层级范围超出了实际已有的层级范围，只有覆盖的那些层级范围会被更新。
-             * @param firstLevel 起始层级。
-             * @param count 层级数量。
-             */
-            updateMipmaps(firstLevel?: number, count?: number): void;
-            /**
-             * 上传图像数据到指定层级的 Mipmap 中。
-             * 图像的尺寸影响 Mipmap 的更新范围：
-             * - 当图像是 `ArrayBuffer` 时，图像的尺寸必须和 Mipmap 的尺寸一致；否则，
-             * - 若图像的尺寸与 Mipmap 的尺寸相同，上传后整个 Mipmap 的数据将与图像数据一致；
-             * - 若图像的尺寸小于指定层级 Mipmap 的尺寸（不管是长或宽），则从贴图左上角开始，图像尺寸范围内的 Mipmap 会被更新；
-             * - 若图像的尺寸超出了指定层级 Mipmap 的尺寸（不管是长或宽），都将引起错误。
-             * @param source 图像数据源。
-             * @param level Mipmap 层级。
-             * @param arrayIndex 数组索引。
-             */
-            uploadData(source: HTMLCanvasElement | HTMLImageElement | ArrayBufferView, level?: number, arrayIndex?: number): void;
-            protected _assignImage(image: ImageAsset, level: number, arrayIndex?: number): void;
-            protected _checkTextureLoaded(): void;
-            protected _textureReady(): void;
-            /**
-             * Set mipmap level of this texture.
-             * The value is passes as presumed info to `this._getGfxTextureCreateInfo()`.
-             * @param value The mipmap level.
-             */
-            protected _setMipmapLevel(value: number): void;
-            /**
-             * @en This method is overrided by derived classes to provide GFX texture info.
-             * @zh 这个方法被派生类重写以提供GFX纹理信息。
-             * @param presumed The presumed GFX texture info.
-             */
-            protected _getGfxTextureCreateInfo(presumed: cocos_core_assets_simple_texture_PresumedGFXTextureInfo): IGFXTextureInfo | null;
-            /**
-             * This method is overrided by derived classes to provide GFX texture view info.
-             * @param presumed The presumed GFX texture view info.
-             */
-            protected _getGfxTextureViewCreateInfo(texture: cocos_core_assets_simple_texture_PresumedGFXTextureViewInfo): IGFXTextureViewInfo | null;
-            protected _tryReset(): void;
-            protected _createTexture(device: GFXDevice): void;
-            protected _tryDestroyTexture(): void;
-        }
-        /**
-         * 立方体每个面的约定索引。
-         */
-        export enum cocos_core_assets_texture_cube_FaceIndex {
-            right = 0,
-            left = 1,
-            top = 2,
-            bottom = 3,
-            front = 4,
-            back = 5
-        }
-        /**
-         * 立方体贴图的 Mipmap。
-         */
-        export interface cocos_core_assets_texture_cube_ITextureCubeMipmap {
-            front: ImageAsset;
-            back: ImageAsset;
-            left: ImageAsset;
-            right: ImageAsset;
-            top: ImageAsset;
-            bottom: ImageAsset;
-        }
-        export type cocos_core_assets_texture_cube_ITextureCubeCreateInfo = cocos_core_assets_texture_2d_ITexture2DCreateInfo;
-        export interface cocos_core_assets_texture_cube_ITextureCubeSerializeData {
-            base: string;
-            mipmaps: {
-                front: string;
-                back: string;
-                left: string;
-                right: string;
-                top: string;
-                bottom: string;
-            }[];
-        }
-        export interface cocos_core_assets_bitmap_font_IConfig {
-            [key: string]: any;
-        }
-        export interface cocos_core_assets_effect_asset_ITechniqueInfo {
-            passes: renderer.__private.cocos_core_assets_effect_asset_IPassInfo[];
-            name?: string;
-        }
-        export interface cocos_core_assets_effect_asset_IPreCompileInfo {
-            [name: string]: boolean[] | number[] | string[];
-        }
-        export type cocos_core_assets_material_MaterialPropertyFull = renderer.MaterialProperty | cocos_core_assets_texture_base_TextureBase | SpriteFrame | GFXTextureView | null;
-        /**
-         * @en
-         * The basic infos for material initialization.
-         * @zh
-         * 用来初始化材质的基本信息。
-         */
-        export interface cocos_core_assets_material_IMaterialInfo {
-            /**
-             * @en
-             * The EffectAsset to use. Must provide if `effectName` is not specified.
-             * @zh
-             * 这个材质将使用的 EffectAsset，直接提供资源引用，和 `effectName` 至少要指定一个。
-             */
-            effectAsset?: EffectAsset | null;
-            /**
-             * @en
-             * The name of the EffectAsset to use. Must provide if `effectAsset` is not specified.
-             * @zh
-             * 这个材质将使用的 EffectAsset，通过 effect 名指定，和 `effectAsset` 至少要指定一个。
-             */
-            effectName?: string;
-            /**
-             * @en
-             * The index of the technique to use.
-             * @zh
-             * 这个材质将使用第几个 technique，默认为 0。
-             */
-            technique?: number;
-            /**
-             * @en
-             * The shader macro definitions. Default to 0 or the specified value in [[EffectAsset]].
-             * @zh
-             * 这个材质定义的预处理宏，默认全为 0，或 [[EffectAsset]] 中的指定值。
-             */
-            defines?: renderer.IDefineMap | renderer.IDefineMap[];
-            /**
-             * @en
-             * The override values on top of the pipeline states specified in [[EffectAsset]].
-             * @zh
-             * 这个材质的自定义管线状态，将覆盖 effect 中的属性。<br>
-             * 注意在可能的情况下请尽量少的自定义管线状态，以减小对渲染效率的影响。
-             */
-            states?: renderer.PassOverrides | renderer.PassOverrides[];
-        }
-        /**
-         * Class which control rendering of a morph resource.
-         */
-        export interface cocos_core_assets_morph_MorphRendering {
-            createInstance(): renderer.__private.cocos_core_assets_morph_MorphRenderingInstance;
-        }
-        export enum cocos_core_assets_asset_enum_DepthStencilFormat {
-            NONE = 0,
-            DEPTH_16 = 53,
-            DEPTH_24 = 55,
-            DEPTH_32 = 57,
-            DEPTH_16_STENCIL_8 = 54,
-            DEPTH_24_STENCIL_8 = 56,
-            DEPTH_32_STENCIL_8 = 58
-        }
-        export interface cocos_core_assets_render_texture_IRenderTextureCreateInfo {
-            name?: string;
-            width: number;
-            height: number;
-            colorFormat: cocos_core_assets_asset_enum_PixelFormat;
-            depthStencilFormat: cocos_core_assets_asset_enum_DepthStencilFormat;
-        }
-        export interface cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo {
-            event?: number;
-            [x: string]: any;
-        }
-        export interface cocos_core_platform_event_manager_event_listener_IListenerMask {
-            index: number;
-            node: Node;
-        }
-        /**
-         * @en The base class of event listener.                                                                        <br/>
-         * If you need custom listener which with different callback, you need to inherit this class.               <br/>
-         * For instance, you could refer to EventListenerAcceleration, EventListenerKeyboard,                       <br/>
-         * EventListenerTouchOneByOne, EventListenerCustom.<br/>
-         * @zh 封装用户的事件处理逻辑
-         * 注意：这是一个抽象类，开发者不应该直接实例化这个类，请参考 [[create]] 。
-         */
-        export class cocos_core_platform_event_manager_event_listener_EventListener {
-            /**
-             * @en The type code of unknown event listener.<br/>
-             * @zh 未知的事件监听器类型
-             */
-            static UNKNOWN: number;
-            /**
-             * @en The type code of one by one touch event listener.<br/>
-             * @zh 触摸事件监听器类型，触点会一个一个得分开被派发
-             */
-            static TOUCH_ONE_BY_ONE: number;
-            /**
-             * @en The type code of all at once touch event listener.<br/>
-             * @zh 触摸事件监听器类型，触点会被一次性全部派发
-             */
-            static TOUCH_ALL_AT_ONCE: number;
-            /**
-             * @en The type code of keyboard event listener.<br/>
-             * @zh 键盘事件监听器类型
-             */
-            static KEYBOARD: number;
-            /**
-             * @en The type code of mouse event listener.<br/>
-             * @zh 鼠标事件监听器类型
-             */
-            static MOUSE: number;
-            /**
-             * @en The type code of acceleration event listener.<br/>
-             * @zh 加速器事件监听器类型
-             */
-            static ACCELERATION: number;
-            /**
-             * @en The type code of custom event listener.<br/>
-             * @zh 自定义事件监听器类型
-             */
-            static CUSTOM: number;
-            static ListenerID: {
-                MOUSE: string;
-                TOUCH_ONE_BY_ONE: string;
-                TOUCH_ALL_AT_ONCE: string;
-                KEYBOARD: string;
-                ACCELERATION: string;
-            };
-            /**
-             * @en Create a EventListener object with configuration including the event type, handlers and other parameters.<br/>
-             * In handlers, this refer to the event listener object itself.<br/>
-             * You can also pass custom parameters in the configuration object,<br/>
-             * all custom parameters will be polyfilled into the event listener object and can be accessed in handlers.<br/>
-             * @zh 通过指定不同的 Event 对象来设置想要创建的事件监听器。
-             * @param argObj a json object
-             */
-            static create(argObj: cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo): cocos_core_platform_event_manager_event_listener_EventListener;
-            owner: Object | null;
-            mask: cocos_core_platform_event_manager_event_listener_IListenerMask | null;
-            _previousIn?: boolean;
-            _target: any;
-            protected _onEvent: ((...args: any[]) => any) | null;
-            get onEvent(): ((...args: any[]) => any) | null;
-            constructor(type: number, listenerID: string, callback: ((...args: any[]) => any) | null);
-            /**
-             * @en
-             * <p><br/>
-             *     Sets paused state for the listener<br/>
-             *     The paused state is only used for scene graph priority listeners.<br/>
-             *     `EventDispatcher::resumeAllEventListenersForTarget(node)` will set the paused state to `true`,<br/>
-             *     while `EventDispatcher::pauseAllEventListenersForTarget(node)` will set it to `false`.<br/>
-             *     @note 1) Fixed priority listeners will never get paused. If a fixed priority doesn't want to receive events,<br/>
-             *              call `setEnabled(false)` instead.<br/>
-             *            2) In `Node`'s onEnter and onExit, the `paused state` of the listeners<br/>
-             *              which associated with that node will be automatically updated.<br/>
-             * </p><br/>
-             * @zh
-             * *为侦听器设置暂停状态<br/>
-             * 暂停状态仅用于场景图优先级侦听器。<br/>
-             * `EventDispatcher :: resumeAllEventListenersForTarget（node）`将暂停状态设置为`true`，<br/>
-             * 而`EventDispatcher :: pauseAllEventListenersForTarget（node）`将它设置为`false`。<br/>
-             * 注意：<br/>
-             * - 固定优先级侦听器永远不会被暂停。 如果固定优先级不想接收事件，改为调用`setEnabled（false）`。<br/>
-             * - 在“Node”的onEnter和onExit中，监听器的“暂停状态”与该节点关联的*将自动更新。
-             */
-            _setPaused(paused: boolean): void;
-            /**
-             * @en Checks whether the listener is paused.<br/>
-             * @zh 检查侦听器是否已暂停。
-             */
-            _isPaused(): boolean;
-            /**
-             * @en Marks the listener was registered by EventDispatcher.<br/>
-             * @zh 标记监听器已由 EventDispatcher 注册。
-             */
-            _setRegistered(registered: boolean): void;
-            /**
-             * @en Checks whether the listener was registered by EventDispatcher<br/>
-             * @zh 检查监听器是否已由 EventDispatcher 注册。
-             * @private
-             */
-            _isRegistered(): boolean;
-            /**
-             * @en Gets the type of this listener<br/>
-             * note： It's different from `EventType`, e.g.<br/>
-             * TouchEvent has two kinds of event listeners - EventListenerOneByOne, EventListenerAllAtOnce<br/>
-             * @zh 获取此侦听器的类型<br/>
-             * 注意：它与`EventType`不同，例如<br/>
-             * TouchEvent 有两种事件监听器 -  EventListenerOneByOne，EventListenerAllAtOnce
-             */
-            _getType(): number;
-            /**
-             * @en Gets the listener ID of this listener<br/>
-             * When event is being dispatched, listener ID is used as key for searching listeners according to event type.<br/>
-             * @zh 获取此侦听器的侦听器 ID。<br/>
-             * 调度事件时，侦听器 ID 用作根据事件类型搜索侦听器的键。
-             */
-            _getListenerID(): string;
-            /**
-             * @en Sets the fixed priority for this listener<br/>
-             * note: This method is only used for `fixed priority listeners`,<br/>
-             *   it needs to access a non-zero value. 0 is reserved for scene graph priority listeners<br/>
-             * @zh 设置此侦听器的固定优先级。<br/>
-             * 注意：此方法仅用于“固定优先级侦听器”，<br/>
-             * 它需要访问非零值。 0保留给场景图优先级侦听器。
-             */
-            _setFixedPriority(fixedPriority: number): void;
-            /**
-             * @en Gets the fixed priority of this listener<br/>
-             * @zh 获取此侦听器的固定优先级。
-             * @return 如果它是场景图优先级侦听器则返回 0 ，则对于固定优先级侦听器则不为零
-             */
-            _getFixedPriority(): number;
-            /**
-             * @en Sets scene graph priority for this listener<br/>
-             * @zh 设置此侦听器的场景图优先级。
-             * @param {Node} node
-             */
-            _setSceneGraphPriority(node: any): void;
-            /**
-             * @en Gets scene graph priority of this listener<br/>
-             * @zh 获取此侦听器的场景图优先级。
-             * @return 如果它是固定优先级侦听器，则为场景图优先级侦听器非 null 。
-             */
-            _getSceneGraphPriority(): any;
-            /**
-             * @en Checks whether the listener is available.<br/>
-             * @zh 检测监听器是否有效
-             */
-            checkAvailable(): boolean;
-            /**
-             * @en Clones the listener, its subclasses have to override this method.<br/>
-             * @zh 克隆监听器,它的子类必须重写此方法。
-             */
-            clone(): cocos_core_platform_event_manager_event_listener_EventListener | null;
-            /**
-             * @en
-             * Enables or disables the listener<br/>
-             * note: Only listeners with `enabled` state will be able to receive events.<br/>
-             * When an listener was initialized, it's enabled by default.<br/>
-             * An event listener can receive events when it is enabled and is not paused.<br/>
-             * paused state is always false when it is a fixed priority listener.<br/>
-             * @zh
-             * 启用或禁用监听器。<br/>
-             * 注意：只有处于“启用”状态的侦听器才能接收事件。<br/>
-             * 初始化侦听器时，默认情况下启用它。<br/>
-             * 事件侦听器可以在启用且未暂停时接收事件。<br/>
-             * 当固定优先级侦听器时，暂停状态始终为false。<br/>
-             */
-            setEnabled(enabled: boolean): void;
-            /**
-             * @en Checks whether the listener is enabled<br/>
-             * @zh 检查监听器是否可用。
-             */
-            isEnabled(): boolean;
-        }
-        export class cocos_core_platform_event_manager_event_manager_EventManager {
-            /**
-             * @en Pauses all listeners which are associated the specified target.
-             * @zh 暂停传入的 node 相关的所有监听器的事件响应。
-             * @param node - 暂停目标节点
-             * @param recursive - 是否往子节点递归暂停。默认为 false。
-             */
-            pauseTarget(node: Node, recursive?: boolean): void;
-            /**
-             * @en
-             * Resumes all listeners which are associated the specified target.
-             *
-             * @zh
-             * 恢复传入的 node 相关的所有监听器的事件响应。
-             *
-             * @param node - 监听器节点。
-             * @param recursive - 是否往子节点递归。默认为 false。
-             */
-            resumeTarget(node: Node, recursive?: boolean): void;
-            frameUpdateListeners(): void;
-            /**
-             * @en
-             * Query whether the specified event listener id has been added.
-             *
-             * @zh
-             * 查询指定的事件 ID 是否存在。
-             *
-             * @param listenerID - 查找监听器 ID。
-             * @returns 是否已查找到。
-             */
-            hasEventListener(listenerID: string): boolean;
-            /**
-             * @en
-             * <p>
-             * Adds a event listener for a specified event.<br/>
-             * if the parameter "nodeOrPriority" is a node,
-             * it means to add a event listener for a specified event with the priority of scene graph.<br/>
-             * if the parameter "nodeOrPriority" is a Number,
-             * it means to add a event listener for a specified event with the fixed priority.<br/>
-             * </p>
-             *
-             * @zh
-             * 将事件监听器添加到事件管理器中。<br/>
-             * 如果参数 “nodeOrPriority” 是节点，优先级由 node 的渲染顺序决定，显示在上层的节点将优先收到事件。<br/>
-             * 如果参数 “nodeOrPriority” 是数字，优先级则固定为该参数的数值，数字越小，优先级越高。<br/>
-             *
-             * @param listener - 指定事件监听器。
-             * @param nodeOrPriority - 监听程序的优先级。
-             * @returns
-             */
-            addListener(listener: cocos_core_platform_event_manager_event_listener_EventListener, nodeOrPriority: any | number): any;
-            /**
-             * @en
-             * Adds a Custom event listener. It will use a fixed priority of 1.
-             *
-             * @zh
-             * 向事件管理器添加一个自定义事件监听器。
-             *
-             * @param eventName - 自定义事件名。
-             * @param callback - 事件回调。
-             * @returns 返回自定义监听器。
-             */
-            addCustomListener(eventName: string, callback: Function): cocos_core_platform_event_manager_event_listener_EventListener;
-            /**
-             * @en
-             * Remove a listener.
-             *
-             * @zh
-             * 移除一个已添加的监听器。
-             *
-             * @param listener - 需要移除的监听器。
-             */
-            removeListener(listener: cocos_core_platform_event_manager_event_listener_EventListener): void;
-            /**
-             * @en
-             * Removes all listeners with the same event listener type or removes all listeners of a node.
-             *
-             * @zh
-             * 移除注册到 eventManager 中指定类型的所有事件监听器。<br/>
-             * 1. 如果传入的第一个参数类型是 Node，那么事件管理器将移除与该对象相关的所有事件监听器。
-             * （如果第二参数 recursive 是 true 的话，就会连同该对象的子控件上所有的事件监听器也一并移除）<br/>
-             * 2. 如果传入的第一个参数类型是 Number（该类型 EventListener 中定义的事件类型），
-             * 那么事件管理器将移除该类型的所有事件监听器。<br/>
-             *
-             * 下列是目前存在监听器类型：       <br/>
-             * cc.EventListener.UNKNOWN       <br/>
-             * cc.EventListener.KEYBOARD      <br/>
-             * cc.EventListener.ACCELERATION，<br/>
-             *
-             * @param listenerType - 监听器类型。
-             * @param recursive - 递归子节点的同类型监听器一并移除。默认为 false。
-             */
-            removeListeners(listenerType: number | any, recursive?: boolean): void;
-            /**
-             * @en
-             * Removes all custom listeners with the same event name.
-             *
-             * @zh
-             * 移除同一事件名的自定义事件监听器。
-             *
-             * @param customEventName - 自定义事件监听器名。
-             */
-            removeCustomListeners(customEventName: any): void;
-            /**
-             * @en
-             * Removes all listeners.
-             *
-             * @zh
-             * 移除所有事件监听器。
-             */
-            removeAllListeners(): void;
-            /**
-             * @en
-             * Sets listener's priority with fixed value.
-             *
-             * @zh
-             * 设置 FixedPriority 类型监听器的优先级。
-             *
-             * @param listener - 监听器。
-             * @param fixedPriority - 优先级。
-             */
-            setPriority(listener: cocos_core_platform_event_manager_event_listener_EventListener, fixedPriority: number): void;
-            /**
-             * @en
-             * Whether to enable dispatching events.
-             *
-             * @zh
-             * 启用或禁用事件管理器，禁用后不会分发任何事件。
-             *
-             * @param enabled - 是否启用事件管理器。
-             */
-            setEnabled(enabled: boolean): void;
-            /**
-             * @en
-             * Checks whether dispatching events is enabled.
-             *
-             * @zh 检测事件管理器是否启用。
-             *
-             * @returns
-             */
-            isEnabled(): boolean;
-            /**
-             * @en
-             * Dispatches the event, also removes all EventListeners marked for deletion from the event dispatcher list.
-             *
-             * @zh
-             * 分发事件。
-             *
-             * @param event - 分发事件。
-             */
-            dispatchEvent(event: Event): void;
-            _onListenerCallback(listener: cocos_core_platform_event_manager_event_listener_EventListener, event: Event): boolean;
-            /**
-             * @en
-             * Dispatches a Custom Event with a event name an optional user data.
-             *
-             * @zh
-             * 分发自定义事件。
-             *
-             * @param eventName - 自定义事件名。
-             * @param optionalUserData
-             */
-            dispatchCustomEvent(eventName: any, optionalUserData: any): void;
-        }
-        function cocos_core_scene_graph_component_scheduler_stableRemoveInactive(iterator: any, flagToClear: any): void;
-        export class cocos_core_scene_graph_component_scheduler_LifeCycleInvoker {
-            static stableRemoveInactive: typeof cocos_core_scene_graph_component_scheduler_stableRemoveInactive;
-            protected _zero: js.array.MutableForwardIterator<any>;
-            protected _neg: js.array.MutableForwardIterator<any>;
-            protected _pos: js.array.MutableForwardIterator<any>;
-            protected _invoke: any;
-            constructor(invokeFunc: any);
-        }
-        export class cocos_core_scene_graph_component_scheduler_OneOffInvoker extends cocos_core_scene_graph_component_scheduler_LifeCycleInvoker {
-            add(comp: any): void;
-            remove(comp: any): void;
-            cancelInactive(flagToClear: any): void;
-            invoke(): void;
-        }
-        export class cocos_core_scene_graph_component_scheduler_ReusableInvoker extends cocos_core_scene_graph_component_scheduler_LifeCycleInvoker {
-            add(comp: any): void;
-            remove(comp: any): void;
-            invoke(dt: any): void;
-        }
-        /**
-         * The Manager for Component's life-cycle methods.
-         */
-        export class cocos_core_scene_graph_component_scheduler_ComponentScheduler {
-            startInvoker: cocos_core_scene_graph_component_scheduler_OneOffInvoker;
-            updateInvoker: cocos_core_scene_graph_component_scheduler_ReusableInvoker;
-            lateUpdateInvoker: cocos_core_scene_graph_component_scheduler_ReusableInvoker;
-            constructor();
-            unscheduleAll(): void;
-            _onEnabled(comp: any): void;
-            _onDisabled(comp: any): void;
-            enableComp(comp: any, invoker?: any): void;
-            disableComp(comp: any): void;
-            startPhase(): void;
-            updatePhase(dt: any): void;
-            lateUpdatePhase(dt: any): void;
-        }
-        export type TypedArray = Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | Int32Array | Float32Array | Float64Array;
-        export type Constructor<T = {}> = new (...args: any[]) => T;
-        export type TypedArrayConstructor = Constructor<TypedArray>;
-        /**
-         * @zh
-         * 全局 UBO。
-         */
-        export class cocos_core_pipeline_define_UBOGlobal {
-            static TIME_OFFSET: number;
-            static SCREEN_SIZE_OFFSET: number;
-            static SCREEN_SCALE_OFFSET: number;
-            static NATIVE_SIZE_OFFSET: number;
-            static MAT_VIEW_OFFSET: number;
-            static MAT_VIEW_INV_OFFSET: number;
-            static MAT_PROJ_OFFSET: number;
-            static MAT_PROJ_INV_OFFSET: number;
-            static MAT_VIEW_PROJ_OFFSET: number;
-            static MAT_VIEW_PROJ_INV_OFFSET: number;
-            static CAMERA_POS_OFFSET: number;
-            static EXPOSURE_OFFSET: number;
-            static MAIN_LIT_DIR_OFFSET: number;
-            static MAIN_LIT_COLOR_OFFSET: number;
-            static AMBIENT_SKY_OFFSET: number;
-            static AMBIENT_GROUND_OFFSET: number;
-            static COUNT: number;
-            static SIZE: number;
-            static BLOCK: GFXUniformBlock;
-            view: Float32Array;
-        }
-        export class cocos_core_pipeline_pipeline_serialization_RenderTextureDesc {
-            name: string;
-            type: GFXTextureType;
-            viewType: GFXTextureViewType;
-            usage: GFXTextureUsageBit;
-            format: GFXFormat;
-            width: number;
-            height: number;
-        }
-        export class cocos_core_pipeline_pipeline_serialization_FrameBufferDesc {
-            name: string;
-            renderPass: number;
-            colorViews: string[];
-            depthStencilView: string;
-        }
-        export class cocos_core_pipeline_pipeline_serialization_DepthStencilDesc {
-            format: GFXFormat;
-            depthLoadOp: GFXLoadOp;
-            depthStoreOp: GFXStoreOp;
-            stencilLoadOp: GFXLoadOp;
-            stencilStoreOp: GFXStoreOp;
-            sampleCount: number;
-            beginLayout: GFXTextureLayout;
-            endLayout: GFXTextureLayout;
-        }
-        export class cocos_core_pipeline_pipeline_serialization_RenderPassDesc {
-            index: number;
-            colorAttachments: never[];
-            depthStencilAttachment: cocos_core_pipeline_pipeline_serialization_DepthStencilDesc;
-        }
-        /**
-         * @zh
-         * 渲染流程描述信息。
-         */
-        export interface cocos_core_pipeline_render_pipeline_IRenderPipelineInfo {
-            enablePostProcess?: boolean;
-            enableHDR?: boolean;
-            enableMSAA?: boolean;
-            enableSMAA?: boolean;
-            enableIBL?: boolean;
-            renderTextures?: cocos_core_pipeline_pipeline_serialization_RenderTextureDesc[];
-            framebuffers?: cocos_core_pipeline_pipeline_serialization_FrameBufferDesc[];
-            renderPasses?: cocos_core_pipeline_pipeline_serialization_RenderPassDesc[];
-        }
-        export enum cocos_core_pipeline_pipeline_serialization_RenderFlowType {
-            SCENE = 0,
-            POSTPROCESS = 1,
-            UI = 2
-        }
-        /**
-         * @zh
-         * 渲染流程描述信息。
-         */
-        export interface cocos_core_pipeline_render_flow_IRenderFlowInfo {
-            name?: string;
-            priority: number;
-            material?: Material;
-            type?: cocos_core_pipeline_pipeline_serialization_RenderFlowType;
-        }
-        export enum cocos_core_pipeline_render_stage_RenderQueueSortMode {
-            FRONT_TO_BACK = 0,
-            BACK_TO_FRONT = 1
-        }
-        export class cocos_core_pipeline_render_stage_RenderQueueDesc {
-            isTransparent: boolean;
-            sortMode: cocos_core_pipeline_render_stage_RenderQueueSortMode;
-            stages: string[];
-        }
-        /**
-         * @zh
-         * 渲染过程。
-         */
-        export interface cocos_core_pipeline_define_IRenderPass {
-            hash: number;
-            depth: number;
-            shaderId: number;
-            subModel: renderer.SubModel;
-            cmdBuff: GFXCommandBuffer;
-        }
-        /**
-         * @zh
-         * 渲染队列描述。
-         */
-        export interface cocos_core_pipeline_define_IRenderQueueDesc {
-            isTransparent: boolean;
-            phases: number;
-            sortFunc: (a: cocos_core_pipeline_define_IRenderPass, b: cocos_core_pipeline_define_IRenderPass) => number;
-        }
-        /**
-         * @zh
-         * 渲染队列。
-         */
-        export class cocos_core_pipeline_render_queue_RenderQueue {
-            /**
-             * @zh
-             * 基于缓存数组的队列。
-             */
-            queue: memop.CachedArray<cocos_core_pipeline_define_IRenderPass>;
-            /**
-             * @zh
-             * 基于缓存数组的命令缓冲。
-             */
-            cmdBuffs: memop.CachedArray<GFXCommandBuffer>;
-            /**
-             * @zh
-             * 命令缓冲数量。
-             */
-            cmdBuffCount: number;
-            /**
-             * 构造函数。
-             * @param desc 渲染队列描述。
-             */
-            constructor(desc: cocos_core_pipeline_define_IRenderQueueDesc);
-            /**
-             * @zh
-             * 清空渲染队列。
-             */
-            clear(): void;
-            /**
-             * @zh
-             * 插入渲染过程。
-             */
-            insertRenderPass(renderObj: renderer.__private.cocos_core_pipeline_define_IRenderObject, modelIdx: number, passIdx: number): boolean;
-            /**
-             * @zh
-             * 排序渲染队列。
-             */
-            sort(): void;
-        }
-        /**
-         * @zh
-         * 渲染阶段描述信息。
-         */
-        export interface cocos_core_pipeline_render_stage_IRenderStageInfo {
-            name?: string;
-            priority: number;
-            renderQueues?: cocos_core_pipeline_render_stage_RenderQueueDesc[];
-            framebuffer?: string;
-        }
-        /**
-         * @zh
-         * 前向灯光 UBO。
-         */
-        export class cocos_core_pipeline_define_UBOForwardLight {
-            static MAX_SPHERE_LIGHTS: number;
-            static MAX_SPOT_LIGHTS: number;
-            static SPHERE_LIGHT_POS_OFFSET: number;
-            static SPHERE_LIGHT_SIZE_RANGE_OFFSET: number;
-            static SPHERE_LIGHT_COLOR_OFFSET: number;
-            static SPOT_LIGHT_POS_OFFSET: number;
-            static SPOT_LIGHT_SIZE_RANGE_ANGLE_OFFSET: number;
-            static SPOT_LIGHT_DIR_OFFSET: number;
-            static SPOT_LIGHT_COLOR_OFFSET: number;
-            static COUNT: number;
-            static SIZE: number;
-            static BLOCK: GFXUniformBlock;
-            view: Float32Array;
-        }
-        export namespace cocos_core_load_pipeline_pack_downloader {
-            export function initPacks(packs: any): void;
-            export function _loadNewPack(uuid: any, packUuid: any, callback: any): void;
-            export function _doPreload(packUuid: any, packJson: any): void;
-            export function _doLoadNewPack(uuid: any, packUuid: any, packedJson: any): any;
-            export function _selectLoadedPack(packUuids: any): any;
-            export function load(item: any, callback: any): any;
-        }
-        export interface cocos_core_load_pipeline_pipeline_IPipe {
-            id: string;
-            async: boolean;
-            handle(item: IItem, callback: any): any;
-            next?: cocos_core_load_pipeline_pipeline_IPipe;
-        }
-        export class cocos_core_load_pipeline_asset_loader_default implements cocos_core_load_pipeline_pipeline_IPipe {
-            static ID: string;
-            id: string;
-            async: boolean;
-            pipeline: Pipeline | null;
-            handle(item: any, callback: any): any;
-        }
-        /**
-         * @en
-         * Loader for resource loading process. It's a singleton object.
-         * @zh
-         * 资源加载程序，这是一个单例对象。
-         */
-        export class cocos_core_load_pipeline_CCLoader_CCLoader extends Pipeline {
-            /**
-             * @en
-             * Gets a new XMLHttpRequest instance.
-             * @zh
-             * 获取一个新的 XMLHttpRequest 的实例。
-             */
-            getXMLHttpRequest: Function;
-            /**
-             * @en
-             * The asset loader in cc.loader's pipeline, it's by default the first pipe.<br>
-             * It's used to identify an asset's type, and determine how to download it.
-             * @zh
-             * cc.loader 中的资源加载器，默认情况下是最先加载的。<br>
-             * 用于标识资源的类型，并确定如何加载此资源。
-             */
-            assetLoader: cocos_core_load_pipeline_asset_loader_default;
-            /**
-             * @en
-             * The md5 pipe in cc.loader's pipeline, it could be absent if the project isn't build with md5 option.<br>
-             * It's used to modify the url to the real downloadable url with md5 suffix.
-             * @zh
-             * cc.loader 中的 md5 加载管道，如果项目没有使用 md5 构建，则此项可能不存在。<br>
-             * 用于修改带有 md5 后缀的真实可下载的 URL 。
-             */
-            md5Pipe: null;
-            /**
-             * @en
-             * The downloader in cc.loader's pipeline, it's by default the second pipe.<br>
-             * It's used to download files with several handlers: pure text, image, script, audio, font, uuid.<br>
-             * You can add your own download function with addDownloadHandlers
-             * @zh
-             * cc.loader 中的资源下载程序，默认情况下是第二个加载的。<br>
-             * 它用于下载带有多个处理程序的文件：纯文本，图像，脚本，音频，字体，uuid。<br>
-             * 您可以使用 addDownloadHandlers 来添加自己的下载函数
-             */
-            downloader: Downloader;
-            /**
-             * @en
-             * The loader in cc.loader's pipeline, it's by default the third pipe.<br>
-             * It's used to parse downloaded content with several handlers: JSON, image, plist, fnt, uuid.<br>
-             * You can add your own download function with addLoadHandlers
-             * @zh
-             * cc.loader 中的资源下载程序，默认情况下是第三个加载的。<br>
-             * 它用于解析下载的内容及多个处理程序的文件：纯文本，图像，脚本，音频，字体，uuid。<br>
-             * 您可以使用 addLoadHandlers 来添加自己的下载函数
-             */
-            loader: Loader;
-            onProgress: null;
-            _assetTables: any;
-            constructor();
-            init(director: any): void;
-            /**
-             * @en
-             * Add custom supported types handler or modify existing type handler for download process.
-             * @zh
-             * 为下载程序添加自定义支持的类型处理程序或修改现有的类型处理程序。
-             * @example
-             * ```typescript
-             *  cc.loader.addDownloadHandlers({
-             *      // This will match all url with `.scene` extension or all url with `scene` type
-             *      'scene' : function (url, callback) {}
-             *  });
-             * ```
-             * @param extMap 具有相应处理程序的自定义支持类型
-             */
-            addDownloadHandlers(extMap: Object): void;
-            /**
-             * @en
-             * Add custom supported types handler or modify existing type handler for load process.
-             * @zh
-             * 为加载程序添加自定义支持的类型处理程序或修改现有的类型处理程序。
-             * @example
-             * ```typescript
-             *  cc.loader.addLoadHandlers({
-             *      // This will match all url with `.scene` extension or all url with `scene` type
-             *      'scene' : function (url, callback) {}
-             *  });
-             * ```
-             * @method addLoadHandlers
-             * @param extMap 具有相应处理程序的自定义支持类型
-             */
-            addLoadHandlers(extMap: Object): void;
-            /**
-             * @en
-             * Load resources with a progression callback and a complete callback.<br>
-             * The progression callback is the same as Pipeline's [[LoadingItems.onProgress]] <br>
-             * The complete callback is almost the same as Pipeline's [[LoadingItems.onComplete]] <br>
-             * The only difference is when user pass a single url as resources, the complete callback will set its result directly as the second parameter.
-             * @zh
-             * 使用进度回调和完整回调加载资源。<br>
-             * 进度回调与 Pipeline 的 [[LoadingItems.onProgress]] 相同<br>
-             * 完整的回调与 Pipeline 的 [[LoadingItems.onComplete]] 几乎相同<br>
-             * 唯一的区别是当用户将单个 URL 作为资源传递时，完整的回调将其结果直接设置为第二个参数。
-             * @example
-             * ```TypeScript
-             * cc.loader.load('a.png', function (err, tex) {
-             *     cc.log('Result should be a texture: ' + (tex instanceof cc.Texture2D));
-             * });
-             *
-             * cc.loader.load('http://example.com/a.png', function (err, tex) {
-             *     cc.log('Should load a texture from external url: ' + (tex instanceof cc.Texture2D));
-             * });
-             *
-             * cc.loader.load({url: 'http://example.com/getImageREST?file=a.png', type: 'png'}, function (err, tex) {
-             *     cc.log('Should load a texture from RESTful API by specify the type: ' + (tex instanceof cc.Texture2D));
-             * });
-             *
-             * cc.loader.load(['a.png', 'b.json'], function (errors, results) {
-             *     if (errors) {
-             *         for (let i = 0; i < errors.length; i++) {
-             *             cc.log('Error url [' + errors[i] + ']: ' + results.getError(errors[i]));
-             *         }
-             *     }
-             *     let aTex = results.getContent('a.png');
-             *     let bJsonObj = results.getContent('b.json');
-             * });
-             * ```
-             * @method load
-             * @param {String|String[]|Object} resources - Url 列表数组
-             * @param {Function} progressCallback - 当进度改变时调用的回调函数
-             * @param {Number} progressCallback.completedCount - The number of the items that are already completed
-             * @param {Number} progressCallback.totalCount - The total number of the items
-             * @param {Object} progressCallback.item - The latest item which flow out the pipeline
-             * @param {Function} completeCallback - 当所有资源加载完毕后调用的回调函数
-             */
-            load(resources: any, progressCallback: any, completeCallback?: any): any;
-            /**
-             * @en
-             * See: [[Pipeline.flowInDeps]]
-             * @zh
-             * 参考：[[Pipeline.flowInDeps]]
-             */
-            flowInDeps(owner: any, urlList: any, callback: any): IItem[];
-            loadRes<T>(url: string, type: Constructor<T>, mount: string, progressCallback: LoadProgressCallback, completeCallback: LoadCompleteCallback<T>): any;
-            loadRes<T>(url: string, type: Constructor<T>, progressCallback: LoadProgressCallback, completeCallback: LoadCompleteCallback<T>): any;
-            loadRes<T>(url: string, type: Constructor<T>, completeCallback: LoadCompleteCallback<T>): any;
-            /**
-             * @en
-             * Load all assets in a folder inside the "assets/resources" folder of your project.<br>
-             * <br>
-             * Note: All asset URLs in Creator use forward slashes, URLs using backslashes will not work.
-             * @zh
-             * 将所有资产加载到项目 “assets / resources” 文件夹中
-             * <br>
-             * 注意：Creator 中的所有资源 URL 都使用正斜杠，使用反斜杠的 URL 将不起作用。
-             * @method loadResDir
-             * @param {String} url - 目标文件夹的 URL<br>
-             *                       URl 相对于 “resources” 文件夹，必须省略文件扩展名。
-             * @param {Function} type - 如果提供此参数，则将仅加载此类型的资源。
-             * @param {Function} progressCallback - 当进度改变时调用的回调函数
-             * @param {Number} progressCallback.completedCount - The number of the items that are already completed.
-             * @param {Number} progressCallback.totalCount - The total number of the items.
-             * @param {Object} progressCallback.item - The latest item which flow out the pipeline.
-             * @param {Function} completeCallback - 当所有资源加载完毕后或者发生错误时调用的回调函数
-             * @param {Error} completeCallback.error - If one of the asset failed, the complete callback is immediately called
-             *                                         with the error. If all assets are loaded successfully, error will be null.
-             * @param {Asset[]|Array} completeCallback.assets - An array of all loaded assets.
-             *                                             If nothing to load, assets will be an empty array.
-             * @param {String[]} completeCallback.urls - An array that lists all the URLs of loaded assets.
-             *
-             * @example
-             * ```typescript
-             * // load the texture (resources/imgs/cocos.png) and the corresponding sprite frame
-             * cc.loader.loadResDir('imgs/cocos', function (err, assets) {
-             *     if (err) {
-             *         cc.error(err);
-             *         return;
-             *     }
-             *     let texture = assets[0];
-             *     let spriteFrame = assets[1];
-             * });
-             *
-             * // load all textures in "resources/imgs/"
-             * cc.loader.loadResDir('imgs', cc.Texture2D, function (err, textures) {
-             *     let texture1 = textures[0];
-             *     let texture2 = textures[1];
-             * });
-             *
-             * // load all JSONs in "resources/data/"
-             * cc.loader.loadResDir('data', function (err, objects, urls) {
-             *     let data = objects[0];
-             *     let url = urls[0];
-             * });
-             * ```
-             */
-            loadResDir(url: String, type?: Function, mount?: any, progressCallback?: Function, completeCallback?: Function): void;
-            /**
-             * @en
-             * This method is like [[loadRes]] except that it accepts array of url.
-             * @zh
-             * 此方法除了接受 URL 数组参数外，与 [[loadRes]] 方法相同。
-             *
-             * @method loadResArray
-             * @param {String[]} urls - 目标资源的 URL 数组。
-             *                          URl 为相对于 “resources” 文件夹的，且必须省略文件扩展名。
-             * @param {Function} type - 如果提供此参数，则将仅加载此类型的资源。
-             * @param {Function} progressCallback - 当进度改变时调用的回调函数
-             * @param {Number} progressCallback.completedCount - The number of the items that are already completed.
-             * @param {Number} progressCallback.totalCount - The total number of the items.
-             * @param {Object} progressCallback.item - The latest item which flow out the pipeline.
-             * @param {Function} completeCallback - 当所有资源加载完毕后或者发生错误时调用的回调函数
-             * @param {Error} completeCallback.error - If one of the asset failed, the complete callback is immediately called
-             *                                         with the error. If all assets are loaded successfully, error will be null.
-             * @param {Asset[]|Array} completeCallback.assets - An array of all loaded assets.
-             *                                                     If nothing to load, assets will be an empty array.
-             * @example
-             * ```typescript
-             * // load the SpriteFrames from resources folder
-             * let spriteFrames;
-             * let urls = ['misc/characters/character_01', 'misc/weapons/weapons_01'];
-             * cc.loader.loadResArray(urls, cc.SpriteFrame, function (err, assets) {
-             *     if (err) {
-             *         cc.error(err);
-             *         return;
-             *     }
-             *     spriteFrames = assets;
-             *     // ...
-             * });
-             * ```
-             */
-            loadResArray(urls: String[], type?: Function, mount?: any, progressCallback?: Function, completeCallback?: Function): void;
-            /**
-             * @en
-             * Get resource data by id. <br>
-             * When you load resources with [[load]] or [[loadRes]],
-             * the url will be the unique identity of the resource.
-             * After loaded, you can acquire them by passing the url to this API.
-             * @zh
-             * 根据 ID 获取资源数据。<br>
-             * 当使用 [[load]] 或 [[loadRes]] 来加载资源时，<br>
-             * URL 将是资源的唯一标识。<br>
-             * 在完成加载之后，你可以通过将 URL 传递给此 API 来获取它们。
-             * @method getRes
-             * @param {String} url
-             * @param {Function} type - 如果提供此参数，则将仅返回此类型的资源。
-             * @returns {*}
-             */
-            getRes<T = any>(url: string, type?: Function): T | null;
-            /**
-             * @en
-             * Get total resources count in loader.
-             * @zh
-             * 获取加载的总资源数量
-             */
-            getResCount(): Number;
-            /**
-             * @en
-             * Get all resource dependencies of the requested asset in an array, including itself.<br>
-             * The owner parameter accept the following types: 1. The asset itself; 2. The resource url; 3. The asset's uuid.<br>
-             * The returned array stores the dependencies with their uuids, after retrieve dependencies,<br>
-             * you can release them, access dependent assets by passing the uuid to [[getRes]], or other stuffs you want.<br>
-             * For release all dependencies of an asset, please refer to [[release]]
-             * Here is some examples:
-             * @zh
-             * 获取一个指定资源的所有依赖资源，包含它自身，并保存在数组中返回。<br>
-             * owner 参数接收以下几种类型：1. 资源 asset 对象；2. 资源目录下的 url；3. 资源的 uuid。<br>
-             * 返回的数组将仅保存依赖资源的 uuid，获取这些 uuid 后，你可以从 loader 释放这些资源；通过 [[getRes]] 获取某个资源或者进行其他你需要的操作。<br>
-             * 想要释放一个资源及其依赖资源，可以参考 [[release]]。<br>
-             * 下面是一些示例代码：
-             * @example
-             * ```typescript
-             * // Release all dependencies of a loaded prefab
-             * let deps = cc.loader.getDependsRecursively(prefab);
-             * cc.loader.release(deps);
-             * // Retrieve all dependent textures
-             * let deps = cc.loader.getDependsRecursively('prefabs/sample');
-             * let textures = [];
-             * for (let i = 0; i < deps.length; ++i) {
-             *     let item = cc.loader.getRes(deps[i]);
-             *     if (item instanceof cc.Texture2D) {
-             *         textures.push(item);
-             *     }
-             * }
-             * ```
-             * @method getDependsRecursively
-             * @param {Asset|RawAsset|String} owner - 资源本身或者是资源的 url 或者是资源的 uuid
-             * @return {Array}
-             */
-            getDependsRecursively(owner: Asset | RawAsset | String): string[];
-            /**
-             * @en
-             * Release the content of an asset or an array of assets by uuid.<br>
-             * Start from v1.3, this method will not only remove the cache of the asset in loader, but also clean up its content.<br>
-             * For example, if you release a texture, the texture asset and its gl texture data will be freed up.<br>
-             * In complexe project, you can use this function with [[getDependsRecursively]] to free up memory in critical circumstances.<br>
-             * Notice, this method may cause the texture to be unusable, if there are still other nodes use the same texture, they may turn to black and report gl errors.<br>
-             * If you only want to remove the cache of an asset, please use [[Pipeline.removeItem]]
-             * @zh
-             * 通过 id（通常是资源 url）来释放一个资源或者一个资源数组。<br>
-             * 从 v1.3 开始，这个方法不仅会从 loader 中删除资源的缓存引用，还会清理它的资源内容。<br>
-             * 比如说，当你释放一个 texture 资源，这个 texture 和它的 gl 贴图数据都会被释放。<br>
-             * 在复杂项目中，我们建议你结合 [[getDependsRecursively]] 来使用，便于在设备内存告急的情况下更快地释放不再需要的资源的内存。<br>
-             * 注意，这个函数可能会导致资源贴图或资源所依赖的贴图不可用，如果场景中存在节点仍然依赖同样的贴图，它们可能会变黑并报 GL 错误。<br>
-             * 如果你只想删除一个资源的缓存引用，请使用 [[Pipeline.removeItem]]
-             *
-             * @example
-             * ```typescript
-             * // Release a texture which is no longer need
-             * cc.loader.release(texture);
-             * // Release all dependencies of a loaded prefab
-             * let deps = cc.loader.getDependsRecursively('prefabs/sample');
-             * cc.loader.release(deps);
-             * // If there is no instance of this prefab in the scene, the prefab and its dependencies like textures, sprite frames, etc, will be freed up.
-             * // If you have some other nodes share a texture in this prefab, you can skip it in two ways:
-             * // 1. Forbid auto release a texture before release
-             * cc.loader.setAutoRelease(texture2d, false);
-             * // 2. Remove it from the dependencies array
-             * let deps = cc.loader.getDependsRecursively('prefabs/sample');
-             * let index = deps.indexOf(texture2d._uuid);
-             * if (index !== -1)
-             *     deps.splice(index, 1);
-             * cc.loader.release(deps);
-             * ```
-             * @method release
-             * @param {Asset|RawAsset|String|Array} asset
-             */
-            release(asset: any): void;
-            /**
-             * @en Release the asset by its object. Refer to [[release]] for detailed informations.
-             * @zh 通过资源对象自身来释放资源。详细信息请参考 [[release]]
-             *
-             * @method releaseAsset
-             * @param {Asset} asset
-             */
-            releaseAsset(asset: Asset): void;
-            /**
-             * @en
-             * Release the asset loaded by [[loadRes]]. Refer to [[release]] for detailed informations.
-             * @zh
-             * 释放通过 [[loadRes]] 加载的资源。详细信息请参考 [[release]]
-             *
-             * @method releaseRes
-             * @param {String} url
-             * @param {Function} type - 如果提供此参数，则将仅释放此类型的资源。
-             */
-            releaseRes(url: String, type?: Function, mount?: any): void;
-            /**
-             * @en
-             * Release the all assets loaded by [[loadResDir]]. Refer to [[release]] for detailed informations.
-             * @zh
-             * 释放通过 [[loadResDir]] 加载的资源。详细信息请参考 [[release]]
-             *
-             * @method releaseResDir
-             * @param {String} url
-             * @param {Function} type - 如果提供此参数，则将仅释放此类型的资源。
-             */
-            releaseResDir(url: String, type?: Function, mount?: any): void;
-            /**
-             * @en Resource all assets. Refer to [[release]] for detailed informations.
-             * @zh 释放所有资源。详细信息请参考 [[release]]
-             *
-             * @method releaseAll
-             */
-            releaseAll(): void;
-            removeItem(key: any): any;
-            /**
-             * @en
-             * Indicates whether to release the asset when loading a new scene.<br>
-             * By default, when loading a new scene, all assets in the previous scene will be released or preserved<br>
-             * according to whether the previous scene checked the "Auto Release Assets" option.<br>
-             * On the other hand, assets dynamically loaded by using `cc.loader.loadRes` or `cc.loader.loadResDir`<br>
-             * will not be affected by that option, remain not released by default.<br>
-             * Use this API to change the default behavior on a single asset, to force preserve or release specified asset when scene switching.<br>
-             * <br>
-             * See: [[setAutoReleaseRecursively]], [[isAutoRelease]]
-             * @zh
-             * 设置当场景切换时是否自动释放资源。<br>
-             * 默认情况下，当加载新场景时，旧场景的资源根据旧场景是否勾选“Auto Release Assets”，将会被释放或者保留。<br>
-             * 而使用 `cc.loader.loadRes` 或 `cc.loader.loadResDir` 动态加载的资源，则不受场景设置的影响，默认不自动释放。<br>
-             * 使用这个 API 可以在单个资源上改变这个默认行为，强制在切换场景时保留或者释放指定资源。<br>
-             * <br>
-             * 参考：[[setAutoReleaseRecursively]]，[[isAutoRelease]]
-             *
-             * @example
-             * ```typescript
-             * // auto release the texture event if "Auto Release Assets" disabled in current scene
-             * cc.loader.setAutoRelease(texture2d, true);
-             * // don't release the texture even if "Auto Release Assets" enabled in current scene
-             * cc.loader.setAutoRelease(texture2d, false);
-             * // first parameter can be url
-             * cc.loader.setAutoRelease(audioUrl, false);
-             * ```
-             * @method setAutoRelease
-             * @param {Asset|String} assetOrUrlOrUuid - 资源对象或原始资源的 URL 或是 UUID
-             * @param {Boolean} autoRelease - 表示是否自动释放
-             */
-            setAutoRelease(assetOrUrlOrUuid: Asset | String, autoRelease: Boolean): void;
-            /**
-             * @en
-             * Indicates whether to release the asset and its referenced other assets when loading a new scene.<br>
-             * By default, when loading a new scene, all assets in the previous scene will be released or preserved<br>
-             * according to whether the previous scene checked the "Auto Release Assets" option.<br>
-             * On the other hand, assets dynamically loaded by using `cc.loader.loadRes` or `cc.loader.loadResDir`<br>
-             * will not be affected by that option, remain not released by default.<br>
-             * Use this API to change the default behavior on the specified asset and its recursively referenced assets, to force preserve or release specified asset when scene switching.<br>
-             * <br>
-             * See: [[setAutoRelease]], [[isAutoRelease]]
-             * @zh
-             * 设置当场景切换时是否自动释放资源及资源引用的其它资源。<br>
-             * 默认情况下，当加载新场景时，旧场景的资源根据旧场景是否勾选“Auto Release Assets”，将会被释放或者保留。<br>
-             * 而使用 `cc.loader.loadRes` 或 `cc.loader.loadResDir` 动态加载的资源，则不受场景设置的影响，默认不自动释放。<br>
-             * 使用这个 API 可以在指定资源及资源递归引用到的所有资源上改变这个默认行为，强制在切换场景时保留或者释放指定资源。<br>
-             * <br>
-             * 参考：[[setAutoRelease]]，[[isAutoRelease]]
-             *
-             * @example
-             * ```typescript
-             * // auto release the SpriteFrame and its Texture event if "Auto Release Assets" disabled in current scene
-             * cc.loader.setAutoReleaseRecursively(spriteFrame, true);
-             * // don't release the SpriteFrame and its Texture even if "Auto Release Assets" enabled in current scene
-             * cc.loader.setAutoReleaseRecursively(spriteFrame, false);
-             * // don't release the Prefab and all the referenced assets
-             * cc.loader.setAutoReleaseRecursively(prefab, false);
-             * ```
-             * @method setAutoReleaseRecursively
-             * @param {Asset|String} assetOrUrlOrUuid - 资源对象或原始资源的 URL 或是 UUID
-             * @param {Boolean} autoRelease - 表示是否自动释放
-             */
-            setAutoReleaseRecursively(assetOrUrlOrUuid: Asset | String, autoRelease: Boolean): void;
-            /**
-             * @en
-             * Returns whether the asset is configured as auto released, despite how "Auto Release Assets" property is set on scene asset.<br>
-             * <br>
-             * See: [[setAutoRelease]], [[setAutoReleaseRecursively]]
-             *
-             * @zh
-             * 返回指定的资源是否有被设置为自动释放，不论场景的“Auto Release Assets”如何设置。<br>
-             * <br>
-             * 参考：[[setAutoRelease]]，[[setAutoReleaseRecursively]]
-             * @method isAutoRelease
-             * @param {Asset|String} assetOrUrl - asset object or the raw asset's url
-             * @returns {Boolean}
-             */
-            isAutoRelease(assetOrUrl: Asset | String): Boolean;
-            /**
-             * @zh
-             * 获取资源的 uuid
-             */
-            _getResUuid(url: any, type: any, mount: any, quiet: any): string;
-            /**
-             * @en
-             * Find the asset's reference id in loader, asset could be asset object, asset uuid or asset url
-             * @zh
-             * 在 laoder 中找到资源的引用 id ，参数可以是资源对象、资源的 uuid 或者是资源的 url
-             */
-            _getReferenceKey(assetOrUrlOrUuid: any): any;
-        }
-        /**
-         * @zh
-         * 节点事件类。
-         */
-        export class cocos_core_scene_graph_node_event_processor_NodeEventProcessor {
-            get node(): BaseNode;
-            /**
-             * @zh
-             * 节点冒泡事件监听器
-             */
-            bubblingTargets: EventTarget | null;
-            /**
-             * @zh
-             * 节点捕获事件监听器
-             */
-            capturingTargets: EventTarget | null;
-            /**
-             * @zh
-             * 触摸监听器
-             */
-            touchListener: cocos_core_platform_event_manager_event_listener_EventListener | null;
-            /**
-             * @zh
-             * 鼠标监听器
-             */
-            mouseListener: cocos_core_platform_event_manager_event_listener_EventListener | null;
-            constructor(node: BaseNode);
-            reattach(): void;
-            destroy(): void;
-            /**
-             * @zh
-             * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的 this 对象。<br/>
-             * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：<br/>
-             * 1. 捕获阶段：派发事件给捕获目标（通过 `getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。<br/>
-             * 2. 目标阶段：派发给目标节点的监听器。<br/>
-             * 3. 冒泡阶段：派发事件给冒泡目标（通过 `getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发直到根节点。<br/>
-             * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。<br/>
-             * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 cc.eventManager。<br/>
-             * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器。<br/>
-             * 你可以通过在 emit 方法调用时在 type 之后传递额外的参数作为事件回调的参数列表。<br/>
-             *
-             * @param type - 一个监听事件类型的字符串。参见：[[EventType]]
-             * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
-             * @param callback.event - 事件派发的时候回调的第一个参数。
-             * @param callback.arg2 - 第二个参数。
-             * @param callback.arg3 - 第三个参数。
-             * @param callback.arg4 - 第四个参数。
-             * @param callback.arg5 - 第五个参数。
-             * @param target - 调用回调的目标。可以为空。
-             * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-             * @return - 返回监听回调函数自身。
-             *
-             * @example
-             * ```typescript
-             * this.node.on(cc.Node.EventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
-             * this.node.on(cc.Node.EventType.TOUCH_START, callback, this);
-             * this.node.on(cc.Node.EventType.ANCHOR_CHANGED, callback);
-             * ```
-             */
-            on(type: string, callback: Function, target?: Object, useCapture?: Object): Function | undefined;
-            /**
-             * @zh
-             * 注册节点的特定事件类型回调，回调会在第一时间被触发后删除自身。
-             *
-             * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
-             * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
-             * @param callback.event - 事件派发的时候回调的第一个参数。
-             * @param callback.arg2 - 第二个参数。
-             * @param callback.arg3 - 第三个参数。
-             * @param callback.arg4 - 第四个参数。
-             * @param callback.arg5 - 第五个参数。
-             * @param target - 调用回调的目标。可以为空。
-             * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-             *
-             * @example
-             * ```typescript
-             * node.once(cc.Node.EventType.ANCHOR_CHANGED, callback);
-             * ```
-             */
-            once(type: string, callback: Function, target?: Object, useCapture?: Object): void;
-            /**
-             * @zh
-             * 删除之前与同类型，回调，目标或 useCapture 注册的回调。
-             *
-             * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
-             * @param callback - 移除指定注册回调。如果没有给，则删除全部同事件类型的监听。
-             * @param target - 调用回调的目标。配合 callback 一起使用。
-             * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-             *
-             * @example
-             * ```typescript
-             * this.node.off(cc.Node.EventType.TOUCH_START, this.memberFunction, this);
-             * node.off(cc.Node.EventType.TOUCH_START, callback, this.node);
-             * node.off(cc.Node.EventType.ANCHOR_CHANGED, callback, this);
-             * ```
-             */
-            off(type: string, callback?: Function, target?: Object, useCapture?: Object): void;
-            /**
-             * @zh
-             * 通过事件名发送自定义事件
-             *
-             * @param type - 一个监听事件类型的字符串。
-             * @param arg1 - 回调第一个参数。
-             * @param arg2 - 回调第二个参数。
-             * @param arg3 - 回调第三个参数。
-             * @param arg4 - 回调第四个参数。
-             * @param arg5 - 回调第五个参数。
-             * @example
-             * ```typescript
-             * eventTarget.emit('fire', event);
-             * eventTarget.emit('fire', message, emitter);
-             * ```
-             */
-            emit(type: string, ...args: any[]): void;
-            /**
-             * @zh
-             * 分发事件到事件流中。
-             *
-             * @param event - 分派到事件流中的事件对象。
-             */
-            dispatchEvent(event: Event): void;
-            /**
-             * @zh
-             * 是否监听过某事件。
-             *
-             * @param type - 一个监听事件类型的字符串。
-             * @return - 返回是否当前节点已监听该事件类型。
-             */
-            hasEventListener(type: string): boolean;
-            /**
-             * @zh
-             * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
-             *
-             * @param target - 要删除的事件键或要删除的目标。
-             */
-            targetOff(target: string | Object): void;
-            /**
-             * @zh
-             * 获得所提供的事件类型在目标捕获阶段监听的所有目标。
-             * 捕获阶段包括从根节点到目标节点的过程。
-             * 结果保存在数组参数中，并且必须从子节点排序到父节点。
-             *
-             * @param type - 一个监听事件类型的字符串。
-             * @param array - 接收目标的数组。
-             */
-            getCapturingTargets(type: string, targets: BaseNode[]): void;
-            /**
-             * @zh
-             * 获得所提供的事件类型在目标冒泡阶段监听的所有目标。
-             * 冒泡阶段目标节点到根节点的过程。
-             * 结果保存在数组参数中，并且必须从子节点排序到父节点。
-             *
-             * @param type - 一个监听事件类型的字符串。
-             * @param array - 接收目标的数组。
-             */
-            getBubblingTargets(type: string, targets: BaseNode[]): void;
-        }
-        /**
-         *
-         */
-        export type cocos_core_scene_graph_base_node_Constructor<T = {}> = new (...args: any[]) => T;
-        export enum cocos_core_scene_graph_node_enum_NodeSpace {
-            LOCAL = 0,
-            WORLD = 1
-        }
-        export enum cocos_core_scene_graph_node_enum_TransformBit {
-            NONE = 0,
-            POSITION = 1,
-            ROTATION = 2,
-            SCALE = 4,
-            RS = 6,
-            TRS = 7,
-            TRS_MASK = "Bad expression <-8>"
-        }
-        export class cocos_core_scene_graph_node_ui_properties_NodeUIProperties {
-            get uiTransformComp(): UITransformComponent | null;
-            set uiTransformComp(value: UITransformComponent | null);
-            uiComp: UIComponent | null;
-            opacity: number;
-            protected _uiTransformComp: UITransformComponent | null;
-            constructor(node: any);
-        }
-        /**
-         * @zh 场景的环境光照相关信息
-         */
-        export class cocos_core_scene_graph_scene_globals_AmbientInfo {
-            protected _skyColor: math.Color;
-            protected _skyIllum: number;
-            protected _groundAlbedo: math.Color;
-            protected _resource: renderer.Ambient | null;
-            set skyColor(val: math.Color);
-            get skyColor(): math.Color;
-            set skyIllum(val: number);
-            get skyIllum(): number;
-            set groundAlbedo(val: math.Color);
-            get groundAlbedo(): math.Color;
-            set renderScene(rs: renderer.RenderScene);
-        }
-        /**
-         * @zh 平面阴影相关信息
-         */
-        export class cocos_core_scene_graph_scene_globals_PlanarShadowInfo {
-            protected _enabled: boolean;
-            protected _normal: math.Vec3;
-            protected _distance: number;
-            protected _shadowColor: math.Color;
-            protected _resource: renderer.PlanarShadows | null;
-            set enabled(val: boolean);
-            get enabled(): boolean;
-            set normal(val: math.Vec3);
-            get normal(): math.Vec3;
-            set distance(val: number);
-            get distance(): number;
-            set shadowColor(val: math.Color);
-            get shadowColor(): math.Color;
-            /**
-             * @zh 根据指定节点的世界变换设置阴影接收平面的信息
-             * @param node 阴影接收平面的世界变换
-             */
-            setPlaneFromNode(node: Node): void;
-            set renderScene(val: renderer.RenderScene);
-        }
-        /**
-         * @zh 天空盒相关信息
-         */
-        export class cocos_core_scene_graph_scene_globals_SkyboxInfo {
-            protected _envmap: TextureCube | null;
-            protected _isRGBE: boolean;
-            protected _enabled: boolean;
-            protected _useIBL: boolean;
-            protected _resource: renderer.Skybox | null;
-            set enabled(val: boolean);
-            get enabled(): boolean;
-            set useIBL(val: boolean);
-            get useIBL(): boolean;
-            set envmap(val: TextureCube | null);
-            get envmap(): TextureCube | null;
-            set isRGBE(val: boolean);
-            get isRGBE(): boolean;
-            set renderScene(val: renderer.RenderScene);
-        }
-        /**
-         * @zh 各类场景级别的渲染参数，将影响全场景的所有物体
-         */
-        export class cocos_core_scene_graph_scene_globals_SceneGlobals {
-            ambient: cocos_core_scene_graph_scene_globals_AmbientInfo;
-            planarShadows: cocos_core_scene_graph_scene_globals_PlanarShadowInfo;
-            get skybox(): cocos_core_scene_graph_scene_globals_SkyboxInfo;
-            set skybox(value: cocos_core_scene_graph_scene_globals_SkyboxInfo);
-            set renderScene(rs: renderer.RenderScene);
-        }
-        /**
-         * @en
-         * A temp fallback to contain the original serialized data which can not be loaded.
-         * @zh
-         * 包含无法加载的原始序列化数据的临时回退。
-         */
-        export class cocos_core_components_missing_script_MissingClass {
-            _$erialized: null;
-        }
-        export interface cocos_core_renderer_ui_render_data_IRenderData {
-            x: number;
-            y: number;
-            z: number;
-            u: number;
-            v: number;
-            color: math.Color;
-        }
-        export class cocos_core_renderer_ui_render_data_BaseRenderData {
-            material: Material | null;
-            vertexCount: number;
-            indiceCount: number;
-        }
-        export class cocos_core_renderer_ui_render_data_RenderData extends cocos_core_renderer_ui_render_data_BaseRenderData {
-            get dataLength(): number;
-            set dataLength(length: number);
-            get datas(): cocos_core_renderer_ui_render_data_IRenderData[];
-            static add(): cocos_core_renderer_ui_render_data_RenderData;
-            static remove(data: cocos_core_renderer_ui_render_data_RenderData): void;
-            vData: Float32Array | null;
-            uvDirty: boolean;
-            vertDirty: boolean;
-            updateSizeNPivot(width: number, height: number, pivotX: number, pivotY: number): void;
-            clear(): void;
-        }
-        export interface cocos_core_renderer_ui_base_IAssembler {
-            [key: string]: any;
-        }
-        export interface cocos_core_renderer_ui_base_IAssemblerManager {
-            getAssembler(component: UIRenderComponent): cocos_core_renderer_ui_base_IAssembler;
-        }
-        export class cocos_core_3d_builtin_init_BuiltinResMgr {
-            protected _device: GFXDevice | null;
-            protected _resources: Record<string, Asset>;
-            initBuiltinRes(device: GFXDevice): void;
-            get<T extends Asset>(uuid: string): T;
-        }
-        export enum cocos_core_3d_framework_light_component_LightBakeType {
-            NONE = 0,
-            BAKE_ONLY = 1,
-            BAKEABLE = 2
-        }
-        /**
-         * @en model light map settings.
-         * @zh 模型光照图设置
-         */
-        export class cocos_core_3d_framework_model_component_ModelLightmapSettings {
-            texture: Texture2D | null;
-            uvParam: math.Vec4;
-            protected _bakeable: boolean;
-            protected _castShadow: boolean;
-            protected _recieveShadow: boolean;
-            protected _lightmapSize: number;
-            get bakeable(): boolean;
-            set bakeable(val: boolean);
-            get castShadow(): boolean;
-            set castShadow(val: boolean);
-            get recieveShadow(): boolean;
-            set recieveShadow(val: boolean);
-            get lightmapSize(): number;
-            set lightmapSize(val: number);
-        }
-        /**
-         * 动画使用的循环模式。
-         */
-        export enum cocos_core_animation_types_WrapMode {
-            Default = 0,
-            Normal = 1,
-            Reverse = 36,
-            Loop = 2,
-            LoopReverse = 38,
-            PingPong = 22,
-            PingPongReverse = 54
-        }
-        /**
-         * For internal
-         */
-        export class cocos_core_animation_types_WrappedInfo {
-            ratio: number;
-            time: number;
-            direction: number;
-            stopped: boolean;
-            iterations: number;
-            frameIndex: number;
-            constructor(info?: cocos_core_animation_types_WrappedInfo);
-            set(info: cocos_core_animation_types_WrappedInfo): void;
-        }
-        export interface cocos_core_animation_bound_target_IBoundTarget {
-            setValue(value: any): void;
-            getValue(): any;
-        }
-        export class cocos_core_animation_animation_state_ICurveInstance {
-            commonTargetIndex?: number;
-            constructor(runtimeCurve: Omit<IRuntimeCurve, "sampler">, target: any, boundTarget: cocos_core_animation_bound_target_IBoundTarget);
-            applySample(ratio: number, index: number, lerpRequired: boolean, samplerResultCache: any, weight: number): void;
-            get propertyName(): string;
-            get curveDetail(): Pick<IRuntimeCurve, "modifiers" | "valueAdapter" | "commonTarget" | "curve">;
-        }
-        /**
-         * The curves in ISamplerSharedGroup share a same keys.
-         */
-        export interface cocos_core_animation_animation_state_ISamplerSharedGroup {
-            sampler: RatioSampler | null;
-            curves: cocos_core_animation_animation_state_ICurveInstance[];
-            samplerResultCache: {
-                from: number;
-                fromRatio: number;
-                to: number;
-                toRatio: number;
-            };
-        }
-        export interface cocos_core_animation_bound_target_IBufferedTarget extends cocos_core_animation_bound_target_IBoundTarget {
-            peek(): any;
-            pull(): void;
-            push(): void;
-        }
-        export interface cocos_core_animation_animation_state_IAnimationEventDefinitionMap {
-            "finished": (animationState: AnimationState) => void;
-            "lastframe": (animationState: AnimationState) => void;
-            "play": (animationState: AnimationState) => void;
-            "pause": (animationState: AnimationState) => void;
-            "resume": (animationState: AnimationState) => void;
-            "stop": (animationState: AnimationState) => void;
-        }
-        /**
-         * @hidden
-         */
-        export type cocos_core_event_defines_EventArgumentsOf<K extends string, Map extends any, AllowCustomEvents extends boolean = false> = K extends (keyof Map) ? Parameters<Map[K]> : (AllowCustomEvents extends true ? any[] : never);
-        export type cocos_core_event_defines_EventCallbackOf<K extends string, Map extends any, AllowCustomEvents extends boolean = false> = K extends (keyof Map) ? (...args: Parameters<Map[K]>) => void : (AllowCustomEvents extends true ? (...args: any[]) => void : never);
-        export class cocos_core_animation_playable_Playable {
-            get isPlaying(): boolean;
-            get isPaused(): boolean;
-            get isMotionless(): boolean;
-            /**
-             * @en Play this animation.
-             * @zh 播放动画。
-             */
-            play(): void;
-            /**
-             * @en Stop this animation.
-             * @zh 停止动画播放。
-             */
-            stop(): void;
-            /**
-             * @en Pause this animation.
-             * @zh 暂停动画。
-             */
-            pause(): void;
-            /**
-             * @en Resume this animation.
-             * @zh 重新播放动画。
-             */
-            resume(): void;
-            /**
-             * @en Perform a single frame step.
-             * @zh 执行一帧动画。
-             */
-            step(): void;
-            update(deltaTime: number): void;
-            protected onPlay(): void;
-            protected onPause(): void;
-            protected onResume(): void;
-            protected onStop(): void;
-            protected onError(message: string): void;
-        }
-        export interface cocos_core_animation_skeletal_animation_blending_PropertyBlendState<T> {
-            weight: number;
-            value: T;
-            /**
-             * How many writer reference this property.
-             */
-            refCount: number;
-        }
-        export interface cocos_core_animation_skeletal_animation_blending_NodeBlendState {
-            properties: {
-                position?: cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Vec3>;
-                rotation?: cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Quat>;
-                scale?: cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Vec3>;
-            };
-        }
-        export type cocos_core_animation_skeletal_animation_blending_BlendingProperty = keyof cocos_core_animation_skeletal_animation_blending_NodeBlendState["properties"];
-        export class cocos_core_animation_skeletal_animation_blending_BlendStateBuffer {
-            ref(node: Node, property: cocos_core_animation_skeletal_animation_blending_BlendingProperty): cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Vec3> | cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Quat>;
-            deRef(node: Node, property: cocos_core_animation_skeletal_animation_blending_BlendingProperty): void;
-            apply(): void;
-        }
-        export class cocos_core_animation_cross_fade_CrossFade extends cocos_core_animation_playable_Playable {
-            constructor();
-            update(deltaTime: number): void;
-            /**
-             * 在指定时间内将从当前动画状态切换到指定的动画状态。
-             * @param state 指定的动画状态。
-             * @param duration 切换时间。
-             */
-            crossFade(state: AnimationState | null, duration: number): void;
-            clear(): void;
-            protected onPlay(): void;
-            /**
-             * 停止我们淡入淡出的所有动画状态并停止淡入淡出。
-             */
-            protected onPause(): void;
-            /**
-             * 恢复我们淡入淡出的所有动画状态并继续淡入淡出。
-             */
-            protected onResume(): void;
-            /**
-             * 停止所有淡入淡出的动画状态。
-             */
-            protected onStop(): void;
-        }
-        export class cocos_core_utils_profiler_counter_Counter {
-            get value(): number;
-            set value(val: number);
-            protected _id: string;
-            protected _opts: cocos_core_utils_profiler_counter_ICounterOption;
-            protected _accumStart: number;
-            protected _total: number;
-            protected _value: number;
-            protected _averageValue: number;
-            protected _accumValue: number;
-            protected _accumSamples: number;
-            constructor(id: string, opts: cocos_core_utils_profiler_counter_ICounterOption, now: number);
-            sample(now: number): void;
-            human(): number;
-            alarm(): boolean | 0 | undefined;
-            protected _average(v: number, now?: number): void;
-        }
-        export interface cocos_core_utils_profiler_counter_ICounterOption {
-            desc: string;
-            counter: cocos_core_utils_profiler_counter_Counter;
-            min?: number;
-            max?: number;
-            average?: number;
-            below?: number;
-            over?: number;
-            color?: string;
-            isInteger?: boolean;
-        }
+    export namespace Primitive {
+        export type PrimitiveType = __private.EnumAlias<typeof _PrimitiveType>;
     }
-    import bits = math.bits;
-    export { bits };
-    import Vec2 = math.Vec2;
-    export { Vec2 };
-    import v2 = math.v2;
-    export { v2 };
-    import Vec3 = math.Vec3;
-    export { Vec3 };
-    import v3 = math.v3;
-    export { v3 };
-    import Vec4 = math.Vec4;
-    export { Vec4 };
-    import v4 = math.v4;
-    export { v4 };
-    import Quat = math.Quat;
-    export { Quat };
-    import quat = math.quat;
-    export { quat };
-    import Mat3 = math.Mat3;
-    export { Mat3 };
-    import Mat4 = math.Mat4;
-    export { Mat4 };
-    import mat4 = math.mat4;
-    export { mat4 };
-    import AffineTransform = math.AffineTransform;
-    export { AffineTransform };
-    import Size = math.Size;
-    export { Size };
-    import size = math.size;
-    export { size };
-    import Rect = math.Rect;
-    export { Rect };
-    import rect = math.rect;
-    export { rect };
-    import Color = math.Color;
-    export { Color };
-    import color = math.color;
-    export { color };
-    import equals = math.equals;
-    export { equals };
-    import approx = math.approx;
-    export { approx };
-    import clamp = math.clamp;
-    export { clamp };
-    import clamp01 = math.clamp01;
-    export { clamp01 };
-    import lerp = math.lerp;
-    export { lerp };
-    import toRadian = math.toRadian;
-    export { toRadian };
-    import toDegree = math.toDegree;
-    export { toDegree };
-    import randomRange = math.randomRange;
-    export { randomRange };
-    import randomRangeInt = math.randomRangeInt;
-    export { randomRangeInt };
-    import pseudoRandom = math.pseudoRandom;
-    export { pseudoRandom };
-    import pseudoRandomRange = math.pseudoRandomRange;
-    export { pseudoRandomRange };
-    import pseudoRandomRangeInt = math.pseudoRandomRangeInt;
-    export { pseudoRandomRangeInt };
-    import nextPow2 = math.nextPow2;
-    export { nextPow2 };
-    import repeat = math.repeat;
-    export { repeat };
-    import pingPong = math.pingPong;
-    export { pingPong };
-    import inverseLerp = math.inverseLerp;
-    export { inverseLerp };
-    import absMaxComponent = math.absMaxComponent;
-    export { absMaxComponent };
-    import absMax = math.absMax;
-    export { absMax };
-    import EPSILON = math.EPSILON;
-    export { EPSILON };
-    import random = math.random;
-    export { random };
-    import Pool = memop.Pool;
-    export { Pool };
-    import RecyclePool = memop.RecyclePool;
-    export { RecyclePool };
-    import CachedArray = memop.CachedArray;
-    export { CachedArray };
-    import ICubicSplineValue = animation.ICubicSplineValue;
-    export { ICubicSplineValue };
-    import CubicSplineValueConstructor = animation.CubicSplineValueConstructor;
-    export { CubicSplineValueConstructor };
-    import CubicSplineVec2Value = animation.CubicSplineVec2Value;
-    export { CubicSplineVec2Value };
-    import CubicSplineVec3Value = animation.CubicSplineVec3Value;
-    export { CubicSplineVec3Value };
-    import CubicSplineVec4Value = animation.CubicSplineVec4Value;
-    export { CubicSplineVec4Value };
-    import CubicSplineQuatValue = animation.CubicSplineQuatValue;
-    export { CubicSplineQuatValue };
-    import CubicSplineNumberValue = animation.CubicSplineNumberValue;
-    export { CubicSplineNumberValue };
-    import { MeshBuffer, UIStaticBatchComponent } from "cc.ui";
-    import { WebGL2GFXDevice } from "cc.gfx-webgl2";
-    import { WebGLGFXDevice } from "cc.gfx-webgl";
-}
-declare module "cc.gfx-webgl" {
-    export class WebGLGFXDevice extends GFXDevice {
+    export class WebGLDevice extends GFXDevice {
         get gl(): WebGLRenderingContext;
-        get webGLQueue(): __private.cocos_core_gfx_webgl_webgl_queue_WebGLGFXQueue;
+        get webGLQueue(): __private.cocos_core_gfx_webgl_webgl_queue_WebGLQueue;
         get isAntialias(): boolean;
         get isPremultipliedAlpha(): boolean;
         get useVAO(): boolean;
+        get destroyShadersImmediately(): boolean;
+        get noCompressedTexSubImage2D(): boolean;
+        get bindingMappingInfo(): GFXBindingMappingInfo | null;
         get EXT_texture_filter_anisotropic(): EXT_texture_filter_anisotropic | null;
         get EXT_frag_depth(): EXT_frag_depth | null;
         get EXT_shader_texture_lod(): EXT_shader_texture_lod | null;
@@ -21469,236 +18338,79 @@ declare module "cc.gfx-webgl" {
         get OES_element_index_uint(): OES_element_index_uint | null;
         get ANGLE_instanced_arrays(): ANGLE_instanced_arrays | null;
         stateCache: __private.cocos_core_gfx_webgl_webgl_state_cache_WebGLStateCache;
-        nullTex2D: __private.cocos_core_gfx_webgl_webgl_texture_WebGLGFXTexture | null;
-        nullTexCube: __private.cocos_core_gfx_webgl_webgl_texture_WebGLGFXTexture | null;
-        constructor();
+        cmdAllocator: __private.cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandAllocator;
+        nullTex2D: __private.cocos_core_gfx_webgl_webgl_texture_WebGLTexture | null;
+        nullTexCube: __private.cocos_core_gfx_webgl_webgl_texture_WebGLTexture | null;
         initialize(info: IGFXDeviceInfo): boolean;
         destroy(): void;
         resize(width: number, height: number): void;
-        createBuffer(info: IGFXBufferInfo): GFXBuffer;
-        createTexture(info: IGFXTextureInfo): GFXTexture;
-        createTextureView(info: IGFXTextureViewInfo): GFXTextureView;
+        acquire(): void;
+        present(): void;
+        createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
+        createBuffer(info: IGFXBufferInfo | IGFXBufferViewInfo): GFXBuffer;
+        createTexture(info: IGFXTextureInfo | IGFXTextureViewInfo): GFXTexture;
         createSampler(info: IGFXSamplerInfo): GFXSampler;
-        createBindingLayout(info: IGFXBindingLayoutInfo): GFXBindingLayout;
-        createShader(info: IGFXShaderInfo): GFXShader;
+        createDescriptorSet(info: IGFXDescriptorSetInfo): GFXDescriptorSet;
+        createShader(info: GFXShaderInfo): GFXShader;
         createInputAssembler(info: IGFXInputAssemblerInfo): GFXInputAssembler;
         createRenderPass(info: IGFXRenderPassInfo): GFXRenderPass;
         createFramebuffer(info: IGFXFramebufferInfo): GFXFramebuffer;
+        createDescriptorSetLayout(info: IGFXDescriptorSetLayoutInfo): GFXDescriptorSetLayout;
         createPipelineLayout(info: IGFXPipelineLayoutInfo): GFXPipelineLayout;
         createPipelineState(info: IGFXPipelineStateInfo): GFXPipelineState;
-        createCommandAllocator(info: IGFXCommandAllocatorInfo): GFXCommandAllocator;
-        createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
+        createFence(info: IGFXFenceInfo): GFXFence;
         createQueue(info: IGFXQueueInfo): GFXQueue;
-        createWindow(info: IGFXWindowInfo): GFXWindow;
-        present(): void;
         copyBuffersToTexture(buffers: ArrayBufferView[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
         copyTexImagesToTexture(texImages: TexImageSource[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
         copyFramebufferToBuffer(srcFramebuffer: GFXFramebuffer, dstBuffer: ArrayBuffer, regions: GFXBufferTextureCopy[]): void;
-        blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
+        blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: GFXRect, dstRect: GFXRect, filter: GFXFilter): void;
     }
-    export namespace __private {
-        export class cocos_core_gfx_webgl_webgl_queue_WebGLGFXQueue extends GFXQueue {
-            numDrawCalls: number;
-            numInstances: number;
-            numTris: number;
-            initialize(info: IGFXQueueInfo): boolean;
-            destroy(): void;
-            submit(cmdBuffs: GFXCommandBuffer[], fence?: any): void;
-            clear(): void;
-        }
-        // note that ETC1 is not supported with the compressedTexSubImage2D() method
-        export interface WEBGL_compressed_texture_etc1 {
-            COMPRESSED_RGB_ETC1_WEBGL: GLenum;
-        }
-        export interface WEBGL_compressed_texture_pvrtc {
-            COMPRESSED_RGB_PVRTC_4BPPV1_IMG: GLenum;
-            COMPRESSED_RGBA_PVRTC_4BPPV1_IMG: GLenum;
-            COMPRESSED_RGB_PVRTC_2BPPV1_IMG: GLenum;
-            COMPRESSED_RGBA_PVRTC_2BPPV1_IMG: GLenum;
-        }
-        export interface cocos_core_gfx_webgl_webgl_state_cache_IWebGLTexUnit {
-            glTexture: WebGLTexture | null;
-        }
-        export class cocos_core_gfx_webgl_webgl_state_cache_WebGLStateCache {
-            glArrayBuffer: WebGLBuffer | null;
-            glElementArrayBuffer: WebGLBuffer | null;
-            glVAO: WebGLVertexArrayObjectOES | null;
-            texUnit: number;
-            glTexUnits: cocos_core_gfx_webgl_webgl_state_cache_IWebGLTexUnit[];
-            glRenderbuffer: WebGLRenderbuffer | null;
-            glFramebuffer: WebGLFramebuffer | null;
-            viewport: IGFXViewport;
-            scissorRect: IGFXRect;
-            rs: GFXRasterizerState;
-            dss: GFXDepthStencilState;
-            bs: GFXBlendState;
-            glProgram: WebGLProgram | null;
-            glEnabledAttribLocs: boolean[];
-            glCurrentAttribLocs: boolean[];
-            constructor();
-        }
-        export class cocos_core_gfx_webgl_webgl_gpu_objects_WebGLGPUTexture {
-            type: GFXTextureType;
-            viewType: GFXTextureViewType;
-            format: GFXFormat;
-            usage: GFXTextureUsage;
-            width: number;
-            height: number;
-            depth: number;
-            size: number;
-            arrayLayer: number;
-            mipLevel: number;
-            samples: GFXSampleCount;
-            flags: GFXTextureFlags;
-            isPowerOf2: boolean;
-            glTarget: GLenum;
-            glInternelFmt: GLenum;
-            glFormat: GLenum;
-            glType: GLenum;
-            glUsage: GLenum;
-            glTexture: WebGLTexture | null;
-            glRenderbuffer: WebGLRenderbuffer | null;
-            glWrapS: GLenum;
-            glWrapT: GLenum;
-            glMinFilter: GLenum;
-            glMagFilter: GLenum;
-        }
-        export class cocos_core_gfx_webgl_webgl_texture_WebGLGFXTexture extends GFXTexture {
-            get gpuTexture(): cocos_core_gfx_webgl_webgl_gpu_objects_WebGLGPUTexture;
-            initialize(info: IGFXTextureInfo): boolean;
-            destroy(): void;
-            resize(width: number, height: number): void;
-        }
-    }
-    import { IGFXQueueInfo, GFXCommandBuffer, GFXQueue, IGFXViewport, IGFXRect, GFXRasterizerState, GFXDepthStencilState, GFXBlendState, GFXTextureType, GFXTextureViewType, GFXFormat, GFXTextureUsage, GFXSampleCount, GFXTextureFlags, IGFXTextureInfo, GFXTexture, IGFXDeviceInfo, IGFXBufferInfo, GFXBuffer, IGFXTextureViewInfo, GFXTextureView, IGFXSamplerInfo, GFXSampler, IGFXBindingLayoutInfo, GFXBindingLayout, IGFXShaderInfo, GFXShader, IGFXInputAssemblerInfo, GFXInputAssembler, IGFXRenderPassInfo, GFXRenderPass, IGFXFramebufferInfo, GFXFramebuffer, IGFXPipelineLayoutInfo, GFXPipelineLayout, IGFXPipelineStateInfo, GFXPipelineState, IGFXCommandAllocatorInfo, GFXCommandAllocator, IGFXCommandBufferInfo, IGFXWindowInfo, GFXWindow, GFXBufferTextureCopy, GFXFilter, GFXDevice } from "cc.core";
-}
-declare module "cc.gfx-webgl2" {
-    export class WebGL2GFXDevice extends GFXDevice {
+    export class WebGL2Device extends GFXDevice {
         get gl(): WebGL2RenderingContext;
         get isAntialias(): boolean;
         get isPremultipliedAlpha(): boolean;
         get useVAO(): boolean;
+        get bindingMappingInfo(): GFXBindingMappingInfo | null;
         get EXT_texture_filter_anisotropic(): EXT_texture_filter_anisotropic | null;
         get OES_texture_float_linear(): OES_texture_float_linear | null;
         get EXT_color_buffer_float(): __private.EXT_color_buffer_float | null;
         get EXT_disjoint_timer_query_webgl2(): __private.EXT_disjoint_timer_query_webgl2 | null;
-        get WEBGL_compressed_texture_etc1(): ___private.WEBGL_compressed_texture_etc1 | null;
+        get WEBGL_compressed_texture_etc1(): __private.WEBGL_compressed_texture_etc1 | null;
         get WEBGL_compressed_texture_etc(): __private.WEBGL_compressed_texture_etc | null;
-        get WEBGL_compressed_texture_pvrtc(): ___private.WEBGL_compressed_texture_pvrtc | null;
+        get WEBGL_compressed_texture_pvrtc(): __private.WEBGL_compressed_texture_pvrtc | null;
         get WEBGL_compressed_texture_s3tc(): WEBGL_compressed_texture_s3tc | null;
         get WEBGL_compressed_texture_s3tc_srgb(): WEBGL_compressed_texture_s3tc_srgb | null;
+        get WEBGL_texture_storage_multisample(): __private.WEBGL_texture_storage_multisample | null;
+        get WEBGL_debug_shaders(): WEBGL_debug_shaders | null;
+        get WEBGL_lose_context(): WEBGL_lose_context | null;
         stateCache: __private.cocos_core_gfx_webgl2_webgl2_state_cache_WebGL2StateCache;
-        nullTex2D: __private.cocos_core_gfx_webgl2_webgl2_texture_WebGL2GFXTexture | null;
-        nullTexCube: __private.cocos_core_gfx_webgl2_webgl2_texture_WebGL2GFXTexture | null;
-        constructor();
+        cmdAllocator: __private.cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandAllocator;
+        nullTex2D: __private.cocos_core_gfx_webgl2_webgl2_texture_WebGL2Texture | null;
+        nullTexCube: __private.cocos_core_gfx_webgl2_webgl2_texture_WebGL2Texture | null;
         initialize(info: IGFXDeviceInfo): boolean;
         destroy(): void;
         resize(width: number, height: number): void;
-        createBuffer(info: IGFXBufferInfo): GFXBuffer;
-        createTexture(info: IGFXTextureInfo): GFXTexture;
-        createTextureView(info: IGFXTextureViewInfo): GFXTextureView;
+        acquire(): void;
+        present(): void;
+        createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
+        createBuffer(info: IGFXBufferInfo | IGFXBufferViewInfo): GFXBuffer;
+        createTexture(info: IGFXTextureInfo | IGFXTextureViewInfo): GFXTexture;
         createSampler(info: IGFXSamplerInfo): GFXSampler;
-        createBindingLayout(info: IGFXBindingLayoutInfo): GFXBindingLayout;
-        createShader(info: IGFXShaderInfo): GFXShader;
+        createDescriptorSet(info: IGFXDescriptorSetInfo): GFXDescriptorSet;
+        createShader(info: GFXShaderInfo): GFXShader;
         createInputAssembler(info: IGFXInputAssemblerInfo): GFXInputAssembler;
         createRenderPass(info: IGFXRenderPassInfo): GFXRenderPass;
         createFramebuffer(info: IGFXFramebufferInfo): GFXFramebuffer;
+        createDescriptorSetLayout(info: IGFXDescriptorSetLayoutInfo): GFXDescriptorSetLayout;
         createPipelineLayout(info: IGFXPipelineLayoutInfo): GFXPipelineLayout;
         createPipelineState(info: IGFXPipelineStateInfo): GFXPipelineState;
-        createCommandAllocator(info: IGFXCommandAllocatorInfo): GFXCommandAllocator;
-        createCommandBuffer(info: IGFXCommandBufferInfo): GFXCommandBuffer;
+        createFence(info: IGFXFenceInfo): GFXFence;
         createQueue(info: IGFXQueueInfo): GFXQueue;
-        createWindow(info: IGFXWindowInfo): GFXWindow;
-        present(): void;
         copyBuffersToTexture(buffers: ArrayBufferView[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
         copyTexImagesToTexture(texImages: TexImageSource[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
         copyFramebufferToBuffer(srcFramebuffer: GFXFramebuffer, dstBuffer: ArrayBuffer, regions: GFXBufferTextureCopy[]): void;
-        blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: IGFXRect, dstRect: IGFXRect, filter: GFXFilter): void;
+        blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: GFXRect, dstRect: GFXRect, filter: GFXFilter): void;
     }
-    export namespace __private {
-        export interface EXT_color_buffer_float {
-        }
-        export interface EXT_disjoint_timer_query_webgl2 {
-            QUERY_COUNTER_BITS_EXT: GLenum;
-            TIME_ELAPSED_EXT: GLenum;
-            TIMESTAMP_EXT: GLenum;
-            GPU_DISJOINT_EXT: GLenum;
-            queryCounterEXT(query: WebGLQuery, target: GLenum): void;
-        }
-        export interface WEBGL_compressed_texture_etc {
-            COMPRESSED_R11_EAC: GLenum;
-            COMPRESSED_SIGNED_R11_EAC: GLenum;
-            COMPRESSED_RG11_EAC: GLenum;
-            COMPRESSED_SIGNED_RG11_EAC: GLenum;
-            COMPRESSED_RGB8_ETC2: GLenum;
-            COMPRESSED_RGBA8_ETC2_EAC: GLenum;
-            COMPRESSED_SRGB8_ETC2: GLenum;
-            COMPRESSED_SRGB8_ALPHA8_ETC2_EAC: GLenum;
-            COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2: GLenum;
-            COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2: GLenum;
-        }
-        export interface cocos_core_gfx_webgl2_webgl2_state_cache_IWebGL2TexUnit {
-            glTexture: WebGLTexture | null;
-        }
-        export class cocos_core_gfx_webgl2_webgl2_state_cache_WebGL2StateCache {
-            glArrayBuffer: WebGLBuffer | null;
-            glElementArrayBuffer: WebGLBuffer | null;
-            glUniformBuffer: WebGLBuffer | null;
-            glBindUBOs: Array<WebGLBuffer | null>;
-            glVAO: WebGLVertexArrayObject | null;
-            texUnit: number;
-            glTexUnits: cocos_core_gfx_webgl2_webgl2_state_cache_IWebGL2TexUnit[];
-            glSamplerUnits: Array<WebGLSampler | null>;
-            glRenderbuffer: WebGLRenderbuffer | null;
-            glFramebuffer: WebGLFramebuffer | null;
-            glReadFramebuffer: WebGLFramebuffer | null;
-            viewport: IGFXViewport;
-            scissorRect: IGFXRect;
-            rs: GFXRasterizerState;
-            dss: GFXDepthStencilState;
-            bs: GFXBlendState;
-            glProgram: WebGLProgram | null;
-            glEnabledAttribLocs: boolean[];
-            glCurrentAttribLocs: boolean[];
-            constructor();
-        }
-        export class cocos_core_gfx_webgl2_webgl2_gpu_objects_WebGL2GPUTexture {
-            type: GFXTextureType;
-            viewType: GFXTextureViewType;
-            format: GFXFormat;
-            usage: GFXTextureUsage;
-            width: number;
-            height: number;
-            depth: number;
-            size: number;
-            arrayLayer: number;
-            mipLevel: number;
-            samples: GFXSampleCount;
-            flags: GFXTextureFlags;
-            isPowerOf2: boolean;
-            glTarget: GLenum;
-            glInternelFmt: GLenum;
-            glFormat: GLenum;
-            glType: GLenum;
-            glUsage: GLenum;
-            glTexture: WebGLTexture | null;
-            glRenderbuffer: WebGLRenderbuffer | null;
-            glWrapS: GLenum;
-            glWrapT: GLenum;
-            glMinFilter: GLenum;
-            glMagFilter: GLenum;
-        }
-        export class cocos_core_gfx_webgl2_webgl2_texture_WebGL2GFXTexture extends GFXTexture {
-            get gpuTexture(): cocos_core_gfx_webgl2_webgl2_gpu_objects_WebGL2GPUTexture;
-            initialize(info: IGFXTextureInfo): boolean;
-            destroy(): void;
-            resize(width: number, height: number): void;
-        }
-    }
-    import { __private as ___private } from "cc.gfx-webgl";
-    import { IGFXViewport, IGFXRect, GFXRasterizerState, GFXDepthStencilState, GFXBlendState, GFXTextureType, GFXTextureViewType, GFXFormat, GFXTextureUsage, GFXSampleCount, GFXTextureFlags, IGFXTextureInfo, GFXTexture, IGFXDeviceInfo, IGFXBufferInfo, GFXBuffer, IGFXTextureViewInfo, GFXTextureView, IGFXSamplerInfo, GFXSampler, IGFXBindingLayoutInfo, GFXBindingLayout, IGFXShaderInfo, GFXShader, IGFXInputAssemblerInfo, GFXInputAssembler, IGFXRenderPassInfo, GFXRenderPass, IGFXFramebufferInfo, GFXFramebuffer, IGFXPipelineLayoutInfo, GFXPipelineLayout, IGFXPipelineStateInfo, GFXPipelineState, IGFXCommandAllocatorInfo, GFXCommandAllocator, IGFXCommandBufferInfo, GFXCommandBuffer, IGFXQueueInfo, GFXQueue, IGFXWindowInfo, GFXWindow, GFXBufferTextureCopy, GFXFilter, GFXDevice } from "cc.core";
-}
-declare module "cc.audio" {
     /**
      * @en
      * The audio clip asset. <br>
@@ -21814,39 +18526,6 @@ declare module "cc.audio" {
         get state(): number;
         get playing(): boolean;
     }
-    export namespace __private {
-        export interface cocos_audio_assets_player_IAudioInfo {
-            clip: any;
-            duration: number;
-            eventTarget: any;
-        }
-        export abstract class cocos_audio_assets_player_AudioPlayer {
-            protected _state: number;
-            protected _duration: number;
-            protected _eventTarget: any;
-            protected _onHide: Function;
-            protected _onShow: Function;
-            protected _interrupted: boolean;
-            protected _blocking: boolean;
-            constructor(info: cocos_audio_assets_player_IAudioInfo);
-            abstract play(): void;
-            abstract pause(): void;
-            abstract stop(): void;
-            abstract playOneShot(volume: number): void;
-            abstract setCurrentTime(val: number): void;
-            abstract getCurrentTime(): number;
-            abstract setVolume(val: number, immediate: boolean): void;
-            abstract getVolume(): number;
-            abstract setLoop(val: boolean): void;
-            abstract getLoop(): boolean;
-            getState(): number;
-            getDuration(): number;
-            destroy(): void;
-        }
-    }
-    import { Asset, Component } from "cc.core";
-}
-declare module "cc.particle" {
     export class BillboardComponent extends Component {
         get texture(): null;
         set texture(val: null);
@@ -21868,8 +18547,8 @@ declare module "cc.particle" {
         set worldSpace(val: boolean);
         get positions(): never[];
         set positions(val: never[]);
-        get width(): __private.cocos_particle_animator_curve_range_default;
-        set width(val: __private.cocos_particle_animator_curve_range_default);
+        get width(): CurveRange;
+        set width(val: CurveRange);
         get tile(): math.Vec2;
         set tile(val: math.Vec2);
         get offset(): math.Vec2;
@@ -21893,40 +18572,40 @@ declare module "cc.particle" {
         /**
          * @zh 粒子初始大小。
          */
-        startSizeX: __private.cocos_particle_animator_curve_range_default;
+        startSizeX: CurveRange;
         /**
          * @zh 粒子初始大小。
          */
-        startSizeY: __private.cocos_particle_animator_curve_range_default;
+        startSizeY: CurveRange;
         /**
          * @zh 粒子初始大小。
          */
-        startSizeZ: __private.cocos_particle_animator_curve_range_default;
+        startSizeZ: CurveRange;
         /**
          * @zh 粒子初始速度。
          */
-        startSpeed: __private.cocos_particle_animator_curve_range_default;
+        startSpeed: CurveRange;
         startRotation3D: boolean;
         /**
          * @zh 粒子初始旋转角度。
          */
-        startRotationX: __private.cocos_particle_animator_curve_range_default;
+        startRotationX: CurveRange;
         /**
          * @zh 粒子初始旋转角度。
          */
-        startRotationY: __private.cocos_particle_animator_curve_range_default;
+        startRotationY: CurveRange;
         /**
          * @zh 粒子初始旋转角度。
          */
-        startRotationZ: __private.cocos_particle_animator_curve_range_default;
+        startRotationZ: CurveRange;
         /**
          * @zh 粒子系统开始运行后，延迟粒子发射的时间。
          */
-        startDelay: __private.cocos_particle_animator_curve_range_default;
+        startDelay: CurveRange;
         /**
          * @zh 粒子生命周期。
          */
-        startLifetime: __private.cocos_particle_animator_curve_range_default;
+        startLifetime: CurveRange;
         /**
          * @zh 粒子系统运行时间。
          */
@@ -21950,60 +18629,51 @@ declare module "cc.particle" {
         /**
          * @zh 粒子受重力影响的重力系数。
          */
-        gravityModifier: __private.cocos_particle_animator_curve_range_default;
+        gravityModifier: CurveRange;
         /**
          * @zh 每秒发射的粒子数。
          */
-        rateOverTime: __private.cocos_particle_animator_curve_range_default;
+        rateOverTime: CurveRange;
         /**
          * @zh 每移动单位距离发射的粒子数。
          */
-        rateOverDistance: __private.cocos_particle_animator_curve_range_default;
+        rateOverDistance: CurveRange;
         /**
-         * @zh 设定在指定时间发射指定数量的粒子的 Brust 的数量。
+         * @zh 设定在指定时间发射指定数量的粒子的 burst 的数量。
          */
-        bursts: any[];
+        bursts: __private.cocos_particle_burst_default[];
         get sharedMaterials(): (Material | null)[];
         set sharedMaterials(val: (Material | null)[]);
-        /**
-         * @zh 颜色控制模块。
-         */
-        colorOverLifetimeModule: __private.cocos_particle_animator_color_overtime_default;
-        /**
-         * @zh 粒子发射器模块。
-         */
-        shapeModule: __private.cocos_particle_emitter_shape_module_default;
-        /**
-         * @zh 粒子大小模块。
-         */
-        sizeOvertimeModule: __private.cocos_particle_animator_size_overtime_default;
-        /**
-         * @zh 粒子速度模块。
-         */
-        velocityOvertimeModule: __private.cocos_particle_animator_velocity_overtime_default;
-        /**
-         * @zh 粒子加速度模块。
-         */
-        forceOvertimeModule: __private.cocos_particle_animator_force_overtime_default;
-        /**
-         * @zh 粒子限制速度模块（只支持 CPU 粒子）。
-         */
-        limitVelocityOvertimeModule: __private.cocos_particle_animator_limit_velocity_overtime_default;
-        /**
-         * @zh 粒子旋转模块。
-         */
-        rotationOvertimeModule: __private.cocos_particle_animator_rotation_overtime_default;
-        /**
-         * @zh 贴图动画模块。
-         */
-        textureAnimationModule: __private.cocos_particle_animator_texture_animation_default;
-        /**
-         * @zh 粒子轨迹模块。
-         */
-        trailModule: __private.cocos_particle_renderer_trail_default;
+        _colorOverLifetimeModule: __private.cocos_particle_animator_color_overtime_default | null;
+        get colorOverLifetimeModule(): __private.cocos_particle_animator_color_overtime_default | null;
+        set colorOverLifetimeModule(val: __private.cocos_particle_animator_color_overtime_default | null);
+        _shapeModule: __private.cocos_particle_emitter_shape_module_default | null;
+        get shapeModule(): __private.cocos_particle_emitter_shape_module_default | null;
+        set shapeModule(val: __private.cocos_particle_emitter_shape_module_default | null);
+        _sizeOvertimeModule: __private.cocos_particle_animator_size_overtime_default | null;
+        get sizeOvertimeModule(): __private.cocos_particle_animator_size_overtime_default | null;
+        set sizeOvertimeModule(val: __private.cocos_particle_animator_size_overtime_default | null);
+        _velocityOvertimeModule: __private.cocos_particle_animator_velocity_overtime_default | null;
+        get velocityOvertimeModule(): __private.cocos_particle_animator_velocity_overtime_default | null;
+        set velocityOvertimeModule(val: __private.cocos_particle_animator_velocity_overtime_default | null);
+        _forceOvertimeModule: __private.cocos_particle_animator_force_overtime_default | null;
+        get forceOvertimeModule(): __private.cocos_particle_animator_force_overtime_default | null;
+        set forceOvertimeModule(val: __private.cocos_particle_animator_force_overtime_default | null);
+        _limitVelocityOvertimeModule: __private.cocos_particle_animator_limit_velocity_overtime_default | null;
+        get limitVelocityOvertimeModule(): __private.cocos_particle_animator_limit_velocity_overtime_default | null;
+        set limitVelocityOvertimeModule(val: __private.cocos_particle_animator_limit_velocity_overtime_default | null);
+        _rotationOvertimeModule: __private.cocos_particle_animator_rotation_overtime_default | null;
+        get rotationOvertimeModule(): __private.cocos_particle_animator_rotation_overtime_default | null;
+        set rotationOvertimeModule(val: __private.cocos_particle_animator_rotation_overtime_default | null);
+        _textureAnimationModule: __private.cocos_particle_animator_texture_animation_default | null;
+        get textureAnimationModule(): __private.cocos_particle_animator_texture_animation_default | null;
+        set textureAnimationModule(val: __private.cocos_particle_animator_texture_animation_default | null);
+        _trailModule: __private.cocos_particle_renderer_trail_default | null;
+        get trailModule(): __private.cocos_particle_renderer_trail_default | null;
+        set trailModule(val: __private.cocos_particle_renderer_trail_default | null);
         renderer: __private.cocos_particle_renderer_particle_system_renderer_data_default;
         enableCulling: boolean;
-        processor: __private.cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer | null;
+        processor: __private.cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer;
         constructor();
         onLoad(): void;
         _onMaterialModified(index: number, material: Material): void;
@@ -22040,8 +18710,8 @@ declare module "cc.particle" {
         protected onDestroy(): void;
         protected onEnable(): void;
         protected onDisable(): void;
-        protected update(dt: any): void;
-        protected _onVisiblityChange(val: any): void;
+        protected update(dt: number): void;
+        protected _onVisibilityChange(val: any): void;
         get isPlaying(): boolean;
         get isPaused(): boolean;
         get isStopped(): boolean;
@@ -22058,515 +18728,50 @@ declare module "cc.particle" {
         static play(rootNode: Node): void;
         static stop(rootNode: Node): void;
     }
-    export namespace __private {
-        export class cocos_particle_animator_curve_range_default {
-            static Mode: {
-                Constant: number;
-                Curve: number;
-                TwoCurves: number;
-                TwoConstants: number;
-            };
-            /**
-             * @zh 曲线类型[[Mode]]。
-             */
-            mode: number;
-            /**
-             * @zh 当mode为Curve时，使用的曲线。
-             */
-            curve: geometry.AnimationCurve;
-            /**
-             * @zh 当mode为TwoCurves时，使用的曲线下限。
-             */
-            curveMin: geometry.AnimationCurve;
-            /**
-             * @zh 当mode为TwoCurves时，使用的曲线上限。
-             */
-            curveMax: geometry.AnimationCurve;
-            /**
-             * @zh 当mode为Constant时，曲线的值。
-             */
-            constant: number;
-            /**
-             * @zh 当mode为TwoConstants时，曲线的上限。
-             */
-            constantMin: number;
-            /**
-             * @zh 当mode为TwoConstants时，曲线的下限。
-             */
-            constantMax: number;
-            /**
-             * @zh 应用于曲线插值的系数。
-             */
-            multiplier: number;
-            constructor();
-            evaluate(time: number, rndRatio: number): number | undefined;
-            getMax(): number;
-            _onBeforeSerialize(props: any): any;
-        }
-        export class cocos_particle_animator_gradient_ColorKey {
-            color: math.Color;
-            time: number;
-        }
-        export class cocos_particle_animator_gradient_AlphaKey {
-            alpha: number;
-            time: number;
-        }
-        export class cocos_particle_animator_gradient_default {
-            static Mode: {
-                Blend: number;
-                Fixed: number;
-            };
-            colorKeys: cocos_particle_animator_gradient_ColorKey[];
-            alphaKeys: cocos_particle_animator_gradient_AlphaKey[];
-            mode: number;
-            constructor();
-            setKeys(colorKeys: cocos_particle_animator_gradient_ColorKey[], alphaKeys: cocos_particle_animator_gradient_AlphaKey[]): void;
-            sortKeys(): void;
-            evaluate(time: number): math.Color;
-            randomColor(): math.Color;
-        }
-        export class cocos_particle_animator_gradient_range_default {
-            get mode(): number;
-            set mode(m: number);
-            static Mode: {
-                Color: number;
-                Gradient: number;
-                TwoColors: number;
-                TwoGradients: number;
-                RandomColor: number;
-            };
-            /**
-             * @zh 当mode为Color时的颜色。
-             */
-            color: math.Color;
-            /**
-             * @zh 当mode为TwoColors时的颜色下限。
-             */
-            colorMin: math.Color;
-            /**
-             * @zh 当mode为TwoColors时的颜色上限。
-             */
-            colorMax: math.Color;
-            /**
-             * @zh 当mode为Gradient时的颜色渐变。
-             */
-            gradient: cocos_particle_animator_gradient_default;
-            /**
-             * @zh 当mode为TwoGradients时的颜色渐变下限。
-             */
-            gradientMin: cocos_particle_animator_gradient_default;
-            /**
-             * @zh 当mode为TwoGradients时的颜色渐变上限。
-             */
-            gradientMax: cocos_particle_animator_gradient_default;
-            evaluate(time: number, rndRatio: number): math.Color;
-            _onBeforeSerialize(props: any): any;
-        }
-        export class cocos_particle_particle_Particle {
-            particleSystem: ParticleSystemComponent;
-            position: math.Vec3;
-            velocity: math.Vec3;
-            animatedVelocity: math.Vec3;
-            ultimateVelocity: math.Vec3;
-            angularVelocity: math.Vec3;
-            axisOfRotation: math.Vec3;
-            rotation: math.Vec3;
-            startSize: math.Vec3;
-            size: math.Vec3;
-            startColor: math.Color;
-            color: math.Color;
-            randomSeed: number;
-            remainingLifetime: number;
-            startLifetime: number;
-            emitAccumulator0: number;
-            emitAccumulator1: number;
-            frameIndex: number;
-            startRow: number;
-            constructor(particleSystem: any);
-        }
-        export interface cocos_particle_particle_IParticleModule {
-            target: cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer | null;
-            needUpdate: Boolean;
-            needAnimate: Boolean;
-            name: string;
-            bindTarget(target: any): void;
-            update(space: number, trans: math.Mat4): void;
-            animate(p: cocos_particle_particle_Particle, dt?: number): void;
-        }
-        export interface cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer {
-            onInit(ps: Component): void;
-            onEnable(): void;
-            onDisable(): void;
-            onDestroy(): void;
-            clear(): void;
-            attachToScene(): void;
-            detachFromScene(): void;
-            updateMaterialParams(): void;
-            setVertexAttributes(): void;
-            updateRenderMode(): void;
-            onMaterialModified(index: number, material: Material): void;
-            onRebuildPSO(index: number, material: Material): void;
-            getParticleCount(): number;
-            getFreeParticle(): cocos_particle_particle_Particle | null;
-            setNewParticle(p: cocos_particle_particle_Particle): void;
-            updateParticles(dt: number): number;
-            updateRenderData(): void;
-            enableModule(name: string, val: Boolean, pm: cocos_particle_particle_IParticleModule): void;
-            updateTrailMaterial(): void;
-            getDefaultTrailMaterial(): any;
-        }
-        export abstract class cocos_particle_particle_ParticleModuleBase implements cocos_particle_particle_IParticleModule {
-            target: cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer | null;
-            needUpdate: Boolean;
-            needAnimate: Boolean;
-            bindTarget(target: cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer): void;
-            update(space: number, trans: math.Mat4): void;
-            abstract name: string;
-            abstract animate(p: cocos_particle_particle_Particle, dt?: number): void;
-        }
-        export class cocos_particle_animator_color_overtime_default extends cocos_particle_particle_ParticleModuleBase {
-            _enable: boolean;
-            get enable(): boolean;
-            set enable(val: boolean);
-            /**
-             * @zh 颜色随时间变化的参数，各个 key 之间线性差值变化。
-             */
-            color: cocos_particle_animator_gradient_range_default;
-            name: string;
-            animate(particle: cocos_particle_particle_Particle): void;
-        }
-        export class cocos_particle_emitter_shape_module_default {
-            get position(): math.Vec3;
-            set position(val: math.Vec3);
-            get rotation(): math.Vec3;
-            set rotation(val: math.Vec3);
-            get scale(): math.Vec3;
-            set scale(val: math.Vec3);
-            get arc(): number;
-            set arc(val: number);
-            get angle(): number;
-            set angle(val: number);
-            get enable(): boolean;
-            set enable(val: boolean);
-            /**
-             * @zh 粒子发射器类型 [[ShapeType]]。
-             */
-            _shapeType: number;
-            get shapeType(): number;
-            set shapeType(val: number);
-            /**
-             * @zh 粒子从发射器哪个部位发射 [[EmitLocation]]。
-             */
-            emitFrom: number;
-            /**
-             * @zh 根据粒子的初始方向决定粒子的移动方向。
-             */
-            alignToDirection: boolean;
-            /**
-             * @zh 粒子生成方向随机设定。
-             */
-            randomDirectionAmount: number;
-            /**
-             * @zh 表示当前发射方向与当前位置到结点中心连线方向的插值。
-             */
-            sphericalDirectionAmount: number;
-            /**
-             * @zh 粒子生成位置随机设定（设定此值为非 0 会使粒子生成位置超出生成器大小范围）。
-             */
-            randomPositionAmount: number;
-            /**
-             * @zh 粒子发射器半径。
-             */
-            radius: number;
-            /**
-             * @zh 粒子发射器发射位置（对 Box 类型的发射器无效）：<bg>
-             * - 0 表示从表面发射；
-             * - 1 表示从中心发射；
-             * - 0 ~ 1 之间表示在中心到表面之间发射。
-             */
-            radiusThickness: number;
-            /**
-             * @zh 粒子在扇形范围内的发射方式 [[ArcMode]]。
-             */
-            arcMode: number;
-            /**
-             * @zh 控制可能产生粒子的弧周围的离散间隔。
-             */
-            arcSpread: number;
-            /**
-             * @zh 粒子沿圆周发射的速度。
-             */
-            arcSpeed: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 圆锥顶部截面距离底部的轴长<bg>。
-             * 决定圆锥发射器的高度。
-             */
-            length: number;
-            /**
-             * @zh 粒子发射器发射位置（针对 Box 类型的粒子发射器）。
-             */
-            boxThickness: math.Vec3;
-            constructor();
-            onInit(ps: ParticleSystemComponent): void;
-            emit(p: any): void;
-        }
-        export class cocos_particle_animator_size_overtime_default extends cocos_particle_particle_ParticleModuleBase {
-            _enable: Boolean;
-            get enable(): Boolean;
-            set enable(val: Boolean);
-            /**
-             * @zh 决定是否在每个轴上独立控制粒子大小。
-             */
-            separateAxes: boolean;
-            /**
-             * @zh 定义一条曲线来决定粒子在其生命周期中的大小变化。
-             */
-            size: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 定义一条曲线来决定粒子在其生命周期中 X 轴方向上的大小变化。
-             */
-            x: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 定义一条曲线来决定粒子在其生命周期中 Y 轴方向上的大小变化。
-             */
-            y: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 定义一条曲线来决定粒子在其生命周期中 Z 轴方向上的大小变化。
-             */
-            z: cocos_particle_animator_curve_range_default;
-            name: string;
-            animate(particle: cocos_particle_particle_Particle, dt: number): void;
-        }
-        export class cocos_particle_animator_velocity_overtime_default extends cocos_particle_particle_ParticleModuleBase {
-            _enable: Boolean;
-            get enable(): Boolean;
-            set enable(val: Boolean);
-            /**
-             * @zh X 轴方向上的速度分量。
-             */
-            x: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh Y 轴方向上的速度分量。
-             */
-            y: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh Z 轴方向上的速度分量。
-             */
-            z: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 速度修正系数（只支持 CPU 粒子）。
-             */
-            speedModifier: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 速度计算时采用的坐标系[[Space]]。
-             */
-            space: number;
-            name: string;
-            constructor();
-            update(space: number, worldTransform: math.Mat4): void;
-            animate(p: cocos_particle_particle_Particle, dt: number): void;
-        }
-        export class cocos_particle_animator_force_overtime_default extends cocos_particle_particle_ParticleModuleBase {
-            _enable: Boolean;
-            get enable(): Boolean;
-            set enable(val: Boolean);
-            /**
-             * @zh X 轴方向上的加速度分量。
-             */
-            x: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh Y 轴方向上的加速度分量。
-             */
-            y: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh Z 轴方向上的加速度分量。
-             */
-            z: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 加速度计算时采用的坐标系 [[Space]]。
-             */
-            space: number;
-            randomized: boolean;
-            name: string;
-            constructor();
-            update(space: any, worldTransform: any): void;
-            animate(p: any, dt: any): void;
-        }
-        export class cocos_particle_animator_limit_velocity_overtime_default extends cocos_particle_particle_ParticleModuleBase {
-            _enable: Boolean;
-            get enable(): Boolean;
-            set enable(val: Boolean);
-            /**
-             * @zh X 轴方向上的速度下限。
-             */
-            limitX: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh Y 轴方向上的速度下限。
-             */
-            limitY: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh Z 轴方向上的速度下限。
-             */
-            limitZ: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 速度下限。
-             */
-            limit: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 当前速度与速度下限的插值。
-             */
-            dampen: number;
-            /**
-             * @zh 是否三个轴分开限制。
-             */
-            separateAxes: boolean;
-            /**
-             * @zh 计算速度下限时采用的坐标系 [[Space]]。
-             */
-            space: number;
-            drag: null;
-            multiplyDragByParticleSize: boolean;
-            multiplyDragByParticleVelocity: boolean;
-            name: string;
-            constructor();
-            update(space: number, worldTransform: math.Mat4): void;
-            animate(p: cocos_particle_particle_Particle, dt: number): void;
-        }
-        export class cocos_particle_animator_rotation_overtime_default extends cocos_particle_particle_ParticleModuleBase {
-            _enable: Boolean;
-            get enable(): Boolean;
-            set enable(val: Boolean);
-            get separateAxes(): boolean;
-            set separateAxes(val: boolean);
-            /**
-             * @zh 绕 X 轴设定旋转。
-             */
-            x: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 绕 Y 轴设定旋转。
-             */
-            y: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 绕 Z 轴设定旋转。
-             */
-            z: cocos_particle_animator_curve_range_default;
-            name: string;
-            animate(p: cocos_particle_particle_Particle, dt: number): void;
-        }
-        export class cocos_particle_animator_texture_animation_default extends cocos_particle_particle_ParticleModuleBase {
-            get enable(): boolean;
-            set enable(val: boolean);
-            get mode(): number;
-            set mode(val: number);
-            get numTilesX(): number;
-            set numTilesX(val: number);
-            get numTilesY(): number;
-            set numTilesY(val: number);
-            /**
-             * @zh 动画播放方式 [[Animation]]。
-             */
-            animation: number;
-            /**
-             * @zh 一个周期内动画播放的帧与时间变化曲线。
-             */
-            frameOverTime: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 从第几帧开始播放，时间为整个粒子系统的生命周期。
-             */
-            startFrame: cocos_particle_animator_curve_range_default;
-            /**
-             * @zh 一个生命周期内播放循环的次数。
-             */
-            cycleCount: number;
-            get flipU(): number;
-            set flipU(val: number);
-            get flipV(): number;
-            set flipV(val: number);
-            get uvChannelMask(): number;
-            set uvChannelMask(val: number);
-            /**
-             * @zh 随机从动画贴图中选择一行以生成动画。<br>
-             * 此选项仅在动画播放方式为 SingleRow 时生效。
-             */
-            randomRow: boolean;
-            /**
-             * @zh 从动画贴图中选择特定行以生成动画。<br>
-             * 此选项仅在动画播放方式为 SingleRow 时且禁用 randomRow 时可用。
-             */
-            rowIndex: number;
-            name: string;
-            init(p: cocos_particle_particle_Particle): void;
-            animate(p: cocos_particle_particle_Particle, dt: number): void;
-        }
-        export class cocos_particle_renderer_trail_default {
-            get enable(): boolean;
-            set enable(val: boolean);
-            _enable: boolean;
-            /**
-             * 设定粒子生成轨迹的方式。
-             */
-            mode: number;
-            /**
-             * 轨迹存在的生命周期。
-             */
-            lifeTime: cocos_particle_animator_curve_range_default;
-            _minParticleDistance: number;
-            get minParticleDistance(): number;
-            set minParticleDistance(val: number);
-            get space(): number;
-            set space(val: number);
-            /**
-             * 粒子本身是否存在。
-             */
-            existWithParticles: boolean;
-            /**
-             * 设定纹理填充方式。
-             */
-            textureMode: number;
-            widthFromParticle: boolean;
-            /**
-             * 控制轨迹长度的曲线。
-             */
-            widthRatio: cocos_particle_animator_curve_range_default;
-            colorFromParticle: boolean;
-            colorOverTrail: cocos_particle_animator_gradient_range_default;
-            colorOvertime: cocos_particle_animator_gradient_range_default;
-            constructor();
-            onInit(ps: any): void;
-            onEnable(): void;
-            onDisable(): void;
-            _attachToScene(): void;
-            _detachFromScene(): void;
-            destroy(): void;
-            clear(): void;
-            _updateMaterial(): void;
-            update(): void;
-            animate(p: cocos_particle_particle_Particle, scaledDt: number): void;
-            removeParticle(p: cocos_particle_particle_Particle): void;
-            updateRenderData(): void;
-            updateIA(count: number): void;
-        }
-        export class cocos_particle_renderer_particle_system_renderer_data_default {
-            get renderMode(): number;
-            set renderMode(val: number);
-            get velocityScale(): number;
-            set velocityScale(val: number);
-            get lengthScale(): number;
-            set lengthScale(val: number);
-            get mesh(): Mesh | null;
-            set mesh(val: Mesh | null);
-            get particleMaterial(): any;
-            set particleMaterial(val: any);
-            get trailMaterial(): any;
-            set trailMaterial(val: any);
-            get useGPU(): boolean;
-            set useGPU(val: boolean);
-            onInit(ps: any): void;
-        }
+    export class CurveRange {
+        static Mode: {
+            Constant: number;
+            Curve: number;
+            TwoCurves: number;
+            TwoConstants: number;
+        };
+        /**
+         * @zh 曲线类型[[Mode]]。
+         */
+        mode: number;
+        /**
+         * @zh 当mode为Curve时，使用的曲线。
+         */
+        curve: geometry.AnimationCurve;
+        /**
+         * @zh 当mode为TwoCurves时，使用的曲线下限。
+         */
+        curveMin: geometry.AnimationCurve;
+        /**
+         * @zh 当mode为TwoCurves时，使用的曲线上限。
+         */
+        curveMax: geometry.AnimationCurve;
+        /**
+         * @zh 当mode为Constant时，曲线的值。
+         */
+        constant: number;
+        /**
+         * @zh 当mode为TwoConstants时，曲线的上限。
+         */
+        constantMin: number;
+        /**
+         * @zh 当mode为TwoConstants时，曲线的下限。
+         */
+        constantMax: number;
+        /**
+         * @zh 应用于曲线插值的系数。
+         */
+        multiplier: number;
+        constructor();
+        evaluate(time: number, rndRatio: number): number | undefined;
+        getMax(): number;
+        _onBeforeSerialize(props: any): any;
     }
-    import { Component, geometry, math, Material, Mesh, renderer, RenderableComponent, CCObject, Node } from "cc.core";
-}
-declare module "cc.terrain" {
     export class HeightField {
         data: Uint16Array;
         w: number;
@@ -22577,55 +18782,62 @@ declare module "cc.terrain" {
         getClamp(i: number, j: number): number;
         getAt(x: number, y: number): number;
     }
-    export const TERRAIN_MAX_LEVELS = 4;
-    export const TERRAIN_MAX_BLEND_LAYERS = 4;
-    export const TERRAIN_MAX_LAYER_COUNT = 256;
-    export const TERRAIN_BLOCK_TILE_COMPLEXITY = 32;
-    export const TERRAIN_BLOCK_VERTEX_COMPLEXITY = 33;
-    export const TERRAIN_BLOCK_VERTEX_SIZE = 8;
-    export const TERRAIN_HEIGHT_BASE = 32768;
-    export const TERRAIN_HEIGHT_FACTORY: number;
-    export const TERRAIN_NORTH_INDEX = 0;
-    export const TERRAIN_SOUTH_INDEX = 1;
-    export const TERRAIN_WEST_INDEX = 2;
-    export const TERRAIN_EAST_INDEX = 3;
     /**
-     * 地形信息。
+     * @en Terrain info
+     * @zh 地形信息
      */
     export class TerrainInfo {
+        /**
+         * @en tile size
+         * @zh 栅格大小
+         */
         tileSize: number;
+        /**
+         * @en block count
+         * @zh 地形块的数量
+         */
         blockCount: number[];
+        /**
+         * @en weight map size
+         * @zh 权重图大小
+         */
         weightMapSize: number;
+        /**
+         * @en light map size
+         * @zh 光照图大小
+         */
         lightMapSize: number;
         get size(): math.Size;
         get tileCount(): number[];
         get vertexCount(): number[];
     }
+    /**
+     * @en Terrain layer
+     * @zh 地形纹理层
+     */
     export class TerrainLayer {
+        /**
+         * @en detail texture
+         * @zh 细节纹理
+         */
         detailMap: Texture2D | null;
+        /**
+         * @en tile size
+         * @zh 平铺大小
+         */
         tileSize: number;
     }
-    export class TerrainVertex {
-        position: math.Vec3;
-        normal: math.Vec3;
-        uv: math.Vec2;
-    }
-    export class TerrainRenderable extends RenderableComponent {
-        _model: renderer.Model | null;
-        _meshData: renderer.__private.cocos_core_assets_mesh_RenderingSubMesh | null;
-        _brushMaterial: Material | null;
-        _currentMaterial: Material | null;
-        _currentMaterialLayers: number;
-        destroy(): void;
-        _invalidMaterial(): void;
-        _updateMaterial(block: TerrainBlock, init: boolean): void;
-        _onMaterialModified(idx: number, mtl: Material | null): void;
-        protected _onRebuildPSO(idx: number, material: Material): void;
-        protected _clearMaterials(): void;
-    }
+    /**
+     * @en Terrain block info
+     * @zh 地形块信息
+     */
     export class TerrainBlockInfo {
         layers: number[];
     }
+    /**
+     * @en Terrain block light map info
+     * @zh 地形块光照图信息
+     */
     export class TerrainBlockLightmapInfo {
         texture: Texture2D | null;
         UOff: number;
@@ -22633,6 +18845,10 @@ declare module "cc.terrain" {
         UScale: number;
         VScale: number;
     }
+    /**
+     * @en Terrain block
+     * @zh 地形块
+     */
     export class TerrainBlock {
         constructor(t: Terrain, i: number, j: number);
         build(): void;
@@ -22643,22 +18859,50 @@ declare module "cc.terrain" {
         get layers(): number[];
         get lightmap(): Texture2D | null;
         get lightmapUVParam(): math.Vec4;
+        /**
+         * @en get terrain owner
+         * @zh 获得地形对象
+         */
         getTerrain(): Terrain;
+        /**
+         * @en get index
+         * @zh 获得地形索引
+         */
         getIndex(): number[];
+        /**
+         * @en get rect bound
+         * @zh 获得地形矩形包围体
+         */
         getRect(): math.Rect;
+        /**
+         * @en set layer
+         * @zh 设置纹理层
+         */
         setLayer(index: number, layerId: number): void;
+        /**
+         * @en get layer
+         * @zh 获得纹理层
+         */
         getLayer(index: number): number;
+        /**
+         * @en get max layer index
+         * @zh 获得最大纹理索引
+         */
         getMaxLayer(): 1 | 0 | 2 | 3;
-        _getMaterialDefines(nlayers: number): renderer.IDefineMap;
+        _getMaterialDefines(nlayers: number): renderer.MacroRecord;
         _invalidMaterial(): void;
         _updateMaterial(init: boolean): void;
         _updateHeight(): void;
         _updateWeightMap(): void;
         _updateLightmap(info: TerrainBlockLightmapInfo): void;
     }
+    /**
+     * @en Terrain
+     * @zh 地形组件
+     */
     export class Terrain extends Component {
         protected __asset: TerrainAsset | null;
-        protected _layers: Array<TerrainLayer | null>;
+        protected _layers: (TerrainLayer | null)[];
         protected _blockInfos: TerrainBlockInfo[];
         protected _lightmapInfos: TerrainBlockLightmapInfo[];
         protected _tileSize: number;
@@ -22684,9 +18928,25 @@ declare module "cc.terrain" {
         get weights(): Uint8Array;
         get valid(): boolean;
         get info(): TerrainInfo;
+        /**
+         * @en build
+         * @zh 构建地形
+         */
         build(info: TerrainInfo): boolean | undefined;
+        /**
+         * @en rebuild
+         * @zh 重建地形
+         */
         rebuild(info: TerrainInfo): void;
+        /**
+         * @en import height field
+         * @zh 导入高度图
+         */
         importHeightField(hf: HeightField, heightScale: number): void;
+        /**
+         * @en export height field
+         * @zh 导出高度图
+         */
         exportHeightField(hf: HeightField, heightScale: number): void;
         exportAsset(): TerrainAsset;
         onLoad(): void;
@@ -22694,63 +18954,145 @@ declare module "cc.terrain" {
         onDisable(): void;
         onDestroy(): void;
         onRestore(): void;
-        update(dtime: number): void;
+        update(deltaTime: number): void;
+        /**
+         * @en add layer
+         * @zh 添加纹理层
+         */
         addLayer(layer: TerrainLayer): number;
+        /**
+         * @en set layer
+         * @zh 设置纹理层
+         */
         setLayer(i: number, layer: TerrainLayer): void;
+        /**
+         * @en remove layer
+         * @zh 移除纹理层
+         */
         removeLayer(id: number): void;
+        /**
+         * @en get layer
+         * @zh 获得纹理层
+         */
         getLayer(id: number): TerrainLayer | null;
+        /**
+         * @en get position
+         * @zh 获得地形上的位置
+         */
         getPosition(i: number, j: number): math.Vec3;
         getHeightField(): Uint16Array;
+        /**
+         * @en set height
+         * @zh 设置地形上的高度
+         */
         setHeight(i: number, j: number, h: number): void;
+        /**
+         * @en get height
+         * @zh 获得地形上的高度
+         */
         getHeight(i: number, j: number): number;
+        /**
+         * @en set height
+         * @zh 设置高度
+         */
         getHeightClamp(i: number, j: number): number;
+        /**
+         * @en get height by point
+         * @zh 根据点的坐标获得高度
+         */
         getHeightAt(x: number, y: number): number | null;
         _setNormal(i: number, j: number, n: math.Vec3): void;
+        /**
+         * @en get normal
+         * @zh 获得法线
+         */
         getNormal(i: number, j: number): math.Vec3;
+        /**
+         * @en get normal by point
+         * @zh 根据点的坐标获得法线
+         */
         getNormalAt(x: number, y: number): math.Vec3 | null;
+        /**
+         * @en set weight
+         * @zh 设置权重
+         */
         setWeight(i: number, j: number, w: math.Vec4): void;
+        /**
+         * @en get weight
+         * @zh 获得权重
+         */
         getWeight(i: number, j: number): math.Vec4;
+        /**
+         * @en get normal by point
+         * @zh 根据点的坐标获得权重
+         */
         getWeightAt(x: number, y: number): math.Vec4 | null;
+        /**
+         * @en get block info
+         * @zh 获得地形块信息
+         */
         getBlockInfo(i: number, j: number): TerrainBlockInfo;
+        /**
+         * @en get block
+         * @zh 获得地形块对象
+         */
         getBlock(i: number, j: number): TerrainBlock;
+        /**
+         * @en get all blocks
+         * @zh 获得地形块缓存
+         */
         getBlocks(): TerrainBlock[];
-        getSharedIndexBuffer(): GFXBuffer | null;
+        /**
+         * @en ray check
+         * @param start ray start
+         * @param dir ray direction
+         * @param step ray step
+         * @param worldSpace is world space
+         * @zh 射线检测
+         * @param start 射线原点
+         * @param dir 射线方向
+         * @param step 射线步长
+         * @param worldSpace 是否在世界空间
+         */
+        rayCheck(start: math.Vec3, dir: math.Vec3, step: number, worldSpace?: boolean): math.Vec3 | null;
+        _getSharedIndexBuffer(): GFXBuffer | null;
         _resetLightmap(enble: boolean): void;
-        _updateLightmap(blockId: number, tex: Texture2D | null, uoff: number, voff: number, uscale: number, vscale: number): void;
+        _updateLightmap(blockId: number, tex: Texture2D | null, uOff: number, vOff: number, uScale: number, vScale: number): void;
         _getLightmapInfo(i: number, j: number): TerrainBlockLightmapInfo | null;
-        rayCheck(start: math.Vec3, dir: math.Vec3, step: number, worldspace?: boolean): math.Vec3 | null;
-        _calcuNormal(x: number, z: number): math.Vec3;
+        _calcNormal(x: number, z: number): math.Vec3;
         _buildNormals(): void;
     }
+    export const TERRAIN_MAX_LEVELS = 4;
+    export const TERRAIN_MAX_BLEND_LAYERS = 4;
+    export const TERRAIN_MAX_LAYER_COUNT = 256;
+    export const TERRAIN_BLOCK_TILE_COMPLEXITY = 32;
+    export const TERRAIN_BLOCK_VERTEX_COMPLEXITY = 33;
+    export const TERRAIN_BLOCK_VERTEX_SIZE = 8;
+    export const TERRAIN_HEIGHT_BASE = 32768;
+    export const TERRAIN_HEIGHT_FACTORY: number;
+    export const TERRAIN_HEIGHT_FMIN: number;
+    export const TERRAIN_HEIGHT_FMAX: number;
+    export const TERRAIN_NORTH_INDEX = 0;
+    export const TERRAIN_SOUTH_INDEX = 1;
+    export const TERRAIN_WEST_INDEX = 2;
+    export const TERRAIN_EAST_INDEX = 3;
     export const TERRAIN_DATA_VERSION = 16842753;
     export const TERRAIN_DATA_VERSION2 = 16842754;
     export const TERRAIN_DATA_VERSION3 = 16842755;
     export const TERRAIN_DATA_VERSION_DEFAULT = 16843025;
-    export class TerrainBuffer {
-        Length: number;
-        Buffer: Uint8Array;
-        Reserve(size: number): void;
-        Assign(buff: Uint8Array): void;
-        WriteInt8(value: number): void;
-        WriteInt16(value: number): void;
-        WriteInt32(value: number): void;
-        WriteIntArray(value: number[]): void;
-        WriteFloat(value: number): void;
-        WriteFloatArray(value: number[]): void;
-        WriteString(value: string): void;
-        ReadInt8(): number;
-        ReadInt16(): number;
-        ReadInt(): number;
-        ReadIntArray(value: number[]): number[];
-        ReadFloat(): number;
-        ReadFloatArray(value: number[]): number[];
-        ReadString(): string;
-    }
+    /**
+     * @en terrain layer info
+     * @zh 地形纹理信息
+     */
     export class TerrainLayerInfo {
         slot: number;
         tileSize: number;
         detailMap: string;
     }
+    /**
+     * @en terrain asset
+     * @zh 地形资源
+     */
     export class TerrainAsset extends Asset {
         protected _data: Uint8Array | null;
         protected _tileSize: number;
@@ -22780,15 +19122,25 @@ declare module "cc.terrain" {
         get layerBuffer(): number[];
         set layerInfos(value: TerrainLayerInfo[]);
         get layerInfos(): TerrainLayerInfo[];
-        getLayer(xblock: number, yblock: number, layerId: number): number;
+        /**
+         * @en get layer
+         * @param xBlock block index x
+         * @param yBlock block index y
+         * @param layerId layer id
+         * @zh 获得纹理索引
+         * @param xBlock 地形块索引x
+         * @param yBlock 地形块索引y
+         * @param layerId 层Id
+         */
+        getLayer(xBlock: number, yBlock: number, layerId: number): number;
+        getHeight(i: number, j: number): number;
+        getVertexCountI(): number;
+        getVertexCountJ(): number;
         _setNativeData(_nativeData: Uint8Array): void;
         _loadNativeData(_nativeData: Uint8Array): boolean;
         _exportNativeData(): Uint8Array;
         _exportDefaultNativeData(): Uint8Array;
     }
-    import { math, Texture2D, renderer, Material, RenderableComponent, GFXBuffer, Component, Asset } from "cc.core";
-}
-declare module "cc.tween" {
     /**
      * @en
      * Tween system.
@@ -23111,273 +19463,25 @@ declare module "cc.tween" {
          */
         onComplete?: (target?: object) => void;
     }
-    export namespace __private {
-        /**
-         * !#en Base classAction for action classes.
-         * !#zh Action 类是所有动作类型的基类。
-         * @class Action
-         */
-        export class cocos_tween_actions_action_Action {
-            /**
-             * !#en Default Action tag.
-             * !#zh 默认动作标签。
-             * @property TAG_INVALID
-             * @constant
-             * @static
-             * @type {Number}
-             * @default -1
-             */
-            static TAG_INVALID: number;
-            protected originalTarget: Node | null;
-            protected target: Node | null;
-            protected tag: number;
-            /**
-             * !#en
-             * to copy object with deep copy.
-             * returns a clone of action.
-             * !#zh 返回一个克隆的动作。
-             * @method clone
-             * @return {Action}
-             */
-            clone(): cocos_tween_actions_action_Action;
-            /**
-             * !#en
-             * return true if the action has finished.
-             * !#zh 如果动作已完成就返回 true。
-             * @method isDone
-             * @return {Boolean}
-             */
-            isDone(): boolean;
-            startWithTarget(target: any): void;
-            stop(): void;
-            step(dt: number): void;
-            update(dt: number): void;
-            /**
-             * !#en get the target.
-             * !#zh 获取当前目标节点。
-             * @method getTarget
-             * @return {object}
-             */
-            getTarget(): Node | null;
-            /**
-             * !#en The action will modify the target properties.
-             * !#zh 设置目标节点。
-             * @method setTarget
-             * @param {object} target
-             */
-            setTarget(target: Node): void;
-            /**
-             * !#en get the original target.
-             * !#zh 获取原始目标节点。
-             * @method getOriginalTarget
-             * @return {object}
-             */
-            getOriginalTarget(): Node | null;
-            setOriginalTarget(originalTarget: any): void;
-            /**
-             * !#en get tag number.
-             * !#zh 获取用于识别动作的标签。
-             * @method getTag
-             * @return {Number}
-             */
-            getTag(): number;
-            /**
-             * !#en set tag number.
-             * !#zh 设置标签，用于识别动作。
-             * @method setTag
-             * @param {Number} tag
-             */
-            setTag(tag: number): void;
-            /**
-             * !#en
-             * Returns a reversed action. <br />
-             * For example: <br />
-             * - The action will be x coordinates of 0 move to 100. <br />
-             * - The reversed action will be x of 100 move to 0.
-             * - Will be rewritten
-             * !#zh 返回一个新的动作，执行与原动作完全相反的动作。
-             * @method reverse
-             * @return {Action | null}
-             */
-            reverse(): cocos_tween_actions_action_Action | null;
-            retain(): void;
-            release(): void;
-        }
-        /**
-         * !#en
-         * cc.ActionManager is a class that can manage actions.<br/>
-         * Normally you won't need to use this class directly. 99% of the cases you will use the CCNode interface,
-         * which uses this class's singleton object.
-         * But there are some cases where you might need to use this class. <br/>
-         * Examples:<br/>
-         * - When you want to run an action where the target is different from a CCNode.<br/>
-         * - When you want to pause / resume the actions<br/>
-         * !#zh
-         * cc.ActionManager 是可以管理动作的单例类。<br/>
-         * 通常你并不需要直接使用这个类，99%的情况您将使用 CCNode 的接口。<br/>
-         * 但也有一些情况下，您可能需要使用这个类。 <br/>
-         * 例如：
-         *  - 当你想要运行一个动作，但目标不是 CCNode 类型时。 <br/>
-         *  - 当你想要暂停/恢复动作时。 <br/>
-         * @class ActionManager
-         * @example {@link cocos2d/core/CCActionManager/ActionManager.js}
-         */
-        export class cocos_tween_actions_action_manager_ActionManager {
-            /**
-             * !#en
-             * Adds an action with a target.<br/>
-             * If the target is already present, then the action will be added to the existing target.
-             * If the target is not present, a new instance of this target will be created either paused or not, and the action will be added to the newly created target.
-             * When the target is paused, the queued actions won't be 'ticked'.
-             * !#zh
-             * 增加一个动作，同时还需要提供动作的目标对象，目标对象是否暂停作为参数。<br/>
-             * 如果目标已存在，动作将会被直接添加到现有的节点中。<br/>
-             * 如果目标不存在，将为这一目标创建一个新的实例，并将动作添加进去。<br/>
-             * 当目标状态的 paused 为 true，动作将不会被执行
-             *
-             * @method addAction
-             * @param {Action} action
-             * @param {object} target
-             * @param {Boolean} paused
-             */
-            addAction(action: cocos_tween_actions_action_Action, target: Node, paused: boolean): void;
-            /**
-             * !#en Removes all actions from all the targets.
-             * !#zh 移除所有对象的所有动作。
-             * @method removeAllActions
-             */
-            removeAllActions(): void;
-            /**
-             * !#en
-             * Removes all actions from a certain target. <br/>
-             * All the actions that belongs to the target will be removed.
-             * !#zh
-             * 移除指定对象上的所有动作。<br/>
-             * 属于该目标的所有的动作将被删除。
-             * @method removeAllActionsFromTarget
-             * @param {Node} target
-             * @param {Boolean} forceDelete
-             */
-            removeAllActionsFromTarget(target: Node, forceDelete: boolean): void;
-            /**
-             * !#en Removes an action given an action reference.
-             * !#zh 移除指定的动作。
-             * @method removeAction
-             * @param {Action} action
-             */
-            removeAction(action: cocos_tween_actions_action_Action): void;
-            /**
-             * !#en Removes an action given its tag and the target.
-             * !#zh 删除指定对象下特定标签的一个动作，将删除首个匹配到的动作。
-             * @method removeActionByTag
-             * @param {Number} tag
-             * @param {Node} target
-             */
-            removeActionByTag(tag: number, target: Node): void;
-            /**
-             * !#en Gets an action given its tag an a target.
-             * !#zh 通过目标对象和标签获取一个动作。
-             * @method getActionByTag
-             * @param {Number} tag
-             * @param {Node} target
-             * @return {Action|null}  return the Action with the given tag on success
-             */
-            getActionByTag(tag: number, target: Node): cocos_tween_actions_action_Action | null;
-            /**
-             * !#en
-             * Returns the numbers of actions that are running in a certain target. <br/>
-             * Composable actions are counted as 1 action. <br/>
-             * Example: <br/>
-             * - If you are running 1 Sequence of 7 actions, it will return 1. <br/>
-             * - If you are running 7 Sequences of 2 actions, it will return 7.
-             * !#zh
-             * 返回指定对象下所有正在运行的动作数量。 <br/>
-             * 组合动作被算作一个动作。<br/>
-             * 例如：<br/>
-             *  - 如果您正在运行 7 个动作组成的序列动作（Sequence），这个函数将返回 1。<br/>
-             *  - 如果你正在运行 2 个序列动作（Sequence）和 5 个普通动作，这个函数将返回 7。<br/>
-             *
-             * @method getNumberOfRunningActionsInTarget
-             * @param {Node} target
-             * @return {Number}
-             */
-            getNumberOfRunningActionsInTarget(target: Node): number;
-            /**
-             * !#en Pauses the target: all running actions and newly added actions will be paused.
-             * !#zh 暂停指定对象：所有正在运行的动作和新添加的动作都将会暂停。
-             * @method pauseTarget
-             * @param {Node} target
-             */
-            pauseTarget(target: Node): void;
-            /**
-             * !#en Resumes the target. All queued actions will be resumed.
-             * !#zh 让指定目标恢复运行。在执行序列中所有被暂停的动作将重新恢复运行。
-             * @method resumeTarget
-             * @param {Node} target
-             */
-            resumeTarget(target: Node): void;
-            /**
-             * !#en Pauses all running actions, returning a list of targets whose actions were paused.
-             * !#zh 暂停所有正在运行的动作，返回一个包含了那些动作被暂停了的目标对象的列表。
-             * @method pauseAllRunningActions
-             * @return {Array}  a list of targets whose actions were paused.
-             */
-            pauseAllRunningActions(): Array<any>;
-            /**
-             * !#en Resume a set of targets (convenience function to reverse a pauseAllRunningActions or pauseTargets call).
-             * !#zh 让一组指定对象恢复运行（用来逆转 pauseAllRunningActions 效果的便捷函数）。
-             * @method resumeTargets
-             * @param {Array} targetsToResume
-             */
-            resumeTargets(targetsToResume: Array<any>): void;
-            /**
-             * !#en Pause a set of targets.
-             * !#zh 暂停一组指定对象。
-             * @method pauseTargets
-             * @param {Array} targetsToPause
-             */
-            pauseTargets(targetsToPause: Array<any>): void;
-            /**
-             * !#en
-             * purges the shared action manager. It releases the retained instance. <br/>
-             * because it uses this, so it can not be static.
-             * !#zh
-             * 清除共用的动作管理器。它释放了持有的实例。 <br/>
-             * 因为它使用 this，因此它不能是静态的。
-             * @method purgeSharedManager
-             */
-            purgeSharedManager(): void;
-            /**
-             * !#en The ActionManager update。
-             * !#zh ActionManager 主循环。
-             * @method update
-             * @param {Number} dt delta time in seconds
-             */
-            update(dt: number): void;
-        }
-    }
-    import { Node, System } from "cc.core";
-}
-declare module "cc.ui" {
     export class MeshBuffer {
         static OPACITY_OFFSET: number;
-        batcher: renderer.__private.cocos_core_renderer_ui_ui_UI;
+        batcher: __private.cocos_core_renderer_ui_ui_UI;
         vData: Float32Array | null;
         iData: Uint16Array | null;
-        vb: GFXBuffer | null;
-        ib: GFXBuffer | null;
-        ia: GFXInputAssembler | null;
+        attributes: IGFXAttribute[];
+        vertexBuffers: GFXBuffer[];
+        indexBuffer?: GFXBuffer;
         byteStart: number;
         byteOffset: number;
-        indiceStart: number;
-        indiceOffset: number;
+        indicesStart: number;
+        indicesOffset: number;
         vertexStart: number;
         vertexOffset: number;
         lastByteOffset: number;
         dirty: boolean;
-        constructor(batcher: renderer.__private.cocos_core_renderer_ui_ui_UI);
-        initialize(attrs: IGFXAttribute[], outofCallback: ((...args: number[]) => void) | null): void;
-        request(vertexCount?: number, indiceCount?: number): boolean;
+        constructor(batcher: __private.cocos_core_renderer_ui_ui_UI);
+        initialize(attrs: IGFXAttribute[], outOfCallback: ((...args: number[]) => void) | null): void;
+        request(vertexCount?: number, indicesCount?: number): boolean;
         reset(): void;
         destroy(): void;
         uploadData(): void;
@@ -23391,6 +19495,16 @@ declare module "cc.ui" {
     export class StencilManager {
         static sharedManager: StencilManager | null;
         stage: __private.cocos_core_renderer_ui_stencil_manager_Stage;
+        get pattern(): {
+            stencilTest: boolean;
+            func: GFXComparisonFunc;
+            stencilMask: number;
+            writeMask: number;
+            failOp: GFXStencilOp;
+            zFailOp: GFXStencilOp;
+            passOp: GFXStencilOp;
+            ref: number;
+        };
         pushMask(mask: any): void;
         clear(): void;
         enterLevel(): void;
@@ -23409,53 +19523,53 @@ declare module "cc.ui" {
     }
     /**
      * barFilled 组装器
-     * 可通过 cc.UI.barFilled 获取该组装器。
+     * 可通过 `UI.barFilled` 获取该组装器。
      */
-    export const barFilled: ___private.cocos_core_renderer_ui_base_IAssembler;
+    export const barFilled: __private.cocos_core_renderer_ui_base_IAssembler;
     /**
      * radialFilled 组装器
-     * 可通过 cc.UI.radialFilled 获取该组装器。
+     * 可通过 `UI.radialFilled` 获取该组装器。
      */
-    export const radialFilled: ___private.cocos_core_renderer_ui_base_IAssembler;
+    export const radialFilled: __private.cocos_core_renderer_ui_base_IAssembler;
     /**
      * simple 组装器
-     * 可通过 cc.UI.simple 获取该组装器。
+     * 可通过 `UI.simple` 获取该组装器。
      */
-    export const simple: ___private.cocos_core_renderer_ui_base_IAssembler;
+    export const simple: __private.cocos_core_renderer_ui_base_IAssembler;
     /**
      * sliced 组装器
-     * 可通过 cc.UI.sliced 获取该组装器。
+     * 可通过 `UI.sliced` 获取该组装器。
      */
-    export const sliced: ___private.cocos_core_renderer_ui_base_IAssembler;
+    export const sliced: __private.cocos_core_renderer_ui_base_IAssembler;
     /**
      * ttf 组装器
-     * 可通过 cc.UI.ttf 获取该组装器。
+     * 可通过 `UI.ttf` 获取该组装器。
      */
-    export const ttf: ___private.cocos_core_renderer_ui_base_IAssembler;
+    export const ttf: __private.cocos_core_renderer_ui_base_IAssembler;
     /**
      * bmfont 组装器
-     * 可通过 cc.UI.bmfont 获取该组装器。
+     * 可通过 `UI.bmfont` 获取该组装器。
      */
-    export const bmfont: ___private.cocos_core_renderer_ui_base_IAssembler;
+    export const bmfont: __private.cocos_core_renderer_ui_base_IAssembler;
     /**
      * letter 组装器
-     * 可通过 cc.UI.letter 获取该组装器。
+     * 可通过 `UI.letter` 获取该组装器。
      */
     export const letter: {
-        createData(comp: LabelComponent): ___private.cocos_core_renderer_ui_render_data_RenderData;
-        fillBuffers(comp: LabelComponent, renderer: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
+        createData(comp: LabelComponent): __private.cocos_core_renderer_ui_render_data_RenderData;
+        fillBuffers(comp: LabelComponent, renderer: __private.cocos_core_renderer_ui_ui_UI): void;
         appendQuad: any;
     };
-    export const mask: ___private.cocos_core_renderer_ui_base_IAssembler;
-    export const maskEnd: ___private.cocos_core_renderer_ui_base_IAssembler;
-    export const spriteAssembler: ___private.cocos_core_renderer_ui_base_IAssemblerManager;
+    export const mask: __private.cocos_core_renderer_ui_base_IAssembler;
+    export const maskEnd: __private.cocos_core_renderer_ui_base_IAssembler;
+    export const spriteAssembler: __private.cocos_core_renderer_ui_base_IAssemblerManager;
     /**
      * graphics 组装器
-     * 可通过 cc.UI.graphicsAssembler 获取该组装器。
+     * 可通过 `UI.graphicsAssembler` 获取该组装器。
      */
-    export const graphics: ___private.cocos_core_renderer_ui_base_IAssembler;
-    export const labelAssembler: ___private.cocos_core_renderer_ui_base_IAssemblerManager;
-    export const graphicsAssembler: ___private.cocos_core_renderer_ui_base_IAssemblerManager;
+    export const graphics: __private.cocos_core_renderer_ui_base_IAssembler;
+    export const labelAssembler: __private.cocos_core_renderer_ui_base_IAssemblerManager;
+    export const graphicsAssembler: __private.cocos_core_renderer_ui_base_IAssemblerManager;
     /**
      * @en
      * Button has 4 Transition types<br/>
@@ -23477,30 +19591,31 @@ declare module "cc.ui" {
      * 按钮组件。可以被按下,或者点击。<br/>
      *
      * 按钮可以通过修改 Transition 来设置按钮状态过渡的方式：<br/>
-     *   -Button.Transition.NONE   // 不做任何过渡<br/>
-     *   -Button.Transition.COLOR  // 进行颜色之间过渡<br/>
-     *   -Button.Transition.SPRITE // 进行精灵之间过渡<br/>
-     *   -Button.Transition.SCALE // 进行缩放过渡<br/>
+     *   - `Button.Transition.NONE`   // 不做任何过渡<br/>
+     *   - `Button.Transition.COLOR`  // 进行颜色之间过渡<br/>
+     *   - `Button.Transition.SPRITE` // 进行精灵之间过渡<br/>
+     *   - `Button.Transition.SCALE` // 进行缩放过渡<br/>
      *
      * 按钮可以绑定事件（但是必须要在按钮的 Node 上才能绑定事件）：<br/>
      *   // 以下事件可以在全平台上都触发<br/>
-     *   -cc.Node.EventType.TOUCH_START  // 按下时事件<br/>
-     *   -cc.Node.EventType.TOUCH_Move   // 按住移动后事件<br/>
-     *   -cc.Node.EventType.TOUCH_END    // 按下后松开后事件<br/>
-     *   -cc.Node.EventType.TOUCH_CANCEL // 按下取消事件<br/>
+     *   - `Node.EventType.TOUCH_START`  // 按下时事件<br/>
+     *   - `Node.EventType.TOUCH_Move`   // 按住移动后事件<br/>
+     *   - `Node.EventType.TOUCH_END`    // 按下后松开后事件<br/>
+     *   - `Node.EventType.TOUCH_CANCEL` // 按下取消事件<br/>
      *   // 以下事件只在 PC 平台上触发<br/>
-     *   -cc.Node.EventType.MOUSE_DOWN  // 鼠标按下时事件<br/>
-     *   -cc.Node.EventType.MOUSE_MOVE  // 鼠标按住移动后事件<br/>
-     *   -cc.Node.EventType.MOUSE_ENTER // 鼠标进入目标事件<br/>
-     *   -cc.Node.EventType.MOUSE_LEAVE // 鼠标离开目标事件<br/>
-     *   -cc.Node.EventType.MOUSE_UP    // 鼠标松开事件<br/>
-     *   -cc.Node.EventType.MOUSE_WHEEL // 鼠标滚轮事件<br/>
+     *   - `Node.EventType.MOUSE_DOWN`  // 鼠标按下时事件<br/>
+     *   - `Node.EventType.MOUSE_MOVE`  // 鼠标按住移动后事件<br/>
+     *   - `Node.EventType.MOUSE_ENTER` // 鼠标进入目标事件<br/>
+     *   - `Node.EventType.MOUSE_LEAVE` // 鼠标离开目标事件<br/>
+     *   - `Node.EventType.MOUSE_UP`    // 鼠标松开事件<br/>
+     *   - `Node.EventType.MOUSE_WHEEL` // 鼠标滚轮事件<br/>
      *
      * @example
-     * ```typescript
+     * ```ts
+     * import { log, Node } from 'cc';
      * // Add an event to the button.
-     * button.node.on(cc.Node.EventType.TOUCH_START, (event) => {
-     *     cc.log("This is a callback after the trigger event");
+     * button.node.on(Node.EventType.TOUCH_START, (event) => {
+     *     log("This is a callback after the trigger event");
      * });
      * // You could also add a click event
      * //Note: In this way, you can't get the touch event info, so use it wisely.
@@ -23510,6 +19625,8 @@ declare module "cc.ui" {
      * ```
      */
     export class ButtonComponent extends Component {
+        get target(): Node | null;
+        set target(value: Node | null);
         get interactable(): boolean;
         set interactable(value: boolean);
         set _resizeToTarget(value: boolean);
@@ -23535,8 +19652,6 @@ declare module "cc.ui" {
         set hoverSprite(value: SpriteFrame | null);
         get disabledSprite(): SpriteFrame | null;
         set disabledSprite(value: SpriteFrame | null);
-        get target(): Node | null;
-        set target(value: Node | null);
         static Transition: typeof __private.cocos_ui_components_button_component_Transition;
         static EventType: typeof __private.cocos_ui_components_button_component_EventType;
         /**
@@ -23586,42 +19701,30 @@ declare module "cc.ui" {
     }
     /**
      * @en
-     * cc.EditBoxComponent is a component for inputing text, you can use it to gather small amounts of text from users.
+     * `EditBoxComponent` is a component for inputing text, you can use it to gather small amounts of text from users.
      *
      * @zh
-     * EditBoxComponent 组件，用于获取用户的输入文本。
+     * `EditBoxComponent` 组件，用于获取用户的输入文本。
      */
     export class EditBoxComponent extends Component {
         get string(): string;
         set string(value: string);
+        get placeholder(): string;
+        set placeholder(value: string);
         get textLabel(): LabelComponent | null;
         set textLabel(oldValue: LabelComponent | null);
         get placeholderLabel(): LabelComponent | null;
         set placeholderLabel(oldValue: LabelComponent | null);
         get backgroundImage(): SpriteFrame | null;
         set backgroundImage(value: SpriteFrame | null);
-        get returnType(): __private.cocos_ui_components_editbox_types_KeyboardReturnType;
-        set returnType(value: __private.cocos_ui_components_editbox_types_KeyboardReturnType);
         get inputFlag(): __private.cocos_ui_components_editbox_types_InputFlag;
         set inputFlag(value: __private.cocos_ui_components_editbox_types_InputFlag);
         get inputMode(): __private.cocos_ui_components_editbox_types_InputMode;
         set inputMode(oldValue: __private.cocos_ui_components_editbox_types_InputMode);
-        get fontSize(): number;
-        set fontSize(value: number);
-        get lineHeight(): number;
-        set lineHeight(value: number);
-        get fontColor(): math.Color;
-        set fontColor(value: math.Color);
-        get placeholder(): string;
-        set placeholder(value: string);
-        get placeholderFontSize(): number;
-        set placeholderFontSize(value: number);
-        get placeholderFontColor(): math.Color;
-        set placeholderFontColor(value: math.Color);
+        get returnType(): __private.cocos_ui_components_editbox_types_KeyboardReturnType;
+        set returnType(value: __private.cocos_ui_components_editbox_types_KeyboardReturnType);
         get maxLength(): number;
         set maxLength(value: number);
-        get stayOnTop(): void;
-        set stayOnTop(value: void);
         get tabIndex(): number;
         set tabIndex(value: number);
         static _EditBoxImpl: typeof __private.cocos_ui_components_editbox_edit_box_impl_base_EditBoxImplBase;
@@ -23793,12 +19896,13 @@ declare module "cc.ui" {
          * 立即执行更新布局。
          *
          * @example
-         * ```typescript
-         * layout.type = cc.LayoutComponent.HORIZONTAL;
+         * ```ts
+         * import { LayoutComponent, log } from 'cc';
+         * layout.type = LayoutComponent.HORIZONTAL;
          * layout.node.addChild(childNode);
-         * cc.log(childNode.x); // not yet changed
+         * log(childNode.x); // not yet changed
          * layout.updateLayout();
-         * cc.log(childNode.x); // changed
+         * log(childNode.x); // changed
          * ```
          */
         updateLayout(): void;
@@ -23822,9 +19926,9 @@ declare module "cc.ui" {
         protected _getVerticalBaseHeight(children: Readonly<Node[]>): number;
         protected _doLayout(): void;
         protected _getUsedScaleValue(value: any): number;
-        protected _transformDirty(type: ___private.cocos_core_scene_graph_node_enum_TransformBit): void;
+        protected _transformDirty(type: __private.cocos_core_scene_graph_node_enum_TransformBit): void;
         protected _doLayoutDirty(): void;
-        protected _doScaleDirty(type: ___private.cocos_core_scene_graph_node_enum_TransformBit): void;
+        protected _doScaleDirty(type: __private.cocos_core_scene_graph_node_enum_TransformBit): void;
     }
     /**
      * @en
@@ -23871,9 +19975,9 @@ declare module "cc.ui" {
          * @param cameraPt  屏幕点转换到相机坐标系下的点。
          */
         isHit(cameraPt: math.Vec2): boolean;
-        protected _render(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-        protected _postRender(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-        protected _nodeStateChange(type: ___private.cocos_core_scene_graph_node_enum_TransformBit): void;
+        protected _render(render: __private.cocos_core_renderer_ui_ui_UI): void;
+        protected _postRender(render: __private.cocos_core_renderer_ui_ui_UI): void;
+        protected _nodeStateChange(type: __private.cocos_core_scene_graph_node_enum_TransformBit): void;
         protected _resolutionChanged(): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
@@ -23893,7 +19997,7 @@ declare module "cc.ui" {
      * 进度条组件，可用于显示加载资源时的进度。
      *
      * @example
-     * ```typescript
+     * ```ts
      * // update progressBar
      * update(dt) {
      *     var progress = progressBar.progress;
@@ -23941,8 +20045,14 @@ declare module "cc.ui" {
         set horizontalAlign(value: HorizontalTextAlignment);
         get fontSize(): number;
         set fontSize(value: number);
+        get fontFamily(): string;
+        set fontFamily(value: string);
         get font(): TTFFont | null;
         set font(value: TTFFont | null);
+        get useSystemFont(): boolean;
+        set useSystemFont(value: boolean);
+        get cacheMode(): CacheMode;
+        set cacheMode(value: CacheMode);
         get maxWidth(): number;
         set maxWidth(value: number);
         get lineHeight(): number;
@@ -23958,7 +20068,11 @@ declare module "cc.ui" {
         protected _horizontalAlign: HorizontalTextAlignment;
         protected _fontSize: number;
         protected _maxWidth: number;
+        protected _fontFamily: string;
         protected _font: TTFFont | null;
+        protected _isSystemFontUsed: boolean;
+        protected _userDefinedFont: TTFFont | null;
+        protected _cacheMode: CacheMode;
         protected _imageAtlas: SpriteAtlas | null;
         protected _handleTouchEvent: boolean;
         protected _textArray: IHtmlTextParserResultObj[];
@@ -23980,7 +20094,7 @@ declare module "cc.ui" {
         protected _addEventListeners(): void;
         protected _removeEventListeners(): void;
         protected _updateLabelSegmentTextAttributes(): void;
-        protected _createFontLabel(str: string): any;
+        protected _createFontLabel(str: string): __private.cocos_ui_components_rich_text_component_ILabelSegment;
         protected _onTTFLoaded(): void;
         protected _measureText(styleIndex: number, string?: string): number | ((s: string) => number);
         protected _onTouchEnded(event: EventTouch): void;
@@ -24062,7 +20176,7 @@ declare module "cc.ui" {
         protected onEnable(): void;
         protected start(): void;
         protected update(dt: any): void;
-        protected _convertToScrollViewSpace(content: Node): math.Vec3;
+        protected _convertToScrollViewSpace(contentTrans: UITransformComponent): math.Vec3;
         protected _setOpacity(opacity: number): void;
         protected _updateHandlerPosition(position: math.Vec3): void;
         protected _fixupHandlerPosition(): math.Vec3;
@@ -24081,38 +20195,15 @@ declare module "cc.ui" {
      * 滚动视图组件。
      */
     export class ScrollViewComponent extends ViewGroupComponent {
-        get content(): Node | null;
-        set content(value: Node | null);
-        get horizontalScrollBar(): ScrollBarComponent | null;
-        set horizontalScrollBar(value: ScrollBarComponent | null);
-        get verticalScrollBar(): ScrollBarComponent | null;
-        set verticalScrollBar(value: ScrollBarComponent | null);
-        get view(): Node | null;
         static EventType: typeof __private.cocos_ui_components_scroll_view_component_EventType;
         /**
          * @en
-         * Enable horizontal scroll.
+         * The elapse time of bouncing back. A value of 0 will bounce back immediately.
          *
          * @zh
-         * 是否开启水平滚动。
+         * 回弹持续的时间，0 表示将立即反弹。
          */
-        horizontal: boolean;
-        /**
-         * @en
-         * Enable vertical scroll.
-         *
-         * @zh
-         * 是否开启垂直滚动。
-         */
-        vertical: boolean;
-        /**
-         * @en
-         * When inertia is set, the content will continue to move when touch ended.
-         *
-         * @zh
-         * 是否开启滚动惯性。
-         */
-        inertia: boolean;
+        bounceDuration: number;
         /**
          * @en
          * It determines how quickly the content stop moving. A value of 1 will stop the movement immediately.
@@ -24132,20 +20223,34 @@ declare module "cc.ui" {
         elastic: boolean;
         /**
          * @en
-         * The elapse time of bouncing back. A value of 0 will bounce back immediately.
+         * When inertia is set, the content will continue to move when touch ended.
          *
          * @zh
-         * 回弹持续的时间，0 表示将立即反弹。
+         * 是否开启滚动惯性。
          */
-        bounceDuration: number;
+        inertia: boolean;
+        get content(): UITransformComponent | null;
+        set content(value: UITransformComponent | null);
         /**
          * @en
-         * Scrollview events callback.
+         * Enable horizontal scroll.
          *
          * @zh
-         * 滚动视图的事件回调函数。
+         * 是否开启水平滚动。
          */
-        scrollEvents: EventHandler[];
+        horizontal: boolean;
+        get horizontalScrollBar(): ScrollBarComponent | null;
+        set horizontalScrollBar(value: ScrollBarComponent | null);
+        /**
+         * @en
+         * Enable vertical scroll.
+         *
+         * @zh
+         * 是否开启垂直滚动。
+         */
+        vertical: boolean;
+        get verticalScrollBar(): ScrollBarComponent | null;
+        set verticalScrollBar(value: ScrollBarComponent | null);
         /**
          * @en
          * If cancelInnerEvents is set to true, the scroll behavior will cancel touch events on inner content nodes
@@ -24156,9 +20261,18 @@ declare module "cc.ui" {
          * 注意，子节点上的 touchstart 事件仍然会触发，触点移动距离非常短的情况下 touchmove 和 touchend 也不会受影响。
          */
         cancelInnerEvents: boolean;
+        /**
+         * @en
+         * ScrollView events callback.
+         *
+         * @zh
+         * 滚动视图的事件回调函数。
+         */
+        scrollEvents: EventHandler[];
+        get view(): Node | null;
         protected _autoScrolling: boolean;
         protected _scrolling: boolean;
-        protected _content: Node | null;
+        protected _content: UITransformComponent | null;
         protected _horizontalScrollBar: ScrollBarComponent | null;
         protected _verticalScrollBar: ScrollBarComponent | null;
         protected _topBoundary: number;
@@ -24196,7 +20310,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到底部边界。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to the bottom of the view.
          * scrollView.scrollToBottom(0.1);
          * ```
@@ -24212,7 +20326,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到顶部边界。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to the top of the view.
          * scrollView.scrollToTop(0.1);
          * ```
@@ -24228,7 +20342,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左边边界。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to the left of the view.
          * scrollView.scrollToLeft(0.1);
          * ```
@@ -24244,7 +20358,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右边边界。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to the right of the view.
          * scrollView.scrollToRight(0.1);
          * ```
@@ -24260,7 +20374,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左上边边界。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to the upper left corner of the view.
          * scrollView.scrollToTopLeft(0.1);
          * ```
@@ -24276,7 +20390,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右上边界。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to the top right corner of the view.
          * scrollView.scrollToTopRight(0.1);
          * ```
@@ -24292,7 +20406,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到左下边界。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to the lower left corner of the view.
          * scrollView.scrollToBottomLeft(0.1);
          * ```
@@ -24308,7 +20422,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到右边下边界。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to the lower right corner of the view.
          * scrollView.scrollToBottomRight(0.1);
          * ```
@@ -24325,7 +20439,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定偏移量处。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to middle position in 0.1 second in x-axis
          * let maxScrollOffset = this.getMaxScrollOffset();
          * scrollView.scrollToOffset(new Vec3(maxScrollOffset.x / 2, 0, 0), 0.1);
@@ -24363,7 +20477,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定水平百分比位置。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Scroll to middle position.
          * scrollView.scrollToBottomRight(0.5, 0.1);
          * ```
@@ -24380,7 +20494,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定水平或垂直百分比位置。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * // Vertical scroll to the bottom of the view.
          * scrollView.scrollTo(new Vec2(0, 1), 0.1);
          *
@@ -24400,7 +20514,7 @@ declare module "cc.ui" {
          * @param timeInSecond - 滚动时间（s）。 如果超时，内容将立即跳到指定垂直百分比位置。
          * @param attenuated - 滚动加速是否衰减，默认为 true。
          * @example
-         * ```typescript
+         * ```ts
          * scrollView.scrollToPercentVertical(0.5, 0.1);
          * ```
          */
@@ -24486,7 +20600,7 @@ declare module "cc.ui" {
         protected _dispatchEvent(event: string): void;
         protected _adjustContentOutOfBoundary(): void;
         protected _hideScrollBar(): void;
-        protected _showScrollBar(): void;
+        protected _updateScrollBarState(): void;
         protected _stopPropagationIfTargetIsMe(event: Event): void;
         protected _processDeltaMove(deltaMove: math.Vec3): void;
         protected _handleMoveLogic(touch: Touch): void;
@@ -24504,7 +20618,7 @@ declare module "cc.ui" {
         protected _checkMouseWheel(dt: number): void;
         protected _calculateMovePercentDelta(options: any): math.Vec3;
         protected _moveContentToTopLeft(scrollViewSize: math.Size): void;
-        protected _scaleChanged(value: ___private.cocos_core_scene_graph_node_enum_TransformBit): void;
+        protected _scaleChanged(value: __private.cocos_core_scene_graph_node_enum_TransformBit): void;
     }
     /**
      * @en
@@ -24598,7 +20712,8 @@ declare module "cc.ui" {
          * @returns
          */
         changeSpriteFrameFromAtlas(name: string): void;
-        protected _render(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
+        changeMaterialForDefine(): void;
+        protected _render(render: __private.cocos_core_renderer_ui_ui_UI): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
     }
@@ -24613,12 +20728,10 @@ declare module "cc.ui" {
     export class ToggleComponent extends ButtonComponent {
         get isChecked(): boolean;
         set isChecked(value: boolean);
-        get toggleGroup(): ToggleContainerComponent | null;
-        set toggleGroup(value: ToggleContainerComponent | null);
         get checkMark(): SpriteComponent | null;
         set checkMark(value: SpriteComponent | null);
         set _resizeToTarget(value: boolean);
-        get _toggleContainer(): null;
+        get _toggleContainer(): ToggleContainerComponent | null;
         static EventType: typeof __private.cocos_ui_components_toggle_component_EventType & typeof __private.cocos_ui_components_button_component_EventType;
         /**
          * @en
@@ -24628,32 +20741,25 @@ declare module "cc.ui" {
          * Toggle 按钮的点击事件列表。
          */
         checkEvents: EventHandler[];
+        protected _isChecked: boolean;
+        protected _checkMark: SpriteComponent | null;
+        protected _internalToggle(): void;
+        protected _set(value: boolean, emitEvent?: boolean): void;
+        playEffect(): void;
+        /**
+         * @en
+         * Set isChecked without invoking checkEvents.
+         *
+         * @zh
+         * 设置 isChecked 而不调用 checkEvents 回调。
+         *
+         * @param value - 是否被按下
+         */
+        setIsCheckedWithoutNotify(value: boolean): void;
         onEnable(): void;
         onDisable(): void;
-        /**
-         * @en
-         * Toggle switch.
-         *
-         * @zh
-         * toggle 按钮切换。
-         */
-        toggle(): void;
-        /**
-         * @en
-         * Make the toggle button checked.
-         *
-         * @zh
-         * 使 toggle 按钮处于选中状态。
-         */
-        check(): void;
-        /**
-         * @en
-         * Make the toggle button unchecked.
-         *
-         * @zh
-         * 取消 toggle 按钮选中状态。
-         */
-        uncheck(): void;
+        OnDestroy(): void;
+        protected _emitToggleEvents(): void;
     }
     /**
      * @en
@@ -24666,6 +20772,9 @@ declare module "cc.ui" {
      * 任何时候只能有一个 Toggle 处于选中状态。
      */
     export class ToggleContainerComponent extends Component {
+        protected _allowSwitchOff: boolean;
+        get allowSwitchOff(): boolean;
+        set allowSwitchOff(value: boolean);
         /**
          * @en
          * If Toggle is clicked, it will trigger event's handler.
@@ -24674,11 +20783,10 @@ declare module "cc.ui" {
          * Toggle 按钮的点击事件列表。
          */
         checkEvents: EventHandler[];
-        protected _allowSwitchOff: boolean;
-        get allowSwitchOff(): boolean;
-        set allowSwitchOff(value: boolean);
-        get toggleItems(): ToggleComponent[];
+        get toggleItems(): (ToggleComponent | undefined)[];
         start(): void;
+        activeToggles(): (ToggleComponent | undefined)[];
+        anyTogglesChecked(): boolean;
         /**
          * @en
          * Refresh the state of the managed toggles.
@@ -24687,28 +20795,10 @@ declare module "cc.ui" {
          * 刷新管理的 toggle 状态。
          *
          * @param toggle - 需要被更新的 toggle。
+         * @param emitEvent - 是否需要触发事件
          */
-        updateToggles(toggle: ToggleComponent): void;
-        /**
-         * @en
-         * Add toggle that needs to be managed.
-         *
-         * @zh
-         * 添加需要被控制的 toggle。
-         *
-         * @param toggle - 被控制的 toggle。
-         */
-        addToggle(toggle: ToggleComponent): void;
-        /**
-         * @en
-         * Remove toggle that needs to be managed.
-         *
-         * @zh
-         * 移除 toggle。
-         *
-         * @param toggle - 被移除控制的 toggle。
-         */
-        removeToggle(toggle: ToggleComponent): void;
+        notifyToggleCheck(toggle: ToggleComponent, emitEvent?: boolean): void;
+        ensureValidState(): void;
     }
     /**
      * @en
@@ -24726,77 +20816,10 @@ declare module "cc.ui" {
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        updateAssembler(render: renderer.__private.cocos_core_renderer_ui_ui_UI): boolean;
+        updateAssembler(render: __private.cocos_core_renderer_ui_ui_UI): boolean;
         update(): void;
     }
     export class ViewGroupComponent extends Component {
-    }
-    /**
-     * @en
-     * cc.WebView is a component for display web pages in the game.
-     *
-     * @zh
-     * WebView 组件，用于在游戏中显示网页。
-     */
-    export class WebviewComponent extends UIComponent {
-        get url(): string;
-        set url(url: string);
-        static EventType: typeof __private.cocos_ui_components_webview_webview_impl_WebViewEventType;
-        /**
-         * @en
-         * The webview's event callback , it will be triggered when certain webview event occurs.
-         *
-         * @zh
-         * WebView 的回调事件，当网页加载过程中，加载完成后或者加载出错时都会回调此函数。
-         */
-        webviewEvents: EventHandler[];
-        constructor();
-        onRestore(): void;
-        onEnable(): void;
-        onDisable(): void;
-        onDestroy(): void;
-        update(dt: any): void;
-        /**
-         * @en
-         * Set javascript interface scheme (see also setOnJSCallback). <br/>
-         * Note: Supports only on the Android and iOS. For HTML5, please refer to the official documentation.<br/>
-         * Please refer to the official documentation for more details.
-         *
-         * @zh
-         * 设置 JavaScript 接口方案（与 'setOnJSCallback' 配套使用）。<br/>
-         * 注意：只支持 Android 和 iOS ，Web 端用法请前往官方文档查看。<br/>
-         * 详情请参阅官方文档
-         * @param scheme - 接口方案。
-         */
-        setJavascriptInterfaceScheme(scheme: string): void;
-        /**
-         * @en
-         * This callback called when load URL that start with javascript
-         * interface scheme (see also setJavascriptInterfaceScheme). <br/>
-         * Note: Supports only on the Android and iOS. For HTML5, please refer to the official documentation.<br/>
-         * Please refer to the official documentation for more details.
-         *
-         * @zh
-         * 当加载 URL 以 JavaScript 接口方案开始时调用这个回调函数。<br/>
-         * 注意：只支持 Android 和 iOS，Web 端用法请前往官方文档查看。
-         * 详情请参阅官方文档
-         *
-         * @param callback
-         */
-        setOnJSCallback(callback: Function): void;
-        /**
-         * @en
-         * Evaluates JavaScript in the context of the currently displayed page. <br/>
-         * Please refer to the official document for more details <br/>
-         * Note: Cross domain issues need to be resolved by yourself <br/>
-         *
-         * @zh
-         * 执行 WebView 内部页面脚本（详情请参阅官方文档）。 <br/>
-         * 注意：需要自行解决跨域问题
-         *
-         * @param str
-         */
-        evaluateJS(str: string): void;
     }
     /**
      * @en
@@ -24857,12 +20880,12 @@ declare module "cc.ui" {
         set isAbsoluteLeft(value: boolean);
         get isAbsoluteRight(): boolean;
         set isAbsoluteRight(value: boolean);
-        get alignMode(): __private.cocos_ui_components_widget_component_AlignMode;
-        set alignMode(value: __private.cocos_ui_components_widget_component_AlignMode);
         get isAbsoluteHorizontalCenter(): boolean;
         set isAbsoluteHorizontalCenter(value: boolean);
         get isAbsoluteVerticalCenter(): boolean;
         set isAbsoluteVerticalCenter(value: boolean);
+        get alignMode(): __private.cocos_ui_components_widget_component_AlignMode;
+        set alignMode(value: __private.cocos_ui_components_widget_component_AlignMode);
         get alignFlags(): number;
         set alignFlags(value: number);
         static AlignMode: typeof __private.cocos_ui_components_widget_component_AlignMode;
@@ -24879,11 +20902,12 @@ declare module "cc.ui" {
          * 只有当你需要在当前帧结束前获得 widget 对齐后的最新结果时才需要手动调用这个方法。
          *
          * @example
-         * ```typescript
+         * ```ts
+         * import { log } from 'cc';
          * widget.top = 10;       // change top margin
-         * cc.log(widget.node.y); // not yet changed
+         * log(widget.node.y); // not yet changed
          * widget.updateAlignment();
-         * cc.log(widget.node.y); // changed
+         * log(widget.node.y); // changed
          * ```
          */
         updateAlignment(): void;
@@ -24892,7 +20916,7 @@ declare module "cc.ui" {
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        _adjustWidgetToAllowMovingInEditor(eventType: ___private.cocos_core_scene_graph_node_enum_TransformBit): void;
+        _adjustWidgetToAllowMovingInEditor(eventType: __private.cocos_core_scene_graph_node_enum_TransformBit): void;
         _adjustWidgetToAllowResizingInEditor(): void;
         _adjustWidgetToAnchorChanged(): void;
         _adjustTargetToParentChanged(oldParent: Node): void;
@@ -24905,6 +20929,9 @@ declare module "cc.ui" {
         protected _unregisterOldParentEvents(oldParent: Node): void;
         protected _targetChangedOperation(): void;
     }
+    export namespace WidgetComponent {
+        export type AlignMode = __private.EnumAlias<typeof __private.cocos_ui_components_widget_component_AlignMode>;
+    }
     /**
      * @en
      * Outline effect used to change the display, only for system fonts or TTF fonts.
@@ -24913,13 +20940,13 @@ declare module "cc.ui" {
      * 描边效果组件,用于字体描边,只能用于系统字体。
      *
      * @example
-     * ```typescript
-     *
-     *  // Create a new node and add label components.
-     *  var node = new cc.Node("New Label");
-     *  var label = node.addComponent(cc.LabelComponent);
-     *  var outline = node.addComponent(cc.LabelOutlineComponent);
-     *  node.parent = this.node;
+     * ```ts
+     * import { Node, LabelComponent, LabelOutlineComponent } from 'cc';
+     * // Create a new node and add label components.
+     * const node = new Node("New Label");
+     * const label = node.addComponent(LabelComponent);
+     * const outline = node.addComponent(LabelOutlineComponent);
+     * node.parent = this.node;
      * ```
      */
     export class LabelOutlineComponent extends Component {
@@ -24929,6 +20956,8 @@ declare module "cc.ui" {
         set color(value: Readonly<math.Color>);
         get width(): number;
         set width(value: number);
+        onEnable(): void;
+        onDisable(): void;
         protected _updateRenderData(): void;
     }
     /**
@@ -24967,10 +20996,8 @@ declare module "cc.ui" {
         onRestore(): void;
         __preload(): void;
         onLoad(): void;
-        onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
-        _activateMaterial(): void;
         /**
          * @en
          * Move path start point to (x,y).
@@ -25143,8 +21170,7 @@ declare module "cc.ui" {
          * 辅助材质实例化。可用于只取数据而无实体情况下渲染使用。特殊情况可参考：[[instanceMaterial]]
          */
         helpInstanceMaterial(): void;
-        protected _render(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-        protected _instanceMaterial(): void;
+        protected _render(render: __private.cocos_core_renderer_ui_ui_UI): void;
         protected _flushAssembler(): void;
         protected _canRender(): boolean;
         protected _attachToScene(): void;
@@ -25192,7 +21218,9 @@ declare module "cc.ui" {
          */
         autoPageTurningThreshold: number;
         get verticalScrollBar(): ScrollBarComponent | null;
+        set verticalScrollBar(value: ScrollBarComponent | null);
         get horizontalScrollBar(): ScrollBarComponent | null;
+        set horizontalScrollBar(value: ScrollBarComponent | null);
         horizontal: boolean;
         vertical: boolean;
         cancelInnerEvents: boolean;
@@ -25200,7 +21228,6 @@ declare module "cc.ui" {
         /**
          * @en The time required to turn over a page. unit: second
          * @zh 每个页面翻页时所需时间。单位：秒
-         * @property {Number} pageTurningSpeed
          */
         pageTurningSpeed: number;
         /**
@@ -25401,16 +21428,16 @@ declare module "cc.ui" {
         set srcBlendFactor(value: GFXBlendFactor);
         get color(): Readonly<math.Color>;
         set color(value: Readonly<math.Color>);
-        get sharedMaterial(): Material | null;
-        set sharedMaterial(value: Material | null);
+        get sharedMaterials(): (Material | null)[];
+        set sharedMaterials(val: (Material | null)[]);
         get drawBatchList(): __private.cocos_core_renderer_ui_ui_draw_batch_UIDrawBatch[];
         protected _init: boolean;
         protected _meshBuffer: MeshBuffer | null;
         protected _dirty: boolean;
         onLoad(): void;
         onDestroy(): void;
-        updateAssembler(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-        postUpdateAssembler(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
+        updateAssembler(render: __private.cocos_core_renderer_ui_ui_UI): void;
+        postUpdateAssembler(render: __private.cocos_core_renderer_ui_ui_UI): void;
         /**
          * @en
          * Recollect data tags.
@@ -25424,7 +21451,7 @@ declare module "cc.ui" {
         markAsDirty(): void;
         _requireDrawBatch(): __private.cocos_core_renderer_ui_ui_draw_batch_UIDrawBatch;
         protected _clearData(): void;
-        protected _getUI(): renderer.__private.cocos_core_renderer_ui_ui_UI | null;
+        protected _getUI(): __private.cocos_core_renderer_ui_ui_UI | null;
         protected _arrivalMaxBuffer(): void;
     }
     /**
@@ -25443,16 +21470,46 @@ declare module "cc.ui" {
         onEnable(): void;
         onDisable(): void;
     }
+    /**
+     * @en
+     * This component is used to adjust the layout of current node to respect the safe area of a notched mobile device such as the iPhone X.
+     * It is typically used for the top node of the UI interaction area. For specific usage, refer to the official [test-cases-3d/assets/cases/ui/20.safe-area/safe-area.scene](https://github.com/cocos-creator/test-cases-3d).
+     *
+     * The concept of safe area is to give you a fixed inner rectangle in which you can safely display content that will be drawn on screen.
+     * You are strongly discouraged from providing controls outside of this area. But your screen background could embellish edges.
+     *
+     * This component internally uses the API `sys.getSafeAreaRect();` to obtain the safe area of the current iOS or Android device,
+     * and implements the adaptation by using the Widget component and set anchor.
+     *
+     * @zh
+     * 该组件会将所在节点的布局适配到 iPhone X 等异形屏手机的安全区域内，通常用于 UI 交互区域的顶层节点，具体用法可参考官方范例 [test-cases-3d/assets/cases/ui/20.safe-area/safe-area.scene](https://github.com/cocos-creator/test-cases-3d)。
+     *
+     * 该组件内部通过 API `sys.getSafeAreaRect();` 获取到当前 iOS 或 Android 设备的安全区域，并通过 Widget 组件实现适配。
+     *
+     */
+    export class SafeAreaComponent extends Component {
+        onEnable(): void;
+        onDisable(): void;
+        /**
+         * @en Adapt to safe area
+         * @zh 立即适配安全区域
+         * @method updateArea
+         * @example
+         * let safeArea = this.node.addComponent(cc.SafeArea);
+         * safeArea.updateArea();
+         */
+        updateArea(): void;
+    }
     export const widgetManager: {
         isAligning: boolean;
         _nodesOrderDirty: boolean;
-        _activeWidgetsIterator: js.array.MutableForwardIterator<WidgetComponent>;
+        _activeWidgetsIterator: __private.cocos_core_utils_mutable_forward_iterator_default<WidgetComponent>;
         animationState: {
             previewing: boolean;
             time: number;
             animatedSinceLastFrame: boolean;
         } | null;
-        init(director: any): void;
+        init(): void;
         add(widget: WidgetComponent): void;
         remove(widget: WidgetComponent): void;
         onResized(): void;
@@ -25558,6 +21615,8 @@ declare module "cc.ui" {
         set isItalic(value: boolean);
         get isUnderline(): boolean;
         set isUnderline(value: boolean);
+        get sharedMaterials(): (Material | null)[];
+        set sharedMaterials(val: (Material | null)[]);
         get assemblerData(): __private.cocos_ui_assembler_label_font_utils_ISharedLabelData | null;
         get fontAtlas(): __private.cocos_ui_assembler_label_bmfontUtils_FontAtlas | null;
         set fontAtlas(value: __private.cocos_ui_assembler_label_bmfontUtils_FontAtlas | null);
@@ -25598,14 +21657,4652 @@ declare module "cc.ui" {
         onDisable(): void;
         onDestroy(): void;
         updateRenderData(force?: boolean): void;
-        protected _render(render: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
+        protected _render(render: __private.cocos_core_renderer_ui_ui_UI): void;
         protected _updateColor(): void;
         protected _canRender(): boolean;
         protected _flushAssembler(): void;
-        protected _flushMaterial(): void;
         protected _applyFontTexture(): void;
     }
     export namespace __private {
+        /**
+         * @en The predefined render pass stage ids
+         * @zh 预设的渲染阶段。
+         */
+        export enum cocos_core_pipeline_define_RenderPassStage {
+            DEFAULT = 100,
+            UI = 200
+        }
+        export interface cocos_core_assets_effect_asset_IPassStates {
+            priority?: number;
+            primitive?: GFXPrimitiveMode;
+            stage?: cocos_core_pipeline_define_RenderPassStage;
+            rasterizerState?: GFXRasterizerState;
+            depthStencilState?: GFXDepthStencilState;
+            blendState?: GFXBlendState;
+            dynamicStates?: GFXDynamicStateFlags;
+            phase?: string | number;
+        }
+        export interface cocos_core_assets_effect_asset_IPropertyInfo {
+            type: number;
+            handleInfo?: [string, number, number];
+            samplerHash?: number;
+            value?: number[] | string;
+        }
+        export interface cocos_core_assets_effect_asset_IPassInfo extends cocos_core_assets_effect_asset_IPassStates {
+            program: string;
+            embeddedMacros?: renderer.MacroRecord;
+            propertyIndex?: number;
+            switch?: string;
+            properties?: Record<string, cocos_core_assets_effect_asset_IPropertyInfo>;
+        }
+        export type RecursivePartial<T> = {
+            [P in keyof T]?: T[P] extends Array<infer U> ? Array<RecursivePartial<U>> : T[P] extends ReadonlyArray<infer V> ? ReadonlyArray<RecursivePartial<V>> : RecursivePartial<T[P]>;
+        };
+        export enum cocos_core_renderer_core_memory_pools_PoolType {
+            RASTERIZER_STATE = 0,
+            DEPTH_STENCIL_STATE = 1,
+            BLEND_STATE = 2,
+            DESCRIPTOR_SETS = 3,
+            SHADER = 4,
+            INPUT_ASSEMBLER = 5,
+            PIPELINE_LAYOUT = 6,
+            PASS = 7,
+            SUB_MODEL = 8
+        }
+        export class cocos_core_renderer_core_memory_pools_Handle<T extends cocos_core_renderer_core_memory_pools_PoolType> extends Number {
+            m: T;
+        }
+        export type cocos_core_renderer_core_memory_pools_PassHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.PASS>;
+        export type cocos_core_renderer_core_memory_pools_ShaderHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.SHADER>;
+        export type cocos_core_renderer_core_memory_pools_DescriptorSetHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.DESCRIPTOR_SETS>;
+        export interface cocos_core_renderer_ui_ui_material_IUIMaterialInfo {
+            material: Material;
+        }
+        export class cocos_core_renderer_ui_ui_material_UIMaterial {
+            protected _material: Material | null;
+            protected _pass: renderer.Pass | null;
+            protected _hDescriptorSet: cocos_core_renderer_core_memory_pools_DescriptorSetHandle;
+            get material(): Material;
+            get pass(): renderer.Pass;
+            get hDescriptorSet(): cocos_core_renderer_core_memory_pools_DescriptorSetHandle;
+            initialize(info: cocos_core_renderer_ui_ui_material_IUIMaterialInfo): boolean;
+            increase(): number;
+            decrease(): number;
+            destroy(): void;
+        }
+        /**
+         * @zh
+         * UI 渲染流程
+         */
+        export class cocos_core_renderer_ui_ui_UI {
+            get renderScene(): renderer.RenderScene;
+            get currBufferBatch(): MeshBuffer | null;
+            set currBufferBatch(value: MeshBuffer | null);
+            set currStaticRoot(value: UIStaticBatchComponent | null);
+            device: GFXDevice;
+            constructor(_root: cocos_core_root_Root);
+            initialize(): boolean;
+            destroy(): void;
+            getRenderSceneGetter(): () => any;
+            _getUIMaterial(mat: Material): cocos_core_renderer_ui_ui_material_UIMaterial;
+            _removeUIMaterial(hash: number): void;
+            /**
+             * @en
+             * Add the managed CanvasComponent.
+             *
+             * @zh
+             * 添加屏幕组件管理。
+             *
+             * @param comp - 屏幕组件。
+             */
+            addScreen(comp: CanvasComponent): void;
+            /**
+             * @en
+             * Get the CanvasComponent by number.
+             *
+             * @zh
+             * 通过屏幕编号获得屏幕组件。
+             *
+             * @param visibility - 屏幕编号。
+             */
+            getScreen(visibility: number): CanvasComponent | null;
+            /**
+             * @zh
+             * Removes the CanvasComponent from the list.
+             *
+             * @param comp - 被移除的屏幕。
+             */
+            removeScreen(comp: CanvasComponent): void;
+            update(dt: number): void;
+            sortScreens(): void;
+            render(): void;
+            /**
+             * @en
+             * Render component data submission process of UI.
+             * The submitted vertex data is the UI for world coordinates.
+             * For example: The UI components except Graphics and UIModelComponent.
+             *
+             * @zh
+             * UI 渲染组件数据提交流程（针对提交的顶点数据是世界坐标的提交流程，例如：除 graphics 和 uimodel 的大部分 ui 组件）。
+             * 此处的数据最终会生成需要提交渲染的 model 数据。
+             *
+             * @param comp - 当前执行组件。
+             * @param frame - 当前执行组件贴图。
+             * @param assembler - 当前组件渲染数据组装器。
+             */
+            commitComp(comp: UIRenderComponent, frame: GFXTexture | null | undefined, assembler: any, sampler?: GFXSampler | null): void;
+            /**
+             * @en
+             * Render component data submission process of UI.
+             * The submitted vertex data is the UI for local coordinates.
+             * For example: The UI components of Graphics and UIModelComponent.
+             *
+             * @zh
+             * UI 渲染组件数据提交流程（针对例如： graphics 和 uimodel 等数据量较为庞大的 ui 组件）。
+             *
+             * @param comp - 当前执行组件。
+             * @param model - 提交渲染的 model 数据。
+             * @param mat - 提交渲染的材质。
+             */
+            commitModel(comp: UIComponent | UIRenderComponent, model: renderer.Model | null, mat: Material | null): void;
+            /**
+             * @en
+             * Submit separate render data.
+             * This data does not participate in the batch.
+             *
+             * @zh
+             * 提交独立渲染数据.
+             * @param comp 静态组件
+             */
+            commitStaticBatch(comp: UIStaticBatchComponent): void;
+            /**
+             * @en
+             * End a section of render data and submit according to the batch condition.
+             *
+             * @zh
+             * 根据合批条件，结束一段渲染数据并提交。
+             */
+            autoMergeBatches(renderComp?: UIRenderComponent): void;
+            /**
+             * @en
+             * Force changes to current batch data and merge
+             *
+             * @zh
+             * 强行修改当前批次数据并合并。
+             *
+             * @param material - 当前批次的材质。
+             * @param sprite - 当前批次的精灵帧。
+             */
+            forceMergeBatches(material: Material, sprite: GFXTexture | null): void;
+            /**
+             * @en
+             * Forced to merge the data of the previous batch to start a new batch.
+             *
+             * @zh
+             * 强制合并上一个批次的数据，开启新一轮合批。
+             */
+            finishMergeBatches(): void;
+        }
+        export class cocos_core_renderer_data_pool_manager_DataPoolManager {
+            jointTexturePool: renderer.JointTexturePool;
+            jointAnimationInfo: renderer.JointAnimationInfo;
+            constructor(device: GFXDevice);
+            releaseSkeleton(skeleton: Skeleton): void;
+            releaseAnimationClip(clip: AnimationClip): void;
+            clear(): void;
+        }
+        /**
+         * @zh
+         * Root描述信息
+         */
+        export interface cocos_core_root_IRootInfo {
+            enableHDR?: boolean;
+        }
+        export interface cocos_core_pipeline_render_window_IRenderWindowInfo {
+            title?: string;
+            width: number;
+            height: number;
+            renderPassInfo: IGFXRenderPassInfo;
+            swapchainBufferIndices?: number;
+            shouldSyncSizeWithSwapchain?: boolean;
+        }
+        /**
+         * @en Render view information descriptor
+         * @zh 渲染视图描述信息。
+         */
+        export interface cocos_core_pipeline_render_view_IRenderViewInfo {
+            camera: renderer.Camera;
+            name: string;
+            priority: number;
+            flows?: string[];
+        }
+        /**
+         * @zh
+         * Root类
+         */
+        export class cocos_core_root_Root {
+            get device(): GFXDevice;
+            get mainWindow(): RenderWindow | null;
+            set curWindow(window: RenderWindow | null);
+            get curWindow(): RenderWindow | null;
+            set tempWindow(window: RenderWindow | null);
+            get tempWindow(): RenderWindow | null;
+            get windows(): RenderWindow[];
+            get pipeline(): RenderPipeline;
+            get ui(): cocos_core_renderer_ui_ui_UI;
+            get scenes(): renderer.RenderScene[];
+            get views(): RenderView[];
+            get cumulativeTime(): number;
+            get frameTime(): number;
+            get frameCount(): number;
+            get fps(): number;
+            set fixedFPS(fps: number);
+            get fixedFPS(): number;
+            get dataPoolManager(): cocos_core_renderer_data_pool_manager_DataPoolManager;
+            _createSceneFun: (root: cocos_core_root_Root) => renderer.RenderScene;
+            _createWindowFun: (root: cocos_core_root_Root) => RenderWindow;
+            /**
+             * 构造函数
+             * @param device GFX设备
+             */
+            constructor(device: GFXDevice);
+            /**
+             * @zh
+             * 初始化函数
+             * @param info Root描述信息
+             */
+            initialize(info: cocos_core_root_IRootInfo): boolean;
+            destroy(): void;
+            /**
+             * @zh
+             * 重置大小
+             * @param width 屏幕宽度
+             * @param height 屏幕高度
+             */
+            resize(width: number, height: number): void;
+            setRenderPipeline(rppl: RenderPipeline): boolean;
+            /**
+             * @zh
+             * 激活指定窗口为当前窗口
+             * @param window GFX窗口
+             */
+            activeWindow(window: RenderWindow): void;
+            /**
+             * @zh
+             * 重置累计时间
+             */
+            resetCumulativeTime(): void;
+            /**
+             * @zh
+             * 每帧执行函数
+             * @param deltaTime 间隔时间
+             */
+            frameMove(deltaTime: number): void;
+            /**
+             * @zh
+             * 创建窗口
+             * @param info GFX窗口描述信息
+             */
+            createWindow(info: cocos_core_pipeline_render_window_IRenderWindowInfo): RenderWindow | null;
+            /**
+             * @zh
+             * 销毁指定的窗口
+             * @param window GFX窗口
+             */
+            destroyWindow(window: RenderWindow): void;
+            /**
+             * @zh
+             * 销毁全部窗口
+             */
+            destroyWindows(): void;
+            /**
+             * @zh
+             * 创建渲染场景
+             * @param info 渲染场景描述信息
+             */
+            createScene(info: renderer.IRenderSceneInfo): renderer.RenderScene;
+            /**
+             * @zh
+             * 销毁指定的渲染场景
+             * @param scene 渲染场景
+             */
+            destroyScene(scene: renderer.RenderScene): void;
+            /**
+             * @zh
+             * 销毁全部场景
+             */
+            destroyScenes(): void;
+            /**
+             * @zh
+             * 创建渲染视图
+             * @param info 渲染视图描述信息
+             */
+            createView(info: cocos_core_pipeline_render_view_IRenderViewInfo): RenderView;
+            /**
+             * @zh
+             * 销毁指定的渲染视图
+             * @param view 渲染视图
+             */
+            destroyView(view: RenderView): void;
+            /**
+             * @zh
+             * 销毁全部渲染视图
+             */
+            destroyViews(): void;
+            createModel<T extends renderer.Model>(mClass: typeof renderer.Model): T;
+            destroyModel(m: renderer.Model): void;
+            createCamera(): renderer.Camera;
+            destroyCamera(c: renderer.Camera): void;
+            createLight<T extends renderer.Light>(lClass: new () => T): T;
+            destroyLight(l: renderer.Light): void;
+            sortViews(): void;
+        }
+        export interface cocos_core_assets_effect_asset_IDefineInfo {
+            name: string;
+            type: string;
+            range?: number[];
+            options?: string[];
+            default?: string;
+        }
+        export interface cocos_core_assets_effect_asset_IBlockInfo extends GFXUniformBlock, IGFXDescriptorSetLayoutBinding {
+        }
+        export interface cocos_core_assets_effect_asset_IBuiltin {
+            name: string;
+            defines: string[];
+        }
+        export interface cocos_core_assets_effect_asset_IBuiltinInfo {
+            blocks: cocos_core_assets_effect_asset_IBuiltin[];
+            samplers: cocos_core_assets_effect_asset_IBuiltin[];
+        }
+        export interface cocos_core_assets_effect_asset_ISamplerInfo extends GFXUniformSampler, IGFXDescriptorSetLayoutBinding {
+        }
+        export interface cocos_core_assets_effect_asset_IAttributeInfo extends IGFXAttribute {
+            defines: string[];
+        }
+        export interface cocos_core_assets_effect_asset_IShaderInfo {
+            name: string;
+            hash: number;
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
+            glsl3: {
+                vert: string;
+                frag: string;
+            };
+            glsl1: {
+                vert: string;
+                frag: string;
+            };
+            builtins: {
+                globals: cocos_core_assets_effect_asset_IBuiltinInfo;
+                locals: cocos_core_assets_effect_asset_IBuiltinInfo;
+            };
+            defines: cocos_core_assets_effect_asset_IDefineInfo[];
+            blocks: cocos_core_assets_effect_asset_IBlockInfo[];
+            samplers: cocos_core_assets_effect_asset_ISamplerInfo[];
+            attributes: cocos_core_assets_effect_asset_IAttributeInfo[];
+        }
+        export type cocos_core_renderer_core_memory_pools_PipelineLayoutHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.PIPELINE_LAYOUT>;
+        /**
+         * 允许存储索引的数组视图。
+         */
+        export type cocos_core_assets_mesh_IBArray = Uint8Array | Uint16Array | Uint32Array;
+        /**
+         * 几何信息。
+         */
+        export interface cocos_core_assets_mesh_IGeometricInfo {
+            /**
+             * 顶点位置。
+             */
+            positions: Float32Array;
+            /**
+             * 索引数据。
+             */
+            indices?: cocos_core_assets_mesh_IBArray;
+            /**
+             * 是否将图元按双面对待。
+             */
+            doubleSided?: boolean;
+            /**
+             * 此几何体的轴对齐包围盒。
+             */
+            boundingBox: {
+                max: math.Vec3;
+                min: math.Vec3;
+            };
+        }
+        export interface cocos_core_assets_mesh_IFlatBuffer {
+            stride: number;
+            count: number;
+            buffer: Uint8Array;
+        }
+        /**
+         * 渲染子网格。
+         */
+        export class cocos_core_assets_mesh_RenderingSubMesh implements IGFXInputAssemblerInfo {
+            /**
+             * 使用的所有顶点缓冲区。
+             */
+            vertexBuffers: GFXBuffer[];
+            /**
+             * 所有顶点属性。
+             */
+            attributes: IGFXAttribute[];
+            /**
+             * 图元类型。
+             */
+            primitiveMode: GFXPrimitiveMode;
+            /**
+             * 使用的索引缓冲区，若未使用则无需指定。
+             */
+            indexBuffer?: GFXBuffer;
+            /**
+             * 间接绘制缓冲区。
+             */
+            indirectBuffer?: GFXBuffer;
+            get geometricInfo(): cocos_core_assets_mesh_IGeometricInfo;
+            get flatBuffers(): cocos_core_assets_mesh_IFlatBuffer[];
+            get jointMappedBuffers(): GFXBuffer[];
+            mesh?: Mesh;
+            subMeshIdx?: number;
+            constructor(vertexBuffers: GFXBuffer[], attributes: IGFXAttribute[], primitiveMode: GFXPrimitiveMode);
+            destroy(): void;
+            /**
+             * Adds a vertex attribute input called 'a_vertexId' into this sub-mesh.
+             * This is useful if you want to simulate `gl_VertexId` in WebGL context prior to 2.0.
+             * Once you call this function, the vertex attribute is permanently added.
+             * Subsequent calls to this function take no effect.
+             * @param device Device used to create related rendering resources.
+             */
+            enableVertexIdChannel(device: GFXDevice): void;
+        }
+        /**
+         * This rendering instance of a morph resource.
+         */
+        export interface cocos_core_assets_morph_MorphRenderingInstance {
+            /**
+             * Sets weights of targets of specified sub mesh.
+             * @param subMeshIndex
+             * @param weights
+             */
+            setWeights(subMeshIndex: number, weights: number[]): void;
+            /**
+             * Adapts pipeline state to do the rendering.
+             * @param subMeshIndex
+             * @param pipelineState
+             */
+            adaptPipelineState(subMeshIndex: number, descriptorSet: GFXDescriptorSet): void;
+            requiredPatches(subMeshIndex: number): renderer.IMacroPatch[] | undefined;
+            /**
+             * Destroy the rendering instance.
+             */
+            destroy(): void;
+        }
+        export class cocos_core_renderer_models_morph_model_MorphModel extends renderer.Model {
+            getMacroPatches(subModelIndex: number): any;
+            initSubModel(subModelIndex: number, subMeshData: cocos_core_assets_mesh_RenderingSubMesh, material: Material): void;
+            setSubModelMaterial(subModelIndex: number, material: Material): void;
+            protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
+            setMorphRendering(morphRendering: cocos_core_assets_morph_MorphRenderingInstance): void;
+        }
+        export interface cocos_core_pipeline_instanced_buffer_IInstancedItem {
+            count: number;
+            capacity: number;
+            vb: GFXBuffer;
+            data: Uint8Array;
+            ia: GFXInputAssembler;
+            stride: number;
+            hShader: cocos_core_renderer_core_memory_pools_ShaderHandle;
+            hDescriptorSet: cocos_core_renderer_core_memory_pools_DescriptorSetHandle;
+            lightingMap: GFXTexture;
+        }
+        export class cocos_core_pipeline_instanced_buffer_InstancedBuffer {
+            static get(pass: renderer.Pass, extraKey?: number): cocos_core_pipeline_instanced_buffer_InstancedBuffer;
+            instances: cocos_core_pipeline_instanced_buffer_IInstancedItem[];
+            hPass: cocos_core_renderer_core_memory_pools_PassHandle;
+            hasPendingModels: boolean;
+            dynamicOffsets: number[];
+            constructor(pass: renderer.Pass);
+            destroy(): void;
+            merge(subModel: renderer.SubModel, attrs: renderer.IInstancedAttributeBlock, passIdx: number): void;
+            uploadBuffers(): void;
+            clear(): void;
+        }
+        export type cocos_core_renderer_core_memory_pools_SubModelHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.SUB_MODEL>;
+        /**
+         * @en The predefined render priorities
+         * @zh 预设的渲染优先级。
+         */
+        export enum cocos_core_pipeline_define_RenderPriority {
+            MIN = 0,
+            MAX = 255,
+            DEFAULT = 128
+        }
+        /**
+         * @en
+         * The definition of the parameter for building a box.
+         * @zh
+         * 立方体参数选项。
+         */
+        export interface cocos_core_primitive_box_IBoxOptions extends RecursivePartial<primitives.IGeometryOptions> {
+            /**
+             * @en
+             * Box extent on X-axis.
+             * @zh
+             * 立方体宽度。
+             */
+            width?: number;
+            /**
+             * @en
+             * Box extent on Y-axis.
+             * @zh
+             * 立方体高度。
+             */
+            height?: number;
+            /**
+             * @en
+             * Box extent on Z-axis.
+             * @zh
+             * 立方体长度。
+             */
+            length?: number;
+            /**
+             * @en
+             * Segment count on X-axis.
+             * @zh
+             * 宽度线段数。
+             */
+            widthSegments?: number;
+            /**
+             * @en
+             * Segment count on Y-axis.
+             * @zh
+             * 高度线段数。
+             */
+            heightSegments?: number;
+            /**
+             * @en
+             * Segment count on Z-axis.
+             * @zh
+             * 长度线段数。
+             */
+            lengthSegments?: number;
+        }
+        /**
+         * @en
+         * The definition of the parameter for building a cylinder.
+         * @zh
+         * 圆柱参数选项。
+         */
+        export interface cocos_core_primitive_cylinder_ICylinderOptions extends primitives.IGeometryOptions {
+            radialSegments: number;
+            heightSegments: number;
+            capped: boolean;
+            arc: number;
+        }
+        export type cocos_core_primitive_cone_IConeOptions = cocos_core_primitive_cylinder_ICylinderOptions;
+        /**
+         * @en
+         * The definition of the parameter for building a plane.
+         * @zh
+         * 平面参数选项。
+         */
+        export interface cocos_core_primitive_plane_IPlaneOptions extends RecursivePartial<primitives.IGeometryOptions> {
+            /**
+             * Plane extent on X-axis.
+             */
+            width: number;
+            /**
+             * Plane extent on Z-axis.
+             */
+            length: number;
+            /**
+             * Segment count on X-axis.
+             */
+            widthSegments: number;
+            /**
+             * Segment count on Z-axis.
+             */
+            lengthSegments: number;
+        }
+        /**
+         * @zh
+         * 球参数选项。
+         */
+        export interface cocos_core_primitive_sphere_ISphereOptions extends primitives.IGeometryOptions {
+            segments: number;
+        }
+        /**
+         * @zh
+         * 环面参数选项。
+         */
+        export interface cocos_core_primitive_torus_ITorusOptions extends primitives.IGeometryOptions {
+            radialSegments: number;
+            tubularSegments: number;
+            arc: number;
+        }
+        /**
+         * @en
+         * The definition of the parameter for building a capsule.
+         * @zh
+         * 胶囊体参数选项。
+         */
+        export interface cocos_core_primitive_capsule_ICapsuteOptions {
+            sides: number;
+            heightSegments: number;
+            capped: boolean;
+            arc: number;
+        }
+        /**
+         * @en
+         * The definition of the parameter for building a circle.
+         * @zh
+         * 圆形参数选项。
+         */
+        export interface cocos_core_primitive_circle_ICircleOptions extends primitives.IGeometryOptions {
+            segments: number;
+        }
+        export interface IWritableArrayLike<T> {
+            length: number;
+            [index: number]: T;
+        }
+        /**
+         * @en
+         * line-sphere intersect detect.
+         * @zh
+         * 线段与球的相交性检测
+         * @param line 线段
+         * @param sphere 球
+         * @return {number} 0 或 非0
+         */
+        function cocos_core_geometry_intersect_line_sphere(line: geometry.line, sphere: geometry.sphere): number;
+        /**
+         * @en
+         * line-aabb intersect detect.
+         * @zh
+         * 线段与轴对齐包围盒的相交性检测
+         * @param line 线段
+         * @param aabb 轴对齐包围盒
+         * @return {number} 0 或 非0
+         */
+        function cocos_core_geometry_intersect_line_aabb(line: geometry.line, aabb: geometry.aabb): number;
+        /**
+         * @en
+         * line-obb intersect detect.
+         * @zh
+         * 线段与方向包围盒的相交性检测
+         * @param line 线段
+         * @param obb 方向包围盒
+         * @return {number} 0 或 非0
+         */
+        function cocos_core_geometry_intersect_line_obb(line: geometry.line, obb: geometry.obb): number;
+        export class cocos_core_geometry_curve_OptimizedKey {
+            index: number;
+            time: number;
+            endTime: number;
+            coefficient: Float32Array;
+            constructor();
+            evaluate(T: number): number;
+        }
+        export type cocos_core_utils_pool_CleanUpFunction<T> = (value: T) => boolean | void;
+        export namespace cocos_core_utils_array {
+            export function removeAt<T>(array: T[], index: number): void;
+            export function fastRemoveAt<T>(array: T[], index: number): void;
+            export function remove<T>(array: T[], value: T): boolean;
+            export function fastRemove<T>(array: T[], value: T): void;
+            export function removeIf<T>(array: T[], predicate: (value: T) => boolean): T | undefined;
+            export function verifyType<T extends Function>(array: any[], type: T): array is T[];
+            export function removeArray<T>(array: T[], removals: T[]): void;
+            export function appendObjectsAt<T>(array: T[], objects: T[], index: number): T[];
+            export function contains<T>(array: T[], value: T): boolean;
+            export function copy<T>(array: T[]): any[];
+        }
+        export type Getter = () => any;
+        export type Setter = (value: any) => void;
+        export interface cocos_core_data_utils_attribute_defines_IExposedAttributes {
+            /**
+             * 指定属性的类型。
+             */
+            type?: any;
+            /**
+             *
+             */
+            url?: string;
+            /**
+             * 控制是否在编辑器中显示该属性。
+             */
+            visible?: boolean | (() => boolean);
+            /**
+             * 该属性在编辑器中的显示名称。
+             */
+            displayName?: string;
+            /**
+             *
+             */
+            displayOrder?: number;
+            /**
+             * 该属性在编辑器中的工具提示内容。
+             */
+            tooltip?: string;
+            /**
+             *
+             */
+            multiline?: boolean;
+            /**
+             * 指定该属性是否为可读的。
+             */
+            readonly?: boolean;
+            /**
+             * 当该属性为数值类型时，指定了该属性允许的最小值。
+             */
+            min?: number;
+            /**
+             * 当该属性为数值类型时，指定了该属性允许的最大值。
+             */
+            max?: number;
+            /**
+             * 当该属性为数值类型时并在编辑器中提供了滑动条时，指定了滑动条的步长。
+             */
+            step?: number;
+            /**
+             * 当该属性为数值类型时，指定了该属性允许的范围。
+             */
+            range?: number[];
+            /**
+             * 当该属性为数值类型时，是否在编辑器中提供滑动条来调节值。
+             */
+            slide?: boolean;
+            /**
+             * 该属性是否参与序列化和反序列化。
+             */
+            serializable?: boolean;
+            /**
+             * 该属性的曾用名。
+             */
+            formerlySerializedAs?: string;
+            /**
+             * 该属性是否仅仅在编辑器环境中生效。
+             */
+            editorOnly?: boolean;
+            /**
+             * 是否覆盖基类中的同名属性。
+             */
+            override?: boolean;
+            /**
+             *
+             */
+            animatable?: boolean;
+            /**
+             *
+             */
+            unit?: string;
+            /**
+             * 转换为弧度
+             */
+            radian?: boolean;
+        }
+        /**
+         * @zh CCClass 属性选项。
+         * @en CCClass property options
+         */
+        export interface cocos_core_data_class_decorator_IPropertyOptions extends cocos_core_data_utils_attribute_defines_IExposedAttributes {
+        }
+        export type cocos_core_data_class_decorator_SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
+        export type cocos_core_data_class_decorator_PropertyType = cocos_core_data_class_decorator_SimplePropertyType | cocos_core_data_class_decorator_SimplePropertyType[];
+        export class cocos_core_data_utils_attribute_PrimitiveType<T> {
+            name: string;
+            default: T;
+            constructor(name: string, defaultValue: T);
+            toString(): string;
+        }
+        export namespace cocos_core_data_utils_attribute {
+            export function createAttrsSingle(owner: Object, ownerConstructor: Function, superAttrs?: any): any;
+            export function createAttrs(subclass: any): any;
+            export function attr(constructor: any, propertyName: string): {
+                [propertyName: string]: any;
+            };
+            export function attr(constructor: any, propertyName: string, newAttributes: Object): void;
+            export function getClassAttrs(constructor: any): any;
+            export function getClassAttrsProto(constructor: Function): any;
+            export function setClassAttr(ctor: any, propName: any, key: any, value: any): void;
+            export class PrimitiveType<T> {
+                name: string;
+                default: T;
+                constructor(name: string, defaultValue: T);
+                toString(): string;
+            }
+            export function getTypeChecker(type: string, attributeName: string): (constructor: Function, mainPropertyName: string) => void;
+            export function getObjTypeChecker(typeCtor: any): (classCtor: any, mainPropName: any) => void;
+        }
+        /**
+         * Tag the class with any meta attributes, then return all current attributes assigned to it.
+         * This function holds only the attributes, not their implementations.
+         * @param constructor The class or instance. If instance, the attribute will be dynamic and only available for the specified instance.
+         * @param propertyName The name of property or function, used to retrieve the attributes.
+         * @param [newAttributes] The attribute table to mark, new attributes will merged with existed attributes.
+         * Attribute whose key starts with '_' will be ignored.
+         * @private
+         */
+        export function cocos_core_data_utils_attribute_attr(constructor: any, propertyName: string): {
+            [propertyName: string]: any;
+        };
+        export function cocos_core_data_utils_attribute_attr(constructor: any, propertyName: string, newAttributes: Object): void;
+        function cocos_core_data_instantiate_doInstantiate(obj: any, parent?: any): any;
+        export enum cocos_core_data_utils_compact_value_type_array_StorageUnit {
+            Uint8 = 0,
+            Uint16 = 1,
+            Uint32 = 2,
+            Int8 = 3,
+            Int16 = 4,
+            Int32 = 5,
+            Float32 = 6,
+            Float64 = 7
+        }
+        export enum cocos_core_data_utils_compact_value_type_array_ElementType {
+            Scalar = 0,
+            Vec2 = 1,
+            Vec3 = 2,
+            Vec4 = 3,
+            Quat = 4,
+            Mat4 = 5
+        }
+        export class cocos_core_event_event_target_Empty {
+        }
+        export type cocos_core_event_eventify_Constructor<T = {}> = new (...args: any[]) => T;
+        export type cocos_core_event_eventify_EventType = string;
+        /**
+         * @zh
+         * 实现该接口的对象具有处理事件的能力。
+         * @en
+         * Objects those implement this interface have essentially the capability to process events.
+         */
+        export interface cocos_core_event_eventify_IEventified {
+            /**
+             * @zh 检查指定事件是否已注册回调。
+             * @en Checks whether there is correspond event listener registered on the given event.
+             * @param type - Event type.
+             * @param callback - Callback function when event triggered.
+             * @param target - Callback callee.
+             */
+            hasEventListener(type: string, callback?: Function, target?: object): boolean;
+            /**
+             * @en
+             * Register an callback of a specific event type on the EventTarget.
+             * This type of event should be triggered via `emit`.
+             * @zh
+             * 注册事件目标的特定事件类型回调。这种类型的事件应该被 `emit` 触发。
+             *
+             * @param type - A string representing the event type to listen for.
+             * @param callback - The callback that will be invoked when the event is dispatched.
+             *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+             * @param thisArg - The target (this object) to invoke the callback, can be null
+             * @return - Just returns the incoming callback so you can save the anonymous function easier.
+             * @example
+             * import { log } from 'cc';
+             * eventTarget.on('fire', function () {
+             *     log("fire in the hole");
+             * }, node);
+             */
+            on<TFunction extends Function>(type: cocos_core_event_eventify_EventType, callback: TFunction, thisArg?: any, once?: boolean): typeof callback;
+            /**
+             * @en
+             * Register an callback of a specific event type on the EventTarget,
+             * the callback will remove itself after the first time it is triggered.
+             * @zh
+             * 注册事件目标的特定事件类型回调，回调会在第一时间被触发后删除自身。
+             *
+             * @param type - A string representing the event type to listen for.
+             * @param callback - The callback that will be invoked when the event is dispatched.
+             *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+             * @param target - The target (this object) to invoke the callback, can be null
+             * @example
+             * import { log } from 'cc';
+             * eventTarget.once('fire', function () {
+             *     log("this is the callback and will be invoked only once");
+             * }, node);
+             */
+            once<TFunction extends Function>(type: cocos_core_event_eventify_EventType, callback: TFunction, thisArg?: any): typeof callback;
+            /**
+             * @en
+             * Removes the listeners previously registered with the same type, callback, target and or useCapture,
+             * if only type is passed as parameter, all listeners registered with that type will be removed.
+             * @zh
+             * 删除之前用同类型，回调，目标或 useCapture 注册的事件监听器，如果只传递 type，将会删除 type 类型的所有事件监听器。
+             *
+             * @param type - A string representing the event type being removed.
+             * @param callback - The callback to remove.
+             * @param target - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
+             * @example
+             * import { log } from 'cc';
+             * // register fire eventListener
+             * var callback = eventTarget.on('fire', function () {
+             *     log("fire in the hole");
+             * }, target);
+             * // remove fire event listener
+             * eventTarget.off('fire', callback, target);
+             * // remove all fire event listeners
+             * eventTarget.off('fire');
+             */
+            off<TFunction extends Function>(type: cocos_core_event_eventify_EventType, callback?: TFunction, thisArg?: any): void;
+            /**
+             * @en Removes all callbacks previously registered with the same target (passed as parameter).
+             * This is not for removing all listeners in the current event target,
+             * and this is not for removing all listeners the target parameter have registered.
+             * It's only for removing all listeners (callback and target couple) registered on the current event target by the target parameter.
+             * @zh 在当前 EventTarget 上删除指定目标（target 参数）注册的所有事件监听器。
+             * 这个函数无法删除当前 EventTarget 的所有事件监听器，也无法删除 target 参数所注册的所有事件监听器。
+             * 这个函数只能删除 target 参数在当前 EventTarget 上注册的所有事件监听器。
+             * @param typeOrTarget - The target to be searched for all related listeners
+             */
+            targetOff(typeOrTarget: string | object): void;
+            /**
+             * @zh 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+             * @en Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
+             * @param typeOrTarget - The event type or target with which the listeners will be removed
+             */
+            removeAll(typeOrTarget: string | object): void;
+            /**
+             * @zh 派发一个指定事件，并传递需要的参数
+             * @en Trigger an event directly with the event name and necessary arguments.
+             * @param type - event type
+             * @param args - Arguments when the event triggered
+             */
+            emit(type: cocos_core_event_eventify_EventType, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
+        }
+        /**
+         * @param error - null or the error info
+         * @param node - the created node or null
+         */
+        export type cocos_core_assets_asset_CreateNodeCallback = (error: Error | null, node: Node) => void;
+        export const cocos_core_assets_asset_Asset_base: new (...args: any[]) => RawAsset & cocos_core_event_eventify_IEventified;
+        export interface cocos_core_assets_sprite_atlas_ISpriteFrameList {
+            [key: string]: SpriteFrame | null;
+        }
+        /**
+         * 内存图像源。
+         */
+        export interface cocos_core_assets_image_asset_IMemoryImageSource {
+            _data: ArrayBufferView | null;
+            _compressed: boolean;
+            width: number;
+            height: number;
+            format: number;
+        }
+        /**
+         * 图像资源的原始图像源。可以来源于 HTML 元素也可以来源于内存。
+         */
+        export type cocos_core_assets_image_asset_ImageSource = HTMLCanvasElement | HTMLImageElement | cocos_core_assets_image_asset_IMemoryImageSource;
+        /**
+         * @en
+         * The texture pixel format, default value is RGBA8888,<br>
+         * you should note that textures loaded by normal image files (png, jpg) can only support RGBA8888 format,<br>
+         * other formats are supported by compressed file types or raw data.
+         * @zh
+         * 纹理像素格式，默认值为RGBA8888，<br>
+         * 你应该注意到普通图像文件（png，jpg）加载的纹理只能支持RGBA8888格式，<br>
+         * 压缩文件类型或原始数据支持其他格式。
+         */
+        export enum cocos_core_assets_asset_enum_PixelFormat {
+            RGB565 = 47,
+            RGB5A1 = 49,
+            RGBA4444 = 50,
+            RGB888 = 24,
+            RGB32F = 32,
+            RGBA8888 = 35,
+            RGBA32F = 44,
+            A8 = 1,
+            I8 = 2,
+            AI8 = 3,
+            RGB_PVRTC_2BPPV1 = 87,
+            RGBA_PVRTC_2BPPV1 = 88,
+            RGB_A_PVRTC_2BPPV1,
+            RGB_PVRTC_4BPPV1 = 89,
+            RGBA_PVRTC_4BPPV1 = 90,
+            RGB_A_PVRTC_4BPPV1,
+            RGB_ETC1 = 76,
+            RGBA_ETC1,
+            RGB_ETC2 = 77,
+            RGBA_ETC2 = 81,
+            RGBA_ASTC_4x4 = 93,
+            RGBA_ASTC_5x4 = 94,
+            RGBA_ASTC_5x5 = 95,
+            RGBA_ASTC_6x5 = 96,
+            RGBA_ASTC_6x6 = 97,
+            RGBA_ASTC_8x5 = 98,
+            RGBA_ASTC_8x6 = 99,
+            RGBA_ASTC_8x8 = 100,
+            RGBA_ASTC_10x5 = 101,
+            RGBA_ASTC_10x6 = 102,
+            RGBA_ASTC_10x8 = 103,
+            RGBA_ASTC_10x10 = 104,
+            RGBA_ASTC_12x10 = 105,
+            RGBA_ASTC_12x12 = 106
+        }
+        /**
+         * 贴图创建选项。
+         */
+        export interface cocos_core_assets_texture_2d_ITexture2DCreateInfo {
+            /**
+             * 像素宽度。
+             */
+            width: number;
+            /**
+             * 像素高度。
+             */
+            height: number;
+            /**
+             * 像素格式。
+             * @default PixelFormat.RGBA8888
+             */
+            format?: cocos_core_assets_asset_enum_PixelFormat;
+            /**
+             * mipmap 层级。
+             * @default 1
+             */
+            mipmapLevel?: number;
+        }
+        export type cocos_core_assets_simple_texture_PresumedGFXTextureInfo = Pick<IGFXTextureInfo, "usage" | "flags" | "format" | "levelCount">;
+        /**
+         * @en
+         * The texture wrap mode.
+         * @zh
+         * 纹理环绕方式。
+         */
+        export enum cocos_core_assets_asset_enum_WrapMode {
+            REPEAT = 0,
+            CLAMP_TO_EDGE = 2,
+            MIRRORED_REPEAT = 1,
+            CLAMP_TO_BORDER = 3
+        }
+        /**
+         * @en
+         * The texture filter mode
+         * @zh
+         * 纹理过滤模式。
+         */
+        export enum cocos_core_assets_asset_enum_Filter {
+            NONE = 0,
+            LINEAR = 2,
+            NEAREST = 1
+        }
+        /**
+         * 贴图资源基类。它定义了所有贴图共用的概念。
+         */
+        export class cocos_core_assets_texture_base_TextureBase extends Asset {
+            get isCompressed(): boolean;
+            get width(): number;
+            get height(): number;
+            static PixelFormat: typeof cocos_core_assets_asset_enum_PixelFormat;
+            static WrapMode: typeof cocos_core_assets_asset_enum_WrapMode;
+            static Filter: typeof cocos_core_assets_asset_enum_Filter;
+            protected _format: number;
+            protected _minFilter: number;
+            protected _magFilter: number;
+            protected _mipFilter: number;
+            protected _wrapS: number;
+            protected _wrapT: number;
+            protected _wrapR: number;
+            protected _anisotropy: number;
+            protected _width: number;
+            protected _height: number;
+            constructor();
+            /**
+             * 获取标识符。
+             * @returns 此贴图的标识符。
+             */
+            getId(): string;
+            /**
+             * 获取像素格式。
+             * @returns 此贴图的像素格式。
+             */
+            getPixelFormat(): number;
+            /**
+             * 获取各向异性。
+             * @returns 此贴图的各向异性。
+             */
+            getAnisotropy(): number;
+            /**
+             * 设置此贴图的缠绕模式。
+             * 注意，若贴图尺寸不是 2 的整数幂，缠绕模式仅允许 `WrapMode.CLAMP_TO_EDGE`。
+             * @param wrapS S(U) 坐标的采样模式。
+             * @param wrapT T(V) 坐标的采样模式。
+             * @param wrapR R(W) 坐标的采样模式。
+             */
+            setWrapMode(wrapS: cocos_core_assets_asset_enum_WrapMode, wrapT: cocos_core_assets_asset_enum_WrapMode, wrapR?: cocos_core_assets_asset_enum_WrapMode): void;
+            /**
+             * 设置此贴图的过滤算法。
+             * @param minFilter 缩小过滤算法。
+             * @param magFilter 放大过滤算法。
+             */
+            setFilters(minFilter: cocos_core_assets_asset_enum_Filter, magFilter: cocos_core_assets_asset_enum_Filter): void;
+            /**
+             * 设置此贴图的 mip 过滤算法。
+             * @param mipFilter mip 过滤算法。
+             */
+            setMipFilter(mipFilter: cocos_core_assets_asset_enum_Filter): void;
+            /**
+             * 设置此贴图的各向异性。
+             * @param anisotropy 各向异性。
+             */
+            setAnisotropy(anisotropy: number): void;
+            /**
+             * 销毁此贴图，并释放占有的所有 GPU 资源。
+             */
+            destroy(): boolean;
+            /**
+             * 获取此贴图底层的 GFX 纹理对象。
+             */
+            getGFXTexture(): GFXTexture | null;
+            /**
+             * 获取此贴图内部使用的 GFX 采样器信息。
+             * @private
+             */
+            getSamplerHash(): number;
+            /**
+             * 获取此贴图底层的 GFX 采样信息。
+             */
+            getGFXSampler(): GFXSampler;
+            /**
+             * @return
+             */
+            _serialize(exporting?: any): any;
+            /**
+             *
+             * @param data
+             */
+            _deserialize(serializedData: any, handle: any): void;
+            protected _getGFXDevice(): GFXDevice | null;
+            protected _getGFXFormat(): any;
+            protected _setGFXFormat(format?: cocos_core_assets_asset_enum_PixelFormat): void;
+            protected _getGFXPixelFormat(format: any): any;
+        }
+        /**
+         * 简单贴图基类。
+         * 简单贴图内部创建了 GFX 贴图和该贴图上的 GFX 贴图视图。
+         * 简单贴图允许指定不同的 Mipmap 层级。
+         */
+        export class cocos_core_assets_simple_texture_SimpleTexture extends cocos_core_assets_texture_base_TextureBase {
+            protected _gfxTexture: GFXTexture | null;
+            get mipmapLevel(): number;
+            /**
+             * 获取此贴图底层的 GFX 贴图对象。
+             */
+            getGFXTexture(): GFXTexture | null;
+            destroy(): boolean;
+            /**
+             * 更新 0 级 Mipmap。
+             */
+            updateImage(): void;
+            /**
+             * 更新指定层级范围内的 Mipmap。当 Mipmap 数据发生了改变时应调用此方法提交更改。
+             * 若指定的层级范围超出了实际已有的层级范围，只有覆盖的那些层级范围会被更新。
+             * @param firstLevel 起始层级。
+             * @param count 层级数量。
+             */
+            updateMipmaps(firstLevel?: number, count?: number): void;
+            /**
+             * 上传图像数据到指定层级的 Mipmap 中。
+             * 图像的尺寸影响 Mipmap 的更新范围：
+             * - 当图像是 `ArrayBuffer` 时，图像的尺寸必须和 Mipmap 的尺寸一致；否则，
+             * - 若图像的尺寸与 Mipmap 的尺寸相同，上传后整个 Mipmap 的数据将与图像数据一致；
+             * - 若图像的尺寸小于指定层级 Mipmap 的尺寸（不管是长或宽），则从贴图左上角开始，图像尺寸范围内的 Mipmap 会被更新；
+             * - 若图像的尺寸超出了指定层级 Mipmap 的尺寸（不管是长或宽），都将引起错误。
+             * @param source 图像数据源。
+             * @param level Mipmap 层级。
+             * @param arrayIndex 数组索引。
+             */
+            uploadData(source: HTMLCanvasElement | HTMLImageElement | ArrayBufferView, level?: number, arrayIndex?: number): void;
+            protected _assignImage(image: ImageAsset, level: number, arrayIndex?: number): void;
+            protected _checkTextureLoaded(): void;
+            protected _textureReady(): void;
+            /**
+             * Set mipmap level of this texture.
+             * The value is passes as presumed info to `this._getGfxTextureCreateInfo()`.
+             * @param value The mipmap level.
+             */
+            protected _setMipmapLevel(value: number): void;
+            /**
+             * @en This method is overrided by derived classes to provide GFX texture info.
+             * @zh 这个方法被派生类重写以提供GFX纹理信息。
+             * @param presumed The presumed GFX texture info.
+             */
+            protected _getGfxTextureCreateInfo(presumed: cocos_core_assets_simple_texture_PresumedGFXTextureInfo): IGFXTextureInfo | null;
+            protected _tryReset(): void;
+            protected _createTexture(device: GFXDevice): void;
+            protected _tryDestroyTexture(): void;
+        }
+        /**
+         * 立方体每个面的约定索引。
+         */
+        export enum cocos_core_assets_texture_cube_FaceIndex {
+            right = 0,
+            left = 1,
+            top = 2,
+            bottom = 3,
+            front = 4,
+            back = 5
+        }
+        /**
+         * 立方体贴图的 Mipmap。
+         */
+        export interface cocos_core_assets_texture_cube_ITextureCubeMipmap {
+            front: ImageAsset;
+            back: ImageAsset;
+            left: ImageAsset;
+            right: ImageAsset;
+            top: ImageAsset;
+            bottom: ImageAsset;
+        }
+        export type cocos_core_assets_texture_cube_ITextureCubeCreateInfo = cocos_core_assets_texture_2d_ITexture2DCreateInfo;
+        export interface cocos_core_assets_texture_cube_ITextureCubeSerializeData {
+            base: string;
+            mipmaps: {
+                front: string;
+                back: string;
+                left: string;
+                right: string;
+                top: string;
+                bottom: string;
+            }[];
+        }
+        export interface cocos_core_assets_bitmap_font_IConfig {
+            [key: string]: any;
+        }
+        export interface cocos_core_assets_effect_asset_ITechniqueInfo {
+            passes: cocos_core_assets_effect_asset_IPassInfo[];
+            name?: string;
+        }
+        export interface cocos_core_assets_effect_asset_IPreCompileInfo {
+            [name: string]: boolean[] | number[] | string[];
+        }
+        export type cocos_core_assets_material_MaterialPropertyFull = renderer.MaterialProperty | cocos_core_assets_texture_base_TextureBase | SpriteFrame | RenderTexture | GFXTexture | null;
+        /**
+         * @en
+         * The basic infos for material initialization.
+         * @zh
+         * 用来初始化材质的基本信息。
+         */
+        export interface cocos_core_assets_material_IMaterialInfo {
+            /**
+             * @en
+             * The EffectAsset to use. Must provide if `effectName` is not specified.
+             * @zh
+             * 这个材质将使用的 EffectAsset，直接提供资源引用，和 `effectName` 至少要指定一个。
+             */
+            effectAsset?: EffectAsset | null;
+            /**
+             * @en
+             * The name of the EffectAsset to use. Must provide if `effectAsset` is not specified.
+             * @zh
+             * 这个材质将使用的 EffectAsset，通过 effect 名指定，和 `effectAsset` 至少要指定一个。
+             */
+            effectName?: string;
+            /**
+             * @en
+             * The index of the technique to use.
+             * @zh
+             * 这个材质将使用第几个 technique，默认为 0。
+             */
+            technique?: number;
+            /**
+             * @en
+             * The shader macro definitions. Default to 0 or the specified value in [[EffectAsset]].
+             * @zh
+             * 这个材质定义的预处理宏，默认全为 0，或 [[EffectAsset]] 中的指定值。
+             */
+            defines?: renderer.MacroRecord | renderer.MacroRecord[];
+            /**
+             * @en
+             * The override values on top of the pipeline states specified in [[EffectAsset]].
+             * @zh
+             * 这个材质的自定义管线状态，将覆盖 effect 中的属性。<br>
+             * 注意在可能的情况下请尽量少的自定义管线状态，以减小对渲染效率的影响。
+             */
+            states?: renderer.PassOverrides | renderer.PassOverrides[];
+        }
+        /**
+         * Class which control rendering of a morph resource.
+         */
+        export interface cocos_core_assets_morph_MorphRendering {
+            createInstance(): cocos_core_assets_morph_MorphRenderingInstance;
+        }
+        export interface cocos_core_assets_morph_MorphTarget {
+            /**
+             * Displacement of each target attribute.
+             */
+            displacements: Mesh.IBufferView[];
+        }
+        export interface cocos_core_assets_morph_SubMeshMorph {
+            /**
+             * Attributes to morph.
+             */
+            attributes: GFXAttributeName[];
+            /**
+             * Targets.
+             */
+            targets: cocos_core_assets_morph_MorphTarget[];
+            /**
+             * Initial weights of each target.
+             */
+            weights?: number[];
+        }
+        export interface cocos_core_assets_morph_Morph {
+            /**
+             * Morph data of each sub-mesh.
+             */
+            subMeshMorphs: (cocos_core_assets_morph_SubMeshMorph | null)[];
+            /**
+             * Common initial weights of each sub-mesh.
+             */
+            weights?: number[];
+        }
+        export interface cocos_core_assets_render_texture_IRenderTextureCreateInfo {
+            name?: string;
+            width: number;
+            height: number;
+            passInfo?: IGFXRenderPassInfo;
+        }
+        export interface cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo {
+            event?: number;
+            [x: string]: any;
+        }
+        export interface cocos_core_platform_event_manager_event_listener_IListenerMask {
+            index: number;
+            node: Node;
+        }
+        /**
+         * @en The base class of event listener.                                                                        <br/>
+         * If you need custom listener which with different callback, you need to inherit this class.               <br/>
+         * For instance, you could refer to EventListenerAcceleration, EventListenerKeyboard,                       <br/>
+         * EventListenerTouchOneByOne, EventListenerCustom.<br/>
+         * @zh 封装用户的事件处理逻辑
+         * 注意：这是一个抽象类，开发者不应该直接实例化这个类，请参考 [[create]] 。
+         */
+        export class cocos_core_platform_event_manager_event_listener_EventListener {
+            /**
+             * @en The type code of unknown event listener.<br/>
+             * @zh 未知的事件监听器类型
+             */
+            static UNKNOWN: number;
+            /**
+             * @en The type code of one by one touch event listener.<br/>
+             * @zh 触摸事件监听器类型，触点会一个一个得分开被派发
+             */
+            static TOUCH_ONE_BY_ONE: number;
+            /**
+             * @en The type code of all at once touch event listener.<br/>
+             * @zh 触摸事件监听器类型，触点会被一次性全部派发
+             */
+            static TOUCH_ALL_AT_ONCE: number;
+            /**
+             * @en The type code of keyboard event listener.<br/>
+             * @zh 键盘事件监听器类型
+             */
+            static KEYBOARD: number;
+            /**
+             * @en The type code of mouse event listener.<br/>
+             * @zh 鼠标事件监听器类型
+             */
+            static MOUSE: number;
+            /**
+             * @en The type code of acceleration event listener.<br/>
+             * @zh 加速器事件监听器类型
+             */
+            static ACCELERATION: number;
+            /**
+             * @en The type code of custom event listener.<br/>
+             * @zh 自定义事件监听器类型
+             */
+            static CUSTOM: number;
+            static ListenerID: {
+                MOUSE: string;
+                TOUCH_ONE_BY_ONE: string;
+                TOUCH_ALL_AT_ONCE: string;
+                KEYBOARD: string;
+                ACCELERATION: string;
+            };
+            /**
+             * @en Create a EventListener object with configuration including the event type, handlers and other parameters.<br/>
+             * In handlers, this refer to the event listener object itself.<br/>
+             * You can also pass custom parameters in the configuration object,<br/>
+             * all custom parameters will be polyfilled into the event listener object and can be accessed in handlers.<br/>
+             * @zh 通过指定不同的 Event 对象来设置想要创建的事件监听器。
+             * @param argObj a json object
+             */
+            static create(argObj: cocos_core_platform_event_manager_event_listener_IEventListenerCreateInfo): cocos_core_platform_event_manager_event_listener_EventListener;
+            owner: Object | null;
+            mask: cocos_core_platform_event_manager_event_listener_IListenerMask | null;
+            _previousIn?: boolean;
+            _target: any;
+            protected _onEvent: ((...args: any[]) => any) | null;
+            get onEvent(): ((...args: any[]) => any) | null;
+            constructor(type: number, listenerID: string, callback: ((...args: any[]) => any) | null);
+            /**
+             * @en
+             * <p><br/>
+             *     Sets paused state for the listener<br/>
+             *     The paused state is only used for scene graph priority listeners.<br/>
+             *     `EventDispatcher.resumeAllEventListenersForTarget(node)` will set the paused state to `true`,<br/>
+             *     while `EventDispatcher.pauseAllEventListenersForTarget(node)` will set it to `false`.<br/>
+             *     @note 1) Fixed priority listeners will never get paused. If a fixed priority doesn't want to receive events,<br/>
+             *              call `setEnabled(false)` instead.<br/>
+             *            2) In `Node`'s onEnter and onExit, the `paused state` of the listeners<br/>
+             *              which associated with that node will be automatically updated.<br/>
+             * </p><br/>
+             * @zh
+             * *为侦听器设置暂停状态<br/>
+             * 暂停状态仅用于场景图优先级侦听器。<br/>
+             * `EventDispatcher :: resumeAllEventListenersForTarget（node）`将暂停状态设置为`true`，<br/>
+             * 而`EventDispatcher :: pauseAllEventListenersForTarget（node）`将它设置为`false`。<br/>
+             * 注意：<br/>
+             * - 固定优先级侦听器永远不会被暂停。 如果固定优先级不想接收事件，改为调用`setEnabled（false）`。<br/>
+             * - 在“Node”的onEnter和onExit中，监听器的“暂停状态”与该节点关联的*将自动更新。
+             */
+            _setPaused(paused: boolean): void;
+            /**
+             * @en Checks whether the listener is paused.<br/>
+             * @zh 检查侦听器是否已暂停。
+             */
+            _isPaused(): boolean;
+            /**
+             * @en Marks the listener was registered by EventDispatcher.<br/>
+             * @zh 标记监听器已由 EventDispatcher 注册。
+             */
+            _setRegistered(registered: boolean): void;
+            /**
+             * @en Checks whether the listener was registered by EventDispatcher<br/>
+             * @zh 检查监听器是否已由 EventDispatcher 注册。
+             * @private
+             */
+            _isRegistered(): boolean;
+            /**
+             * @en Gets the type of this listener<br/>
+             * note： It's different from `EventType`, e.g.<br/>
+             * TouchEvent has two kinds of event listeners - EventListenerOneByOne, EventListenerAllAtOnce<br/>
+             * @zh 获取此侦听器的类型<br/>
+             * 注意：它与`EventType`不同，例如<br/>
+             * TouchEvent 有两种事件监听器 -  EventListenerOneByOne，EventListenerAllAtOnce
+             */
+            _getType(): number;
+            /**
+             * @en Gets the listener ID of this listener<br/>
+             * When event is being dispatched, listener ID is used as key for searching listeners according to event type.<br/>
+             * @zh 获取此侦听器的侦听器 ID。<br/>
+             * 调度事件时，侦听器 ID 用作根据事件类型搜索侦听器的键。
+             */
+            _getListenerID(): string;
+            /**
+             * @en Sets the fixed priority for this listener<br/>
+             * note: This method is only used for `fixed priority listeners`,<br/>
+             *   it needs to access a non-zero value. 0 is reserved for scene graph priority listeners<br/>
+             * @zh 设置此侦听器的固定优先级。<br/>
+             * 注意：此方法仅用于“固定优先级侦听器”，<br/>
+             * 它需要访问非零值。 0保留给场景图优先级侦听器。
+             */
+            _setFixedPriority(fixedPriority: number): void;
+            /**
+             * @en Gets the fixed priority of this listener<br/>
+             * @zh 获取此侦听器的固定优先级。
+             * @return 如果它是场景图优先级侦听器则返回 0 ，则对于固定优先级侦听器则不为零
+             */
+            _getFixedPriority(): number;
+            /**
+             * @en Sets scene graph priority for this listener<br/>
+             * @zh 设置此侦听器的场景图优先级。
+             * @param {Node} node
+             */
+            _setSceneGraphPriority(node: any): void;
+            /**
+             * @en Gets scene graph priority of this listener<br/>
+             * @zh 获取此侦听器的场景图优先级。
+             * @return 如果它是固定优先级侦听器，则为场景图优先级侦听器非 null 。
+             */
+            _getSceneGraphPriority(): any;
+            /**
+             * @en Checks whether the listener is available.<br/>
+             * @zh 检测监听器是否有效
+             */
+            checkAvailable(): boolean;
+            /**
+             * @en Clones the listener, its subclasses have to override this method.<br/>
+             * @zh 克隆监听器,它的子类必须重写此方法。
+             */
+            clone(): cocos_core_platform_event_manager_event_listener_EventListener | null;
+            /**
+             * @en
+             * Enables or disables the listener<br/>
+             * note: Only listeners with `enabled` state will be able to receive events.<br/>
+             * When an listener was initialized, it's enabled by default.<br/>
+             * An event listener can receive events when it is enabled and is not paused.<br/>
+             * paused state is always false when it is a fixed priority listener.<br/>
+             * @zh
+             * 启用或禁用监听器。<br/>
+             * 注意：只有处于“启用”状态的侦听器才能接收事件。<br/>
+             * 初始化侦听器时，默认情况下启用它。<br/>
+             * 事件侦听器可以在启用且未暂停时接收事件。<br/>
+             * 当固定优先级侦听器时，暂停状态始终为false。<br/>
+             */
+            setEnabled(enabled: boolean): void;
+            /**
+             * @en Checks whether the listener is enabled<br/>
+             * @zh 检查监听器是否可用。
+             */
+            isEnabled(): boolean;
+        }
+        export class cocos_core_platform_event_manager_event_manager_EventManager {
+            /**
+             * @en Pauses all listeners which are associated the specified target.
+             * @zh 暂停传入的 node 相关的所有监听器的事件响应。
+             * @param node - 暂停目标节点
+             * @param recursive - 是否往子节点递归暂停。默认为 false。
+             */
+            pauseTarget(node: Node, recursive?: boolean): void;
+            /**
+             * @en
+             * Resumes all listeners which are associated the specified target.
+             *
+             * @zh
+             * 恢复传入的 node 相关的所有监听器的事件响应。
+             *
+             * @param node - 监听器节点。
+             * @param recursive - 是否往子节点递归。默认为 false。
+             */
+            resumeTarget(node: Node, recursive?: boolean): void;
+            frameUpdateListeners(): void;
+            /**
+             * @en
+             * Query whether the specified event listener id has been added.
+             *
+             * @zh
+             * 查询指定的事件 ID 是否存在。
+             *
+             * @param listenerID - 查找监听器 ID。
+             * @returns 是否已查找到。
+             */
+            hasEventListener(listenerID: string): boolean;
+            /**
+             * @en
+             * <p>
+             * Adds a event listener for a specified event.<br/>
+             * if the parameter "nodeOrPriority" is a node,
+             * it means to add a event listener for a specified event with the priority of scene graph.<br/>
+             * if the parameter "nodeOrPriority" is a Number,
+             * it means to add a event listener for a specified event with the fixed priority.<br/>
+             * </p>
+             *
+             * @zh
+             * 将事件监听器添加到事件管理器中。<br/>
+             * 如果参数 “nodeOrPriority” 是节点，优先级由 node 的渲染顺序决定，显示在上层的节点将优先收到事件。<br/>
+             * 如果参数 “nodeOrPriority” 是数字，优先级则固定为该参数的数值，数字越小，优先级越高。<br/>
+             *
+             * @param listener - 指定事件监听器。
+             * @param nodeOrPriority - 监听程序的优先级。
+             * @returns
+             */
+            addListener(listener: cocos_core_platform_event_manager_event_listener_EventListener, nodeOrPriority: any | number): any;
+            /**
+             * @en
+             * Adds a Custom event listener. It will use a fixed priority of 1.
+             *
+             * @zh
+             * 向事件管理器添加一个自定义事件监听器。
+             *
+             * @param eventName - 自定义事件名。
+             * @param callback - 事件回调。
+             * @returns 返回自定义监听器。
+             */
+            addCustomListener(eventName: string, callback: Function): cocos_core_platform_event_manager_event_listener_EventListener;
+            /**
+             * @en
+             * Remove a listener.
+             *
+             * @zh
+             * 移除一个已添加的监听器。
+             *
+             * @param listener - 需要移除的监听器。
+             */
+            removeListener(listener: cocos_core_platform_event_manager_event_listener_EventListener): void;
+            /**
+             * @en
+             * Removes all listeners with the same event listener type or removes all listeners of a node.
+             *
+             * @zh
+             * 移除注册到 eventManager 中指定类型的所有事件监听器。<br/>
+             * 1. 如果传入的第一个参数类型是 Node，那么事件管理器将移除与该对象相关的所有事件监听器。
+             * （如果第二参数 recursive 是 true 的话，就会连同该对象的子控件上所有的事件监听器也一并移除）<br/>
+             * 2. 如果传入的第一个参数类型是 Number（该类型 EventListener 中定义的事件类型），
+             * 那么事件管理器将移除该类型的所有事件监听器。<br/>
+             *
+             * 下列是目前存在监听器类型：       <br/>
+             * `EventListener.UNKNOWN`       <br/>
+             * `EventListener.KEYBOARD`      <br/>
+             * `EventListener.ACCELERATION`，<br/>
+             *
+             * @param listenerType - 监听器类型。
+             * @param recursive - 递归子节点的同类型监听器一并移除。默认为 false。
+             */
+            removeListeners(listenerType: number | any, recursive?: boolean): void;
+            /**
+             * @en
+             * Removes all custom listeners with the same event name.
+             *
+             * @zh
+             * 移除同一事件名的自定义事件监听器。
+             *
+             * @param customEventName - 自定义事件监听器名。
+             */
+            removeCustomListeners(customEventName: any): void;
+            /**
+             * @en
+             * Removes all listeners.
+             *
+             * @zh
+             * 移除所有事件监听器。
+             */
+            removeAllListeners(): void;
+            /**
+             * @en
+             * Sets listener's priority with fixed value.
+             *
+             * @zh
+             * 设置 FixedPriority 类型监听器的优先级。
+             *
+             * @param listener - 监听器。
+             * @param fixedPriority - 优先级。
+             */
+            setPriority(listener: cocos_core_platform_event_manager_event_listener_EventListener, fixedPriority: number): void;
+            /**
+             * @en
+             * Whether to enable dispatching events.
+             *
+             * @zh
+             * 启用或禁用事件管理器，禁用后不会分发任何事件。
+             *
+             * @param enabled - 是否启用事件管理器。
+             */
+            setEnabled(enabled: boolean): void;
+            /**
+             * @en
+             * Checks whether dispatching events is enabled.
+             *
+             * @zh 检测事件管理器是否启用。
+             *
+             * @returns
+             */
+            isEnabled(): boolean;
+            /**
+             * @en
+             * Dispatches the event, also removes all EventListeners marked for deletion from the event dispatcher list.
+             *
+             * @zh
+             * 分发事件。
+             *
+             * @param event - 分发事件。
+             */
+            dispatchEvent(event: Event): void;
+            _onListenerCallback(listener: cocos_core_platform_event_manager_event_listener_EventListener, event: Event): boolean;
+            /**
+             * @en
+             * Dispatches a Custom Event with a event name an optional user data.
+             *
+             * @zh
+             * 分发自定义事件。
+             *
+             * @param eventName - 自定义事件名。
+             * @param optionalUserData
+             */
+            dispatchCustomEvent(eventName: any, optionalUserData: any): void;
+        }
+        export interface cocos_physics_framework_physics_config_ICollisionMatrix {
+            [x: string]: number;
+        }
+        export interface cocos_physics_framework_physics_config_IPhysicsMaterial {
+            friction: number;
+            rollingFriction: number;
+            spinningFriction: number;
+            restitution: number;
+        }
+        export interface cocos_physics_framework_physics_config_IPhysicsConfig {
+            gravity: math.IVec3Like;
+            allowSleep: boolean;
+            fixedTimeStep: number;
+            maxSubSteps: number;
+            sleepThreshold: number;
+            collisionMatrix: cocos_physics_framework_physics_config_ICollisionMatrix;
+            defaultMaterial: cocos_physics_framework_physics_config_IPhysicsMaterial;
+            autoSimulation: boolean;
+            useCollsionMatrix: boolean;
+            useNodeChains: boolean;
+            physicsEngine: "builtin" | "cannon.js" | "ammo.js" | string;
+        }
+        function cocos_core_scene_graph_component_scheduler_stableRemoveInactive(iterator: any, flagToClear: any): void;
+        /**
+         * @class js.array.MutableForwardIterator
+         * @example
+         * ```
+         * import { js } from 'cc';
+         * var array = [0, 1, 2, 3, 4];
+         * var iterator = new js.array.MutableForwardIterator(array);
+         * for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
+         *     var item = array[iterator.i];
+         *     ...
+         * }
+         * ```
+         */
+        export class cocos_core_utils_mutable_forward_iterator_default<T> {
+            array: T[];
+            i: number;
+            constructor(array: T[]);
+            get length(): number;
+            set length(value: number);
+            remove(value: T): void;
+            removeAt(i: number): void;
+            fastRemove(value: T): void;
+            fastRemoveAt(i: number): void;
+            push(item: T): void;
+        }
+        export class cocos_core_scene_graph_component_scheduler_LifeCycleInvoker {
+            static stableRemoveInactive: typeof cocos_core_scene_graph_component_scheduler_stableRemoveInactive;
+            protected _zero: cocos_core_utils_mutable_forward_iterator_default<any>;
+            protected _neg: cocos_core_utils_mutable_forward_iterator_default<any>;
+            protected _pos: cocos_core_utils_mutable_forward_iterator_default<any>;
+            protected _invoke: any;
+            constructor(invokeFunc: any);
+        }
+        export class cocos_core_scene_graph_component_scheduler_OneOffInvoker extends cocos_core_scene_graph_component_scheduler_LifeCycleInvoker {
+            add(comp: any): void;
+            remove(comp: any): void;
+            cancelInactive(flagToClear: any): void;
+            invoke(): void;
+        }
+        export class cocos_core_scene_graph_component_scheduler_ReusableInvoker extends cocos_core_scene_graph_component_scheduler_LifeCycleInvoker {
+            add(comp: any): void;
+            remove(comp: any): void;
+            invoke(dt: any): void;
+        }
+        /**
+         * @en The Manager for Component's life-cycle methods.
+         * It collaborates with [[NodeActivator]] to schedule and invoke life cycle methods for components
+         * @zh 组件生命周期函数的调度器。
+         * 它和 [[NodeActivator]] 一起调度并执行组件的生命周期函数。
+         */
+        export class cocos_core_scene_graph_component_scheduler_ComponentScheduler {
+            /**
+             * @en The invoker of `start` callback
+             * @zh `start` 回调的调度器
+             */
+            startInvoker: cocos_core_scene_graph_component_scheduler_OneOffInvoker;
+            /**
+             * @en The invoker of `update` callback
+             * @zh `update` 回调的调度器
+             */
+            updateInvoker: cocos_core_scene_graph_component_scheduler_ReusableInvoker;
+            /**
+             * @en The invoker of `lateUpdate` callback
+             * @zh `lateUpdate` 回调的调度器
+             */
+            lateUpdateInvoker: cocos_core_scene_graph_component_scheduler_ReusableInvoker;
+            constructor();
+            /**
+             * @en Cancel all future callbacks, including `start`, `update` and `lateUpdate`
+             * @zh 取消所有未来的函数调度，包括 `start`，`update` 和 `lateUpdate`
+             */
+            unscheduleAll(): void;
+            _onEnabled(comp: any): void;
+            _onDisabled(comp: any): void;
+            /**
+             * @en Enable a component
+             * @zh 启用一个组件
+             * @param comp The component to be enabled
+             * @param invoker The invoker which is responsible to schedule the `onEnable` call
+             */
+            enableComp(comp: any, invoker?: any): void;
+            /**
+             * @en Disable a component
+             * @zh 禁用一个组件
+             * @param comp The component to be disabled
+             */
+            disableComp(comp: any): void;
+            /**
+             * @en Process start phase for registered components
+             * @zh 为当前注册的组件执行 start 阶段任务
+             */
+            startPhase(): void;
+            /**
+             * @en Process update phase for registered components
+             * @zh 为当前注册的组件执行 update 阶段任务
+             * @param dt 距离上一帧的时间
+             */
+            updatePhase(dt: number): void;
+            /**
+             * @en Process late update phase for registered components
+             * @zh 为当前注册的组件执行 late update 阶段任务
+             * @param dt 距离上一帧的时间
+             */
+            lateUpdatePhase(dt: number): void;
+        }
+        export type TypedArrayConstructor = Uint8ArrayConstructor | Uint8ClampedArrayConstructor | Int8ArrayConstructor | Uint16ArrayConstructor | Int16ArrayConstructor | Uint32ArrayConstructor | Int32ArrayConstructor | Float32ArrayConstructor | Float64ArrayConstructor;
+        export interface cocos_core_pipeline_define_IRenderPass {
+            hash: number;
+            depth: number;
+            shaderId: number;
+            subModel: renderer.SubModel;
+            passIdx: number;
+        }
+        export namespace cocos_core_pipeline_define {
+            export enum RenderPassStage {
+                DEFAULT = 100,
+                UI = 200
+            }
+            export enum RenderPriority {
+                MIN = 0,
+                MAX = 255,
+                DEFAULT = 128
+            }
+            export interface IRenderObject {
+                model: renderer.Model;
+                depth: number;
+            }
+            export interface IRenderPass {
+                hash: number;
+                depth: number;
+                shaderId: number;
+                subModel: renderer.SubModel;
+                passIdx: number;
+            }
+            export interface IRenderBatch {
+                pass: renderer.Pass;
+            }
+            export interface IRenderQueueDesc {
+                isTransparent: boolean;
+                phases: number;
+                sortFunc: (a: cocos_core_pipeline_define_IRenderPass, b: cocos_core_pipeline_define_IRenderPass) => number;
+            }
+            export interface IDescriptorSetLayoutInfo {
+                bindings: IGFXDescriptorSetLayoutBinding[];
+                record: Record<string, cocos_core_assets_effect_asset_IBlockInfo | cocos_core_assets_effect_asset_ISamplerInfo>;
+            }
+            export enum PipelineGlobalBindings {
+                UBO_GLOBAL = 0,
+                UBO_SHADOW = 1,
+                SAMPLER_ENVIRONMENT = 2,
+                SAMPLER_SHADOWMAP = 3,
+                COUNT = 4
+            }
+            export enum ModelLocalBindings {
+                UBO_LOCAL = 0,
+                UBO_FORWARD_LIGHTS = 1,
+                UBO_SKINNING_ANIMATION = 2,
+                UBO_SKINNING_TEXTURE = 3,
+                UBO_MORPH = 4,
+                SAMPLER_JOINTS = 5,
+                SAMPLER_MORPH_POSITION = 6,
+                SAMPLER_MORPH_NORMAL = 7,
+                SAMPLER_MORPH_TANGENT = 8,
+                SAMPLER_LIGHTING_MAP = 9,
+                SAMPLER_SPRITE = 10,
+                COUNT = 11
+            }
+            export enum SetIndex {
+                GLOBAL = 0,
+                MATERIAL = 1,
+                LOCAL = 2
+            }
+            export class UBOGlobal {
+                static TIME_OFFSET: number;
+                static SCREEN_SIZE_OFFSET: number;
+                static SCREEN_SCALE_OFFSET: number;
+                static NATIVE_SIZE_OFFSET: number;
+                static MAT_VIEW_OFFSET: number;
+                static MAT_VIEW_INV_OFFSET: number;
+                static MAT_PROJ_OFFSET: number;
+                static MAT_PROJ_INV_OFFSET: number;
+                static MAT_VIEW_PROJ_OFFSET: number;
+                static MAT_VIEW_PROJ_INV_OFFSET: number;
+                static CAMERA_POS_OFFSET: number;
+                static EXPOSURE_OFFSET: number;
+                static MAIN_LIT_DIR_OFFSET: number;
+                static MAIN_LIT_COLOR_OFFSET: number;
+                static AMBIENT_SKY_OFFSET: number;
+                static AMBIENT_GROUND_OFFSET: number;
+                static GLOBAL_FOG_COLOR_OFFSET: number;
+                static GLOBAL_FOG_BASE_OFFSET: number;
+                static GLOBAL_FOG_ADD_OFFSET: number;
+                static COUNT: number;
+                static SIZE: number;
+                static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+            export class UBOShadow {
+                static MAT_LIGHT_PLANE_PROJ_OFFSET: number;
+                static MAT_LIGHT_VIEW_PROJ_OFFSET: number;
+                static SHADOW_COLOR_OFFSET: number;
+                static COUNT: number;
+                static SIZE: number;
+                static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+            export class UBOLocal {
+                static MAT_WORLD_OFFSET: number;
+                static MAT_WORLD_IT_OFFSET: number;
+                static LIGHTINGMAP_UVPARAM: number;
+                static COUNT: number;
+                static SIZE: number;
+                static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+            export class UBOLocalBatched {
+                static BATCHING_COUNT: number;
+                static MAT_WORLDS_OFFSET: number;
+                static COUNT: number;
+                static SIZE: number;
+                static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+            export class UBOForwardLight {
+                static LIGHTS_PER_PASS: number;
+                static LIGHT_POS_OFFSET: number;
+                static LIGHT_COLOR_OFFSET: number;
+                static LIGHT_SIZE_RANGE_ANGLE_OFFSET: number;
+                static LIGHT_DIR_OFFSET: number;
+                static COUNT: number;
+                static SIZE: number;
+                static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+            export class UBOSkinningTexture {
+                static JOINTS_TEXTURE_INFO_OFFSET: number;
+                static COUNT: number;
+                static SIZE: number;
+                static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+            export class UBOSkinningAnimation {
+                static JOINTS_ANIM_INFO_OFFSET: number;
+                static COUNT: number;
+                static SIZE: number;
+                static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+            export class UBOSkinning {
+                static JOINTS_OFFSET: number;
+                static COUNT: number;
+                static SIZE: number;
+                static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+            export class UBOMorph {
+                static readonly MAX_MORPH_TARGET_COUNT = 60;
+                static readonly OFFSET_OF_WEIGHTS = 0;
+                static readonly OFFSET_OF_DISPLACEMENT_TEXTURE_WIDTH: number;
+                static readonly OFFSET_OF_DISPLACEMENT_TEXTURE_HEIGHT: number;
+                static readonly COUNT_BASE_4_BYTES: number;
+                static readonly SIZE: number;
+                static readonly BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
+            }
+        }
+        export interface cocos_core_pipeline_define_IDescriptorSetLayoutInfo {
+            bindings: IGFXDescriptorSetLayoutBinding[];
+            record: Record<string, cocos_core_assets_effect_asset_IBlockInfo | cocos_core_assets_effect_asset_ISamplerInfo>;
+        }
+        /**
+         * @en Render pipeline information descriptor
+         * @zh 渲染管线描述信息。
+         */
+        export interface cocos_core_pipeline_render_pipeline_IRenderPipelineInfo {
+            flows: RenderFlow[];
+            tag?: number;
+        }
+        /**
+         * @en Render flow information descriptor
+         * @zh 渲染流程描述信息。
+         */
+        export interface cocos_core_pipeline_render_flow_IRenderFlowInfo {
+            name: string;
+            priority: number;
+            tag?: number;
+        }
+        /**
+         * @en The render stage information descriptor
+         * @zh 渲染阶段描述信息。
+         */
+        export interface cocos_core_pipeline_render_stage_IRenderStageInfo {
+            name: string;
+            priority: number;
+            tag?: number;
+        }
+        export class cocos_core_pipeline_pipeline_serialization_RenderTextureConfig {
+            name: string;
+            texture: RenderTexture | null;
+        }
+        export class cocos_core_pipeline_pipeline_serialization_MaterialConfig {
+            name: string;
+            material: Material | null;
+        }
+        export class cocos_core_renderer_scene_fog_Fog {
+            set enabled(val: boolean);
+            get enabled(): boolean;
+            set fogColor(val: math.Color);
+            get fogColor(): math.Color;
+            get type(): number;
+            set type(val: number);
+            get fogDensity(): number;
+            set fogDensity(val: number);
+            get fogStart(): number;
+            set fogStart(val: number);
+            get fogEnd(): number;
+            set fogEnd(val: number);
+            get fogAtten(): number;
+            set fogAtten(val: number);
+            get fogTop(): number;
+            set fogTop(val: number);
+            get fogRange(): number;
+            set fogRange(val: number);
+            get currType(): number;
+            get colorArray(): Float32Array;
+            protected _type: number;
+            protected _fogColor: math.Color;
+            protected _enabled: boolean;
+            protected _fogDensity: number;
+            protected _fogStart: number;
+            protected _fogEnd: number;
+            protected _fogAtten: number;
+            protected _fogTop: number;
+            protected _fogRange: number;
+            protected _currType: number;
+            protected _colorArray: Float32Array;
+            activate(): void;
+            protected _updatePipeline(): void;
+        }
+        /**
+         * @en Scene level shadow related information
+         * @zh 常规阴影相关信息
+         */
+        export class cocos_core_renderer_scene_shadow_Shadow {
+            get enabled(): boolean;
+            set enabled(val: boolean);
+            protected _enabled: boolean;
+            /**
+             * @en get or set shadow camera near
+             * @zh 获取或者设置阴影相机近裁剪面
+             */
+            near: number;
+            /**
+             * @en get or set shadow camera far
+             * @zh 获取或者设置阴影相机远裁剪面
+             */
+            far: number;
+            /**
+             * @en get or set shadow camera aspect
+             * @zh 获取或者设置阴影相机的宽高比
+             */
+            aspect: number;
+            /**
+             * @en get or set shadow camera orthoSize
+             * @zh 获取或者设置阴影相机正交大小
+             */
+            orthoSize: number;
+            /**
+             * @en get or set shadow camera orthoSize
+             * @zh 获取或者设置阴影纹理大小
+             */
+            size: math.Vec2;
+            activate(): void;
+            protected _updatePipeline(): void;
+        }
+        /**
+         * @en Render object interface
+         * @zh 渲染对象接口。
+         */
+        export interface cocos_core_pipeline_define_IRenderObject {
+            model: renderer.Model;
+            depth: number;
+        }
+        export enum cocos_core_pipeline_pipeline_serialization_RenderQueueSortMode {
+            FRONT_TO_BACK = 0,
+            BACK_TO_FRONT = 1
+        }
+        /**
+         * @en The render queue descriptor
+         * @zh 渲染队列描述信息
+         */
+        export class cocos_core_pipeline_pipeline_serialization_RenderQueueDesc {
+            /**
+             * @en Whether the render queue is a transparent queue
+             * @zh 当前队列是否是半透明队列
+             */
+            isTransparent: boolean;
+            /**
+             * @en The sort mode of the render queue
+             * @zh 渲染队列的排序模式
+             */
+            sortMode: cocos_core_pipeline_pipeline_serialization_RenderQueueSortMode;
+            /**
+             * @en The stages using this queue
+             * @zh 使用当前渲染队列的阶段列表
+             */
+            stages: string[];
+        }
+        /**
+         * @en Render queue descriptor
+         * @zh 渲染队列描述。
+         */
+        export interface cocos_core_pipeline_define_IRenderQueueDesc {
+            isTransparent: boolean;
+            phases: number;
+            sortFunc: (a: cocos_core_pipeline_define_IRenderPass, b: cocos_core_pipeline_define_IRenderPass) => number;
+        }
+        /**
+         * @en The render queue. It manages a [[GFXRenderPass]] queue which will be executed by the [[RenderStage]].
+         * @zh 渲染队列。它管理一个 [[GFXRenderPass]] 队列，队列中的渲染过程会被 [[RenderStage]] 所执行。
+         */
+        export class cocos_core_pipeline_render_queue_RenderQueue {
+            /**
+             * @en A cached array of render passes
+             * @zh 基于缓存数组的渲染过程队列。
+             */
+            queue: memop.CachedArray<cocos_core_pipeline_define_IRenderPass>;
+            /**
+             * @en Construct a RenderQueue with render queue descriptor
+             * @zh 利用渲染队列描述来构造一个 RenderQueue。
+             * @param desc Render queue descriptor
+             */
+            constructor(desc: cocos_core_pipeline_define_IRenderQueueDesc);
+            /**
+             * @en Clear the render queue
+             * @zh 清空渲染队列。
+             */
+            clear(): void;
+            /**
+             * @en Insert a render pass into the queue
+             * @zh 插入渲染过程。
+             * @param renderObj The render object of the pass
+             * @param modelIdx The model id
+             * @param passIdx The pass id
+             * @returns Whether the new render pass is successfully added
+             */
+            insertRenderPass(renderObj: cocos_core_pipeline_define_IRenderObject, subModelIdx: number, passIdx: number): boolean;
+            /**
+             * @en Sort the current queue
+             * @zh 排序渲染队列。
+             */
+            sort(): void;
+            recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
+        }
+        export namespace cocos_core_load_pipeline_pack_downloader {
+            export function initPacks(packs: any): void;
+            export function _loadNewPack(uuid: any, packUuid: any, callback: any): void;
+            export function _doPreload(packUuid: any, packJson: any): void;
+            export function _doLoadNewPack(uuid: any, packUuid: any, packedJson: any): any;
+            export function _selectLoadedPack(packUuids: any): any;
+            export function load(item: any, callback: any): any;
+        }
+        export interface cocos_core_load_pipeline_pipeline_IPipe {
+            id: string;
+            async: boolean;
+            handle(item: IItem, callback: any): any;
+            next?: cocos_core_load_pipeline_pipeline_IPipe | null;
+            pipeline?: Pipeline | null;
+        }
+        /**
+         * @en The load pipe in {{loader}} to load an asset with its uuid, it will recursively load its dependencies.
+         * @zh {{loader}} 加载管线中的资源加载管道，用来通过 uuid 加载 asset 资源及其依赖
+         */
+        export class cocos_core_load_pipeline_asset_loader_default implements cocos_core_load_pipeline_pipeline_IPipe {
+            static ID: string;
+            id: string;
+            async: boolean;
+            pipeline: Pipeline | null;
+            handle(item: any, callback: any): any;
+        }
+        export type Constructor<T = {}> = new (...args: any[]) => T;
+        /**
+         * @en Loader for resource loading process. The engine automatically initialize its singleton object {{loader}}.
+         * @zh 资源加载管理器，引擎会自动创建一个单例对象 {{loader}}。
+         */
+        export class cocos_core_load_pipeline_CCLoader_CCLoader extends Pipeline {
+            /**
+             * @en Gets a new XMLHttpRequest instance.
+             * @zh 获取一个新的 XMLHttpRequest 的实例。
+             */
+            getXMLHttpRequest: Function;
+            /**
+             * @en The asset loader in loader's pipeline, it's by default the first pipe.<br>
+             * It's used to identify an asset's type, and determine how to download it.
+             * @zh loader 中的资源加载器，默认情况下是最先加载的。<br>
+             * 用于标识资源的类型，并确定如何加载此资源。
+             */
+            assetLoader: cocos_core_load_pipeline_asset_loader_default;
+            /**
+             * @en The md5 pipe in loader's pipeline, it could be absent if the project isn't build with md5 option.<br>
+             * It's used to modify the url to the real downloadable url with md5 suffix.
+             * @zh loader 中的 md5 加载管道，如果项目没有使用 md5 构建，则此项可能不存在。<br>
+             * 用于修改带有 md5 后缀的真实可下载的 URL 。
+             */
+            md5Pipe: null;
+            /**
+             * @en
+             * The downloader in loader's pipeline, it's by default the second pipe.<br>
+             * It's used to download files with several handlers: pure text, image, script, audio, font, uuid.<br>
+             * You can add your own download function with addDownloadHandlers
+             * @zh
+             * loader 中的资源下载程序，默认情况下是第二个加载的。<br>
+             * 它用于下载带有多个处理程序的文件：纯文本，图像，脚本，音频，字体，uuid。<br>
+             * 您可以使用 addDownloadHandlers 来添加自己的下载函数
+             */
+            downloader: Downloader;
+            /**
+             * @en
+             * The loader in loader's pipeline, it's by default the third pipe.<br>
+             * It's used to parse downloaded content with several handlers: JSON, image, plist, fnt, uuid.<br>
+             * You can add your own download function with addLoadHandlers
+             * @zh
+             * loader 中的资源下载程序，默认情况下是第三个加载的。<br>
+             * 它用于解析下载的内容及多个处理程序的文件：纯文本，图像，脚本，音频，字体，uuid。<br>
+             * 您可以使用 addLoadHandlers 来添加自己的下载函数
+             */
+            loader: Loader;
+            /**
+             * @en The default progression callback during the loading process,
+             * if no progression callback is passed to {{load}} function, then this default callback will be used.
+             * @zh Loader 默认的进度回调函数，如果在调用 {{load}} 函数时没有指定进度回调函数的话，会调用默认进度回调函数。
+             */
+            onProgress: Function | null;
+            _assetTables: any;
+            constructor();
+            /**
+             * @en Initialize with director
+             * @zh 使用 {{director}} 初始化
+             * @param director The director instance of engine
+             */
+            init(director: any): void;
+            /**
+             * @en Add custom supported types handler or modify existing type handler for download process.
+             * @zh 为下载程序添加自定义支持的类型处理程序或修改现有的类型处理程序。
+             * @example
+             * ```ts
+             *  loader.addDownloadHandlers({
+             *      // This will match all url with `.scene` extension or all url with `scene` type
+             *      'scene' : function (url, callback) {}
+             *  });
+             * ```
+             * @param extMap Handlers for corresponding type in a map
+             */
+            addDownloadHandlers(extMap: Map<string, Function>): void;
+            /**
+             * @en Add custom supported types handler or modify existing type handler for load process.
+             * @zh 为加载程序添加自定义支持的类型处理程序或修改现有的类型处理程序。
+             * @example
+             * ```ts
+             *  loader.addLoadHandlers({
+             *      // This will match all url with `.scene` extension or all url with `scene` type
+             *      'scene' : function (url, callback) {}
+             *  });
+             * ```
+             * @param extMap Handlers for corresponding type in a map
+             */
+            addLoadHandlers(extMap: Map<string, Function>): void;
+            /**
+             * @en
+             * Load resources with a progression callback and a complete callback.<br>
+             * The progression callback is the same as Pipeline's [[LoadingItems.onProgress]] <br>
+             * The complete callback is almost the same as Pipeline's [[LoadingItems.onComplete]] <br>
+             * The only difference is when user pass a single url as resources, the complete callback will set its result directly as the second parameter.
+             * @zh
+             * 使用进度回调和完整回调加载资源。<br>
+             * 进度回调与 Pipeline 的 [[LoadingItems.onProgress]] 相同<br>
+             * 完整的回调与 Pipeline 的 [[LoadingItems.onComplete]] 几乎相同<br>
+             * 唯一的区别是当用户将单个 URL 作为资源传递时，完整的回调将其结果直接设置为第二个参数。
+             * @example
+             * ```TypeScript
+             * import { loader, log, Texture2D } from 'cc';
+             * loader.load('a.png', function (err, tex) {
+             *     log('Result should be a texture: ' + (tex instanceof Texture2D));
+             * });
+             *
+             * loader.load('http://example.com/a.png', function (err, tex) {
+             *     log('Should load a texture from external url: ' + (tex instanceof Texture2D));
+             * });
+             *
+             * loader.load({url: 'http://example.com/getImageREST?file=a.png', type: 'png'}, function (err, tex) {
+             *     log('Should load a texture from RESTful API by specify the type: ' + (tex instanceof Texture2D));
+             * });
+             *
+             * loader.load(['a.png', 'b.json'], function (errors, results) {
+             *     if (errors) {
+             *         for (let i = 0; i < errors.length; i++) {
+             *             log('Error url [' + errors[i] + ']: ' + results.getError(errors[i]));
+             *         }
+             *     }
+             *     let aTex = results.getContent('a.png');
+             *     let bJsonObj = results.getContent('b.json');
+             * });
+             * ```
+             * @param resources - Url list or load request list
+             * @param progressCallback - Progression callback
+             * @param {Number} progressCallback.completedCount - The number of the items that are already completed
+             * @param {Number} progressCallback.totalCount - The total number of the items
+             * @param {Object} progressCallback.item - The latest item which flow out the pipeline
+             * @param completeCallback - Completion callback
+             */
+            load(resources: string | string[] | Object, progressCallback?: Function | null, completeCallback?: Function | null): void;
+            /**
+             * @en See: {{Pipeline.flowInDeps}}
+             * @zh 参考：{{Pipeline.flowInDeps}}
+             */
+            flowInDeps(owner: any, urlList: any, callback: any): IItem[];
+            loadRes<T>(url: string, type: Constructor<T>, mount: string, progressCallback: LoadProgressCallback, completeCallback: LoadCompleteCallback<T>): any;
+            loadRes<T>(url: string, type: Constructor<T>, progressCallback: LoadProgressCallback, completeCallback: LoadCompleteCallback<T>): any;
+            loadRes<T>(url: string, type: Constructor<T>, completeCallback: LoadCompleteCallback<T>): any;
+            /**
+             * @en
+             * Load all assets in a folder inside the "assets/resources" folder of your project.<br>
+             * <br>
+             * Note: All asset URLs in Creator use forward slashes, URLs using backslashes will not work.
+             * @zh
+             * 将所有资产加载到项目 “assets / resources” 文件夹中
+             * <br>
+             * 注意：Creator 中的所有资源 URL 都使用正斜杠，使用反斜杠的 URL 将不起作用。
+             * @param url The url of the directory to be loaded, this url should be related path to the `resources` folder.
+             * @param type - If type is provided, only assets for correspond type will be loaded
+             * @param progressCallback - Progression callback
+             * @param {Number} progressCallback.completedCount - The number of the items that are already completed.
+             * @param {Number} progressCallback.totalCount - The total number of the items.
+             * @param {Object} progressCallback.item - The latest item which flow out the pipeline.
+             * @param completeCallback - Completion callback
+             * @param {Error} completeCallback.error - If one of the asset failed, the complete callback is immediately called
+             *                                         with the error. If all assets are loaded successfully, error will be null.
+             * @param {Asset[]|Array} completeCallback.assets - An array of all loaded assets.
+             *                                             If nothing to load, assets will be an empty array.
+             * @param {string[]} completeCallback.urls - An array that lists all the URLs of loaded assets.
+             *
+             * @example
+             * ```ts
+             * import { loader, error, Texture2D } from 'cc';
+             * // load the texture (resources/imgs/cocos.png) and the corresponding sprite frame
+             * loader.loadResDir('imgs/cocos', function (err, assets) {
+             *     if (err) {
+             *         error(err);
+             *         return;
+             *     }
+             *     let texture = assets[0];
+             *     let spriteFrame = assets[1];
+             * });
+             *
+             * // load all textures in "resources/imgs/"
+             * loader.loadResDir('imgs', Texture2D, function (err, textures) {
+             *     let texture1 = textures[0];
+             *     let texture2 = textures[1];
+             * });
+             *
+             * // load all JSONs in "resources/data/"
+             * loader.loadResDir('data', function (err, objects, urls) {
+             *     let data = objects[0];
+             *     let url = urls[0];
+             * });
+             * ```
+             */
+            loadResDir(url: string, type?: Function, mount?: any, progressCallback?: Function, completeCallback?: Function): void;
+            /**
+             * @en This method is like [[loadRes]] except that it accepts array of url.
+             * @zh 此方法除了接受 URL 数组参数外，与 [[loadRes]] 方法相同。
+             *
+             * @param url The url array of assets to be loaded, this url should be related path without extension to the `resources` folder.
+             * @param type - If type is provided, only assets for correspond type will be loaded
+             * @param progressCallback - Progression callback
+             * @param {Number} progressCallback.completedCount - The number of the items that are already completed.
+             * @param {Number} progressCallback.totalCount - The total number of the items.
+             * @param {Object} progressCallback.item - The latest item which flow out the pipeline.
+             * @param completeCallback - Completion callback
+             * @param {Error} completeCallback.error - If one of the asset failed, the complete callback is immediately called
+             *                                         with the error. If all assets are loaded successfully, error will be null.
+             * @param {Asset[]|Array} completeCallback.assets - An array of all loaded assets.
+             *                                                     If nothing to load, assets will be an empty array.
+             * @example
+             * ```ts
+             * import { loader, error, SpriteFrame } from 'cc';
+             * // load the SpriteFrames from resources folder
+             * let spriteFrames;
+             * let urls = ['misc/characters/character_01', 'misc/weapons/weapons_01'];
+             * loader.loadResArray(urls, SpriteFrame, function (err, assets) {
+             *     if (err) {
+             *         error(err);
+             *         return;
+             *     }
+             *     spriteFrames = assets;
+             *     // ...
+             * });
+             * ```
+             */
+            loadResArray(urls: string[], type?: Function, mount?: any, progressCallback?: Function, completeCallback?: Function): void;
+            /**
+             * @en
+             * Get resource data by id. <br>
+             * When you load resources with [[load]] or [[loadRes]],
+             * the url will be the unique identity of the resource.
+             * After loaded, you can acquire them by passing the url to this API.
+             * @zh
+             * 根据 ID 获取资源数据。<br>
+             * 当使用 [[load]] 或 [[loadRes]] 来加载资源时，<br>
+             * URL 将是资源的唯一标识。<br>
+             * 在完成加载之后，你可以通过将 URL 传递给此 API 来获取它们。
+             * @param url The asset url, it should be related path without extension to the `resources` folder.
+             * @param type If type is provided, the asset for correspond type will be returned
+             */
+            getRes<T = any>(url: string, type?: Function): T | null;
+            /**
+             * @en Get total resources count in loader.
+             * @zh 获取加载的总资源数量
+             */
+            getResCount(): Number;
+            /**
+             * @en
+             * Get all resource dependencies of the requested asset in an array, including itself.<br>
+             * The owner parameter accept the following types: 1. The asset itself; 2. The resource url; 3. The asset's uuid.<br>
+             * The returned array stores the dependencies with their uuids, after retrieve dependencies,<br>
+             * you can release them, access dependent assets by passing the uuid to [[getRes]], or other stuffs you want.<br>
+             * For release all dependencies of an asset, please refer to [[release]]
+             * Here is some examples:
+             * @zh
+             * 获取一个指定资源的所有依赖资源，包含它自身，并保存在数组中返回。<br>
+             * owner 参数接收以下几种类型：1. 资源 asset 对象；2. 资源目录下的 url；3. 资源的 uuid。<br>
+             * 返回的数组将仅保存依赖资源的 uuid，获取这些 uuid 后，你可以从 loader 释放这些资源；通过 [[getRes]] 获取某个资源或者进行其他你需要的操作。<br>
+             * 想要释放一个资源及其依赖资源，可以参考 [[release]]。<br>
+             * 下面是一些示例代码：
+             * @example
+             * ```ts
+             * import { loader, Texture2D } from 'cc';
+             * // Release all dependencies of a loaded prefab
+             * let deps = loader.getDependsRecursively(prefab);
+             * loader.release(deps);
+             * // Retrieve all dependent textures
+             * let deps = loader.getDependsRecursively('prefabs/sample');
+             * let textures = [];
+             * for (let i = 0; i < deps.length; ++i) {
+             *     let item = loader.getRes(deps[i]);
+             *     if (item instanceof Texture2D) {
+             *         textures.push(item);
+             *     }
+             * }
+             * ```
+             * @param owner - The asset itself or the asset url or the asset uuid
+             */
+            getDependsRecursively(owner: Asset | RawAsset | string): Array<string>;
+            /**
+             * @en
+             * Release the content of an asset or an array of assets by uuid.<br>
+             * This method will not only remove the cache of the asset in loader, but also clean up its content.<br>
+             * For example, if you release a texture, the texture asset and its gl texture data will be freed up.<br>
+             * In complexe project, you can use this function with [[getDependsRecursively]] to free up memory in critical circumstances.<br>
+             * Notice, this method may cause the texture to be unusable, if there are still other nodes use the same texture, they may turn to black and report gl errors.<br>
+             * If you only want to remove the cache of an asset, please use [[Pipeline.removeItem]]
+             * @zh
+             * 通过 id（通常是资源 url）来释放一个资源或者一个资源数组。<br>
+             * 这个方法不仅会从 loader 中删除资源的缓存引用，还会清理它的资源内容。<br>
+             * 比如说，当你释放一个 texture 资源，这个 texture 和它的 gl 贴图数据都会被释放。<br>
+             * 在复杂项目中，我们建议你结合 [[getDependsRecursively]] 来使用，便于在设备内存告急的情况下更快地释放不再需要的资源的内存。<br>
+             * 注意，这个函数可能会导致资源贴图或资源所依赖的贴图不可用，如果场景中存在节点仍然依赖同样的贴图，它们可能会变黑并报 GL 错误。<br>
+             * 如果你只想删除一个资源的缓存引用，请使用 [[Pipeline.removeItem]]
+             *
+             * @example
+             * ```ts
+             * // Release a texture which is no longer need
+             * loader.release(texture);
+             * // Release all dependencies of a loaded prefab
+             * let deps = loader.getDependsRecursively('prefabs/sample');
+             * loader.release(deps);
+             * // If there is no instance of this prefab in the scene, the prefab and its dependencies like textures, sprite frames, etc, will be freed up.
+             * // If you have some other nodes share a texture in this prefab, you can skip it in two ways:
+             * // 1. Forbid auto release a texture before release
+             * loader.setAutoRelease(texture2d, false);
+             * // 2. Remove it from the dependencies array
+             * let deps = loader.getDependsRecursively('prefabs/sample');
+             * let index = deps.indexOf(texture2d._uuid);
+             * if (index !== -1)
+             *     deps.splice(index, 1);
+             * loader.release(deps);
+             * ```
+             * @param asset Asset or assets to be released
+             */
+            release(asset: Asset | RawAsset | string | Array<Asset | RawAsset | string>): void;
+            /**
+             * @en Release the asset by its object. Refer to {{release}} for detailed informations.
+             * @zh 通过资源对象自身来释放资源。详细信息请参考 {{release}}
+             * @param asset The asset to be released
+             */
+            releaseAsset(asset: Asset): void;
+            /**
+             * @en Release the asset loaded by {{loadRes}}. Refer to {{release}} for detailed informations.
+             * @zh 释放通过 {{loadRes}} 加载的资源。详细信息请参考 {{release}}
+             * @param url The asset url, it should be related path without extension to the `resources` folder.
+             * @param type If type is provided, the asset for correspond type will be returned
+             */
+            releaseRes(url: string, type?: Function, mount?: any): void;
+            /**
+             * @en Release the all assets loaded by {{loadResDir}}. Refer to {{release}} for detailed informations.
+             * @zh 释放通过 {{loadResDir}} 加载的资源。详细信息请参考 {{release}}
+             * @param url The url of the directory to release, it should be related path to the `resources` folder.
+             * @param type If type is provided, the asset for correspond type will be returned
+             */
+            releaseResDir(url: string, type?: Function, mount?: any): void;
+            /**
+             * @en Resource all assets. Refer to {{release}} for detailed informations.
+             * @zh 释放所有资源。详细信息请参考 {{release}}
+             */
+            releaseAll(): void;
+            removeItem(key: any): boolean;
+            /**
+             * @en
+             * Indicates whether to release the asset when loading a new scene.<br>
+             * By default, when loading a new scene, all assets in the previous scene will be released or preserved<br>
+             * according to whether the previous scene checked the "Auto Release Assets" option.<br>
+             * On the other hand, assets dynamically loaded by using `loader.loadRes` or `loader.loadResDir`<br>
+             * will not be affected by that option, remain not released by default.<br>
+             * Use this API to change the default behavior on a single asset, to force preserve or release specified asset when scene switching.<br>
+             * <br>
+             * See: {{setAutoReleaseRecursively}}, {{isAutoRelease}}
+             * @zh
+             * 设置当场景切换时是否自动释放资源。<br>
+             * 默认情况下，当加载新场景时，旧场景的资源根据旧场景是否勾选“Auto Release Assets”，将会被释放或者保留。<br>
+             * 而使用 `loader.loadRes` 或 `loader.loadResDir` 动态加载的资源，则不受场景设置的影响，默认不自动释放。<br>
+             * 使用这个 API 可以在单个资源上改变这个默认行为，强制在切换场景时保留或者释放指定资源。<br>
+             * <br>
+             * 参考：{{setAutoReleaseRecursively}}，{{isAutoRelease}}
+             *
+             * @example
+             * ```ts
+             * // auto release the texture event if "Auto Release Assets" disabled in current scene
+             * loader.setAutoRelease(texture2d, true);
+             * // don't release the texture even if "Auto Release Assets" enabled in current scene
+             * loader.setAutoRelease(texture2d, false);
+             * // first parameter can be url
+             * loader.setAutoRelease(audioUrl, false);
+             * ```
+             * @param assetOrUrlOrUuid - The asset or its url or its uuid
+             * @param autoRelease - Whether to release automatically during scene switch
+             */
+            setAutoRelease(assetOrUrlOrUuid: Asset | string, autoRelease: Boolean): void;
+            /**
+             * @en
+             * Indicates whether to release the asset and its referenced other assets when loading a new scene.<br>
+             * By default, when loading a new scene, all assets in the previous scene will be released or preserved<br>
+             * according to whether the previous scene checked the "Auto Release Assets" option.<br>
+             * On the other hand, assets dynamically loaded by using `loader.loadRes` or `loader.loadResDir`<br>
+             * will not be affected by that option, remain not released by default.<br>
+             * Use this API to change the default behavior on the specified asset and its recursively referenced assets, to force preserve or release specified asset when scene switching.<br>
+             * <br>
+             * See: {{setAutoRelease}}, {{isAutoRelease}}
+             * @zh
+             * 设置当场景切换时是否自动释放资源及资源引用的其它资源。<br>
+             * 默认情况下，当加载新场景时，旧场景的资源根据旧场景是否勾选“Auto Release Assets”，将会被释放或者保留。<br>
+             * 而使用 `loader.loadRes` 或 `loader.loadResDir` 动态加载的资源，则不受场景设置的影响，默认不自动释放。<br>
+             * 使用这个 API 可以在指定资源及资源递归引用到的所有资源上改变这个默认行为，强制在切换场景时保留或者释放指定资源。<br>
+             * <br>
+             * 参考：{{setAutoRelease}}，{{isAutoRelease}}
+             *
+             * @example
+             * ```ts
+             * // auto release the SpriteFrame and its Texture event if "Auto Release Assets" disabled in current scene
+             * loader.setAutoReleaseRecursively(spriteFrame, true);
+             * // don't release the SpriteFrame and its Texture even if "Auto Release Assets" enabled in current scene
+             * loader.setAutoReleaseRecursively(spriteFrame, false);
+             * // don't release the Prefab and all the referenced assets
+             * loader.setAutoReleaseRecursively(prefab, false);
+             * ```
+             * @param assetOrUrlOrUuid - The asset or its url or its uuid
+             * @param autoRelease - Whether to release automatically during scene switch
+             */
+            setAutoReleaseRecursively(assetOrUrlOrUuid: Asset | string, autoRelease: Boolean): void;
+            /**
+             * @en Returns whether the asset is configured as auto released, despite how "Auto Release Assets" property is set on scene asset.<br>
+             * <br>
+             * See: {{setAutoRelease}}, {{setAutoReleaseRecursively}}
+             * @zh 返回指定的资源是否有被设置为自动释放，不论场景的“Auto Release Assets”如何设置。<br>
+             * <br>
+             * 参考：{{setAutoRelease}}，{{setAutoReleaseRecursively}}
+             * @param {Asset|string} assetOrUrl - asset object or the raw asset's url
+             * @returns {Boolean}
+             */
+            isAutoRelease(assetOrUrl: Asset | string): Boolean;
+            /**
+             * @en Retrieve asset's uuid
+             * @zh 获取资源的 uuid
+             */
+            _getResUuid(url: string, type?: Function, mount?: any, quiet?: any): string;
+            /**
+             * @en Find the asset's reference id in loader, asset could be asset object, asset uuid or asset url
+             * @zh 在 laoder 中找到资源的引用 id ，参数可以是资源对象、资源的 uuid 或者是资源的 url
+             */
+            _getReferenceKey(assetOrUrlOrUuid: any): any;
+        }
+        export class cocos_core_event_callbacks_invoker_CallbackInfo {
+            callback: Function;
+            target: Object | undefined;
+            once: boolean;
+            set(callback: Function, target?: Object, once?: boolean): void;
+            reset(): void;
+            check(): boolean;
+        }
+        /**
+         * @zh 事件监听器列表的简单封装。
+         * @en A simple list of event callbacks
+         */
+        export class cocos_core_event_callbacks_invoker_CallbackList {
+            callbackInfos: Array<cocos_core_event_callbacks_invoker_CallbackInfo | null>;
+            isInvoking: boolean;
+            containCanceled: boolean;
+            /**
+             * @zh 从列表中移除与指定目标相同回调函数的事件。
+             * @en Remove the event listeners with the given callback from the list
+             *
+             * @param cb - The callback to be removed
+             */
+            removeByCallback(cb: Function): void;
+            /**
+             * @zh 从列表中移除与指定目标相同调用者的事件。
+             * @en Remove the event listeners with the given target from the list
+             * @param target
+             */
+            removeByTarget(target: Object): void;
+            /**
+             * @zh 移除指定编号事件。
+             * @en Remove the event listener at the given index
+             * @param index
+             */
+            cancel(index: number): void;
+            /**
+             * @zh 注销所有事件。
+             * @en Cancel all event listeners
+             */
+            cancelAll(): void;
+            /**
+             * @zh 立即删除所有取消的回调。（在移除过程中会更加紧凑的排列数组）
+             * @en Delete all canceled callbacks and compact array
+             */
+            purgeCanceled(): void;
+            /**
+             * @zh 清除并重置所有数据。
+             * @en Clear all data
+             */
+            clear(): void;
+        }
+        export interface cocos_core_event_callbacks_invoker_ICallbackTable {
+            [x: string]: cocos_core_event_callbacks_invoker_CallbackList | undefined;
+        }
+        /**
+         * @zh CallbacksInvoker 用来根据事件名（Key）管理事件监听器列表并调用回调方法。
+         * @en CallbacksInvoker is used to manager and invoke event listeners with different event keys,
+         * each key is mapped to a CallbackList.
+         */
+        export class cocos_core_event_callbacks_invoker_CallbacksInvoker {
+            _callbackTable: cocos_core_event_callbacks_invoker_ICallbackTable;
+            /**
+             * @zh 向一个事件名注册一个新的事件监听器，包含回调函数和调用者
+             * @en Register an event listener to a given event key with callback and target.
+             *
+             * @param key - Event type
+             * @param callback - Callback function when event triggered
+             * @param target - Callback callee
+             * @param once - Whether invoke the callback only once (and remove it)
+             */
+            on(key: string, callback: Function, target?: Object, once?: boolean): Function;
+            /**
+             * @zh 检查指定事件是否已注册回调。
+             * @en Checks whether there is correspond event listener registered on the given event
+             * @param key - Event type
+             * @param callback - Callback function when event triggered
+             * @param target - Callback callee
+             */
+            hasEventListener(key: string, callback?: Function, target?: Object): boolean;
+            /**
+             * @zh 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+             * @en Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
+             * @param keyOrTarget - The event type or target with which the listeners will be removed
+             */
+            removeAll(keyOrTarget: string | Object): void;
+            /**
+             * @zh 删除以指定事件，回调函数，目标注册的回调。
+             * @en Remove event listeners registered with the given event key, callback and target
+             * @param key - Event type
+             * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
+             * @param target - The callback callee of the event listener
+             */
+            off(key: string, callback?: Function, target?: Object): void;
+            /**
+             * @zh 派发一个指定事件，并传递需要的参数
+             * @en Trigger an event directly with the event name and necessary arguments.
+             * @param key - event type
+             * @param arg0 - The first argument to be passed to the callback
+             * @param arg1 - The second argument to be passed to the callback
+             * @param arg2 - The third argument to be passed to the callback
+             * @param arg3 - The fourth argument to be passed to the callback
+             * @param arg4 - The fifth argument to be passed to the callback
+             */
+            emit(key: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
+            /**
+             * 移除所有回调。
+             */
+            clear(): void;
+        }
+        /**
+         * @zh
+         * 节点事件类。
+         */
+        export class cocos_core_scene_graph_node_event_processor_NodeEventProcessor {
+            get node(): BaseNode;
+            /**
+             * @zh
+             * 节点冒泡事件监听器
+             */
+            bubblingTargets: cocos_core_event_callbacks_invoker_CallbacksInvoker | null;
+            /**
+             * @zh
+             * 节点捕获事件监听器
+             */
+            capturingTargets: cocos_core_event_callbacks_invoker_CallbacksInvoker | null;
+            /**
+             * @zh
+             * 触摸监听器
+             */
+            touchListener: cocos_core_platform_event_manager_event_listener_EventListener | null;
+            /**
+             * @zh
+             * 鼠标监听器
+             */
+            mouseListener: cocos_core_platform_event_manager_event_listener_EventListener | null;
+            constructor(node: BaseNode);
+            reattach(): void;
+            destroy(): void;
+            /**
+             * @zh
+             * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的 this 对象。<br/>
+             * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：<br/>
+             * 1. 捕获阶段：派发事件给捕获目标（通过 `getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。<br/>
+             * 2. 目标阶段：派发给目标节点的监听器。<br/>
+             * 3. 冒泡阶段：派发事件给冒泡目标（通过 `getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发直到根节点。<br/>
+             * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。<br/>
+             * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 `eventManager`。<br/>
+             * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器。<br/>
+             * 你可以通过在 emit 方法调用时在 type 之后传递额外的参数作为事件回调的参数列表。<br/>
+             *
+             * @param type - 一个监听事件类型的字符串。参见：[[EventType]]
+             * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
+             * @param callback.event - 事件派发的时候回调的第一个参数。
+             * @param callback.arg2 - 第二个参数。
+             * @param callback.arg3 - 第三个参数。
+             * @param callback.arg4 - 第四个参数。
+             * @param callback.arg5 - 第五个参数。
+             * @param target - 调用回调的目标。可以为空。
+             * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+             * @return - 返回监听回调函数自身。
+             *
+             * @example
+             * ```ts
+             * import { Node } from 'cc';
+             * this.node.on(Node.EventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
+             * this.node.on(Node.EventType.TOUCH_START, callback, this);
+             * this.node.on(Node.EventType.ANCHOR_CHANGED, callback);
+             * ```
+             */
+            on(type: string, callback: Function, target?: Object, useCapture?: Object): Function | undefined;
+            /**
+             * @zh
+             * 注册节点的特定事件类型回调，回调会在第一时间被触发后删除自身。
+             *
+             * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
+             * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
+             * @param callback.event - 事件派发的时候回调的第一个参数。
+             * @param callback.arg2 - 第二个参数。
+             * @param callback.arg3 - 第三个参数。
+             * @param callback.arg4 - 第四个参数。
+             * @param callback.arg5 - 第五个参数。
+             * @param target - 调用回调的目标。可以为空。
+             * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+             *
+             * @example
+             * ```ts
+             * import { Node } from 'cc';
+             * node.once(Node.EventType.ANCHOR_CHANGED, callback);
+             * ```
+             */
+            once(type: string, callback: Function, target?: Object, useCapture?: Object): void;
+            /**
+             * @zh
+             * 删除之前与同类型，回调，目标或 useCapture 注册的回调。
+             *
+             * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
+             * @param callback - 移除指定注册回调。如果没有给，则删除全部同事件类型的监听。
+             * @param target - 调用回调的目标。配合 callback 一起使用。
+             * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+             *
+             * @example
+             * ```ts
+             * import { Node } from 'cc';
+             * this.node.off(Node.EventType.TOUCH_START, this.memberFunction, this);
+             * node.off(Node.EventType.TOUCH_START, callback, this.node);
+             * node.off(Node.EventType.ANCHOR_CHANGED, callback, this);
+             * ```
+             */
+            off(type: string, callback?: Function, target?: Object, useCapture?: Object): void;
+            /**
+             * @zh
+             * 通过事件名发送自定义事件
+             *
+             * @param type - 一个监听事件类型的字符串。
+             * @param arg0 - 回调第一个参数。
+             * @param arg1 - 回调第二个参数。
+             * @param arg2 - 回调第三个参数。
+             * @param arg3 - 回调第四个参数。
+             * @param arg4 - 回调第五个参数。
+             * @example
+             * ```ts
+             * eventTarget.emit('fire', event);
+             * eventTarget.emit('fire', message, emitter);
+             * ```
+             */
+            emit(type: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
+            /**
+             * @zh
+             * 分发事件到事件流中。
+             *
+             * @param event - 分派到事件流中的事件对象。
+             */
+            dispatchEvent(event: Event): void;
+            /**
+             * @zh
+             * 是否监听过某事件。
+             *
+             * @param type - 一个监听事件类型的字符串。
+             * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
+             * @param target - The callback callee of the event listener
+             * @return - 返回是否当前节点已监听该事件类型。
+             */
+            hasEventListener(type: string, callback?: Function, target?: Object): boolean;
+            /**
+             * @zh
+             * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+             *
+             * @param target - 要删除的事件键或要删除的目标。
+             */
+            targetOff(target: string | Object): void;
+            /**
+             * @zh
+             * 获得所提供的事件类型在目标捕获阶段监听的所有目标。
+             * 捕获阶段包括从根节点到目标节点的过程。
+             * 结果保存在数组参数中，并且必须从子节点排序到父节点。
+             *
+             * @param type - 一个监听事件类型的字符串。
+             * @param array - 接收目标的数组。
+             */
+            getCapturingTargets(type: string, targets: BaseNode[]): void;
+            /**
+             * @zh
+             * 获得所提供的事件类型在目标冒泡阶段监听的所有目标。
+             * 冒泡阶段目标节点到根节点的过程。
+             * 结果保存在数组参数中，并且必须从子节点排序到父节点。
+             *
+             * @param type - 一个监听事件类型的字符串。
+             * @param array - 接收目标的数组。
+             */
+            getBubblingTargets(type: string, targets: BaseNode[]): void;
+        }
+        export type cocos_core_scene_graph_base_node_Constructor<T = {}> = new (...args: any[]) => T;
+        /**
+         * @category scene-graph
+         */
+        /**
+         * @en Node's coordinate space
+         * @zh 节点的坐标空间
+         */
+        export enum cocos_core_scene_graph_node_enum_NodeSpace {
+            LOCAL = 0,
+            WORLD = 1
+        }
+        /**
+         * @en Bit masks for node's transformation
+         * @zh 节点的空间变换位标记
+         */
+        export enum cocos_core_scene_graph_node_enum_TransformBit {
+            NONE = 0,
+            POSITION = 1,
+            ROTATION = 2,
+            SCALE = 4,
+            RS = 6,
+            TRS = 7,
+            TRS_MASK = "Bad expression <-8>"
+        }
+        /**
+         * @en Node's UI properties abstraction
+         * @zh 节点上 UI 相关的属性抽象类
+         */
+        export class cocos_core_scene_graph_node_ui_properties_NodeUIProperties {
+            get uiTransformComp(): UITransformComponent | null;
+            set uiTransformComp(value: UITransformComponent | null);
+            /**
+             * @en The base UI component
+             * @zh UI 基类组件
+             */
+            uiComp: UIComponent | UIRenderComponent | null;
+            /**
+             * @en The opacity of the UI node
+             * @zh UI 透明度
+             */
+            opacity: number;
+            protected _uiTransformComp: UITransformComponent | null;
+            constructor(node: any);
+        }
+        /**
+         * @en
+         * A temp fallback to contain the original serialized data which can not be loaded.
+         * @zh
+         * 包含无法加载的原始序列化数据的临时回退。
+         */
+        export class cocos_core_components_missing_script_MissingClass {
+            _$erialized: null;
+        }
+        export interface cocos_core_renderer_ui_render_data_IRenderData {
+            x: number;
+            y: number;
+            z: number;
+            u: number;
+            v: number;
+            color: math.Color;
+        }
+        export class cocos_core_renderer_ui_render_data_BaseRenderData {
+            material: Material | null;
+            vertexCount: number;
+            indicesCount: number;
+        }
+        export class cocos_core_renderer_ui_render_data_RenderData extends cocos_core_renderer_ui_render_data_BaseRenderData {
+            get dataLength(): number;
+            set dataLength(length: number);
+            get data(): cocos_core_renderer_ui_render_data_IRenderData[];
+            static add(): cocos_core_renderer_ui_render_data_RenderData;
+            static remove(data: cocos_core_renderer_ui_render_data_RenderData): void;
+            vData: Float32Array | null;
+            uvDirty: boolean;
+            vertDirty: boolean;
+            updateSizeNPivot(width: number, height: number, pivotX: number, pivotY: number): void;
+            clear(): void;
+        }
+        export interface cocos_core_renderer_ui_base_IAssembler {
+            [key: string]: any;
+        }
+        export interface cocos_core_renderer_ui_base_IAssemblerManager {
+            getAssembler(component: UIRenderComponent): cocos_core_renderer_ui_base_IAssembler;
+        }
+        export class cocos_core_3d_builtin_init_BuiltinResMgr {
+            protected _device: GFXDevice | null;
+            protected _resources: Record<string, Asset>;
+            initBuiltinRes(device: GFXDevice): void;
+            get<T extends Asset>(uuid: string): T;
+        }
+        /**
+         * @en The projection type.
+         * @zh 投影类型。
+         */
+        export const cocos_core_3d_framework_camera_component_ProjectionType: typeof renderer.CameraProjection;
+        export type EnumAlias<EnumT> = EnumT[keyof EnumT];
+        export const cocos_core_3d_framework_camera_component_FOVAxis: typeof renderer.CameraFOVAxis;
+        export const cocos_core_3d_framework_camera_component_ClearFlag: {
+            SKYBOX: number;
+            SOLID_COLOR: GFXClearFlag;
+            DEPTH_ONLY: GFXClearFlag;
+            DONT_CLEAR: GFXClearFlag;
+        };
+        export const cocos_core_3d_framework_camera_component_Aperture: typeof renderer.CameraAperture;
+        export const cocos_core_3d_framework_camera_component_Shutter: typeof renderer.CameraShutter;
+        export const cocos_core_3d_framework_camera_component_ISO: typeof renderer.CameraISO;
+        /**
+         * @en static light settings.
+         * @zh 静态灯光设置
+         */
+        export class cocos_core_3d_framework_light_component_StaticLightSettings {
+            protected _editorOnly: boolean;
+            protected _bakeable: boolean;
+            protected _castShadow: boolean;
+            get editorOnly(): boolean;
+            set editorOnly(val: boolean);
+            get bakeable(): boolean;
+            set bakeable(val: boolean);
+            get castShadow(): boolean;
+            set castShadow(val: boolean);
+        }
+        export const cocos_core_3d_framework_light_component_PhotometricTerm: {
+            LUMINOUS_POWER: number;
+            LUMINANCE: number;
+        };
+        /**
+         * @en model light map settings.
+         * @zh 模型光照图设置
+         */
+        export class cocos_core_3d_framework_model_component_ModelLightmapSettings {
+            texture: Texture2D | null;
+            uvParam: math.Vec4;
+            protected _bakeable: boolean;
+            protected _castShadow: boolean;
+            protected _receiveShadow: boolean;
+            protected _lightmapSize: number;
+            get bakeable(): boolean;
+            set bakeable(val: boolean);
+            get castShadow(): boolean;
+            set castShadow(val: boolean);
+            get receiveShadow(): boolean;
+            set receiveShadow(val: boolean);
+            get lightmapSize(): number;
+            set lightmapSize(val: number);
+        }
+        /**
+         * @en Shadow projection mode.
+         * @zh 阴影投射方式。
+         */
+        export const cocos_core_3d_framework_model_component_ModelShadowCastingMode: {
+            /**
+             * @en Disable shadow projection.
+             * @zh 不投射阴影。
+             */
+            OFF: number;
+            /**
+             * @en Enable shadow projection.
+             * @zh 开启阴影投射。
+             */
+            ON: number;
+        };
+        /**
+         * @en Shadow receive mode.
+         * @zh 阴影接收方式。
+         */
+        export const cocos_core_3d_framework_model_component_ModelShadowReceivingMode: {
+            /**
+             * @en Disable shadow projection.
+             * @zh 不接收阴影。
+             */
+            OFF: number;
+            /**
+             * @en Enable shadow projection.
+             * @zh 开启阴影投射。
+             */
+            ON: number;
+        };
+        /**
+         * 动画使用的循环模式。
+         */
+        export enum cocos_core_animation_types_WrapMode {
+            Default = 0,
+            Normal = 1,
+            Reverse = 36,
+            Loop = 2,
+            LoopReverse = 38,
+            PingPong = 22,
+            PingPongReverse = 54
+        }
+        /**
+         * For internal
+         */
+        export class cocos_core_animation_types_WrappedInfo {
+            ratio: number;
+            time: number;
+            direction: number;
+            stopped: boolean;
+            iterations: number;
+            frameIndex: number;
+            constructor(info?: cocos_core_animation_types_WrappedInfo);
+            set(info: cocos_core_animation_types_WrappedInfo): void;
+        }
+        export interface cocos_core_animation_bound_target_IBoundTarget {
+            setValue(value: any): void;
+            getValue(): any;
+        }
+        export class cocos_core_animation_animation_state_ICurveInstance {
+            commonTargetIndex?: number;
+            constructor(runtimeCurve: Omit<IRuntimeCurve, "sampler">, target: any, boundTarget: cocos_core_animation_bound_target_IBoundTarget);
+            applySample(ratio: number, index: number, lerpRequired: boolean, samplerResultCache: any, weight: number): void;
+            get propertyName(): string;
+            get curveDetail(): Pick<IRuntimeCurve, "modifiers" | "valueAdapter" | "commonTarget" | "curve">;
+        }
+        /**
+         * The curves in ISamplerSharedGroup share a same keys.
+         */
+        export interface cocos_core_animation_animation_state_ISamplerSharedGroup {
+            sampler: RatioSampler | null;
+            curves: cocos_core_animation_animation_state_ICurveInstance[];
+            samplerResultCache: {
+                from: number;
+                fromRatio: number;
+                to: number;
+                toRatio: number;
+            };
+        }
+        export interface cocos_core_animation_bound_target_IBufferedTarget extends cocos_core_animation_bound_target_IBoundTarget {
+            peek(): any;
+            pull(): void;
+            push(): void;
+        }
+        export class cocos_core_animation_playable_Playable {
+            get isPlaying(): boolean;
+            get isPaused(): boolean;
+            get isMotionless(): boolean;
+            /**
+             * @en Play this animation.
+             * @zh 播放动画。
+             */
+            play(): void;
+            /**
+             * @en Stop this animation.
+             * @zh 停止动画播放。
+             */
+            stop(): void;
+            /**
+             * @en Pause this animation.
+             * @zh 暂停动画。
+             */
+            pause(): void;
+            /**
+             * @en Resume this animation.
+             * @zh 重新播放动画。
+             */
+            resume(): void;
+            /**
+             * @en Perform a single frame step.
+             * @zh 执行一帧动画。
+             */
+            step(): void;
+            update(deltaTime: number): void;
+            protected onPlay(): void;
+            protected onPause(): void;
+            protected onResume(): void;
+            protected onStop(): void;
+            protected onError(message: string): void;
+        }
+        export interface cocos_core_animation_types_ILerpable {
+            /**
+             * 在当前曲线值与目标曲线值之间插值。
+             * @param to 目标曲线值。
+             * @param t 插值比率。
+             * @param dt 当前曲线值与目标曲线值的时间间隔，单位为秒。
+             * @returns 插值结果。
+             */
+            lerp(to: any, t: number, dt: number): any;
+            /**
+             * 当直接使用曲线值作为采样结果时的结果值，它应该等同于插值比率为 0 时的插值结果。
+             * @returns 插值比率为 0 时的插值结果。
+             */
+            getNoLerp?(): any;
+        }
+        export class cocos_core_animation_skeletal_animation_blending_PropertyBlendState<T> {
+            weight: number;
+            value: T;
+            /**
+             * How many writer reference this property.
+             */
+            refCount: number;
+            constructor(node: cocos_core_animation_skeletal_animation_blending_NodeBlendState, value: T);
+            markAsDirty(): void;
+        }
+        export interface cocos_core_animation_skeletal_animation_blending_NodeBlendState {
+            dirty: boolean;
+            properties: {
+                position?: cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Vec3>;
+                rotation?: cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Quat>;
+                eulerAngles?: cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Vec3>;
+                scale?: cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Vec3>;
+            };
+        }
+        export type cocos_core_animation_skeletal_animation_blending_BlendingProperty = keyof cocos_core_animation_skeletal_animation_blending_NodeBlendState["properties"];
+        export class cocos_core_animation_skeletal_animation_blending_BlendStateBuffer {
+            ref(node: Node, property: cocos_core_animation_skeletal_animation_blending_BlendingProperty): cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Vec3> | cocos_core_animation_skeletal_animation_blending_PropertyBlendState<math.Quat>;
+            deRef(node: Node, property: cocos_core_animation_skeletal_animation_blending_BlendingProperty): void;
+            apply(): void;
+        }
+        export class cocos_core_animation_cross_fade_CrossFade extends cocos_core_animation_playable_Playable {
+            constructor();
+            update(deltaTime: number): void;
+            /**
+             * 在指定时间内将从当前动画状态切换到指定的动画状态。
+             * @param state 指定的动画状态。
+             * @param duration 切换时间。
+             */
+            crossFade(state: AnimationState | null, duration: number): void;
+            clear(): void;
+            protected onPlay(): void;
+            /**
+             * 停止我们淡入淡出的所有动画状态并停止淡入淡出。
+             */
+            protected onPause(): void;
+            /**
+             * 恢复我们淡入淡出的所有动画状态并继续淡入淡出。
+             */
+            protected onResume(): void;
+            /**
+             * 停止所有淡入淡出的动画状态。
+             */
+            protected onStop(): void;
+        }
+        /**
+         * @en The event type supported by Animation
+         * @zh Animation 支持的事件类型。
+         */
+        export enum cocos_core_animation_animation_state_EventType {
+            PLAY = "play",
+            STOP = "stop",
+            PAUSE = "pause",
+            RESUME = "resume",
+            LASTFRAME = "lastframe",
+            FINISHED = "finished"
+        }
+        export class cocos_core_utils_profiler_counter_Counter {
+            get value(): number;
+            set value(val: number);
+            protected _id: string;
+            protected _opts: cocos_core_utils_profiler_counter_ICounterOption;
+            protected _accumStart: number;
+            protected _total: number;
+            protected _value: number;
+            protected _averageValue: number;
+            protected _accumValue: number;
+            protected _accumSamples: number;
+            constructor(id: string, opts: cocos_core_utils_profiler_counter_ICounterOption, now: number);
+            sample(now: number): void;
+            human(): number;
+            alarm(): boolean | 0 | undefined;
+            protected _average(v: number, now?: number): void;
+        }
+        export interface cocos_core_utils_profiler_counter_ICounterOption {
+            desc: string;
+            counter: cocos_core_utils_profiler_counter_Counter;
+            min?: number;
+            max?: number;
+            average?: number;
+            below?: number;
+            over?: number;
+            color?: string;
+            isInteger?: boolean;
+        }
+        export class cocos_core_gfx_webgl_webgl_queue_WebGLQueue extends GFXQueue {
+            numDrawCalls: number;
+            numInstances: number;
+            numTris: number;
+            initialize(info: IGFXQueueInfo): boolean;
+            destroy(): void;
+            submit(cmdBuffs: GFXCommandBuffer[], fence?: GFXFence): void;
+            clear(): void;
+        }
+        // note that ETC1 is not supported with the compressedTexSubImage2D() method
+        export interface WEBGL_compressed_texture_etc1 {
+            COMPRESSED_RGB_ETC1_WEBGL: GLenum;
+        }
+        export interface WEBGL_compressed_texture_pvrtc {
+            COMPRESSED_RGB_PVRTC_4BPPV1_IMG: GLenum;
+            COMPRESSED_RGBA_PVRTC_4BPPV1_IMG: GLenum;
+            COMPRESSED_RGB_PVRTC_2BPPV1_IMG: GLenum;
+            COMPRESSED_RGBA_PVRTC_2BPPV1_IMG: GLenum;
+        }
+        export interface cocos_core_gfx_webgl_webgl_state_cache_IWebGLTexUnit {
+            glTexture: WebGLTexture | null;
+        }
+        export class cocos_core_gfx_webgl_webgl_state_cache_WebGLStateCache {
+            glArrayBuffer: WebGLBuffer | null;
+            glElementArrayBuffer: WebGLBuffer | null;
+            glVAO: WebGLVertexArrayObjectOES | null;
+            texUnit: number;
+            glTexUnits: cocos_core_gfx_webgl_webgl_state_cache_IWebGLTexUnit[];
+            glRenderbuffer: WebGLRenderbuffer | null;
+            glFramebuffer: WebGLFramebuffer | null;
+            viewport: GFXViewport;
+            scissorRect: GFXRect;
+            rs: GFXRasterizerState;
+            dss: GFXDepthStencilState;
+            bs: GFXBlendState;
+            glProgram: WebGLProgram | null;
+            glEnabledAttribLocs: boolean[];
+            glCurrentAttribLocs: boolean[];
+            constructor();
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPURenderPass {
+            colorAttachments: GFXColorAttachment[];
+            depthStencilAttachment: GFXDepthStencilAttachment | null;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUTexture {
+            type: GFXTextureType;
+            format: GFXFormat;
+            usage: GFXTextureUsage;
+            width: number;
+            height: number;
+            depth: number;
+            size: number;
+            arrayLayer: number;
+            mipLevel: number;
+            samples: GFXSampleCount;
+            flags: GFXTextureFlags;
+            isPowerOf2: boolean;
+            glTarget: GLenum;
+            glInternalFmt: GLenum;
+            glFormat: GLenum;
+            glType: GLenum;
+            glUsage: GLenum;
+            glTexture: WebGLTexture | null;
+            glRenderbuffer: WebGLRenderbuffer | null;
+            glWrapS: GLenum;
+            glWrapT: GLenum;
+            glMinFilter: GLenum;
+            glMagFilter: GLenum;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUFramebuffer {
+            gpuRenderPass: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPURenderPass;
+            gpuColorTextures: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUTexture[];
+            gpuDepthStencilTexture: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUTexture | null;
+            glFramebuffer: WebGLFramebuffer | null;
+        }
+        export enum cocos_core_gfx_webgl_webgl_commands_WebGLCmd {
+            BEGIN_RENDER_PASS = 0,
+            END_RENDER_PASS = 1,
+            BIND_STATES = 2,
+            DRAW = 3,
+            UPDATE_BUFFER = 4,
+            COPY_BUFFER_TO_TEXTURE = 5,
+            COUNT = 6
+        }
+        export abstract class cocos_core_gfx_webgl_webgl_commands_WebGLCmdObject {
+            cmdType: cocos_core_gfx_webgl_webgl_commands_WebGLCmd;
+            refCount: number;
+            constructor(type: cocos_core_gfx_webgl_webgl_commands_WebGLCmd);
+            abstract clear(): any;
+        }
+        export class cocos_core_gfx_webgl_webgl_commands_WebGLCmdBeginRenderPass extends cocos_core_gfx_webgl_webgl_commands_WebGLCmdObject {
+            gpuRenderPass: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPURenderPass | null;
+            gpuFramebuffer: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUFramebuffer | null;
+            renderArea: GFXRect;
+            clearFlag: GFXClearFlag;
+            clearColors: GFXColor[];
+            clearDepth: number;
+            clearStencil: number;
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandPool<T extends cocos_core_gfx_webgl_webgl_commands_WebGLCmdObject> {
+            constructor(clazz: new () => T, count: number);
+            alloc(clazz: new () => T): T;
+            free(cmd: T): void;
+            freeCmds(cmds: memop.CachedArray<T>): void;
+            release(): void;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUShaderStage {
+            type: GFXShaderStageFlagBit;
+            source: string;
+            glShader: WebGLShader | null;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUInput {
+            binding: number;
+            name: string;
+            type: GFXType;
+            stride: number;
+            count: number;
+            size: number;
+            glType: GLenum;
+            glLoc: GLint;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUUniform {
+            binding: number;
+            name: string;
+            type: GFXType;
+            stride: number;
+            count: number;
+            size: number;
+            offset: number;
+            glType: GLenum;
+            glLoc: WebGLUniformLocation;
+            array: number[];
+            begin: number;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUUniformBlock {
+            set: number;
+            binding: number;
+            name: string;
+            size: number;
+            glUniforms: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUUniform[];
+            glActiveUniforms: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUUniform[];
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUUniformSampler {
+            set: number;
+            binding: number;
+            name: string;
+            type: GFXType;
+            units: number[];
+            glType: GLenum;
+            glLoc: WebGLUniformLocation;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUShader {
+            name: string;
+            blocks: GFXUniformBlock[];
+            samplers: GFXUniformSampler[];
+            gpuStages: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUShaderStage[];
+            glProgram: WebGLProgram | null;
+            glInputs: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUInput[];
+            glUniforms: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUUniform[];
+            glBlocks: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUUniformBlock[];
+            glSamplers: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUUniformSampler[];
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUDescriptorSetLayout {
+            bindings: IGFXDescriptorSetLayoutBinding[];
+            dynamicBindings: number[];
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUPipelineLayout {
+            gpuSetLayouts: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUDescriptorSetLayout[];
+            dynamicOffsetIndices: number[][];
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUPipelineState {
+            glPrimitive: GLenum;
+            gpuShader: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUShader | null;
+            gpuPipelineLayout: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUPipelineLayout | null;
+            rs: GFXRasterizerState;
+            dss: GFXDepthStencilState;
+            bs: GFXBlendState;
+            dynamicStates: GFXDynamicStateFlagBit[];
+            gpuRenderPass: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPURenderPass | null;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBuffer {
+            usage: GFXBufferUsage;
+            memUsage: GFXMemoryUsage;
+            size: number;
+            stride: number;
+            glTarget: GLenum;
+            glBuffer: WebGLBuffer | null;
+            buffer: ArrayBufferView | null;
+            vf32: Float32Array | null;
+            indirects: IGFXDrawInfo[];
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLAttrib {
+            name: string;
+            glBuffer: WebGLBuffer | null;
+            glType: GLenum;
+            size: number;
+            count: number;
+            stride: number;
+            componentCount: number;
+            isNormalized: boolean;
+            isInstanced: boolean;
+            offset: number;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUInputAssembler {
+            attributes: IGFXAttribute[];
+            gpuVertexBuffers: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBuffer[];
+            gpuIndexBuffer: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBuffer | null;
+            gpuIndirectBuffer: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBuffer | null;
+            glAttribs: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLAttrib[];
+            glIndexType: GLenum;
+            glVAOs: Map<WebGLProgram, WebGLVertexArrayObjectOES>;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBufferView {
+            gpuBuffer: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBuffer;
+            offset: number;
+            range: number;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUSampler {
+            glMinFilter: GLenum;
+            glMagFilter: GLenum;
+            glWrapS: GLenum;
+            glWrapT: GLenum;
+            glWrapR: GLenum;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUDescriptor {
+            type: GFXDescriptorType;
+            gpuBuffer: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBuffer | cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBufferView | null;
+            gpuTexture: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUTexture | null;
+            gpuSampler: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUSampler | null;
+        }
+        export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUDescriptorSet {
+            gpuDescriptors: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUDescriptor[];
+        }
+        export interface cocos_core_gfx_webgl_webgl_command_buffer_IWebGLDepthBias {
+            constantFactor: number;
+            clamp: number;
+            slopeFactor: number;
+        }
+        export interface cocos_core_gfx_webgl_webgl_command_buffer_IWebGLDepthBounds {
+            minBounds: number;
+            maxBounds: number;
+        }
+        export interface cocos_core_gfx_webgl_webgl_command_buffer_IWebGLStencilWriteMask {
+            face: GFXStencilFace;
+            writeMask: number;
+        }
+        export interface cocos_core_gfx_webgl_webgl_command_buffer_IWebGLStencilCompareMask {
+            face: GFXStencilFace;
+            reference: number;
+            compareMask: number;
+        }
+        export class cocos_core_gfx_webgl_webgl_commands_WebGLCmdBindStates extends cocos_core_gfx_webgl_webgl_commands_WebGLCmdObject {
+            gpuPipelineState: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUPipelineState | null;
+            gpuInputAssembler: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUInputAssembler | null;
+            gpuDescriptorSets: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUDescriptorSet[];
+            dynamicOffsets: number[];
+            viewport: GFXViewport | null;
+            scissor: GFXRect | null;
+            lineWidth: number | null;
+            depthBias: cocos_core_gfx_webgl_webgl_command_buffer_IWebGLDepthBias | null;
+            blendConstants: number[];
+            depthBounds: cocos_core_gfx_webgl_webgl_command_buffer_IWebGLDepthBounds | null;
+            stencilWriteMask: cocos_core_gfx_webgl_webgl_command_buffer_IWebGLStencilWriteMask | null;
+            stencilCompareMask: cocos_core_gfx_webgl_webgl_command_buffer_IWebGLStencilCompareMask | null;
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl_webgl_commands_WebGLCmdDraw extends cocos_core_gfx_webgl_webgl_commands_WebGLCmdObject {
+            drawInfo: IGFXDrawInfo;
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl_webgl_commands_WebGLCmdUpdateBuffer extends cocos_core_gfx_webgl_webgl_commands_WebGLCmdObject {
+            gpuBuffer: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUBuffer | null;
+            buffer: GFXBufferSource | null;
+            offset: number;
+            size: number;
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl_webgl_commands_WebGLCmdCopyBufferToTexture extends cocos_core_gfx_webgl_webgl_commands_WebGLCmdObject {
+            gpuTexture: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUTexture | null;
+            buffers: ArrayBufferView[];
+            regions: GFXBufferTextureCopy[];
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl_webgl_commands_WebGLCmdPackage {
+            cmds: memop.CachedArray<cocos_core_gfx_webgl_webgl_commands_WebGLCmd>;
+            beginRenderPassCmds: memop.CachedArray<cocos_core_gfx_webgl_webgl_commands_WebGLCmdBeginRenderPass>;
+            bindStatesCmds: memop.CachedArray<cocos_core_gfx_webgl_webgl_commands_WebGLCmdBindStates>;
+            drawCmds: memop.CachedArray<cocos_core_gfx_webgl_webgl_commands_WebGLCmdDraw>;
+            updateBufferCmds: memop.CachedArray<cocos_core_gfx_webgl_webgl_commands_WebGLCmdUpdateBuffer>;
+            copyBufferToTextureCmds: memop.CachedArray<cocos_core_gfx_webgl_webgl_commands_WebGLCmdCopyBufferToTexture>;
+            clearCmds(allocator: cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandAllocator): void;
+        }
+        export class cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandAllocator {
+            beginRenderPassCmdPool: cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandPool<cocos_core_gfx_webgl_webgl_commands_WebGLCmdBeginRenderPass>;
+            bindStatesCmdPool: cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandPool<cocos_core_gfx_webgl_webgl_commands_WebGLCmdBindStates>;
+            drawCmdPool: cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandPool<cocos_core_gfx_webgl_webgl_commands_WebGLCmdDraw>;
+            updateBufferCmdPool: cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandPool<cocos_core_gfx_webgl_webgl_commands_WebGLCmdUpdateBuffer>;
+            copyBufferToTextureCmdPool: cocos_core_gfx_webgl_webgl_command_allocator_WebGLCommandPool<cocos_core_gfx_webgl_webgl_commands_WebGLCmdCopyBufferToTexture>;
+            constructor();
+            clearCmds(cmdPackage: cocos_core_gfx_webgl_webgl_commands_WebGLCmdPackage): void;
+            releaseCmds(): void;
+        }
+        export class cocos_core_gfx_webgl_webgl_texture_WebGLTexture extends GFXTexture {
+            get gpuTexture(): cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUTexture;
+            initialize(info: IGFXTextureInfo | IGFXTextureViewInfo): boolean;
+            destroy(): void;
+            resize(width: number, height: number): void;
+        }
+        export interface EXT_color_buffer_float {
+        }
+        export interface EXT_disjoint_timer_query_webgl2 {
+            QUERY_COUNTER_BITS_EXT: GLenum;
+            TIME_ELAPSED_EXT: GLenum;
+            TIMESTAMP_EXT: GLenum;
+            GPU_DISJOINT_EXT: GLenum;
+            queryCounterEXT(query: WebGLQuery, target: GLenum): void;
+        }
+        export interface WEBGL_compressed_texture_etc {
+            COMPRESSED_R11_EAC: GLenum;
+            COMPRESSED_SIGNED_R11_EAC: GLenum;
+            COMPRESSED_RG11_EAC: GLenum;
+            COMPRESSED_SIGNED_RG11_EAC: GLenum;
+            COMPRESSED_RGB8_ETC2: GLenum;
+            COMPRESSED_RGBA8_ETC2_EAC: GLenum;
+            COMPRESSED_SRGB8_ETC2: GLenum;
+            COMPRESSED_SRGB8_ALPHA8_ETC2_EAC: GLenum;
+            COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2: GLenum;
+            COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2: GLenum;
+        }
+        export interface WEBGL_texture_storage_multisample {
+            TEXTURE_2D_MULTISAMPLE: number;
+            texStorage2DMultisample(target: GLenum, samples: GLsizei, internalformat: GLenum, width: GLsizei, height: GLsizei, fixedsamplelocations: GLboolean): void;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_state_cache_IWebGL2TexUnit {
+            glTexture: WebGLTexture | null;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_state_cache_WebGL2StateCache {
+            glArrayBuffer: WebGLBuffer | null;
+            glElementArrayBuffer: WebGLBuffer | null;
+            glUniformBuffer: WebGLBuffer | null;
+            glBindUBOs: (WebGLBuffer | null)[];
+            glVAO: WebGLVertexArrayObject | null;
+            texUnit: number;
+            glTexUnits: cocos_core_gfx_webgl2_webgl2_state_cache_IWebGL2TexUnit[];
+            glSamplerUnits: (WebGLSampler | null)[];
+            glRenderbuffer: WebGLRenderbuffer | null;
+            glFramebuffer: WebGLFramebuffer | null;
+            glReadFramebuffer: WebGLFramebuffer | null;
+            viewport: GFXViewport;
+            scissorRect: GFXRect;
+            rs: GFXRasterizerState;
+            dss: GFXDepthStencilState;
+            bs: GFXBlendState;
+            glProgram: WebGLProgram | null;
+            glEnabledAttribLocs: boolean[];
+            glCurrentAttribLocs: boolean[];
+            constructor();
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPURenderPass {
+            colorAttachments: GFXColorAttachment[];
+            depthStencilAttachment: GFXDepthStencilAttachment | null;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUTexture {
+            type: GFXTextureType;
+            format: GFXFormat;
+            usage: GFXTextureUsage;
+            width: number;
+            height: number;
+            depth: number;
+            size: number;
+            arrayLayer: number;
+            mipLevel: number;
+            samples: GFXSampleCount;
+            flags: GFXTextureFlags;
+            isPowerOf2: boolean;
+            glTarget: GLenum;
+            glInternalFmt: GLenum;
+            glFormat: GLenum;
+            glType: GLenum;
+            glUsage: GLenum;
+            glTexture: WebGLTexture | null;
+            glRenderbuffer: WebGLRenderbuffer | null;
+            glWrapS: GLenum;
+            glWrapT: GLenum;
+            glMinFilter: GLenum;
+            glMagFilter: GLenum;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUFramebuffer {
+            gpuRenderPass: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPURenderPass;
+            gpuColorTextures: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUTexture[];
+            gpuDepthStencilTexture: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUTexture | null;
+            isOffscreen?: boolean;
+            glFramebuffer: WebGLFramebuffer | null;
+        }
+        export enum cocos_core_gfx_webgl2_webgl2_commands_WebGL2Cmd {
+            BEGIN_RENDER_PASS = 0,
+            END_RENDER_PASS = 1,
+            BIND_STATES = 2,
+            DRAW = 3,
+            UPDATE_BUFFER = 4,
+            COPY_BUFFER_TO_TEXTURE = 5,
+            COUNT = 6
+        }
+        export abstract class cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdObject {
+            cmdType: cocos_core_gfx_webgl2_webgl2_commands_WebGL2Cmd;
+            refCount: number;
+            constructor(type: cocos_core_gfx_webgl2_webgl2_commands_WebGL2Cmd);
+            abstract clear(): any;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdBeginRenderPass extends cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdObject {
+            gpuRenderPass: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPURenderPass | null;
+            gpuFramebuffer: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUFramebuffer | null;
+            renderArea: GFXRect;
+            clearColors: GFXColor[];
+            clearDepth: number;
+            clearStencil: number;
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandPool<T extends cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdObject> {
+            constructor(clazz: new () => T, count: number);
+            alloc(clazz: new () => T): T;
+            free(cmd: T): void;
+            freeCmds(cmds: memop.CachedArray<T>): void;
+            release(): void;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUShaderStage {
+            type: GFXShaderStageFlagBit;
+            source: string;
+            glShader: WebGLShader | null;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUInput {
+            name: string;
+            type: GFXType;
+            stride: number;
+            count: number;
+            size: number;
+            glType: GLenum;
+            glLoc: GLint;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUUniform {
+            binding: number;
+            name: string;
+            type: GFXType;
+            stride: number;
+            count: number;
+            size: number;
+            offset: number;
+            glType: GLenum;
+            glLoc: WebGLUniformLocation;
+            array: number[];
+            begin: number;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUUniformBlock {
+            set: number;
+            binding: number;
+            idx: number;
+            name: string;
+            size: number;
+            glBinding: number;
+            glUniforms: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUUniform[];
+            glActiveUniforms: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUUniform[];
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUUniformSampler {
+            set: number;
+            binding: number;
+            name: string;
+            type: GFXType;
+            units: number[];
+            glType: GLenum;
+            glLoc: WebGLUniformLocation;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUShader {
+            name: string;
+            blocks: GFXUniformBlock[];
+            samplers: GFXUniformSampler[];
+            gpuStages: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUShaderStage[];
+            glProgram: WebGLProgram | null;
+            glInputs: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUInput[];
+            glUniforms: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUUniform[];
+            glBlocks: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUUniformBlock[];
+            glSamplers: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUUniformSampler[];
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUDescriptorSetLayout {
+            bindings: IGFXDescriptorSetLayoutBinding[];
+            dynamicBindings: number[];
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUPipelineLayout {
+            gpuSetLayouts: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUDescriptorSetLayout[];
+            dynamicOffsetIndices: number[][];
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUPipelineState {
+            glPrimitive: GLenum;
+            gpuShader: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUShader | null;
+            gpuPipelineLayout: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUPipelineLayout | null;
+            rs: GFXRasterizerState;
+            dss: GFXDepthStencilState;
+            bs: GFXBlendState;
+            dynamicStates: GFXDynamicStateFlagBit[];
+            gpuRenderPass: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPURenderPass | null;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUBuffer {
+            usage: GFXBufferUsage;
+            memUsage: GFXMemoryUsage;
+            size: number;
+            stride: number;
+            glTarget: GLenum;
+            glBuffer: WebGLBuffer | null;
+            glOffset: number;
+            buffer: ArrayBufferView | null;
+            indirects: IGFXDrawInfo[];
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2Attrib {
+            name: string;
+            glBuffer: WebGLBuffer | null;
+            glType: GLenum;
+            size: number;
+            count: number;
+            stride: number;
+            componentCount: number;
+            isNormalized: boolean;
+            isInstanced: boolean;
+            offset: number;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUInputAssembler {
+            attributes: IGFXAttribute[];
+            gpuVertexBuffers: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUBuffer[];
+            gpuIndexBuffer: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUBuffer | null;
+            gpuIndirectBuffer: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUBuffer | null;
+            glAttribs: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2Attrib[];
+            glIndexType: GLenum;
+            glVAOs: Map<WebGLProgram, WebGLVertexArrayObject>;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUSampler {
+            glSampler: WebGLSampler | null;
+            minFilter: GFXFilter;
+            magFilter: GFXFilter;
+            mipFilter: GFXFilter;
+            addressU: GFXAddress;
+            addressV: GFXAddress;
+            addressW: GFXAddress;
+            minLOD: number;
+            maxLOD: number;
+            glMinFilter: GLenum;
+            glMagFilter: GLenum;
+            glWrapS: GLenum;
+            glWrapT: GLenum;
+            glWrapR: GLenum;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUDescriptor {
+            type: GFXDescriptorType;
+            gpuBuffer: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUBuffer | null;
+            gpuTexture: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUTexture | null;
+            gpuSampler: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUSampler | null;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUDescriptorSet {
+            gpuDescriptors: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUDescriptor[];
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_command_buffer_IWebGL2DepthBias {
+            constantFactor: number;
+            clamp: number;
+            slopeFactor: number;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_command_buffer_IWebGL2DepthBounds {
+            minBounds: number;
+            maxBounds: number;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_command_buffer_IWebGL2StencilWriteMask {
+            face: GFXStencilFace;
+            writeMask: number;
+        }
+        export interface cocos_core_gfx_webgl2_webgl2_command_buffer_IWebGL2StencilCompareMask {
+            face: GFXStencilFace;
+            reference: number;
+            compareMask: number;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdBindStates extends cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdObject {
+            gpuPipelineState: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUPipelineState | null;
+            gpuInputAssembler: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUInputAssembler | null;
+            gpuDescriptorSets: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUDescriptorSet[];
+            dynamicOffsets: number[];
+            viewport: GFXViewport | null;
+            scissor: GFXRect | null;
+            lineWidth: number | null;
+            depthBias: cocos_core_gfx_webgl2_webgl2_command_buffer_IWebGL2DepthBias | null;
+            blendConstants: number[];
+            depthBounds: cocos_core_gfx_webgl2_webgl2_command_buffer_IWebGL2DepthBounds | null;
+            stencilWriteMask: cocos_core_gfx_webgl2_webgl2_command_buffer_IWebGL2StencilWriteMask | null;
+            stencilCompareMask: cocos_core_gfx_webgl2_webgl2_command_buffer_IWebGL2StencilCompareMask | null;
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdDraw extends cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdObject {
+            drawInfo: IGFXDrawInfo;
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdUpdateBuffer extends cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdObject {
+            gpuBuffer: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUBuffer | null;
+            buffer: GFXBufferSource | null;
+            offset: number;
+            size: number;
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdCopyBufferToTexture extends cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdObject {
+            gpuTexture: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUTexture | null;
+            buffers: ArrayBufferView[];
+            regions: GFXBufferTextureCopy[];
+            constructor();
+            clear(): void;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdPackage {
+            cmds: memop.CachedArray<cocos_core_gfx_webgl2_webgl2_commands_WebGL2Cmd>;
+            beginRenderPassCmds: memop.CachedArray<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdBeginRenderPass>;
+            bindStatesCmds: memop.CachedArray<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdBindStates>;
+            drawCmds: memop.CachedArray<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdDraw>;
+            updateBufferCmds: memop.CachedArray<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdUpdateBuffer>;
+            copyBufferToTextureCmds: memop.CachedArray<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdCopyBufferToTexture>;
+            clearCmds(allocator: cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandAllocator): void;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandAllocator {
+            beginRenderPassCmdPool: cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandPool<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdBeginRenderPass>;
+            bindStatesCmdPool: cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandPool<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdBindStates>;
+            drawCmdPool: cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandPool<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdDraw>;
+            updateBufferCmdPool: cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandPool<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdUpdateBuffer>;
+            copyBufferToTextureCmdPool: cocos_core_gfx_webgl2_webgl2_command_allocator_WebGL2CommandPool<cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdCopyBufferToTexture>;
+            constructor();
+            clearCmds(cmdPackage: cocos_core_gfx_webgl2_webgl2_commands_WebGL2CmdPackage): void;
+            releaseCmds(): void;
+        }
+        export class cocos_core_gfx_webgl2_webgl2_texture_WebGL2Texture extends GFXTexture {
+            get gpuTexture(): cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUTexture;
+            initialize(info: IGFXTextureInfo | IGFXTextureViewInfo): boolean;
+            destroy(): void;
+            resize(width: number, height: number): void;
+        }
+        export interface cocos_audio_assets_player_IAudioInfo {
+            clip: any;
+            duration: number;
+            eventTarget: any;
+        }
+        export abstract class cocos_audio_assets_player_AudioPlayer {
+            protected _state: number;
+            protected _duration: number;
+            protected _eventTarget: any;
+            protected _onHide: Function;
+            protected _onShow: Function;
+            protected _interrupted: boolean;
+            protected _blocking: boolean;
+            constructor(info: cocos_audio_assets_player_IAudioInfo);
+            abstract play(): void;
+            abstract pause(): void;
+            abstract stop(): void;
+            abstract playOneShot(volume: number): void;
+            abstract setCurrentTime(val: number): void;
+            abstract getCurrentTime(): number;
+            abstract setVolume(val: number, immediate: boolean): void;
+            abstract getVolume(): number;
+            abstract setLoop(val: boolean): void;
+            abstract getLoop(): boolean;
+            getState(): number;
+            getDuration(): number;
+            destroy(): void;
+        }
+        export class cocos_particle_animator_gradient_ColorKey {
+            color: math.Color;
+            time: number;
+        }
+        export class cocos_particle_animator_gradient_AlphaKey {
+            alpha: number;
+            time: number;
+        }
+        export class cocos_particle_animator_gradient_default {
+            static Mode: {
+                Blend: number;
+                Fixed: number;
+            };
+            colorKeys: cocos_particle_animator_gradient_ColorKey[];
+            alphaKeys: cocos_particle_animator_gradient_AlphaKey[];
+            mode: number;
+            constructor();
+            setKeys(colorKeys: cocos_particle_animator_gradient_ColorKey[], alphaKeys: cocos_particle_animator_gradient_AlphaKey[]): void;
+            sortKeys(): void;
+            evaluate(time: number): math.Color;
+            randomColor(): math.Color;
+        }
+        export class cocos_particle_animator_gradient_range_default {
+            get mode(): number;
+            set mode(m: number);
+            static Mode: {
+                Color: number;
+                Gradient: number;
+                TwoColors: number;
+                TwoGradients: number;
+                RandomColor: number;
+            };
+            /**
+             * @zh 当mode为Color时的颜色。
+             */
+            color: math.Color;
+            /**
+             * @zh 当mode为TwoColors时的颜色下限。
+             */
+            colorMin: math.Color;
+            /**
+             * @zh 当mode为TwoColors时的颜色上限。
+             */
+            colorMax: math.Color;
+            /**
+             * @zh 当mode为Gradient时的颜色渐变。
+             */
+            gradient: cocos_particle_animator_gradient_default;
+            /**
+             * @zh 当mode为TwoGradients时的颜色渐变下限。
+             */
+            gradientMin: cocos_particle_animator_gradient_default;
+            /**
+             * @zh 当mode为TwoGradients时的颜色渐变上限。
+             */
+            gradientMax: cocos_particle_animator_gradient_default;
+            evaluate(time: number, rndRatio: number): math.Color;
+            _onBeforeSerialize(props: any): any;
+        }
+        export class cocos_particle_burst_default {
+            get time(): number;
+            set time(val: number);
+            get repeatCount(): number;
+            set repeatCount(val: number);
+            /**
+             * @zh 每次触发的间隔时间。
+             */
+            repeatInterval: number;
+            /**
+             * @zh 发射的粒子的数量。
+             */
+            count: CurveRange;
+            constructor();
+            update(psys: any, dt: number): void;
+            getMaxCount(psys: any): number;
+        }
+        export class cocos_particle_particle_Particle {
+            particleSystem: ParticleSystemComponent;
+            position: math.Vec3;
+            velocity: math.Vec3;
+            animatedVelocity: math.Vec3;
+            ultimateVelocity: math.Vec3;
+            angularVelocity: math.Vec3;
+            axisOfRotation: math.Vec3;
+            rotation: math.Vec3;
+            startSize: math.Vec3;
+            size: math.Vec3;
+            startColor: math.Color;
+            color: math.Color;
+            randomSeed: number;
+            remainingLifetime: number;
+            startLifetime: number;
+            emitAccumulator0: number;
+            emitAccumulator1: number;
+            frameIndex: number;
+            startRow: number;
+            constructor(particleSystem: any);
+        }
+        export interface cocos_particle_particle_IParticleModule {
+            target: cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer | null;
+            needUpdate: Boolean;
+            needAnimate: Boolean;
+            name: string;
+            bindTarget(target: any): void;
+            update(space: number, trans: math.Mat4): void;
+            animate(p: cocos_particle_particle_Particle, dt?: number): void;
+        }
+        export interface cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer {
+            onInit(ps: Component): void;
+            onEnable(): void;
+            onDisable(): void;
+            onDestroy(): void;
+            clear(): void;
+            attachToScene(): void;
+            detachFromScene(): void;
+            updateMaterialParams(): void;
+            setVertexAttributes(): void;
+            updateRenderMode(): void;
+            onMaterialModified(index: number, material: Material): void;
+            onRebuildPSO(index: number, material: Material): void;
+            getParticleCount(): number;
+            getFreeParticle(): cocos_particle_particle_Particle | null;
+            setNewParticle(p: cocos_particle_particle_Particle): void;
+            updateParticles(dt: number): number;
+            updateRenderData(): void;
+            enableModule(name: string, val: Boolean, pm: cocos_particle_particle_IParticleModule): void;
+            updateTrailMaterial(): void;
+            getDefaultTrailMaterial(): any;
+        }
+        export abstract class cocos_particle_particle_ParticleModuleBase implements cocos_particle_particle_IParticleModule {
+            target: cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer | null;
+            needUpdate: Boolean;
+            needAnimate: Boolean;
+            bindTarget(target: cocos_particle_renderer_particle_system_renderer_base_IParticleSystemRenderer): void;
+            update(space: number, trans: math.Mat4): void;
+            abstract name: string;
+            abstract animate(p: cocos_particle_particle_Particle, dt?: number): void;
+        }
+        export class cocos_particle_animator_color_overtime_default extends cocos_particle_particle_ParticleModuleBase {
+            _enable: boolean;
+            get enable(): boolean;
+            set enable(val: boolean);
+            /**
+             * @zh 颜色随时间变化的参数，各个 key 之间线性差值变化。
+             */
+            color: cocos_particle_animator_gradient_range_default;
+            name: string;
+            animate(particle: cocos_particle_particle_Particle): void;
+        }
+        export class cocos_particle_emitter_shape_module_default {
+            get position(): math.Vec3;
+            set position(val: math.Vec3);
+            get rotation(): math.Vec3;
+            set rotation(val: math.Vec3);
+            get scale(): math.Vec3;
+            set scale(val: math.Vec3);
+            get arc(): number;
+            set arc(val: number);
+            get angle(): number;
+            set angle(val: number);
+            get enable(): boolean;
+            set enable(val: boolean);
+            /**
+             * @zh 粒子发射器类型 [[ShapeType]]。
+             */
+            _shapeType: number;
+            get shapeType(): number;
+            set shapeType(val: number);
+            /**
+             * @zh 粒子从发射器哪个部位发射 [[EmitLocation]]。
+             */
+            emitFrom: number;
+            /**
+             * @zh 根据粒子的初始方向决定粒子的移动方向。
+             */
+            alignToDirection: boolean;
+            /**
+             * @zh 粒子生成方向随机设定。
+             */
+            randomDirectionAmount: number;
+            /**
+             * @zh 表示当前发射方向与当前位置到结点中心连线方向的插值。
+             */
+            sphericalDirectionAmount: number;
+            /**
+             * @zh 粒子生成位置随机设定（设定此值为非 0 会使粒子生成位置超出生成器大小范围）。
+             */
+            randomPositionAmount: number;
+            /**
+             * @zh 粒子发射器半径。
+             */
+            radius: number;
+            /**
+             * @zh 粒子发射器发射位置（对 Box 类型的发射器无效）：<bg>
+             * - 0 表示从表面发射；
+             * - 1 表示从中心发射；
+             * - 0 ~ 1 之间表示在中心到表面之间发射。
+             */
+            radiusThickness: number;
+            /**
+             * @zh 粒子在扇形范围内的发射方式 [[ArcMode]]。
+             */
+            arcMode: number;
+            /**
+             * @zh 控制可能产生粒子的弧周围的离散间隔。
+             */
+            arcSpread: number;
+            /**
+             * @zh 粒子沿圆周发射的速度。
+             */
+            arcSpeed: CurveRange;
+            /**
+             * @zh 圆锥顶部截面距离底部的轴长<bg>。
+             * 决定圆锥发射器的高度。
+             */
+            length: number;
+            /**
+             * @zh 粒子发射器发射位置（针对 Box 类型的粒子发射器）。
+             */
+            boxThickness: math.Vec3;
+            constructor();
+            onInit(ps: ParticleSystemComponent): void;
+            emit(p: any): void;
+        }
+        export class cocos_particle_animator_size_overtime_default extends cocos_particle_particle_ParticleModuleBase {
+            _enable: Boolean;
+            get enable(): Boolean;
+            set enable(val: Boolean);
+            /**
+             * @zh 决定是否在每个轴上独立控制粒子大小。
+             */
+            separateAxes: boolean;
+            /**
+             * @zh 定义一条曲线来决定粒子在其生命周期中的大小变化。
+             */
+            size: CurveRange;
+            /**
+             * @zh 定义一条曲线来决定粒子在其生命周期中 X 轴方向上的大小变化。
+             */
+            x: CurveRange;
+            /**
+             * @zh 定义一条曲线来决定粒子在其生命周期中 Y 轴方向上的大小变化。
+             */
+            y: CurveRange;
+            /**
+             * @zh 定义一条曲线来决定粒子在其生命周期中 Z 轴方向上的大小变化。
+             */
+            z: CurveRange;
+            name: string;
+            animate(particle: cocos_particle_particle_Particle, dt: number): void;
+        }
+        export class cocos_particle_animator_velocity_overtime_default extends cocos_particle_particle_ParticleModuleBase {
+            _enable: Boolean;
+            get enable(): Boolean;
+            set enable(val: Boolean);
+            /**
+             * @zh X 轴方向上的速度分量。
+             */
+            x: CurveRange;
+            /**
+             * @zh Y 轴方向上的速度分量。
+             */
+            y: CurveRange;
+            /**
+             * @zh Z 轴方向上的速度分量。
+             */
+            z: CurveRange;
+            /**
+             * @zh 速度修正系数（只支持 CPU 粒子）。
+             */
+            speedModifier: CurveRange;
+            /**
+             * @zh 速度计算时采用的坐标系[[Space]]。
+             */
+            space: number;
+            name: string;
+            constructor();
+            update(space: number, worldTransform: math.Mat4): void;
+            animate(p: cocos_particle_particle_Particle, dt: number): void;
+        }
+        export class cocos_particle_animator_force_overtime_default extends cocos_particle_particle_ParticleModuleBase {
+            _enable: Boolean;
+            get enable(): Boolean;
+            set enable(val: Boolean);
+            /**
+             * @zh X 轴方向上的加速度分量。
+             */
+            x: CurveRange;
+            /**
+             * @zh Y 轴方向上的加速度分量。
+             */
+            y: CurveRange;
+            /**
+             * @zh Z 轴方向上的加速度分量。
+             */
+            z: CurveRange;
+            /**
+             * @zh 加速度计算时采用的坐标系 [[Space]]。
+             */
+            space: number;
+            randomized: boolean;
+            name: string;
+            constructor();
+            update(space: any, worldTransform: any): void;
+            animate(p: any, dt: any): void;
+        }
+        export class cocos_particle_animator_limit_velocity_overtime_default extends cocos_particle_particle_ParticleModuleBase {
+            _enable: Boolean;
+            get enable(): Boolean;
+            set enable(val: Boolean);
+            /**
+             * @zh X 轴方向上的速度下限。
+             */
+            limitX: CurveRange;
+            /**
+             * @zh Y 轴方向上的速度下限。
+             */
+            limitY: CurveRange;
+            /**
+             * @zh Z 轴方向上的速度下限。
+             */
+            limitZ: CurveRange;
+            /**
+             * @zh 速度下限。
+             */
+            limit: CurveRange;
+            /**
+             * @zh 当前速度与速度下限的插值。
+             */
+            dampen: number;
+            /**
+             * @zh 是否三个轴分开限制。
+             */
+            separateAxes: boolean;
+            /**
+             * @zh 计算速度下限时采用的坐标系 [[Space]]。
+             */
+            space: number;
+            drag: null;
+            multiplyDragByParticleSize: boolean;
+            multiplyDragByParticleVelocity: boolean;
+            name: string;
+            constructor();
+            update(space: number, worldTransform: math.Mat4): void;
+            animate(p: cocos_particle_particle_Particle, dt: number): void;
+        }
+        export class cocos_particle_animator_rotation_overtime_default extends cocos_particle_particle_ParticleModuleBase {
+            _enable: Boolean;
+            get enable(): Boolean;
+            set enable(val: Boolean);
+            get separateAxes(): boolean;
+            set separateAxes(val: boolean);
+            /**
+             * @zh 绕 X 轴设定旋转。
+             */
+            x: CurveRange;
+            /**
+             * @zh 绕 Y 轴设定旋转。
+             */
+            y: CurveRange;
+            /**
+             * @zh 绕 Z 轴设定旋转。
+             */
+            z: CurveRange;
+            name: string;
+            animate(p: cocos_particle_particle_Particle, dt: number): void;
+        }
+        export class cocos_particle_animator_texture_animation_default extends cocos_particle_particle_ParticleModuleBase {
+            get enable(): boolean;
+            set enable(val: boolean);
+            get mode(): number;
+            set mode(val: number);
+            get numTilesX(): number;
+            set numTilesX(val: number);
+            get numTilesY(): number;
+            set numTilesY(val: number);
+            /**
+             * @zh 动画播放方式 [[Animation]]。
+             */
+            animation: number;
+            /**
+             * @zh 一个周期内动画播放的帧与时间变化曲线。
+             */
+            frameOverTime: CurveRange;
+            /**
+             * @zh 从第几帧开始播放，时间为整个粒子系统的生命周期。
+             */
+            startFrame: CurveRange;
+            /**
+             * @zh 一个生命周期内播放循环的次数。
+             */
+            cycleCount: number;
+            get flipU(): number;
+            set flipU(val: number);
+            get flipV(): number;
+            set flipV(val: number);
+            get uvChannelMask(): number;
+            set uvChannelMask(val: number);
+            /**
+             * @zh 随机从动画贴图中选择一行以生成动画。<br>
+             * 此选项仅在动画播放方式为 SingleRow 时生效。
+             */
+            randomRow: boolean;
+            /**
+             * @zh 从动画贴图中选择特定行以生成动画。<br>
+             * 此选项仅在动画播放方式为 SingleRow 时且禁用 randomRow 时可用。
+             */
+            rowIndex: number;
+            name: string;
+            init(p: cocos_particle_particle_Particle): void;
+            animate(p: cocos_particle_particle_Particle, dt: number): void;
+        }
+        export class cocos_particle_renderer_trail_default {
+            get enable(): boolean;
+            set enable(val: boolean);
+            _enable: boolean;
+            /**
+             * 设定粒子生成轨迹的方式。
+             */
+            mode: number;
+            /**
+             * 轨迹存在的生命周期。
+             */
+            lifeTime: CurveRange;
+            _minParticleDistance: number;
+            get minParticleDistance(): number;
+            set minParticleDistance(val: number);
+            get space(): number;
+            set space(val: number);
+            /**
+             * 粒子本身是否存在。
+             */
+            existWithParticles: boolean;
+            /**
+             * 设定纹理填充方式。
+             */
+            textureMode: number;
+            widthFromParticle: boolean;
+            /**
+             * 控制轨迹长度的曲线。
+             */
+            widthRatio: CurveRange;
+            colorFromParticle: boolean;
+            colorOverTrail: cocos_particle_animator_gradient_range_default;
+            colorOvertime: cocos_particle_animator_gradient_range_default;
+            constructor();
+            onInit(ps: any): void;
+            onEnable(): void;
+            onDisable(): void;
+            _attachToScene(): void;
+            _detachFromScene(): void;
+            destroy(): void;
+            clear(): void;
+            updateMaterial(): void;
+            update(): void;
+            animate(p: cocos_particle_particle_Particle, scaledDt: number): void;
+            removeParticle(p: cocos_particle_particle_Particle): void;
+            updateRenderData(): void;
+            updateIA(count: number): void;
+        }
+        export class cocos_particle_renderer_particle_system_renderer_data_default {
+            get renderMode(): number;
+            set renderMode(val: number);
+            get velocityScale(): number;
+            set velocityScale(val: number);
+            get lengthScale(): number;
+            set lengthScale(val: number);
+            get mesh(): Mesh | null;
+            set mesh(val: Mesh | null);
+            get particleMaterial(): any;
+            set particleMaterial(val: any);
+            get trailMaterial(): any;
+            set trailMaterial(val: any);
+            get mainTexture(): Texture2D | null;
+            set mainTexture(val: Texture2D | null);
+            get useGPU(): boolean;
+            set useGPU(val: boolean);
+            onInit(ps: any): void;
+        }
+        /**
+         * !#en Base classAction for action classes.
+         * !#zh Action 类是所有动作类型的基类。
+         * @class Action
+         */
+        export class cocos_tween_actions_action_Action {
+            /**
+             * !#en Default Action tag.
+             * !#zh 默认动作标签。
+             * @constant
+             * @static
+             * @type {Number}
+             * @default -1
+             */
+            static TAG_INVALID: number;
+            protected originalTarget: Node | null;
+            protected target: Node | null;
+            protected tag: number;
+            /**
+             * !#en
+             * to copy object with deep copy.
+             * returns a clone of action.
+             * !#zh 返回一个克隆的动作。
+             * @method clone
+             * @return {Action}
+             */
+            clone(): cocos_tween_actions_action_Action;
+            /**
+             * !#en
+             * return true if the action has finished.
+             * !#zh 如果动作已完成就返回 true。
+             * @method isDone
+             * @return {Boolean}
+             */
+            isDone(): boolean;
+            startWithTarget(target: any): void;
+            stop(): void;
+            step(dt: number): void;
+            update(dt: number): void;
+            /**
+             * !#en get the target.
+             * !#zh 获取当前目标节点。
+             * @method getTarget
+             * @return {object}
+             */
+            getTarget(): Node | null;
+            /**
+             * !#en The action will modify the target properties.
+             * !#zh 设置目标节点。
+             * @method setTarget
+             * @param {object} target
+             */
+            setTarget(target: Node): void;
+            /**
+             * !#en get the original target.
+             * !#zh 获取原始目标节点。
+             * @method getOriginalTarget
+             * @return {object}
+             */
+            getOriginalTarget(): Node | null;
+            setOriginalTarget(originalTarget: any): void;
+            /**
+             * !#en get tag number.
+             * !#zh 获取用于识别动作的标签。
+             * @method getTag
+             * @return {Number}
+             */
+            getTag(): number;
+            /**
+             * !#en set tag number.
+             * !#zh 设置标签，用于识别动作。
+             * @method setTag
+             * @param {Number} tag
+             */
+            setTag(tag: number): void;
+            /**
+             * !#en
+             * Returns a reversed action. <br />
+             * For example: <br />
+             * - The action will be x coordinates of 0 move to 100. <br />
+             * - The reversed action will be x of 100 move to 0.
+             * - Will be rewritten
+             * !#zh 返回一个新的动作，执行与原动作完全相反的动作。
+             * @method reverse
+             * @return {Action | null}
+             */
+            reverse(): cocos_tween_actions_action_Action | null;
+            retain(): void;
+            release(): void;
+        }
+        /**
+         * !#en
+         * `ActionManager` is a class that can manage actions.<br/>
+         * Normally you won't need to use this class directly. 99% of the cases you will use the CCNode interface,
+         * which uses this class's singleton object.
+         * But there are some cases where you might need to use this class. <br/>
+         * Examples:<br/>
+         * - When you want to run an action where the target is different from a CCNode.<br/>
+         * - When you want to pause / resume the actions<br/>
+         * !#zh
+         * `ActionManager` 是可以管理动作的单例类。<br/>
+         * 通常你并不需要直接使用这个类，99%的情况您将使用 CCNode 的接口。<br/>
+         * 但也有一些情况下，您可能需要使用这个类。 <br/>
+         * 例如：
+         *  - 当你想要运行一个动作，但目标不是 CCNode 类型时。 <br/>
+         *  - 当你想要暂停/恢复动作时。 <br/>
+         * @class ActionManager
+         * @example {@link cocos2d/core/CCActionManager/ActionManager.js}
+         */
+        export class cocos_tween_actions_action_manager_ActionManager {
+            /**
+             * !#en
+             * Adds an action with a target.<br/>
+             * If the target is already present, then the action will be added to the existing target.
+             * If the target is not present, a new instance of this target will be created either paused or not, and the action will be added to the newly created target.
+             * When the target is paused, the queued actions won't be 'ticked'.
+             * !#zh
+             * 增加一个动作，同时还需要提供动作的目标对象，目标对象是否暂停作为参数。<br/>
+             * 如果目标已存在，动作将会被直接添加到现有的节点中。<br/>
+             * 如果目标不存在，将为这一目标创建一个新的实例，并将动作添加进去。<br/>
+             * 当目标状态的 paused 为 true，动作将不会被执行
+             *
+             * @method addAction
+             * @param {Action} action
+             * @param {object} target
+             * @param {Boolean} paused
+             */
+            addAction(action: cocos_tween_actions_action_Action, target: Node, paused: boolean): void;
+            /**
+             * !#en Removes all actions from all the targets.
+             * !#zh 移除所有对象的所有动作。
+             * @method removeAllActions
+             */
+            removeAllActions(): void;
+            /**
+             * !#en
+             * Removes all actions from a certain target. <br/>
+             * All the actions that belongs to the target will be removed.
+             * !#zh
+             * 移除指定对象上的所有动作。<br/>
+             * 属于该目标的所有的动作将被删除。
+             * @method removeAllActionsFromTarget
+             * @param {Node} target
+             * @param {Boolean} forceDelete
+             */
+            removeAllActionsFromTarget(target: Node, forceDelete: boolean): void;
+            /**
+             * !#en Removes an action given an action reference.
+             * !#zh 移除指定的动作。
+             * @method removeAction
+             * @param {Action} action
+             */
+            removeAction(action: cocos_tween_actions_action_Action): void;
+            /**
+             * !#en Removes an action given its tag and the target.
+             * !#zh 删除指定对象下特定标签的一个动作，将删除首个匹配到的动作。
+             * @method removeActionByTag
+             * @param {Number} tag
+             * @param {Node} target
+             */
+            removeActionByTag(tag: number, target: Node): void;
+            /**
+             * !#en Gets an action given its tag an a target.
+             * !#zh 通过目标对象和标签获取一个动作。
+             * @method getActionByTag
+             * @param {Number} tag
+             * @param {Node} target
+             * @return {Action|null}  return the Action with the given tag on success
+             */
+            getActionByTag(tag: number, target: Node): cocos_tween_actions_action_Action | null;
+            /**
+             * !#en
+             * Returns the numbers of actions that are running in a certain target. <br/>
+             * Composable actions are counted as 1 action. <br/>
+             * Example: <br/>
+             * - If you are running 1 Sequence of 7 actions, it will return 1. <br/>
+             * - If you are running 7 Sequences of 2 actions, it will return 7.
+             * !#zh
+             * 返回指定对象下所有正在运行的动作数量。 <br/>
+             * 组合动作被算作一个动作。<br/>
+             * 例如：<br/>
+             *  - 如果您正在运行 7 个动作组成的序列动作（Sequence），这个函数将返回 1。<br/>
+             *  - 如果你正在运行 2 个序列动作（Sequence）和 5 个普通动作，这个函数将返回 7。<br/>
+             *
+             * @method getNumberOfRunningActionsInTarget
+             * @param {Node} target
+             * @return {Number}
+             */
+            getNumberOfRunningActionsInTarget(target: Node): number;
+            /**
+             * !#en Pauses the target: all running actions and newly added actions will be paused.
+             * !#zh 暂停指定对象：所有正在运行的动作和新添加的动作都将会暂停。
+             * @method pauseTarget
+             * @param {Node} target
+             */
+            pauseTarget(target: Node): void;
+            /**
+             * !#en Resumes the target. All queued actions will be resumed.
+             * !#zh 让指定目标恢复运行。在执行序列中所有被暂停的动作将重新恢复运行。
+             * @method resumeTarget
+             * @param {Node} target
+             */
+            resumeTarget(target: Node): void;
+            /**
+             * !#en Pauses all running actions, returning a list of targets whose actions were paused.
+             * !#zh 暂停所有正在运行的动作，返回一个包含了那些动作被暂停了的目标对象的列表。
+             * @method pauseAllRunningActions
+             * @return {Array}  a list of targets whose actions were paused.
+             */
+            pauseAllRunningActions(): Array<any>;
+            /**
+             * !#en Resume a set of targets (convenience function to reverse a pauseAllRunningActions or pauseTargets call).
+             * !#zh 让一组指定对象恢复运行（用来逆转 pauseAllRunningActions 效果的便捷函数）。
+             * @method resumeTargets
+             * @param {Array} targetsToResume
+             */
+            resumeTargets(targetsToResume: Array<any>): void;
+            /**
+             * !#en Pause a set of targets.
+             * !#zh 暂停一组指定对象。
+             * @method pauseTargets
+             * @param {Array} targetsToPause
+             */
+            pauseTargets(targetsToPause: Array<any>): void;
+            /**
+             * !#en
+             * purges the shared action manager. It releases the retained instance. <br/>
+             * because it uses this, so it can not be static.
+             * !#zh
+             * 清除共用的动作管理器。它释放了持有的实例。 <br/>
+             * 因为它使用 this，因此它不能是静态的。
+             * @method purgeSharedManager
+             */
+            purgeSharedManager(): void;
+            /**
+             * !#en The ActionManager update。
+             * !#zh ActionManager 主循环。
+             * @method update
+             * @param {Number} dt delta time in seconds
+             */
+            update(dt: number): void;
+        }
         export enum cocos_core_renderer_ui_stencil_manager_Stage {
             DISABLED = 0,
             CLEAR = 1,
@@ -25635,19 +26332,6 @@ declare module "cc.ui" {
             CLICK = "click"
         }
         /**
-         * 键盘的返回键类型。
-         * @readonly
-         * @enum EditBox.KeyboardReturnType
-         */
-        export enum cocos_ui_components_editbox_types_KeyboardReturnType {
-            DEFAULT = 0,
-            DONE = 1,
-            SEND = 2,
-            SEARCH = 3,
-            GO = 4,
-            NEXT = 5
-        }
-        /**
          * 定义了一些用于设置文本显示和文本格式化的标志位。
          * @readonly
          * @enum EditBox.InputFlag
@@ -25673,6 +26357,19 @@ declare module "cc.ui" {
             URL = 4,
             DECIMAL = 5,
             SINGLE_LINE = 6
+        }
+        /**
+         * 键盘的返回键类型。
+         * @readonly
+         * @enum EditBox.KeyboardReturnType
+         */
+        export enum cocos_ui_components_editbox_types_KeyboardReturnType {
+            DEFAULT = 0,
+            DONE = 1,
+            SEND = 2,
+            SEARCH = 3,
+            GO = 4,
+            NEXT = 5
         }
         export class cocos_ui_components_editbox_edit_box_impl_base_EditBoxImplBase {
             _editing: boolean;
@@ -25768,9 +26465,11 @@ declare module "cc.ui" {
         export interface cocos_ui_components_rich_text_component_ILabelSegment {
             node: PrivateNode;
             comp: UIRenderComponent | null;
-            clickHandler: "";
-            styleIndex: number;
             lineCount: number;
+            styleIndex: number;
+            imageOffset: string;
+            clickParam: string;
+            clickHandler: string;
         }
         /**
          * @en
@@ -25859,12 +26558,6 @@ declare module "cc.ui" {
         export enum cocos_ui_components_toggle_component_EventType {
             TOGGLE = "toggle"
         }
-        export enum cocos_ui_components_webview_webview_impl_WebViewEventType {
-            LOADING = 0,
-            LOADED = 1,
-            ERROR = 2,
-            JS_EVALUATED = 3
-        }
         /**
          * @en Enum for Widget's alignment mode, indicating when the widget should refresh.
          *
@@ -25922,20 +26615,20 @@ declare module "cc.ui" {
         }
         export class cocos_ui_assembler_graphics_webgl_impl_Path {
             closed: boolean;
-            nbevel: number;
+            bevel: number;
             complex: boolean;
             points: cocos_ui_assembler_graphics_webgl_impl_Point[];
             constructor();
             reset(): void;
         }
-        export class cocos_core_renderer_ui_render_data_MeshRenderData extends ___private.cocos_core_renderer_ui_render_data_BaseRenderData {
+        export class cocos_core_renderer_ui_render_data_MeshRenderData extends cocos_core_renderer_ui_render_data_BaseRenderData {
             vData: Float32Array;
             iData: Uint16Array;
             vertexStart: number;
-            indiceStart: number;
+            indicesStart: number;
             byteStart: number;
             byteCount: number;
-            request(vertexCount: number, indiceCount: number): boolean;
+            request(vertexCount: number, indicesCount: number): boolean;
             reset(): void;
         }
         export enum cocos_ui_assembler_graphics_types_PointFlags {
@@ -25970,7 +26663,7 @@ declare module "cc.ui" {
             clear(clean?: boolean): void;
             close(): void;
             requestRenderData(): cocos_core_renderer_ui_render_data_MeshRenderData;
-            getRenderDatas(): cocos_core_renderer_ui_render_data_MeshRenderData[];
+            getRenderData(): cocos_core_renderer_ui_render_data_MeshRenderData[];
             addPoint(x: number, y: number, flags: cocos_ui_assembler_graphics_types_PointFlags): void;
         }
         /**
@@ -26010,21 +26703,23 @@ declare module "cc.ui" {
             HORIZONTAL = 0,
             VERTICAL = 1
         }
+        export type cocos_core_renderer_core_memory_pools_IAHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.INPUT_ASSEMBLER>;
         export class cocos_core_renderer_ui_ui_draw_batch_UIDrawBatch {
             camera: renderer.Camera | null;
-            bufferBatch: MeshBuffer | null;
+            ia: GFXInputAssembler | null;
+            hIA: cocos_core_renderer_core_memory_pools_IAHandle;
             model: renderer.Model | null;
             material: Material | null;
-            texView: GFXTextureView | null;
+            texture: GFXTexture | null;
             sampler: GFXSampler | null;
-            firstIdx: number;
-            idxCount: number;
-            pipelineState: GFXPipelineState | null;
-            bindingLayout: GFXBindingLayout | null;
+            hDescriptorSet: cocos_core_renderer_core_memory_pools_DescriptorSetHandle;
             useLocalData: Node | null;
             isStatic: boolean;
-            destroy(ui: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
-            clear(ui: renderer.__private.cocos_core_renderer_ui_ui_UI): void;
+            constructor();
+            destroy(ui: cocos_core_renderer_ui_ui_UI): void;
+            clear(): void;
+            get bufferBatch(): MeshBuffer | null;
+            set bufferBatch(meshBuffer: MeshBuffer | null);
         }
         function cocos_ui_components_widget_manager_updateAlignment(node: Node): void;
         export class cocos_ui_assembler_label_letter_font_LetterRenderTexture extends Texture2D {
@@ -26070,5 +26765,185 @@ declare module "cc.ui" {
             getLetterDefinitionForChar(char: string): cocos_ui_assembler_label_bmfontUtils_FontLetterDefinition;
         }
     }
-    import { renderer, GFXBuffer, GFXInputAssembler, IGFXAttribute, GFXAttributeName, GFXFormat, Material, __private as ___private, math, SpriteFrame, Node, EventHandler, EventTouch, EventMouse, Component, UIRenderComponent, TTFFont, SpriteAtlas, IHtmlTextParserResultObj, PrivateNode, UIComponent, Event, Touch, RenderableComponent, GFXBlendFactor, GFXTextureView, GFXSampler, GFXPipelineState, GFXBindingLayout, js, Font, ImageAsset, Texture2D } from "cc.core";
+    export import bits = math.bits;
+    export import Vec2 = math.Vec2;
+    export import v2 = math.v2;
+    export import Vec3 = math.Vec3;
+    export import v3 = math.v3;
+    export import Vec4 = math.Vec4;
+    export import v4 = math.v4;
+    export import Quat = math.Quat;
+    export import quat = math.quat;
+    export import Mat3 = math.Mat3;
+    export import Mat4 = math.Mat4;
+    export import mat4 = math.mat4;
+    export import AffineTransform = math.AffineTransform;
+    export import Size = math.Size;
+    export import size = math.size;
+    export import Rect = math.Rect;
+    export import rect = math.rect;
+    export import Color = math.Color;
+    export import color = math.color;
+    export import equals = math.equals;
+    export import approx = math.approx;
+    export import clamp = math.clamp;
+    export import clamp01 = math.clamp01;
+    export import lerp = math.lerp;
+    export import toRadian = math.toRadian;
+    export import toDegree = math.toDegree;
+    export import randomRange = math.randomRange;
+    export import randomRangeInt = math.randomRangeInt;
+    export import pseudoRandom = math.pseudoRandom;
+    export import pseudoRandomRange = math.pseudoRandomRange;
+    export import pseudoRandomRangeInt = math.pseudoRandomRangeInt;
+    export import nextPow2 = math.nextPow2;
+    export import repeat = math.repeat;
+    export import pingPong = math.pingPong;
+    export import inverseLerp = math.inverseLerp;
+    export import absMaxComponent = math.absMaxComponent;
+    export import absMax = math.absMax;
+    export import EPSILON = math.EPSILON;
+    export import random = math.random;
+    export import IColorLike = math.IColorLike;
+    export import IMat3Like = math.IMat3Like;
+    export import IMat4Like = math.IMat4Like;
+    export import IQuatLike = math.IQuatLike;
+    export import IRectLike = math.IRectLike;
+    export import ISizeLike = math.ISizeLike;
+    export import IVec2Like = math.IVec2Like;
+    export import IVec3Like = math.IVec3Like;
+    export import IVec4Like = math.IVec4Like;
+    export import Pool = memop.Pool;
+    export import RecyclePool = memop.RecyclePool;
+    export import CachedArray = memop.CachedArray;
+    export import ICubicSplineValue = animation.ICubicSplineValue;
+    export import CubicSplineValueConstructor = animation.CubicSplineValueConstructor;
+    export import CubicSplineVec2Value = animation.CubicSplineVec2Value;
+    export import CubicSplineVec3Value = animation.CubicSplineVec3Value;
+    export import CubicSplineVec4Value = animation.CubicSplineVec4Value;
+    export import CubicSplineQuatValue = animation.CubicSplineQuatValue;
+    export import CubicSplineNumberValue = animation.CubicSplineNumberValue;
+    import { PrimitiveType as _PrimitiveType } from "cc";
+}
+declare module "cc.decorator" {
+    export namespace serializable {
+        export function formerlySerializedAs(name: string): PropertyDecorator;
+        export const field: PropertyDecorator;
+        /**
+         * @en
+         * Marks the property as editor only.
+         * @zh
+         * 设置该属性仅在编辑器中生效。
+         */
+        export const editorOnly: PropertyDecorator;
+    }
+    export namespace editable {
+        export const field: PropertyDecorator;
+        /**
+         * @en
+         * Sets the condition to show the property.
+         * @zh
+         * 设置在编辑器展示该属性的条件。
+         * @param condition 展示条件，当返回 `true` 时展示；否则不展示。
+         */
+        export const visible: (condition: boolean | (() => boolean)) => PropertyDecorator;
+        export const readOnly: PropertyDecorator;
+        /**
+         * @en
+         * Sets the display name of the property in editor.
+         * @zh
+         * 设置该属性在编辑器中的显示名称。
+         * @param text 显示名称。
+         */
+        export const displayName: (text: string) => PropertyDecorator;
+        /**
+         * @en
+         * Sets the tooltip content of the property in editor.
+         * @zh
+         * 设置该属性在编辑器中的工具提示内容。
+         * @param text 工具提示。
+         */
+        export const tooltip: (text: string) => PropertyDecorator;
+        /**
+         * @en
+         * Sets the allowed range of the property in editor.
+         * @zh
+         * 设置该属性在编辑器中允许设置的范围。
+         * @param values 范围。
+         */
+        export const range: (values: [number, number, number] | [number, number]) => PropertyDecorator;
+        /**
+         * @en
+         * Sets the allowed min value of the property in editor.
+         * @zh
+         * 设置该属性在编辑器中允许的最小值。
+         * @param value 最小值。
+         */
+        export const rangeMin: (value: number) => PropertyDecorator;
+        /**
+         * @en
+         * Sets the allowed max value of the property in editor.
+         * @zh
+         * 设置该属性在编辑器中允许的最大值。
+         * @param value 最大值。
+         */
+        export const rangeMax: (value: number) => PropertyDecorator;
+        /**
+         * @en
+         * Sets the step of the property in editor.
+         * @zh
+         * 设置该属性在编辑器中的步进值。
+         * @param value 步进值。
+         */
+        export const rangeStep: (value: number) => PropertyDecorator;
+        /**
+         * @en
+         * Enable a slider be given to coordinate the property in editor.
+         * @zh
+         * 允许在编辑器中提供滑动条来调节值
+         */
+        export const slide: PropertyDecorator;
+        /**
+         * @en
+         * Sets the display order of the property in editor.
+         * @zh
+         * 设置该属性在编辑器中的显示顺序。
+         * @param order 显示顺序。
+         */
+        export const displayOrder: (order: number) => PropertyDecorator;
+        /**
+         * @en
+         * Sets the unit of the property in editor.
+         * @zh
+         * 设置该属性在编辑器中的计量单位。
+         * @param name 计量单位的名称。
+         */
+        export const unit: (name: "lm" | "lx" | "cd/m\u00B2") => PropertyDecorator;
+        /**
+         * @en
+         * Sets to convert the value into radian before feed it to the property in editor.
+         * @zh
+         * 设置在编辑器中赋值该属性前将值先转换为弧度制。
+         */
+        export const radian: PropertyDecorator;
+        /**
+         * @en
+         * Enable multi-line display of the property in editor.
+         * @zh
+         * 允许在编辑器中对该属性进行多行显示。
+         */
+        export const multiline: PropertyDecorator;
+    }
+    export const override: PropertyDecorator;
+    /**
+     *
+     * @param value
+     */
+    export function animatable(value: boolean): PropertyDecorator;
+    export import string = _decorator.string;
+    export import integer = _decorator.integer;
+    export import float = _decorator.float;
+    export import boolean = _decorator.boolean;
+    export import type = _decorator.type;
+    import { _decorator } from "cc";
 }

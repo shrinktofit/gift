@@ -10,7 +10,15 @@ main();
 
 function main() {
     yargs.demandOption([ 'i', 'r' ]);
-    yargs.alias('i', 'input').describe('i', 'The input file.');
+    yargs.option('input', {
+        alias: 'i',
+        description: 'The input file.',
+        array: true,
+    });
+    yargs.option('root-dir', {
+        type: 'string',
+        description: 'The root dir.'
+    });
     yargs.alias('r', 'root').describe('r', 'The root module name.');
     yargs.alias('n', 'name').describe('n', 'The generated module name.');
     yargs.alias('o', 'output').describe('o', 'The output file.');
@@ -26,7 +34,7 @@ function main() {
     yargs.help();
 
     const argv = yargs.parse(process.argv);
-    const { i, n, o, r, u, p, verbose, entries: entriesUnParsed, config: configFile } = argv;
+    const { i, n, o, r, u, p, verbose, entries: entriesUnParsed, config: configFile, rootDir } = argv;
 
     let config;
     try {
@@ -61,6 +69,7 @@ function main() {
 
     const options: IOptions = {
         input: i as string,
+        rootDir: rootDir as (string | undefined),
         name,
         output,
         rootModule: r as string,

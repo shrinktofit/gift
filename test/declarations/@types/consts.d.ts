@@ -51,6 +51,11 @@ declare module "internal:constants" {
     export const XIAOMI: boolean;
 
     /**
+     * Running in the ByteDance's quick game.
+     */
+    export const BYTEDANCE: boolean;
+
+    /**
      * Running in the baidu's mini game.
      */
     export const BAIDU: boolean;
@@ -60,6 +65,21 @@ declare module "internal:constants" {
      */
     export const COCOSPLAY: boolean;
 
+    /**
+     * Running in the huawei's quick game.
+     */
+    export const HUAWEI: boolean;
+
+    /**
+     * Running in the oppo's mini game.
+     */
+    export const OPPO: boolean;
+
+    /**
+     * Running in the vivo's mini game.
+     */
+    export const VIVO: boolean;
+    
     /**
      * Running in mini game.
      */
@@ -72,7 +92,4 @@ declare module "internal:constants" {
 
 
     export const SUPPORT_JIT: boolean;
-    export const PHYSICS_BUILTIN: boolean;
-    export const PHYSICS_CANNON: boolean;
-    export const PHYSICS_AMMO: boolean;
 }

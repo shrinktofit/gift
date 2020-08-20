@@ -22,9 +22,7 @@ export class Entity {
                 this._ownerModule = parent.entity.ownerModule;
             }
             this._fullPath = parent.entity.fullPath.slice();
-            if (symbol) {
-                parent.children.push(this);
-            }
+            parent.children.push(this);
         }
         this._fullPath.push(this);
     }
@@ -87,8 +85,11 @@ export interface NamespaceTraits extends BaseTraits {
         importName: string;
         exportName: string;
     }>;
+    /**
+     * ne Means "non-exporting"
+     */
     neNamespace?: {
-        name: string;
+        trait: NamespaceTraits;
         statements: ts.Statement[];
     };
 }
