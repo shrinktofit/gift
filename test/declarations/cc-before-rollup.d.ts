@@ -13814,7 +13814,7 @@ declare module "cocos/core/renderer/scene/shadows" {
         protected _updatePipeline(): void;
         updateSphereLight(light: SphereLight): void;
         updateDirLight(light: DirectionalLight): void;
-        updateShadowList(scene: RenderScene, frstm: frustum, stamp: number, shadowVisible?: boolean): void;
+        updateShadowList(scene: RenderScene, frstm: frustum, shadowVisible?: boolean): void;
         recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
         createShadowData(model: Model): IShadowRenderData;
         destroyShadowData(model: Model): void;
@@ -23254,8 +23254,8 @@ declare module "cocos/ui/components/scroll-view-component" {
          * @zh
          * 可滚动展示内容的节点。
          */
-        get content(): UITransformComponent | null;
-        set content(value: UITransformComponent | null);
+        get content(): Node | null;
+        set content(value: Node | null);
         /**
          * @en
          * Enable horizontal scroll.
@@ -23310,7 +23310,7 @@ declare module "cocos/ui/components/scroll-view-component" {
         get view(): UITransformComponent | null;
         protected _autoScrolling: boolean;
         protected _scrolling: boolean;
-        protected _content: UITransformComponent | null;
+        protected _content: Node | null;
         protected _horizontalScrollBar: ScrollBarComponent | null;
         protected _verticalScrollBar: ScrollBarComponent | null;
         protected _topBoundary: number;
@@ -23663,10 +23663,11 @@ declare module "cocos/ui/components/scroll-bar-component" {
     /**
      * @category ui
      */
-    import { Component, UITransformComponent } from "cocos/core/components/index";
+    import { Component } from "cocos/core/components/index";
     import { Size, Vec3 } from "cocos/core/math/index";
     import { ScrollViewComponent } from "cocos/ui/components/scroll-view-component";
     import { SpriteComponent } from "cocos/ui/components/sprite-component";
+    import { Node } from "cocos/core/index";
     /**
      * @en
      * Enum for ScrollBar direction.
@@ -23785,7 +23786,7 @@ declare module "cocos/ui/components/scroll-bar-component" {
         protected onEnable(): void;
         protected start(): void;
         protected update(dt: any): void;
-        protected _convertToScrollViewSpace(contentTrans: UITransformComponent): Vec3;
+        protected _convertToScrollViewSpace(content: Node): Vec3;
         protected _setOpacity(opacity: number): void;
         protected _updateHandlerPosition(position: Vec3): void;
         protected _fixupHandlerPosition(): Vec3;
@@ -26270,7 +26271,7 @@ declare module "cocos/core/pipeline/render-view" {
          * @zh 构造函数。
          * @param camera
          */
-        constructor(camera: Camera);
+        constructor();
         /**
          * @en Initialization function with a render view information descriptor
          * @zh 使用一个渲染视图描述信息来初始化。
@@ -26537,7 +26538,7 @@ declare module "cocos/core/pipeline/render-pipeline" {
          * @zh 渲染函数，对指定的渲染视图按顺序执行所有渲染流程。
          * @param view Render view。
          */
-        render(view: RenderView): void;
+        render(views: RenderView[]): void;
         /**
          * @en Internal destroy function
          * @zh 内部销毁函数。
@@ -26653,11 +26654,6 @@ declare module "cocos/core/pipeline/ui/ui-stage" {
         destroy(): void;
         render(view: RenderView): void;
     }
-}
-declare module "cocos/core/pipeline/forward/scene-culling" {
-    import { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    export function sceneCulling(pipeline: ForwardPipeline, view: RenderView): void;
 }
 declare module "cocos/core/pipeline/ui/ui-flow" {
     import { IRenderFlowInfo, RenderFlow } from "cocos/core/pipeline/render-flow";
@@ -27284,6 +27280,11 @@ declare module "cocos/core/renderer/scene/fog" {
         protected _updatePipeline(): void;
     }
 }
+declare module "cocos/core/pipeline/forward/scene-culling" {
+    import { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    export function sceneCulling(pipeline: ForwardPipeline, view: RenderView): void;
+}
 declare module "cocos/core/pipeline/forward/forward-pipeline" {
     import { RenderPipeline, IRenderPipelineInfo } from "cocos/core/pipeline/render-pipeline";
     import { RenderTextureConfig, MaterialConfig } from "cocos/core/pipeline/pipeline-serialization";
@@ -27330,6 +27331,7 @@ declare module "cocos/core/pipeline/forward/forward-pipeline" {
         protected _shadowUBO: Float32Array;
         initialize(info: IRenderPipelineInfo): boolean;
         activate(): boolean;
+        render(views: RenderView[]): void;
         getRenderPass(clearFlags: GFXClearFlag): GFXRenderPass;
         /**
          * @en Update all UBOs
@@ -27414,11 +27416,6 @@ declare module "cocos/core/root" {
         get scenes(): RenderScene[];
         /**
          * @zh
-         * 渲染视图列表
-         */
-        get views(): RenderView[];
-        /**
-         * @zh
          * 累计时间（秒）
          */
         get cumulativeTime(): number;
@@ -27455,6 +27452,7 @@ declare module "cocos/core/root" {
         private _ui;
         private _dataPoolMgr;
         private _scenes;
+        private _cameras;
         private _views;
         private _modelPools;
         private _cameraPool;
@@ -27546,15 +27544,21 @@ declare module "cocos/core/root" {
         createView(info: IRenderViewInfo): RenderView;
         /**
          * @zh
-         * 销毁指定的渲染视图
-         * @param view 渲染视图
+         * 添加渲染相机
+         * @param camera 渲染相机
          */
-        destroyView(view: RenderView): void;
+        attachCamera(camera: Camera): void;
         /**
          * @zh
-         * 销毁全部渲染视图
+         * 移除渲染相机
+         * @param camera 相机
          */
-        destroyViews(): void;
+        detachCamera(camera: Camera): void;
+        /**
+         * @zh
+         * 销毁全部渲染相机
+         */
+        clearCameras(): void;
         createModel<T extends Model>(mClass: typeof Model): T;
         destroyModel(m: Model): void;
         createCamera(): Camera;
@@ -31057,6 +31061,7 @@ declare module "cocos/core/renderer/scene/render-scene" {
         private _modelId;
         constructor(root: Root);
         initialize(info: IRenderSceneInfo): boolean;
+        update(stamp: number): void;
         destroy(): void;
         addCamera(cam: Camera): void;
         removeCamera(camera: Camera): void;
@@ -33125,7 +33130,7 @@ declare module "exports/audio" {
     import { AudioSourceComponent } from "cocos/audio/audio-source-component";
     export { AudioSourceComponent };
 }
-declare module "exports/decorators" {
+declare module "exports/decorator" {
     export * from "cocos/core/data/decorators/index";
 }
 declare module "cocos/core/gfx/webgl/webgl-command-allocator" {

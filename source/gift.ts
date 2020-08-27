@@ -185,35 +185,28 @@ export function rollupTypes(options: IOptions) {
 
         function addAliasExports(moduleDistribution: distributeExports.InternalModuleMeta) {
             const rModule = distributionMap.get(moduleDistribution)!;
-            rModule.aliasExports = moduleDistribution.aliasExports.map((aeDistribution) => {
-                return {
+            for (const aeDistribution of moduleDistribution.aliasExports) {
+                rModule.addAliasExport({
                     module: distributionMap.get(aeDistribution.module)!,
                     importName: aeDistribution.module.mainExports[aeDistribution.mainExportIndex].exportSymbol.name,
                     exportName: aeDistribution.exportSymbol.name,
-                };
-            });
+                });
+            }
         }
 
-        function registerNonExportedSymbol(symbol: ts.Symbol, currentModule: rConcepts.NamespaceTraits) {
-            let currentExportingModule = currentModule;
-            while (!currentExportingModule.entity.symbol) {
-                currentExportingModule = currentExportingModule.entity.parent.entity.namespaceTraits!;
+        function registerNonExportedSymbol(symbol: ts.Symbol, currentNamespace: rConcepts.NamespaceTraits) {
+            let currentNamespaceInSource = currentNamespace;
+            while (!currentNamespaceInSource.entity.symbol) {
+                currentNamespaceInSource = currentNamespaceInSource.entity.parent.entity.namespaceTraits!;
             }
 
             // const neNamespaceParent = currentExportingModule;
-            const neNamespaceParent = currentExportingModule.entity.ownerModule ?? currentExportingModule;
-            let neNamespace = neNamespaceParent.neNamespace;
+            const neNamespaceParent = currentNamespaceInSource.entity.ownerModuleOrThis;
+            let neNamespace = neNamespaceParent.namespaceTraits.neNamespace;
             if (!neNamespace) {
-                console.log(`Create ne namespace for ${neNamespaceParent.entity.name}`);
-                const neNs = new rConcepts.Entity(neNamespaceParent, `__private`, null);
-                const trait = neNs.addNamespaceTraits();
-                neNamespace = {
-                    trait,
-                    statements: [],
-                };
-                neNamespaceParent.neNamespace = neNamespace;
+                neNamespace = neNamespaceParent.namespaceTraits.createNENamespace();
             }
-            const name = generateUniqueName(symbol, neNamespace.trait, currentExportingModule);
+            const name = generateUniqueName(symbol, neNamespace.trait, currentNamespaceInSource);
             const entity = new rConcepts.Entity(neNamespace.trait, name, symbol);
             rEntityMap.set(symbol, entity);
             return {

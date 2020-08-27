@@ -104,7 +104,7 @@ function mayUnambiguousReferenceTo(ref: rConcepts.Entity, from: rConcepts.Namesp
                 return false;
             }
         }
-        if (ns.entity.isModule) {
+        if (ns.entity.isModule()) {
             break;
         } else {
             ns = ns.entity.parent;
