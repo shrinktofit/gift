@@ -131,8 +131,22 @@ export function rollupTypes(options: IOptions) {
             return rModule;
         });
 
+        const visitModules = (
+            moduleMeta: distributeExports.ModuleMeta,
+            fx: (moduleMeta: distributeExports.ModuleMeta) => void,
+        ) => {
+            fx(moduleMeta);
+            for (const mainExport of moduleMeta.mainExports) {
+                if (mainExport.children) {
+                    for (const child of mainExport.children) {
+                        visitModules(child, fx);
+                    }
+                }
+            }
+        };
+
         for (const distribution of exportDistribution) {
-            addAliasExports(distribution);
+            visitModules(distribution, addAliasExports);
         }
 
         const nameResolver = new NameResolver();

@@ -1,12 +1,13 @@
 
 import ts from 'typescript';
+import { Entity } from './r-concepts';
 
 export class ModuleInteropRecord {
-    constructor(name: string) {
-        this._myName = name;
+    constructor(entity: Entity) {
+        this._entity = entity;
     }
 
-    get record(): Readonly<ModuleInteropRecord['_record']> {
+    get record() {
         return this._record;
     }
 
@@ -14,54 +15,80 @@ export class ModuleInteropRecord {
         return this._selfExports;
     }
 
-    public addNamedImport(from: string, importName: string, exportName: string) {
+    /**
+     * @param from 
+     * @param importName 
+     * @param asName 
+     */
+    public addNamedImport(from: string, importName: string, asName?: string): string {
         const interop = this._getInterop(from);
-        const isImportExportNameSame = importName === exportName;
-        for (const { propertyName, name } of interop.imports) {
-            if (isImportExportNameSame) {
-                if (name.text === importName) {
-                    return;
-                }
+        if (!asName) {
+            const sameImport = interop.imports.find(
+                (namedImportRecord) => namedImportRecord.importName === importName);
+            if (sameImport) {
+                return sameImport.asName;
             } else {
-                if (propertyName && propertyName.text === importName &&
-                    name.text === exportName) {
-                    return;
-                }
+                asName = this._generateUniqueImportName(importName);
             }
         }
-        interop.imports.push(isImportExportNameSame ?
-            ts.createImportSpecifier(undefined, ts.createIdentifier(importName)):
-            ts.createImportSpecifier(ts.createIdentifier(exportName), ts.createIdentifier(importName)),
-        );
+        if (!interop.imports.some(
+            (namedImportRecord) => namedImportRecord.asName === asName && namedImportRecord.importName === importName)) {
+            interop.imports.push({ importName, asName });
+        }
+        return asName;
     }
 
-    public addNamedExportFrom(from: string, importName: string, exportName: string) {
+    public addNamedExportFrom(from: string, importName: string, asName: string) {
         const interop = this._getInterop(from);
-        const isImportExportNameSame = importName === exportName;
-        if (!interop.exports.some((specifier) => this._isEqualExportSpecifier(specifier, importName, exportName))) {
-            interop.exports.push(isImportExportNameSame ?
-                ts.createExportSpecifier(undefined, ts.createIdentifier(importName)):
-                ts.createExportSpecifier(ts.createIdentifier(exportName), ts.createIdentifier(importName)),
-            );
+        if (!interop.exports.some(
+            (namedExportRecord) => namedExportRecord.asName === asName && namedExportRecord.importName === importName)) {
+            interop.exports.push({ importName, asName });
         }
     }
     
-    public addNamedExport(localName: string, exportName: string) {
-        if (!this._selfExports.some((specifier) => this._isEqualExportSpecifier(specifier, localName, exportName))) {
-            this._selfExports.push((localName === exportName) ?
-                ts.createExportSpecifier(undefined, ts.createIdentifier(localName)):
-                ts.createExportSpecifier(ts.createIdentifier(exportName), ts.createIdentifier(localName)),
-            );
+    public addNamedExport(importName: string, asName: string) {
+        if (!this._selfExports.some(
+            (namedExportRecord) => namedExportRecord.asName === asName && namedExportRecord.importName === importName)) {
+            this._selfExports.push({ importName, asName });
         }
     }
 
-    private _myName: string;
-    private _selfExports: ts.ExportSpecifier[] = [];
+    private _entity: Entity;
+    private _selfExports: { asName: string, importName: string }[] = [];
     private _record: Map<string, {
         specifier: string;
-        imports: ts.ImportSpecifier[];
-        exports: ts.ExportSpecifier[];
+        imports: { asName: string, importName: string }[];
+        exports: { asName: string, importName: string }[];
     }> = new Map();
+    private _interopNames = new Set<string>();
+
+    private _generateUniqueImportName(preferredName: string) {
+        let tryingName = preferredName;
+        while (tryingName === '__private' || this._hasName(tryingName)) {
+            tryingName = `_${tryingName}`;
+        }
+        return tryingName;
+    }
+
+    private _hasName(name: string) {
+        return this._entity.namespaceTraits!.children.some((childEntity) => childEntity.name === name) ||
+            this._hasNameInInterop(name);
+    }
+
+    private _hasNameInInterop(name: string) {
+        for (const [, {imports, exports}] of this._record) {
+            if (imports.some(({asName}) => asName === name)) {
+                return true;
+            }
+            if (exports.some(({asName}) => asName === name)) {
+                return true;
+            }
+        }
+        if (this._selfExports.some(({asName}) => asName === name)) {
+            return true;
+        }
+        return false;
+    }
 
     private _getInterop(from: string) {
         let interop = this._record.get(from);
@@ -79,17 +106,5 @@ export class ModuleInteropRecord {
 
     private _optimizeModuleSpecifierTo(to: string): string {
         return to;
-    }
-
-    private _isEqualExportSpecifier(
-        specifier: ts.ExportSpecifier, localOrImportName: string, exportName: string) {
-        if (specifier.name.text !== localOrImportName) {
-            return false;
-        }
-        if (localOrImportName === exportName) {
-            return !specifier.propertyName || specifier.propertyName.text === exportName;
-        } else {
-            return specifier.propertyName && specifier.propertyName.text === exportName;
-        }
     }
 }

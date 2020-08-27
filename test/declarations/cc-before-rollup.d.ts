@@ -632,6 +632,20 @@ declare module "cocos/core/value-types/bitmask" {
     }
     export function ccbitmask(bitmaskx: any): void;
 }
+declare module "cocos/core/data/utils/asserts" {
+    /**
+     * Asserts that the expression is non-nullable, i.e. is neither `null` nor `undefined`.
+     * @param expr Testing expression.
+     * @param message Optional message.
+     */
+    export function assertIsNonNullable<T>(expr: T, message?: string): asserts expr is NonNullable<T>;
+    /**
+     * Asserts that the expression evaluated to `true`.
+     * @param expr Testing expression.
+     * @param message Optional message.
+     */
+    export function assertIsTrue(expr: boolean, message?: string): void;
+}
 declare module "cocos/core/value-types/enum" {
     /**
      * @en
@@ -661,10 +675,29 @@ declare module "cocos/core/value-types/enum" {
      * @return the defined enum type
      */
     export namespace Enum {
-        var isEnum: (enumType: any) => any;
-        var getList: (enumDef: any) => any;
+        var isEnum: <EnumT extends {}>(enumType: EnumT) => boolean;
+        var getList: <EnumT extends {}>(enumType: EnumT) => readonly Enum.Enumerator<EnumT>[];
     }
-    export function ccenum(enumx: any): void;
+    namespace Enum {
+        interface Enumerator<EnumT> {
+            /**
+             * The name of the enumerator.
+             */
+            name: keyof EnumT;
+            /**
+             * The value of the numerator.
+             */
+            value: EnumT[typeof name];
+        }
+    }
+    /**
+     * Make the enum type `enumType` as enumeration so that Creator may identify, operate on it.
+     * Formally, as a result of invocation on this function with enum type `enumType`:
+     * - `Enum.isEnum(enumType)` returns `true`;
+     * - `Enum.getList(enumType)` returns the enumerators of `enumType`.
+     * @param enumType An enum type, eg, a kind of type with similar semantic defined by TypeScript.
+     */
+    export function ccenum<EnumT extends {}>(enumType: EnumT): void;
 }
 declare module "cocos/core/value-types/value-type" {
     /**
@@ -892,6 +925,18 @@ declare module "cocos/core/data/utils/attribute-defines" {
          * 转换为弧度
          */
         radian?: boolean;
+        /**
+         * 注意：这是一个内部选项。
+         * 此选项是为了在 `@property` 的基础上精确实现 `@serializable`、`@editable`以及所有新增的独立装饰器的行为。
+         *
+         * 当此字段为 `true` 时。以下规则将不再生效：
+         * - 只要 `@property` 未显式指定选项 `.serializable === false`，就开启序列化；
+         * - 只要 `@property` 未显式指定选项 `.visible === false` 且目标属性的名称不以下划线开头，就开启编辑器交互。
+         * 反之，由以下规则取代：
+         * - 当且仅当 `@property` 显式指定了 `.serializable === true` 时才开启序列化；
+         * - 当且仅当 `@property` 显式指定了 `.visible === true` 时才开启编辑器交互。
+         */
+        __noImplicit?: boolean;
     }
     export interface IAcceptableAttributes extends IExposedAttributes {
         _short?: boolean;
@@ -940,26 +985,787 @@ declare module "cocos/core/data/class" {
     }
     export default CCClass;
 }
-declare module "cocos/core/assets/scripts" {
-    import { Asset } from "cocos/core/assets/asset";
+declare module "cocos/core/data/decorators/utils" {
+    export type BabelPropertyDecoratorDescriptor = PropertyDescriptor & {
+        initializer?: any;
+    };
     /**
-     * @zh
-     * 脚本资源基类。
+     * The signature compatible with both TypeScript legacy decorator and Babel legacy decorator.
+     * The `descriptor` argument will only appear in Babel case.
      */
-    export class Script extends Asset {
+    export type LegacyPropertyDecorator = (target: Object, propertyKey: string | symbol, descriptor?: BabelPropertyDecoratorDescriptor) => void;
+    /**
+     * A class decorator which does nothing.
+     */
+    export const emptyClassDecorator: ClassDecorator & LegacyPropertyDecorator;
+    /**
+     * Ignoring all arguments and return the `emptyClassDecorator`.
+     */
+    export const ignoringArgsClassDecorator: () => ClassDecorator & LegacyPropertyDecorator;
+    export const ignoringArgsPropertyDecorator: () => LegacyPropertyDecorator;
+    export function normalizeClassDecorator<TArg>(decorate: <TFunction extends Function>(constructor: TFunction, arg?: TArg) => ReturnType<ClassDecorator>): ClassDecorator & ((arg?: TArg) => ClassDecorator);
+    export function createClassDecoratorEP<TValue>(propertyName: string): (value: TValue) => ClassDecorator;
+    export function createClassDecoratorEPOptional<TValue>(propertyName: string, defaultValue?: TValue): ClassDecorator & ((arg?: TValue | undefined) => ClassDecorator);
+    export const CACHE_KEY = "__ccclassCache__";
+    export function getClassCache(ctor: any, decoratorName?: any): any;
+    export function getSubDict(obj: any, key: any): any;
+}
+declare module "cocos/core/data/decorators/ccclass" {
+    /**
+     * @en Declare a standard ES6 or TS Class as a CCClass, please refer to the [document](https://docs.cocos.com/creator3d/manual/zh/scripting/ccclass.html)
+     * @zh 将标准写法的 ES6 或者 TS Class 声明为 CCClass，具体用法请参阅[类型定义](https://docs.cocos.com/creator3d/manual/zh/scripting/ccclass.html)。
+     * @param name - The class name used for serialization.
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass} = _decorator;
+     *
+     * // define a CCClass, omit the name
+     *  @ccclass
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     *
+     * // define a CCClass with a name
+     *  @ccclass('LoginData')
+     * class LoginData {
+     *     // ...
+     * }
+     * ```
+     */
+    export const ccclass: ((name?: string) => ClassDecorator) & ClassDecorator;
+}
+declare module "cocos/core/data/decorators/component" {
+    /**
+     * @en Declare that the current component relies on another type of component.
+     * If the required component doesn't exist, the engine will create a new empty instance of the required component and add to the node.
+     * @zh 为声明为 CCClass 的组件添加依赖的其它组件。当组件添加到节点上时，如果依赖的组件不存在，引擎将会自动将依赖组件添加到同一个节点，防止脚本出错。该设置在运行时同样有效。
+     * @param requiredComponent The required component type
+     * @example
+     * ```ts
+     * import {_decorator, SpriteComponent, Component} from cc;
+     * import {ccclass, requireComponent} from _decorator;
+     *
+     * @ccclass
+     * @requireComponent(SpriteComponent)
+     * class SpriteCtrl extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const requireComponent: (requiredComponent: Function) => ClassDecorator;
+    /**
+     * @en Set the component priority, it decides at which order the life cycle functions of components will be invoked. Smaller priority get invoked before larger priority.
+     * This will affect `onLoad`, `onEnable`, `start`, `update` and `lateUpdate`, but `onDisable` and `onDestroy` won't be affected.
+     * @zh 设置脚本生命周期方法调用的优先级。优先级小于 0 的组件将会优先执行，优先级大于 0 的组件将会延后执行。优先级仅会影响 onLoad, onEnable, start, update 和 lateUpdate，而 onDisable 和 onDestroy 不受影响。
+     * @param priority - The execution order of life cycle methods for Component. Smaller priority get invoked before larger priority.
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, executionOrder} = _decorator;
+     *
+     * @ccclass
+     * @executionOrder(1)
+     * class CameraCtrl extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const executionOrder: (priority: number) => ClassDecorator;
+    /**
+     * @en Forbid add multiple instances of the component to the same node.
+     * @zh 防止多个相同类型（或子类型）的组件被添加到同一个节点。
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, disallowMultiple} = _decorator;
+     *
+     * @ccclass
+     * @disallowMultiple
+     * class CameraCtrl extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const disallowMultiple: ClassDecorator & ((yes?: boolean) => ClassDecorator);
+}
+declare module "cocos/core/data/decorators/property" {
+    import { CCString, CCInteger, CCFloat, CCBoolean } from "cocos/core/data/utils/attribute";
+    import { IExposedAttributes } from "cocos/core/data/utils/attribute-defines";
+    import { LegacyPropertyDecorator } from "cocos/core/data/decorators/utils";
+    export type SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
+    export type PropertyType = SimplePropertyType | SimplePropertyType[];
+    /**
+     * @zh CCClass 属性选项。
+     * @en CCClass property options
+     */
+    export interface IPropertyOptions extends IExposedAttributes {
     }
     /**
-     * @zh
-     * JavaScript 脚本资源。
+     * @en Declare as a CCClass property with options
+     * @zh 声明属性为 CCClass 属性。
+     * @param options property options
      */
-    export class JavaScript extends Script {
+    export function property(options?: IPropertyOptions): LegacyPropertyDecorator;
+    /**
+     * @en Declare as a CCClass property with the property type
+     * @zh 标注属性为 cc 属性。<br/>
+     * 等价于`@property({type})`。
+     * @param type A {{ccclass}} type or a {{ValueType}}
+     */
+    export function property(type: PropertyType): LegacyPropertyDecorator;
+    /**
+     * @en Declare as a CCClass property
+     * @zh 标注属性为 cc 属性。<br/>
+     * 等价于`@property()`。
+     */
+    export function property(...args: Parameters<LegacyPropertyDecorator>): void;
+}
+declare module "cocos/core/data/decorators/serializable" {
+    import { LegacyPropertyDecorator } from "cocos/core/data/decorators/utils";
+    export const serializable: LegacyPropertyDecorator;
+    export function formerlySerializedAs(name: string): LegacyPropertyDecorator;
+    /**
+     * @en
+     * Marks the property as editor only.
+     * @zh
+     * 设置该属性仅在编辑器中生效。
+     */
+    export const editorOnly: LegacyPropertyDecorator;
+}
+declare module "cocos/core/data/decorators/editable" {
+    import { LegacyPropertyDecorator } from "cocos/core/data/decorators/utils";
+    /**
+     * @en Makes a CCClass that inherit from component execute in edit mode.<br/>
+     * By default, all components are only executed in play mode,<br/>
+     * which means they will not have their callback functions executed while the Editor is in edit mode.<br/>
+     * @zh 允许继承自 Component 的 CCClass 在编辑器里执行。<br/>
+     * 默认情况下，所有 Component 都只会在运行时才会执行，也就是说它们的生命周期回调不会在编辑器里触发。
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, executeInEditMode} = _decorator;
+     *
+     *  @ccclass
+     *  @executeInEditMode
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const executeInEditMode: ClassDecorator & ((yes?: boolean) => ClassDecorator);
+    /**
+     * @en Add the current component to the specific menu path in `Add Component` selector of the inspector panel
+     * @zh 将当前组件添加到组件菜单中，方便用户查找。例如 "Rendering/CameraCtrl"。
+     * @param path - The path is the menu represented like a pathname. For example the menu could be "Rendering/CameraCtrl".
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, menu} = _decorator;
+     *
+     * @ccclass
+     * @menu("Rendering/CameraCtrl")
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const menu: (path: string) => ClassDecorator;
+    /**
+     * @en When {{executeInEditMode}} is set, this decorator will decide when a node with the component is on focus whether the editor should running in high FPS mode.
+     * @zh 当指定了 "executeInEditMode" 以后，playOnFocus 可以在选中当前组件所在的节点时，提高编辑器的场景刷新频率到 60 FPS，否则场景就只会在必要的时候进行重绘。
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, playOnFocus, executeInEditMode} = _decorator;
+     *
+     * @ccclass
+     * @executeInEditMode
+     * @playOnFocus
+     * class CameraCtrl extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const playOnFocus: ClassDecorator & ((yes?: boolean) => ClassDecorator);
+    /**
+     * @en Use a customized inspector page in the **inspector**
+     * @zh 自定义当前组件在 **属性检查器** 中渲染时所用的 UI 页面描述。
+     * @param url The url of the page definition in js
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, inspector} = _decorator;
+     *
+     * @ccclass
+     * @inspector("packages://inspector/inspectors/comps/camera-ctrl.js")
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const inspector: (url: string) => ClassDecorator;
+    /**
+     * @en Define the icon of the component.
+     * @zh 自定义当前组件在编辑器中显示的图标 url。
+     * @param url
+     * @private
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, icon} = _decorator;
+     *
+     *  @ccclass
+     *  @icon("xxxx.png")
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const icon: (url: string) => ClassDecorator;
+    /**
+     * @en Define the help documentation url, if given, the component section in the **inspector** will have a help documentation icon reference to the web page given.
+     * @zh 指定当前组件的帮助文档的 url，设置过后，在 **属性检查器** 中就会出现一个帮助图标，用户点击将打开指定的网页。
+     * @param url The url of the help documentation
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, help} = _decorator;
+     *
+     * @ccclass
+     * @help("app://docs/html/components/spine.html")
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const help: (url: string) => ClassDecorator;
+    /**
+     * @en
+     * Enables the editor interoperability of the property.
+     * @zh
+     * 允许该属性与编辑器交互。
+     */
+    export const editable: LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the condition to show the property.
+     * @zh
+     * 设置在编辑器展示该属性的条件。
+     * @param condition 展示条件，当返回 `true` 时展示；否则不展示。
+     */
+    export const visible: (condition: boolean | (() => boolean)) => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the property to be read only in editor.
+     * @zh
+     * 设置该属性在编辑器中仅是可读的。
+     */
+    export const readOnly: LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the display name of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的显示名称。
+     * @param text 显示名称。
+     */
+    export const displayName: (text: string) => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the tooltip content of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的工具提示内容。
+     * @param text 工具提示。
+     */
+    export const tooltip: (text: string) => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the allowed range of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中允许设置的范围。
+     * @param values 范围。
+     */
+    export const range: (values: [number, number, number] | [number, number]) => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the allowed min value of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中允许的最小值。
+     * @param value 最小值。
+     */
+    export const rangeMin: (value: number) => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the allowed max value of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中允许的最大值。
+     * @param value 最大值。
+     */
+    export const rangeMax: (value: number) => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the step of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的步进值。
+     * @param value 步进值。
+     */
+    export const rangeStep: (value: number) => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Enable a slider be given to coordinate the property in editor.
+     * @zh
+     * 允许在编辑器中提供滑动条来调节值
+     */
+    export const slide: LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the display order of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的显示顺序。
+     * @param order 显示顺序。
+     */
+    export const displayOrder: (order: number) => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the unit of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的计量单位。
+     * @param name 计量单位的名称。
+     */
+    export const unit: (name: 'lm' | 'lx' | 'cd/m²') => LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets to convert the value into radian before feed it to the property in editor.
+     * @zh
+     * 设置在编辑器中赋值该属性前将值先转换为弧度制。
+     */
+    export const radian: LegacyPropertyDecorator;
+    /**
+     * @en
+     * Enable multi-line display of the property in editor.
+     * @zh
+     * 允许在编辑器中对该属性进行多行显示。
+     */
+    export const multiline: LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the property so that it does not interop with the animation parts in editor.
+     * @zh
+     * 设置该属性不参与编辑器中动画相关的交互。
+     */
+    export const disallowAnimation: LegacyPropertyDecorator;
+}
+declare module "cocos/core/data/decorators/type" {
+    import { PrimitiveType } from "cocos/core/data/utils/attribute";
+    /**
+     * @en Declare the property as integer
+     * @zh 将该属性标记为整数。
+     */
+    export const integer: PropertyDecorator;
+    /**
+     * @en Declare the property as float
+     * @zh 将该属性标记为浮点数。
+     */
+    export const float: PropertyDecorator;
+    /**
+     * @en Declare the property as boolean
+     * @zh 将该属性标记为布尔值。
+     */
+    export const boolean: PropertyDecorator;
+    /**
+     * @en Declare the property as string
+     * @zh 将该属性标记为字符串。
+     */
+    export const string: PropertyDecorator;
+    /**
+     * @en Declare the property as the given type
+     * @zh 标记该属性的类型。
+     * @param type
+     */
+    export function type(type: Function | [Function] | any): PropertyDecorator;
+    export function type<T>(type: PrimitiveType<T> | [PrimitiveType<T>]): PropertyDecorator;
+}
+declare module "cocos/core/data/decorators/override" {
+    import { LegacyPropertyDecorator } from "cocos/core/data/decorators/utils";
+    export const override: LegacyPropertyDecorator;
+}
+declare module "cocos/core/data/decorators/index" {
+    export { ccclass } from "cocos/core/data/decorators/ccclass";
+    export * from "cocos/core/data/decorators/component";
+    export * from "cocos/core/data/decorators/serializable";
+    export * from "cocos/core/data/decorators/editable";
+    export * from "cocos/core/data/decorators/type";
+    export { override } from "cocos/core/data/decorators/override";
+}
+declare module "cocos/core/event/event" {
+    /**
+     * 事件相关
+     * @category event
+     */
+    /**
+     * @en
+     * Base class of all kinds of events.
+     *
+     * @zh
+     * 所有事件对象的基类，包含事件相关基本信息。
+     */
+    export default class Event {
+        /**
+         * @en
+         * Code for event without type.
+         *
+         * @zh
+         * 没有类型的事件。
+         */
+        static NO_TYPE: string;
+        /**
+         * @en
+         * The type code of Touch event.
+         *
+         * @zh
+         * 触摸事件类型。
+         */
+        static TOUCH: string;
+        /**
+         * @en
+         * The type code of Mouse event.
+         *
+         * @zh
+         * 鼠标事件类型。
+         */
+        static MOUSE: string;
+        /**
+         * @en
+         * The type code of Keyboard event.
+         *
+         * @zh
+         * 键盘事件类型。
+         */
+        static KEYBOARD: string;
+        /**
+         * @en
+         * The type code of Acceleration event.
+         *
+         * @zh
+         * 加速器事件类型。
+         */
+        static ACCELERATION: string;
+        /**
+         * @en
+         * Events not currently dispatched are in this phase.
+         *
+         * @zh
+         * 尚未派发事件阶段。
+         */
+        static NONE: number;
+        /**
+         * @en
+         * The capturing phase comprises the journey from the root to the last node before the event target's node
+         * [markdown](http://www.w3.org/TR/DOM-Level-3-Events/#event-flow)
+         *
+         * @zh
+         * 捕获阶段，包括事件目标节点之前从根节点到最后一个节点的过程。
+         */
+        static CAPTURING_PHASE: number;
+        /**
+         * @en
+         * The target phase comprises only the event target node
+         * [markdown] (http://www.w3.org/TR/DOM-Level-3-Events/#event-flow)
+         *
+         * @zh
+         * 目标阶段仅包括事件目标节点。
+         */
+        static AT_TARGET: number;
+        /**
+         * @en
+         * The bubbling phase comprises any subsequent nodes encountered on the return trip to the root of the hierarchy
+         * [markdown] (http://www.w3.org/TR/DOM-Level-3-Events/#event-flow)
+         *
+         * @zh
+         * 冒泡阶段， 包括回程遇到到层次根节点的任何后续节点。
+         */
+        static BUBBLING_PHASE: number;
+        /**
+         * @en
+         * The name of the event (case-sensitive), e.g. "click", "fire", or "submit".
+         *
+         * @zh
+         * 事件类型。
+         */
+        type: string;
+        /**
+         * @en
+         * Indicate whether the event bubbles up through the hierarchy or not.
+         *
+         * @zh
+         * 表示该事件是否进行冒泡。
+         */
+        bubbles: boolean;
+        /**
+         * @en
+         * A reference to the target to which the event was originally dispatched.
+         *
+         * @zh
+         * 最初事件触发的目标。
+         */
+        target: Object | null;
+        /**
+         * @en
+         * A reference to the currently registered target for the event.
+         *
+         * @zh
+         * 当前目标。
+         */
+        currentTarget: Object | null;
+        /**
+         * @en
+         * Indicates which phase of the event flow is currently being evaluated.
+         * Returns an integer value represented by 4 constants:
+         *  - Event.NONE = 0
+         *  - Event.CAPTURING_PHASE = 1
+         *  - Event.AT_TARGET = 2
+         *  - Event.BUBBLING_PHASE = 3
+         * The phases are explained in the [section 3.1, Event dispatch and DOM event flow]
+         * [markdown](http://www.w3.org/TR/DOM-Level-3-Events/#event-flow), of the DOM Level 3 Events specification.
+         *
+         * @zh
+         * 事件阶段。
+         */
+        eventPhase: number;
+        /**
+         * @en
+         * Stops propagation for current event.
+         *
+         * @zh
+         * 停止传递当前事件。
+         */
+        propagationStopped: boolean;
+        /**
+         * @en
+         * Stops propagation for current event immediately,
+         * the event won't even be dispatched to the listeners attached in the current target.
+         *
+         * @zh
+         * 立即停止当前事件的传递，事件甚至不会被分派到所连接的当前目标。
+         */
+        propagationImmediateStopped: boolean;
+        /**
+         * @param type - The name of the event (case-sensitive), e.g. "click", "fire", or "submit"
+         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
+         */
+        constructor(type: string, bubbles?: boolean);
+        /**
+         * @en
+         * Reset the event for being stored in the object pool.
+         *
+         * @zh
+         * 重置事件对象以便在对象池中存储。
+         */
+        unuse(): void;
+        /**
+         * @en
+         * Reinitialize the event for being used again after retrieved from the object pool.
+         * @zh
+         * 重新初始化让对象池中取出的事件可再次使用。
+         * @param type - The name of the event (case-sensitive), e.g. "click", "fire", or "submit"
+         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
+         */
+        reuse(type: string, bubbles?: boolean): void;
+        /**
+         * @en
+         * Checks whether the event has been stopped.
+         *
+         * @zh
+         * 检查该事件是否已经停止传递。
+         */
+        isStopped(): boolean;
+        /**
+         * @en
+         * Gets current target of the event                                                            <br/>
+         * note: It only be available when the event listener is associated with node.                <br/>
+         * It returns 0 when the listener is associated with fixed priority.
+         * @zh
+         * 获取当前目标节点
+         * @returns - The target with which the event associates.
+         */
+        getCurrentTarget(): Object | null;
+        /**
+         * @en
+         * Gets the event type.
+         * @zh
+         * 获取事件类型。
+         */
+        getType(): string;
     }
+}
+declare module "cocos/core/memop/pool" {
+    /**
+     * 可以自动分配内存的数据结构
+     * @category memop
+     */
+    /**
+     * @zh 对象池。
+     */
+    export class Pool<T> {
+        private _ctor;
+        private _elementsPerBatch;
+        private _nextAvail;
+        private _freepool;
+        /**
+         * 构造函数。
+         * @param ctor 元素构造函数。
+         * @param size 初始大小。
+         */
+        constructor(ctor: () => T, elementsPerBatch: number);
+        /**
+         * @zh 从对象池中取出一个对象。
+         */
+        alloc(): T;
+        /**
+         * @zh 将一个对象放回对象池中。
+         * @param obj 释放的对象。
+         */
+        free(obj: T): void;
+        /**
+         * @zh 将一组对象放回对象池中。
+         * @param objs 一组要释放的对象。
+         */
+        freeArray(objs: T[]): void;
+        /**
+         * 释放对象池中所有资源。
+         * @param dtor 销毁回调，对每个释放的对象调用一次。
+         */
+        destroy(dtor?: (obj: T) => void): void;
+    }
+}
+declare module "cocos/core/memop/recycle-pool" {
+    /**
+     * @category memop
+     */
+    /**
+     * @zh 循环对象池。
+     */
+    export class RecyclePool<T = any> {
+        private _fn;
+        private _count;
+        private _data;
+        /**
+         * 构造函数。
+         * @param fn 对象构造函数。
+         * @param size 初始大小。
+         */
+        constructor(fn: () => T, size: number);
+        /**
+         * @zh 对象池大小。
+         */
+        get length(): number;
+        /**
+         * @zh 对象池数组。
+         */
+        get data(): T[];
+        /**
+         * @zh 清空对象池。
+         */
+        reset(): void;
+        /**
+         * @zh 设置对象池大小。
+         * @param size 对象池大小。
+         */
+        resize(size: number): void;
+        /**
+         * @zh 从对象池中取出一个对象。
+         */
+        add(): T;
+        /**
+         * @zh 释放对象池中的一个元素。
+         * @param idx 释放对象的索引。
+         */
+        removeAt(idx: number): void;
+    }
+}
+declare module "cocos/core/memop/cached-array" {
+    /**
+     * @category memop
+     */
     /**
      * @zh
-     * Typescript 脚本资源。
+     * 缓存数组
+     * 该数据结构内存只增不减，适用于处理内存常驻递增的分配策略
      */
-    export class TypeScript extends Script {
+    export class CachedArray<T> {
+        /**
+         * @zh
+         * 实际存储的数据内容
+         */
+        array: T[];
+        /**
+         * @zh
+         * 数组长度
+         */
+        length: number;
+        /**
+         * @zh
+         * 比较函数
+         */
+        private _compareFn;
+        /**
+         * 构造函数
+         * @param length 数组初始化长度
+         * @param compareFn 比较函数
+         */
+        constructor(length: number, compareFn?: (a: T, b: T) => number);
+        /**
+         * @zh
+         * 向数组中添加一个元素
+         * @param item 数组元素
+         */
+        push(item: T): void;
+        /**
+         * @zh
+         * 弹出数组最后一个元素
+         * @param item 数组元素
+         */
+        pop(): T | undefined;
+        /**
+         * @zh
+         * 得到数组中指定索引的元素
+         * @param item 数组元素
+         */
+        get(idx: number): T;
+        /**
+         * @zh
+         * 清空数组所有元素
+         */
+        clear(): void;
+        /**
+         * @zh
+         * 排序数组
+         */
+        sort(): void;
+        /**
+         * @zh
+         * 连接一个指定数组中的所有元素到当前数组末尾
+         */
+        concat(array: T[]): void;
+        /**
+         * @zh 删除指定位置的元素并将最后一个元素移动至该位置。
+         * @param idx 数组索引。
+         */
+        fastRemove(idx: number): void;
+        /**
+         * @zh 返回某个数组元素对应的下标。
+         * @param val 数组元素。
+         */
+        indexOf(val: T): number;
     }
+}
+declare module "cocos/core/memop/index" {
+    /**
+     * @hidden
+     */
+    export * from "cocos/core/memop/pool";
+    export * from "cocos/core/memop/recycle-pool";
+    export * from "cocos/core/memop/cached-array";
 }
 declare module "cocos/core/data/object" {
     /**
@@ -999,7 +1805,7 @@ declare module "cocos/core/data/object" {
          * 因此从下一帧开始 `isValid` 就会返回 false，而当前帧内 `isValid` 仍然会是 true。<br>
          * 如果希望判断当前帧是否调用过 `destroy`，请使用 `isValid(obj, true)`，不过这往往是特殊的业务需求引起的，通常情况下不需要这样。
          * @default true
-         * @editable.readOnly
+         * @readOnly
          * @example
          * ```ts
          * import { Node, log } from 'cc';
@@ -1104,101 +1910,277 @@ declare module "cocos/core/data/object" {
     export function isValid(value: any, strictMode?: boolean): boolean;
     export { CCObject };
 }
-declare module "cocos/core/math/bits" {
+declare module "cocos/core/event/callbacks-invoker" {
+    class CallbackInfo {
+        callback: Function;
+        target: Object | undefined;
+        once: boolean;
+        set(callback: Function, target?: Object, once?: boolean): void;
+        reset(): void;
+        check(): boolean;
+    }
     /**
-     * 数学库
-     * @category core/math
+     * @zh 事件监听器列表的简单封装。
+     * @en A simple list of event callbacks
      */
+    export class CallbackList {
+        callbackInfos: Array<CallbackInfo | null>;
+        isInvoking: boolean;
+        containCanceled: boolean;
+        /**
+         * @zh 从列表中移除与指定目标相同回调函数的事件。
+         * @en Remove the event listeners with the given callback from the list
+         *
+         * @param cb - The callback to be removed
+         */
+        removeByCallback(cb: Function): void;
+        /**
+         * @zh 从列表中移除与指定目标相同调用者的事件。
+         * @en Remove the event listeners with the given target from the list
+         * @param target
+         */
+        removeByTarget(target: Object): void;
+        /**
+         * @zh 移除指定编号事件。
+         * @en Remove the event listener at the given index
+         * @param index
+         */
+        cancel(index: number): void;
+        /**
+         * @zh 注销所有事件。
+         * @en Cancel all event listeners
+         */
+        cancelAll(): void;
+        /**
+         * @zh 立即删除所有取消的回调。（在移除过程中会更加紧凑的排列数组）
+         * @en Delete all canceled callbacks and compact array
+         */
+        purgeCanceled(): void;
+        /**
+         * @zh 清除并重置所有数据。
+         * @en Clear all data
+         */
+        clear(): void;
+    }
+    export interface ICallbackTable {
+        [x: string]: CallbackList | undefined;
+    }
     /**
-     * Bit twiddling hacks for JavaScript.
+     * @zh CallbacksInvoker 用来根据事件名（Key）管理事件监听器列表并调用回调方法。
+     * @en CallbacksInvoker is used to manager and invoke event listeners with different event keys,
+     * each key is mapped to a CallbackList.
+     */
+    export class CallbacksInvoker {
+        _callbackTable: ICallbackTable;
+        /**
+         * @zh 向一个事件名注册一个新的事件监听器，包含回调函数和调用者
+         * @en Register an event listener to a given event key with callback and target.
+         *
+         * @param key - Event type
+         * @param callback - Callback function when event triggered
+         * @param target - Callback callee
+         * @param once - Whether invoke the callback only once (and remove it)
+         */
+        on(key: string, callback: Function, target?: Object, once?: boolean): Function;
+        /**
+         * @zh 检查指定事件是否已注册回调。
+         * @en Checks whether there is correspond event listener registered on the given event
+         * @param key - Event type
+         * @param callback - Callback function when event triggered
+         * @param target - Callback callee
+         */
+        hasEventListener(key: string, callback?: Function, target?: Object): boolean;
+        /**
+         * @zh 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+         * @en Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
+         * @param keyOrTarget - The event type or target with which the listeners will be removed
+         */
+        removeAll(keyOrTarget: string | Object): void;
+        /**
+         * @zh 删除以指定事件，回调函数，目标注册的回调。
+         * @en Remove event listeners registered with the given event key, callback and target
+         * @param key - Event type
+         * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
+         * @param target - The callback callee of the event listener
+         */
+        off(key: string, callback?: Function, target?: Object): void;
+        /**
+         * @zh 派发一个指定事件，并传递需要的参数
+         * @en Trigger an event directly with the event name and necessary arguments.
+         * @param key - event type
+         * @param arg0 - The first argument to be passed to the callback
+         * @param arg1 - The second argument to be passed to the callback
+         * @param arg2 - The third argument to be passed to the callback
+         * @param arg3 - The fourth argument to be passed to the callback
+         * @param arg4 - The fifth argument to be passed to the callback
+         */
+        emit(key: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
+        /**
+         * 移除所有回调。
+         */
+        clear(): void;
+    }
+}
+declare module "cocos/core/event/eventify" {
+    type Constructor<T = {}> = new (...args: any[]) => T;
+    type EventType = string;
+    /**
+     * @zh
+     * 实现该接口的对象具有处理事件的能力。
+     * @en
+     * Objects those implement this interface have essentially the capability to process events.
+     */
+    export interface IEventified {
+        /**
+         * @zh 检查指定事件是否已注册回调。
+         * @en Checks whether there is correspond event listener registered on the given event.
+         * @param type - Event type.
+         * @param callback - Callback function when event triggered.
+         * @param target - Callback callee.
+         */
+        hasEventListener(type: string, callback?: Function, target?: object): boolean;
+        /**
+         * @en
+         * Register an callback of a specific event type on the EventTarget.
+         * This type of event should be triggered via `emit`.
+         * @zh
+         * 注册事件目标的特定事件类型回调。这种类型的事件应该被 `emit` 触发。
+         *
+         * @param type - A string representing the event type to listen for.
+         * @param callback - The callback that will be invoked when the event is dispatched.
+         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+         * @param thisArg - The target (this object) to invoke the callback, can be null
+         * @return - Just returns the incoming callback so you can save the anonymous function easier.
+         * @example
+         * import { log } from 'cc';
+         * eventTarget.on('fire', function () {
+         *     log("fire in the hole");
+         * }, node);
+         */
+        on<TFunction extends Function>(type: EventType, callback: TFunction, thisArg?: any, once?: boolean): typeof callback;
+        /**
+         * @en
+         * Register an callback of a specific event type on the EventTarget,
+         * the callback will remove itself after the first time it is triggered.
+         * @zh
+         * 注册事件目标的特定事件类型回调，回调会在第一时间被触发后删除自身。
+         *
+         * @param type - A string representing the event type to listen for.
+         * @param callback - The callback that will be invoked when the event is dispatched.
+         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+         * @param target - The target (this object) to invoke the callback, can be null
+         * @example
+         * import { log } from 'cc';
+         * eventTarget.once('fire', function () {
+         *     log("this is the callback and will be invoked only once");
+         * }, node);
+         */
+        once<TFunction extends Function>(type: EventType, callback: TFunction, thisArg?: any): typeof callback;
+        /**
+         * @en
+         * Removes the listeners previously registered with the same type, callback, target and or useCapture,
+         * if only type is passed as parameter, all listeners registered with that type will be removed.
+         * @zh
+         * 删除之前用同类型，回调，目标或 useCapture 注册的事件监听器，如果只传递 type，将会删除 type 类型的所有事件监听器。
+         *
+         * @param type - A string representing the event type being removed.
+         * @param callback - The callback to remove.
+         * @param target - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
+         * @example
+         * import { log } from 'cc';
+         * // register fire eventListener
+         * var callback = eventTarget.on('fire', function () {
+         *     log("fire in the hole");
+         * }, target);
+         * // remove fire event listener
+         * eventTarget.off('fire', callback, target);
+         * // remove all fire event listeners
+         * eventTarget.off('fire');
+         */
+        off<TFunction extends Function>(type: EventType, callback?: TFunction, thisArg?: any): void;
+        /**
+         * @en Removes all callbacks previously registered with the same target (passed as parameter).
+         * This is not for removing all listeners in the current event target,
+         * and this is not for removing all listeners the target parameter have registered.
+         * It's only for removing all listeners (callback and target couple) registered on the current event target by the target parameter.
+         * @zh 在当前 EventTarget 上删除指定目标（target 参数）注册的所有事件监听器。
+         * 这个函数无法删除当前 EventTarget 的所有事件监听器，也无法删除 target 参数所注册的所有事件监听器。
+         * 这个函数只能删除 target 参数在当前 EventTarget 上注册的所有事件监听器。
+         * @param typeOrTarget - The target to be searched for all related listeners
+         */
+        targetOff(typeOrTarget: string | object): void;
+        /**
+         * @zh 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+         * @en Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
+         * @param typeOrTarget - The event type or target with which the listeners will be removed
+         */
+        removeAll(typeOrTarget: string | object): void;
+        /**
+         * @zh 派发一个指定事件，并传递需要的参数
+         * @en Trigger an event directly with the event name and necessary arguments.
+         * @param type - event type
+         * @param args - Arguments when the event triggered
+         */
+        emit(type: EventType, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
+    }
+    /**
+     * @en Generate a new class from the given base class, after polyfill all functionalities in [[IEventified]] as if it's extended from [[EventTarget]]
+     * @zh 生成一个类，该类继承自指定的基类，并以和 [[EventTarget]] 等同的方式实现了 [[IEventified]] 的所有接口。
+     * @param base The base class
+     * @example
+     * ```ts
+     * class Base { say() { console.log('Hello!'); } }
+     * class MyClass extends Eventify(Base) { }
+     * function (o: MyClass) {
+     *     o.say(); // Ok: Extend from `Base`
+     *     o.emit('sing', 'The ghost'); // Ok: `MyClass` implements IEventified
+     * }
+     * ```
+     */
+    export function Eventify<TBase>(base: Constructor<TBase>): Constructor<TBase & IEventified>;
+}
+declare module "cocos/core/event/event-target" {
+    class Empty {
+    }
+    /**
+     * @en
+     * EventTarget is an object to which an event is dispatched when something has occurred.
+     * [[Node]]s are the most common event targets, but other objects can be event targets too.
+     * If a class cannot extend from EventTarget, it can consider using [[Eventify]].
      *
-     * Author: Mikola Lysenko
-     *
-     * Ported from Stanford bit twiddling hack library:
-     *    http://graphics.stanford.edu/~seander/bithacks.html
+     * @zh
+     * 事件目标是具有注册监听器、派发事件能力的类，[[Node]] 是最常见的事件目标，
+     * 但是其他类也可以继承自事件目标以获得管理监听器和派发事件的能力。
+     * 如果无法继承自 EventTarget，也可以使用 [[Eventify]]
      */
-    export const INT_BITS = 32;
-    export const INT_MAX = 2147483647;
-    export const INT_MIN: number;
+    export const EventTarget: new (...args: any[]) => Empty & import("cocos/core/event/eventify").IEventified;
+    export type EventTarget = InstanceType<typeof EventTarget>;
+}
+declare module "cocos/core/event/index" {
     /**
-     * @en Returns -1, 0, +1 depending on sign of x.
-     * @zh 根据x的符号返回 -1，0，+1。
+     * @hidden
      */
-    export function sign(v: number): number;
+    export { default as Event } from "cocos/core/event/event";
+    export { EventTarget } from "cocos/core/event/event-target";
+    export { Eventify } from "cocos/core/event/eventify";
+}
+declare module "cocos/core/assets/raw-asset" {
+    import { CCObject } from "cocos/core/data/object";
     /**
-     * @en Computes absolute value of integer.
-     * @zh 计算整数的绝对值。
+     * 原生资源的基类。内部使用。
+     * @private
      */
-    export function abs(v: number): number;
-    /**
-     * @en Computes minimum of integers x and y.
-     * @zh 计算整数x和y中的最小值。
-     */
-    export function min(x: number, y: number): number;
-    /**
-     * @en Computes maximum of integers x and y.
-     * @zh 计算整数x和y中的最大值。
-     */
-    export function max(x: number, y: number): number;
-    /**
-     * @en Checks if a number is a power of two.
-     * @zh 检查一个数字是否是2的幂。
-     */
-    export function isPow2(v: number): boolean;
-    /**
-     * Computes log base 2 of v.
-     */
-    export function log2(v: number): number;
-    /**
-     * Computes log base 10 of v.
-     */
-    export function log10(v: number): 1 | 0 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-    /**
-     * Counts number of bits.
-     */
-    export function popCount(v: number): number;
-    /**
-     * @en Counts number of trailing zeros.
-     * @zh 计算数字后面零的数量。
-     */
-    export function countTrailingZeros(v: number): number;
-    /**
-     * Rounds to next power of 2.
-     */
-    export function nextPow2(v: number): number;
-    /**
-     * Rounds down to previous power of 2.
-     */
-    export function prevPow2(v: number): number;
-    /**
-     * Computes parity of word.
-     */
-    export function parity(v: number): number;
-    /**
-     * Reverse bits in a 32 bit word.
-     */
-    export function reverse(v: number): number;
-    /**
-     * Interleave bits of 2 coordinates with 16 bits. Useful for fast quadtree codes.
-     */
-    export function interleave2(x: number, y: number): number;
-    /**
-     * Extracts the nth interleaved component.
-     */
-    export function deinterleave2(v: number, n: number): number;
-    /**
-     * Interleave bits of 3 coordinates, each with 10 bits.  Useful for fast octree codes.
-     */
-    export function interleave3(x: number, y: number, z: number): number;
-    /**
-     * Extracts nth interleaved component of a 3-tuple.
-     */
-    export function deinterleave3(v: number, n: number): number;
-    /**
-     * Computes next combination in colexicographic order (this is
-     * mistakenly called nextPermutation on the bit twiddling hacks page).
-     */
-    export function nextCombination(v: number): number;
+    export class RawAsset extends CCObject {
+        /**
+         * 内部使用。
+         */
+        static isRawAssetType(ctor: Function): boolean;
+        /**
+         * 内部使用。
+         */
+        _uuid: string;
+        constructor(...args: ConstructorParameters<typeof CCObject>);
+    }
 }
 declare module "cocos/core/math/type-define" {
     /**
@@ -3045,6 +4027,277 @@ declare module "cocos/core/math/vec2" {
     export function v2(other: Vec2): Vec2;
     export function v2(x?: number, y?: number): Vec2;
 }
+declare module "cocos/core/platform/event-manager/event-enum" {
+    /**
+     * @en The event type supported by SystemEvent and Node events
+     * @zh SystemEvent 支持的事件类型以及节点事件类型
+     */
+    export enum SystemEventType {
+        /**
+         * @en
+         * The event type for touch start event, you can use its value directly: 'touchstart'.
+         *
+         * @zh
+         * 手指开始触摸事件。
+         */
+        TOUCH_START = "touch-start",
+        /**
+         * @en
+         * The event type for touch move event, you can use its value directly: 'touchmove'.
+         *
+         * @zh
+         * 当手指在屏幕上移动时。
+         */
+        TOUCH_MOVE = "touch-move",
+        /**
+         * @en
+         * The event type for touch end event, you can use its value directly: 'touchend'.
+         *
+         * @zh
+         * 手指结束触摸事件。
+         */
+        TOUCH_END = "touch-end",
+        /**
+         * @en
+         * The event type for touch end event, you can use its value directly: 'touchcancel'.
+         *
+         * @zh
+         * 当手指在目标节点区域外离开屏幕时。
+         */
+        TOUCH_CANCEL = "touch-cancel",
+        /**
+         * @en
+         * The event type for mouse down events, you can use its value directly: 'mousedown'.
+         *
+         * @zh
+         * 当鼠标按下时触发一次。
+         */
+        MOUSE_DOWN = "mouse-down",
+        /**
+         * @en
+         * The event type for mouse move events, you can use its value directly: 'mousemove'.
+         *
+         * @zh
+         * 当鼠标在目标节点在目标节点区域中移动时，不论是否按下。
+         */
+        MOUSE_MOVE = "mouse-move",
+        /**
+         * @en
+         * The event type for mouse up events, you can use its value directly: 'mouseup'.
+         *
+         * @zh
+         * 当鼠标从按下状态松开时触发一次。
+         */
+        MOUSE_UP = "mouse-up",
+        /**
+         * @en
+         * The event type for mouse wheel events, you can use its value directly: 'mousewheel'.
+         *
+         * @zh 手指开始触摸事件
+         */
+        MOUSE_WHEEL = "mouse-wheel",
+        /**
+         * @en
+         * The event type for mouse leave target events, you can use its value directly: 'mouseleave'.
+         *
+         * @zh
+         * 当鼠标移入目标节点区域时，不论是否按下.
+         */
+        MOUSE_ENTER = "mouse-enter",
+        /**
+         * @en
+         * The event type for mouse leave target events, you can use its value directly: 'mouseleave'.
+         *
+         * @zh
+         * 当鼠标移出目标节点区域时，不论是否按下。
+         */
+        MOUSE_LEAVE = "mouse-leave",
+        /**
+         * @en The event type for press the key down event, you can use its value directly: 'keydown'
+         * @zh 当按下按键时触发的事件
+         */
+        KEY_DOWN = "keydown",
+        /**
+         * @en The event type for press the key up event, you can use its value directly: 'keyup'
+         * @zh 当松开按键时触发的事件
+         */
+        KEY_UP = "keyup",
+        /**
+         * @en
+         * The event type for press the devicemotion event, you can use its value directly: 'devicemotion'
+         *
+         * @zh
+         * 重力感应
+         */
+        DEVICEMOTION = "devicemotion",
+        /**
+         * @en
+         * The event type for position, rotation, scale changed.Use the type parameter as [[Node.TransformBit]] to check which part is changed
+         *
+         * @zh
+         * 节点改变位置、旋转或缩放事件。如果具体需要判断是哪一个事件，可通过判断回调的第一个参数类型是 [[Node.TransformBit]] 中的哪一个来获取
+         * @example
+         * ```
+         * this.node.on(Node.EventType.TRANSFORM_CHANGED, (type)=>{
+         *  if (type & Node.TransformBit.POSITION) {
+         *       //...
+         *   }
+         * }, this);
+         * ```
+         */
+        TRANSFORM_CHANGED = "transform-changed",
+        /**
+         * @en The event type for notifying the host scene has been changed for a persist node.
+         * @zh 当场景常驻节点的场景发生改变时触发的事件，一般在切换场景过程中触发。
+         */
+        SCENE_CHANGED_FOR_PERSISTS = "scene-changed-for-persists",
+        /**
+         * @en
+         * The event type for size change events.
+         * Performance note, this event will be triggered every time corresponding properties being changed,
+         * if the event callback have heavy logic it may have great performance impact, try to avoid such scenario.
+         *
+         * @zh
+         * 当节点尺寸改变时触发的事件。
+         * 性能警告：这个事件会在每次对应的属性被修改时触发，如果事件回调损耗较高，有可能对性能有很大的负面影响，请尽量避免这种情况。
+         */
+        SIZE_CHANGED = "size-changed",
+        /**
+         * @en
+         * The event type for anchor point change events.
+         * Performance note, this event will be triggered every time corresponding properties being changed,
+         * if the event callback have heavy logic it may have great performance impact, try to avoid such scenario.
+         *
+         * @zh
+         * 当节点的 UITransform 锚点改变时触发的事件。
+         * 性能警告：这个事件会在每次对应的属性被修改时触发，如果事件回调损耗较高，有可能对性能有很大的负面影响，请尽量避免这种情况。
+         * @deprecated
+         */
+        ANCHOR_CHANGED = "anchor-changed",
+        /**
+         * @en
+         * The event type for adding a new child node to the target node.
+         *
+         * @zh
+         * 给目标节点添加子节点时触发的事件。
+         */
+        CHILD_ADDED = "child-added",
+        /**
+         * @en
+         * The event type for removing a child node from the target node.
+         *
+         * @zh
+         * 给目标节点移除子节点时触发的事件。
+         */
+        CHILD_REMOVED = "child-removed",
+        /**
+         * @en The event type for changing the parent of the target node
+         * @zh 目标节点的父节点改变时触发的事件。
+         */
+        PARENT_CHANGED = "parent-changed",
+        /**
+         * @en The event type for destroying the target node
+         * @zh 目标节点被销毁时触发的事件。
+         */
+        NODE_DESTROYED = "node-destroyed"
+    }
+}
+declare module "cocos/core/math/bits" {
+    /**
+     * 数学库
+     * @category core/math
+     */
+    /**
+     * Bit twiddling hacks for JavaScript.
+     *
+     * Author: Mikola Lysenko
+     *
+     * Ported from Stanford bit twiddling hack library:
+     *    http://graphics.stanford.edu/~seander/bithacks.html
+     */
+    export const INT_BITS = 32;
+    export const INT_MAX = 2147483647;
+    export const INT_MIN: number;
+    /**
+     * @en Returns -1, 0, +1 depending on sign of x.
+     * @zh 根据x的符号返回 -1，0，+1。
+     */
+    export function sign(v: number): number;
+    /**
+     * @en Computes absolute value of integer.
+     * @zh 计算整数的绝对值。
+     */
+    export function abs(v: number): number;
+    /**
+     * @en Computes minimum of integers x and y.
+     * @zh 计算整数x和y中的最小值。
+     */
+    export function min(x: number, y: number): number;
+    /**
+     * @en Computes maximum of integers x and y.
+     * @zh 计算整数x和y中的最大值。
+     */
+    export function max(x: number, y: number): number;
+    /**
+     * @en Checks if a number is a power of two.
+     * @zh 检查一个数字是否是2的幂。
+     */
+    export function isPow2(v: number): boolean;
+    /**
+     * Computes log base 2 of v.
+     */
+    export function log2(v: number): number;
+    /**
+     * Computes log base 10 of v.
+     */
+    export function log10(v: number): 1 | 0 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+    /**
+     * Counts number of bits.
+     */
+    export function popCount(v: number): number;
+    /**
+     * @en Counts number of trailing zeros.
+     * @zh 计算数字后面零的数量。
+     */
+    export function countTrailingZeros(v: number): number;
+    /**
+     * Rounds to next power of 2.
+     */
+    export function nextPow2(v: number): number;
+    /**
+     * Rounds down to previous power of 2.
+     */
+    export function prevPow2(v: number): number;
+    /**
+     * Computes parity of word.
+     */
+    export function parity(v: number): number;
+    /**
+     * Reverse bits in a 32 bit word.
+     */
+    export function reverse(v: number): number;
+    /**
+     * Interleave bits of 2 coordinates with 16 bits. Useful for fast quadtree codes.
+     */
+    export function interleave2(x: number, y: number): number;
+    /**
+     * Extracts the nth interleaved component.
+     */
+    export function deinterleave2(v: number, n: number): number;
+    /**
+     * Interleave bits of 3 coordinates, each with 10 bits.  Useful for fast octree codes.
+     */
+    export function interleave3(x: number, y: number, z: number): number;
+    /**
+     * Extracts nth interleaved component of a 3-tuple.
+     */
+    export function deinterleave3(v: number, n: number): number;
+    /**
+     * Computes next combination in colexicographic order (this is
+     * mistakenly called nextPermutation on the bit twiddling hacks page).
+     */
+    export function nextCombination(v: number): number;
+}
 declare module "cocos/core/math/vec4" {
     import { ValueType } from "cocos/core/value-types/value-type";
     import { Mat4 } from "cocos/core/math/mat4";
@@ -4044,6 +5297,2027 @@ declare module "cocos/core/math/index" {
     export * from "cocos/core/math/type-define";
     import "cocos/core/math/deprecated";
 }
+declare module "cocos/core/platform/event-manager/touch" {
+    /**
+     * @category event
+     */
+    import { Vec2 } from "cocos/core/math/index";
+    /**
+     * @en The touch point class
+     * @zh 封装了触点相关的信息。
+     */
+    export class Touch {
+        private _point;
+        private _prevPoint;
+        private _lastModified;
+        private _id;
+        private _startPoint;
+        private _startPointCaptured;
+        get lastModified(): number;
+        /**
+         * @param x - x position of the touch point
+         * @param y - y position of the touch point
+         * @param id - The id of the touch point
+         */
+        constructor(x: number, y: number, id?: number);
+        /**
+         * @en Returns the current touch location in OpenGL coordinates.、
+         * @zh 获取当前触点位置。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns X axis location value.
+         * @zh 获取当前触点 X 轴位置。
+         */
+        getLocationX(): number;
+        /**
+         * @en Returns Y axis location value.
+         * @zh 获取当前触点 Y 轴位置。
+         */
+        getLocationY(): number;
+        /**
+         * @en Returns the current touch location in UI coordinates.、
+         * @zh 获取当前触点在 UI 坐标系中的位置。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUILocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns X axis location value in UI coordinates.
+         * @zh 获取当前触点在 UI 坐标系中 X 轴位置。
+         */
+        getUILocationX(): number;
+        /**
+         * @en Returns Y axis location value in UI coordinates.
+         * @zh 获取当前触点在 UI 坐标系中 Y 轴位置。
+         */
+        getUILocationY(): number;
+        /**
+         * @en Returns the previous touch location.
+         * @zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the previous touch location in UI coordinates.
+         * @zh 获取触点在上一次事件时在 UI 坐标系中的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUIPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the start touch location.
+         * @zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getStartLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the start touch location in UI coordinates.
+         * @zh 获获取触点落下时在 UI 坐标系中的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUIStartLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the delta distance from the previous touche to the current one.
+         * @zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getDelta(out?: Vec2): Vec2;
+        /**
+         * @en Returns the delta distance from the previous touche to the current one in UI coordinates.
+         * @zh 获取触点距离上一次事件移动在 UI 坐标系中的距离对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUIDelta(out?: Vec2): Vec2;
+        /**
+         * @en Returns the current touch location in screen coordinates.
+         * @zh 获取当前事件在游戏窗口内的坐标位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getLocationInView(out?: Vec2): Vec2;
+        /**
+         * @en Returns the previous touch location in screen coordinates.
+         * @zh 获取触点在上一次事件时在游戏窗口中的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getPreviousLocationInView(out?: Vec2): Vec2;
+        /**
+         * @en Returns the start touch location in screen coordinates.
+         * @zh 获取触点落下时在游戏窗口中的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getStartLocationInView(out?: Vec2): Vec2;
+        /**
+         * @en Returns the id of the touch point.
+         * @zh 触点的标识 ID，可以用来在多点触摸中跟踪触点。
+         */
+        getID(): number;
+        /**
+         * @en Resets touch point information.
+         * @zh 重置触点相关的信息。
+         * @param id - The id of the touch point
+         * @param x - x position of the touch point
+         * @param y - y position of the touch point
+         */
+        setTouchInfo(id?: number, x?: number, y?: number): void;
+        /**
+         * @en Sets touch point location.
+         * @zh 设置触点位置。
+         * @param point - The location
+         */
+        setPoint(point: Vec2): void;
+        /**
+         * @en Sets touch point location.
+         * @zh 设置触点位置。
+         * @param x - x position
+         * @param y - y position
+         */
+        setPoint(x: number, y: number): void;
+        /**
+         * @en Sets the location previously registered for the current touch.
+         * @zh 设置触点在前一次触发时收集的位置。
+         * @param point - The location
+         */
+        setPrevPoint(point: Vec2): void;
+        /**
+         * @en Sets the location previously registered for the current touch.
+         * @zh 设置触点在前一次触发时收集的位置。
+         * @param x - x position
+         * @param y - y position
+         */
+        setPrevPoint(x: number, y: number): void;
+    }
+}
+declare module "cocos/core/platform/macro" {
+    /**
+     * @en
+     * Predefined constants
+     * @zh
+     * 预定义常量。
+     */
+    const macro: {
+        /**
+         * @en
+         * The image format supported by the engine defaults, and the supported formats may differ in different build platforms and device types.
+         * Currently all platform and device support ['.webp', '.jpg', '.jpeg', '.bmp', '.png'], ios mobile platform
+         * @zh
+         * 引擎默认支持的图片格式，支持的格式可能在不同的构建平台和设备类型上有所差别。
+         * 目前所有平台和设备支持的格式有 ['.webp', '.jpg', '.jpeg', '.bmp', '.png']. The iOS mobile platform also supports the PVR format。
+         */
+        SUPPORT_TEXTURE_FORMATS: string[];
+        /**
+         * @en Key map for keyboard event
+         * @zh 键盘事件的按键值。
+         * @example {@link cocos/core/platform/CCCommon/KEY.js}
+         */
+        KEY: {
+            /**
+             * @en None
+             * @zh 没有分配
+             * @readonly
+             */
+            none: number;
+            /**
+             * @en The back key
+             * @zh 返回键
+             * @readonly
+             */
+            back: number;
+            /**
+             * @en The menu key
+             * @zh 菜单键
+             * @readonly
+             */
+            menu: number;
+            /**
+             * @en The backspace key
+             * @zh 退格键
+             * @readonly
+             */
+            backspace: number;
+            /**
+             * @en The tab key
+             * @zh Tab 键
+             * @readonly
+             */
+            tab: number;
+            /**
+             * @en The enter key
+             * @zh 回车键
+             * @readonly
+             */
+            enter: number;
+            /**
+             * @en The shift key
+             * @zh Shift 键
+             * @readonly
+             */
+            shift: number;
+            /**
+             * @en The ctrl key
+             * @zh Ctrl 键
+             * @readonly
+             */
+            ctrl: number;
+            /**
+             * @en The alt key
+             * @zh Alt 键
+             * @readonly
+             */
+            alt: number;
+            /**
+             * @en The pause key
+             * @zh 暂停键
+             * @readonly
+             */
+            pause: number;
+            /**
+             * @en The caps lock key
+             * @zh 大写锁定键
+             * @readonly
+             */
+            capslock: number;
+            /**
+             * @en The esc key
+             * @zh ESC 键
+             * @readonly
+             */
+            escape: number;
+            /**
+             * @en The space key
+             * @zh 空格键
+             * @readonly
+             */
+            space: number;
+            /**
+             * @en The page up key
+             * @zh 向上翻页键
+             * @readonly
+             */
+            pageup: number;
+            /**
+             * @en The page down key
+             * @zh 向下翻页键
+             * @readonly
+             */
+            pagedown: number;
+            /**
+             * @en The end key
+             * @zh 结束键
+             * @readonly
+             */
+            end: number;
+            /**
+             * @en The home key
+             * @zh 主菜单键
+             * @readonly
+             */
+            home: number;
+            /**
+             * @en The left key
+             * @zh 向左箭头键
+             * @readonly
+             */
+            left: number;
+            /**
+             * @en The up key
+             * @zh 向上箭头键
+             * @readonly
+             */
+            up: number;
+            /**
+             * @en The right key
+             * @zh 向右箭头键
+             * @readonly
+             */
+            right: number;
+            /**
+             * @en The down key
+             * @zh 向下箭头键
+             * @readonly
+             */
+            down: number;
+            /**
+             * @en The select key
+             * @zh Select 键
+             * @readonly
+             */
+            select: number;
+            /**
+             * @en The insert key
+             * @zh 插入键
+             * @readonly
+             */
+            insert: number;
+            /**
+             * @en The Delete key
+             * @zh 删除键
+             * @readonly
+             */
+            Delete: number;
+            /**
+             * @en The '0' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 0 键
+             * @readonly
+             */
+            0: number;
+            /**
+             * @en The '1' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 1 键
+             * @readonly
+             */
+            1: number;
+            /**
+             * @en The '2' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 2 键
+             * @readonly
+             */
+            2: number;
+            /**
+             * @en The '3' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 3 键
+             * @readonly
+             */
+            3: number;
+            /**
+             * @en The '4' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 4 键
+             * @readonly
+             */
+            4: number;
+            /**
+             * @en The '5' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 5 键
+             * @readonly
+             */
+            5: number;
+            /**
+             * @en The '6' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 6 键
+             * @readonly
+             */
+            6: number;
+            /**
+             * @en The '7' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 7 键
+             * @readonly
+             */
+            7: number;
+            /**
+             * @en The '8' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 8 键
+             * @readonly
+             */
+            8: number;
+            /**
+             * @en The '9' key on the top of the alphanumeric keyboard.
+             * @zh 字母键盘上的 9 键
+             * @readonly
+             */
+            9: number;
+            /**
+             * @en The a key
+             * @zh A 键
+             * @readonly
+             */
+            a: number;
+            /**
+             * @en The b key
+             * @zh B 键
+             * @readonly
+             */
+            b: number;
+            /**
+             * @en The c key
+             * @zh C 键
+             * @readonly
+             */
+            c: number;
+            /**
+             * @en The d key
+             * @zh D 键
+             * @readonly
+             */
+            d: number;
+            /**
+             * @en The e key
+             * @zh E 键
+             * @readonly
+             */
+            e: number;
+            /**
+             * @en The f key
+             * @zh F 键
+             * @readonly
+             */
+            f: number;
+            /**
+             * @en The g key
+             * @zh G 键
+             * @readonly
+             */
+            g: number;
+            /**
+             * @en The h key
+             * @zh H 键
+             * @readonly
+             */
+            h: number;
+            /**
+             * @en The i key
+             * @zh I 键
+             * @readonly
+             */
+            i: number;
+            /**
+             * @en The j key
+             * @zh J 键
+             * @readonly
+             */
+            j: number;
+            /**
+             * @en The k key
+             * @zh K 键
+             * @readonly
+             */
+            k: number;
+            /**
+             * @en The l key
+             * @zh L 键
+             * @readonly
+             */
+            l: number;
+            /**
+             * @en The m key
+             * @zh M 键
+             * @readonly
+             */
+            m: number;
+            /**
+             * @en The n key
+             * @zh N 键
+             * @readonly
+             */
+            n: number;
+            /**
+             * @en The o key
+             * @zh O 键
+             * @readonly
+             */
+            o: number;
+            /**
+             * @en The p key
+             * @zh P 键
+             * @readonly
+             */
+            p: number;
+            /**
+             * @en The q key
+             * @zh Q 键
+             * @readonly
+             */
+            q: number;
+            /**
+             * @en The r key
+             * @zh R 键
+             * @readonly
+             */
+            r: number;
+            /**
+             * @en The s key
+             * @zh S 键
+             * @readonly
+             */
+            s: number;
+            /**
+             * @en The t key
+             * @zh T 键
+             * @readonly
+             */
+            t: number;
+            /**
+             * @en The u key
+             * @zh U 键
+             * @readonly
+             */
+            u: number;
+            /**
+             * @en The v key
+             * @zh V 键
+             * @readonly
+             */
+            v: number;
+            /**
+             * @en The w key
+             * @zh W 键
+             * @readonly
+             */
+            w: number;
+            /**
+             * @en The x key
+             * @zh X 键
+             * @readonly
+             */
+            x: number;
+            /**
+             * @en The y key
+             * @zh Y 键
+             * @readonly
+             */
+            y: number;
+            /**
+             * @en The z key
+             * @zh Z 键
+             * @readonly
+             */
+            z: number;
+            /**
+             * @en The numeric keypad 0
+             * @zh 数字键盘 0
+             * @readonly
+             */
+            num0: number;
+            /**
+             * @en The numeric keypad 1
+             * @zh 数字键盘 1
+             * @readonly
+             */
+            num1: number;
+            /**
+             * @en The numeric keypad 2
+             * @zh 数字键盘 2
+             * @readonly
+             */
+            num2: number;
+            /**
+             * @en The numeric keypad 3
+             * @zh 数字键盘 3
+             * @readonly
+             */
+            num3: number;
+            /**
+             * @en The numeric keypad 4
+             * @zh 数字键盘 4
+             * @readonly
+             */
+            num4: number;
+            /**
+             * @en The numeric keypad 5
+             * @zh 数字键盘 5
+             * @readonly
+             */
+            num5: number;
+            /**
+             * @en The numeric keypad 6
+             * @zh 数字键盘 6
+             * @readonly
+             */
+            num6: number;
+            /**
+             * @en The numeric keypad 7
+             * @zh 数字键盘 7
+             * @readonly
+             */
+            num7: number;
+            /**
+             * @en The numeric keypad 8
+             * @zh 数字键盘 8
+             * @readonly
+             */
+            num8: number;
+            /**
+             * @en The numeric keypad 9
+             * @zh 数字键盘 9
+             * @readonly
+             */
+            num9: number;
+            /**
+             * @en The numeric keypad '*'
+             * @zh 数字键盘 *
+             * @readonly
+             */
+            '*': number;
+            /**
+             * @en The numeric keypad '+'
+             * @zh 数字键盘 +
+             * @readonly
+             */
+            '+': number;
+            /**
+             * @en The numeric keypad '-'
+             * @zh 数字键盘 -
+             * @readonly
+             */
+            '-': number;
+            /**
+             * @en The numeric keypad 'delete'
+             * @zh 数字键盘删除键
+             * @readonly
+             */
+            numdel: number;
+            /**
+             * @en The numeric keypad '/'
+             * @zh 数字键盘 /
+             * @readonly
+             */
+            '/': number;
+            /**
+             * @en The F1 function key
+             * @zh F1 功能键
+             * @readonly
+             */
+            f1: number;
+            /**
+             * @en The F2 function key
+             * @zh F2 功能键
+             * @readonly
+             */
+            f2: number;
+            /**
+             * @en The F3 function key
+             * @zh F3 功能键
+             * @readonly
+             */
+            f3: number;
+            /**
+             * @en The F4 function key
+             * @zh F4 功能键
+             * @readonly
+             */
+            f4: number;
+            /**
+             * @en The F5 function key
+             * @zh F5 功能键
+             * @readonly
+             */
+            f5: number;
+            /**
+             * @en The F6 function key
+             * @zh F6 功能键
+             * @readonly
+             */
+            f6: number;
+            /**
+             * @en The F7 function key
+             * @zh F7 功能键
+             * @readonly
+             */
+            f7: number;
+            /**
+             * @en The F8 function key
+             * @zh F8 功能键
+             * @readonly
+             */
+            f8: number;
+            /**
+             * @en The F9 function key
+             * @zh F9 功能键
+             * @readonly
+             */
+            f9: number;
+            /**
+             * @en The F10 function key
+             * @zh F10 功能键
+             * @readonly
+             */
+            f10: number;
+            /**
+             * @en The F11 function key
+             * @zh F11 功能键
+             * @readonly
+             */
+            f11: number;
+            /**
+             * @en The F12 function key
+             * @zh F12 功能键
+             * @readonly
+             */
+            f12: number;
+            /**
+             * @en The numlock key
+             * @zh 数字锁定键
+             * @readonly
+             */
+            numlock: number;
+            /**
+             * @en The scroll lock key
+             * @zh 滚动锁定键
+             * @readonly
+             */
+            scrolllock: number;
+            /**
+             * @en The ';' key.
+             * @zh 分号键
+             * @readonly
+             */
+            ';': number;
+            /**
+             * @en The ';' key.
+             * @zh 分号键
+             * @readonly
+             */
+            semicolon: number;
+            /**
+             * @en The '=' key.
+             * @zh 等于号键
+             * @readonly
+             */
+            equal: number;
+            /**
+             * @en The '=' key.
+             * @zh 等于号键
+             * @readonly
+             */
+            '=': number;
+            /**
+             * @en The ',' key.
+             * @zh 逗号键
+             * @readonly
+             */
+            ',': number;
+            /**
+             * @en The ',' key.
+             * @zh 逗号键
+             * @readonly
+             */
+            comma: number;
+            /**
+             * @en The dash '-' key.
+             * @zh 中划线键
+             * @readonly
+             */
+            dash: number;
+            /**
+             * @en The '.' key.
+             * @zh 句号键
+             * @readonly
+             */
+            '.': number;
+            /**
+             * @en The '.' key
+             * @zh 句号键
+             * @readonly
+             */
+            period: number;
+            /**
+             * @en The forward slash key
+             * @zh 正斜杠键
+             * @readonly
+             */
+            forwardslash: number;
+            /**
+             * @en The grave key
+             * @zh 按键 `
+             * @readonly
+             */
+            grave: number;
+            /**
+             * @en The '[' key
+             * @zh 按键 [
+             * @readonly
+             */
+            '[': number;
+            /**
+             * @en The '[' key
+             * @zh 按键 [
+             * @readonly
+             */
+            openbracket: number;
+            /**
+             * @en The '\' key
+             * @zh 反斜杠键
+             * @readonly
+             */
+            backslash: number;
+            /**
+             * @en The ']' key
+             * @zh 按键 ]
+             * @readonly
+             */
+            ']': number;
+            /**
+             * @en The ']' key
+             * @zh 按键 ]
+             * @readonly
+             */
+            closebracket: number;
+            /**
+             * @en The quote key
+             * @zh 单引号键
+             * @readonly
+             */
+            quote: number;
+            /**
+             * @en The dpad left key
+             * @zh 导航键 向左
+             * @readonly
+             */
+            dpadLeft: number;
+            /**
+             * @en The dpad right key
+             * @zh 导航键 向右
+             * @readonly
+             */
+            dpadRight: number;
+            /**
+             * @en The dpad up key
+             * @zh 导航键 向上
+             * @readonly
+             */
+            dpadUp: number;
+            /**
+             * @en The dpad down key
+             * @zh 导航键 向下
+             * @readonly
+             */
+            dpadDown: number;
+            /**
+             * @en The dpad center key
+             * @zh 导航键 确定键
+             * @readonly
+             */
+            dpadCenter: number;
+        };
+        /**
+         * PI / 180
+         */
+        RAD: number;
+        /**
+         * One degree
+         */
+        DEG: number;
+        /**
+         * A maximum value of number
+         */
+        REPEAT_FOREVER: number;
+        /**
+         * A minimal float value
+         */
+        FLT_EPSILON: number;
+        /**
+         * @en Oriented vertically
+         * @zh 竖屏朝向
+         */
+        ORIENTATION_PORTRAIT: number;
+        /**
+         * @en Oriented horizontally
+         * @zh 横屏朝向
+         */
+        ORIENTATION_LANDSCAPE: number;
+        /**
+         * @en Oriented automatically
+         * @zh 自动适配朝向
+         */
+        ORIENTATION_AUTO: number;
+        /**
+         * <p>
+         *   If enabled, the texture coordinates will be calculated by using this formula: <br/>
+         *      - texCoord.left = (rect.x*2+1) / (texture.wide*2);                  <br/>
+         *      - texCoord.right = texCoord.left + (rect.width*2-2)/(texture.wide*2); <br/>
+         *                                                                                 <br/>
+         *  The same for bottom and top.                                                   <br/>
+         *                                                                                 <br/>
+         *  This formula prevents artifacts by using 99% of the texture.                   <br/>
+         *  The "correct" way to prevent artifacts is by expand the texture's border with the same color by 1 pixel<br/>
+         *                                                                                  <br/>
+         *  Affected component:                                                                 <br/>
+         *      - TMXLayer                                                       <br/>
+         *                                                                                  <br/>
+         *  Enabled by default. To disabled set it to 0. <br/>
+         *  To modify it, in Web engine please refer to CCMacro.js, in JSB please refer to CCConfig.h
+         * </p>
+         * Currently not useful in 3D engine
+         */
+        /**
+         * @en
+         * Whether or not enabled tiled map auto culling. If you set the TiledMap skew or rotation,
+         * then need to manually disable this, otherwise, the rendering will be wrong.
+         * Currently not useful in 3D engine
+         * @zh
+         * 是否开启瓦片地图的自动裁减功能。瓦片地图如果设置了 skew, rotation 的话，需要手动关闭，否则渲染会出错。
+         * 在 3D 引擎中暂时无效。
+         * @default true
+         */
+        ENABLE_TILEDMAP_CULLING: boolean;
+        /**
+         * @en
+         * The timeout to determine whether a touch is no longer active and should be removed.
+         * The reason to add this timeout is due to an issue in X5 browser core,
+         * when X5 is presented in wechat on Android, if a touch is glissed from the bottom up, and leave the page area,
+         * no touch cancel event is triggered, and the touch will be considered active forever.
+         * After multiple times of this action, our maximum touches number will be reached and all new touches will be ignored.
+         * So this new mechanism can remove the touch that should be inactive if it's not updated during the last 5000 milliseconds.
+         * Though it might remove a real touch if it's just not moving for the last 5 seconds which is not easy with the sensibility of mobile touch screen.
+         * You can modify this value to have a better behavior if you find it's not enough.
+         * @zh
+         * 用于甄别一个触点对象是否已经失效并且可以被移除的延时时长
+         * 添加这个时长的原因是 X5 内核在微信浏览器中出现的一个 bug。
+         * 在这个环境下，如果用户将一个触点从底向上移出页面区域，将不会触发任何 touch cancel 或 touch end 事件，而这个触点会被永远当作停留在页面上的有效触点。
+         * 重复这样操作几次之后，屏幕上的触点数量将达到我们的事件系统所支持的最高触点数量，之后所有的触摸事件都将被忽略。
+         * 所以这个新的机制可以在触点在一定时间内没有任何更新的情况下视为失效触点并从事件系统中移除。
+         * 当然，这也可能移除一个真实的触点，如果用户的触点真的在一定时间段内完全没有移动（这在当前手机屏幕的灵敏度下会很难）。
+         * 你可以修改这个值来获得你需要的效果，默认值是 5000 毫秒。
+         * @default 5000
+         */
+        TOUCH_TIMEOUT: number;
+        /**
+         * @en
+         * The max concurrent task number for the downloader
+         * @zh
+         * 下载任务的最大并发数限制，在安卓平台部分机型或版本上可能需要限制在较低的水平
+         * @default 64
+         */
+        DOWNLOAD_MAX_CONCURRENT: number;
+        /**
+         * @en
+         * Boolean that indicates if the canvas contains an alpha channel, default sets to false for better performance.
+         * Though if you want to make your canvas background transparent and show other dom elements at the background,
+         * you can set it to true before {{game.init}}.
+         * Web only.
+         * @zh
+         * 用于设置 Canvas 背景是否支持 alpha 通道，默认为 false，这样可以有更高的性能表现。
+         * 如果你希望 Canvas 背景是透明的，并显示背后的其他 DOM 元素，你可以在 {{game.init}} 之前将这个值设为 true。
+         * 仅支持 Web
+         * @default false
+         */
+        ENABLE_TRANSPARENT_CANVAS: boolean;
+        /**
+         * @en
+         * Boolean that indicates if the WebGL context is created with `antialias` option turned on, default value is false.
+         * Set it to true could make your game graphics slightly smoother, like texture hard edges when rotated.
+         * Whether to use this really depend on your game design and targeted platform,
+         * device with retina display usually have good detail on graphics with or without this option,
+         * you probably don't want antialias if your game style is pixel art based.
+         * Also, it could have great performance impact with some browser / device using software MSAA.
+         * You can set it to true before {{game.init}}.
+         * Web only.
+         * @zh
+         * 用于设置在创建 WebGL Context 时是否开启抗锯齿选项，默认值是 false。
+         * 将这个选项设置为 true 会让你的游戏画面稍稍平滑一些，比如旋转硬边贴图时的锯齿。是否开启这个选项很大程度上取决于你的游戏和面向的平台。
+         * 在大多数拥有 retina 级别屏幕的设备上用户往往无法区分这个选项带来的变化；如果你的游戏选择像素艺术风格，你也多半不会想开启这个选项。
+         * 同时，在少部分使用软件级别抗锯齿算法的设备或浏览器上，这个选项会对性能产生比较大的影响。
+         * 你可以在 {{game.init}} 之前设置这个值，否则它不会生效。
+         * 仅支持 Web
+         * @default false
+         */
+        ENABLE_WEBGL_ANTIALIAS: boolean;
+        /**
+         * @en
+         * Whether or not clear dom Image object cache after uploading to gl texture.
+         * Concretely, we are setting image.src to empty string to release the cache.
+         * Normally you don't need to enable this option, because on web the Image object doesn't consume too much memory.
+         * But on Wechat Game platform, the current version cache decoded data in Image object, which has high memory usage.
+         * So we enabled this option by default on Wechat, so that we can release Image cache immediately after uploaded to GPU.
+         * Currently not useful in 3D engine
+         * @zh
+         * 是否在将贴图上传至 GPU 之后删除 DOM Image 缓存。
+         * 具体来说，我们通过设置 image.src 为空字符串来释放这部分内存。
+         * 正常情况下，你不需要开启这个选项，因为在 web 平台，Image 对象所占用的内存很小。
+         * 但是在微信小游戏平台的当前版本，Image 对象会缓存解码后的图片数据，它所占用的内存空间很大。
+         * 所以我们在微信平台默认开启了这个选项，这样我们就可以在上传 GL 贴图之后立即释放 Image 对象的内存，避免过高的内存占用。
+         * 在 3D 引擎中暂时无效。
+         * @default false
+         */
+        CLEANUP_IMAGE_CACHE: boolean;
+        /**
+         * @en
+         * Whether to enable multi-touch.
+         * @zh
+         * 是否开启多点触摸
+         * @default true
+         */
+        ENABLE_MULTI_TOUCH: boolean;
+    };
+    export { macro };
+}
+declare module "cocos/core/platform/sys" {
+    /**
+     * @en A set of system related variables
+     * @zh 一系列系统相关环境变量
+     * @main
+     */
+    export const sys: {
+        [x: string]: any;
+    };
+}
+declare module "cocos/core/platform/event-manager/event-manager" {
+    /**
+     * @hidden
+     */
+    import { Event } from "cocos/core/event/index";
+    import { EventListener } from "cocos/core/platform/event-manager/event-listener";
+    import { Node } from "cocos/core/scene-graph/index";
+    class EventManager {
+        private _listenersMap;
+        private _priorityDirtyFlagMap;
+        private _nodeListenersMap;
+        private _toAddedListeners;
+        private _toRemovedListeners;
+        private _dirtyListeners;
+        private _inDispatch;
+        private _isEnabled;
+        private _internalCustomListenerIDs;
+        private _currentTouch;
+        private _currentTouchListener;
+        /**
+         * @en Pauses all listeners which are associated the specified target.
+         * @zh 暂停传入的 node 相关的所有监听器的事件响应。
+         * @param node - 暂停目标节点
+         * @param recursive - 是否往子节点递归暂停。默认为 false。
+         */
+        pauseTarget(node: Node, recursive?: boolean): void;
+        /**
+         * @en
+         * Resumes all listeners which are associated the specified target.
+         *
+         * @zh
+         * 恢复传入的 node 相关的所有监听器的事件响应。
+         *
+         * @param node - 监听器节点。
+         * @param recursive - 是否往子节点递归。默认为 false。
+         */
+        resumeTarget(node: Node, recursive?: boolean): void;
+        frameUpdateListeners(): void;
+        /**
+         * @en
+         * Query whether the specified event listener id has been added.
+         *
+         * @zh
+         * 查询指定的事件 ID 是否存在。
+         *
+         * @param listenerID - 查找监听器 ID。
+         * @returns 是否已查找到。
+         */
+        hasEventListener(listenerID: string): boolean;
+        /**
+         * @en
+         * <p>
+         * Adds a event listener for a specified event.<br/>
+         * if the parameter "nodeOrPriority" is a node,
+         * it means to add a event listener for a specified event with the priority of scene graph.<br/>
+         * if the parameter "nodeOrPriority" is a Number,
+         * it means to add a event listener for a specified event with the fixed priority.<br/>
+         * </p>
+         *
+         * @zh
+         * 将事件监听器添加到事件管理器中。<br/>
+         * 如果参数 “nodeOrPriority” 是节点，优先级由 node 的渲染顺序决定，显示在上层的节点将优先收到事件。<br/>
+         * 如果参数 “nodeOrPriority” 是数字，优先级则固定为该参数的数值，数字越小，优先级越高。<br/>
+         *
+         * @param listener - 指定事件监听器。
+         * @param nodeOrPriority - 监听程序的优先级。
+         * @returns
+         */
+        addListener(listener: EventListener, nodeOrPriority: any | number): any;
+        /**
+         * @en
+         * Adds a Custom event listener. It will use a fixed priority of 1.
+         *
+         * @zh
+         * 向事件管理器添加一个自定义事件监听器。
+         *
+         * @param eventName - 自定义事件名。
+         * @param callback - 事件回调。
+         * @returns 返回自定义监听器。
+         */
+        addCustomListener(eventName: string, callback: Function): EventListener;
+        /**
+         * @en
+         * Remove a listener.
+         *
+         * @zh
+         * 移除一个已添加的监听器。
+         *
+         * @param listener - 需要移除的监听器。
+         */
+        removeListener(listener: EventListener): void;
+        /**
+         * @en
+         * Removes all listeners with the same event listener type or removes all listeners of a node.
+         *
+         * @zh
+         * 移除注册到 eventManager 中指定类型的所有事件监听器。<br/>
+         * 1. 如果传入的第一个参数类型是 Node，那么事件管理器将移除与该对象相关的所有事件监听器。
+         * （如果第二参数 recursive 是 true 的话，就会连同该对象的子控件上所有的事件监听器也一并移除）<br/>
+         * 2. 如果传入的第一个参数类型是 Number（该类型 EventListener 中定义的事件类型），
+         * 那么事件管理器将移除该类型的所有事件监听器。<br/>
+         *
+         * 下列是目前存在监听器类型：       <br/>
+         * `EventListener.UNKNOWN`       <br/>
+         * `EventListener.KEYBOARD`      <br/>
+         * `EventListener.ACCELERATION`，<br/>
+         *
+         * @param listenerType - 监听器类型。
+         * @param recursive - 递归子节点的同类型监听器一并移除。默认为 false。
+         */
+        removeListeners(listenerType: number | any, recursive?: boolean): void;
+        /**
+         * @en
+         * Removes all custom listeners with the same event name.
+         *
+         * @zh
+         * 移除同一事件名的自定义事件监听器。
+         *
+         * @param customEventName - 自定义事件监听器名。
+         */
+        removeCustomListeners(customEventName: any): void;
+        /**
+         * @en
+         * Removes all listeners.
+         *
+         * @zh
+         * 移除所有事件监听器。
+         */
+        removeAllListeners(): void;
+        /**
+         * @en
+         * Sets listener's priority with fixed value.
+         *
+         * @zh
+         * 设置 FixedPriority 类型监听器的优先级。
+         *
+         * @param listener - 监听器。
+         * @param fixedPriority - 优先级。
+         */
+        setPriority(listener: EventListener, fixedPriority: number): void;
+        /**
+         * @en
+         * Whether to enable dispatching events.
+         *
+         * @zh
+         * 启用或禁用事件管理器，禁用后不会分发任何事件。
+         *
+         * @param enabled - 是否启用事件管理器。
+         */
+        setEnabled(enabled: boolean): void;
+        /**
+         * @en
+         * Checks whether dispatching events is enabled.
+         *
+         * @zh 检测事件管理器是否启用。
+         *
+         * @returns
+         */
+        isEnabled(): boolean;
+        /**
+         * @en
+         * Dispatches the event, also removes all EventListeners marked for deletion from the event dispatcher list.
+         *
+         * @zh
+         * 分发事件。
+         *
+         * @param event - 分发事件。
+         */
+        dispatchEvent(event: Event): void;
+        _onListenerCallback(listener: EventListener, event: Event): boolean;
+        /**
+         * @en
+         * Dispatches a Custom Event with a event name an optional user data.
+         *
+         * @zh
+         * 分发自定义事件。
+         *
+         * @param eventName - 自定义事件名。
+         * @param optionalUserData
+         */
+        dispatchCustomEvent(eventName: any, optionalUserData: any): void;
+        private _setDirtyForNode;
+        private _addListener;
+        private _forceAddEventListener;
+        private _getListeners;
+        private _updateDirtyFlagForSceneGraph;
+        private _removeAllListenersInVector;
+        private _removeListenersForListenerID;
+        private _sortEventListeners;
+        private _sortListenersOfSceneGraphPriority;
+        private _sortEventListenersOfSceneGraphPriorityDes;
+        private _sortListenersOfFixedPriority;
+        private _sortListenersOfFixedPriorityAsc;
+        private _onUpdateListeners;
+        private _updateTouchListeners;
+        private _cleanToRemovedListeners;
+        private _onTouchEventCallback;
+        private _dispatchTouchEvent;
+        private _onTouchesEventCallback;
+        private _associateNodeAndEventListener;
+        private _dissociateNodeAndEventListener;
+        private _dispatchEventToListeners;
+        private _setDirty;
+        private _sortNumberAsc;
+        private _removeListenerInCallback;
+        private _removeListenerInVector;
+    }
+    /**
+     * @en
+     * This class has been deprecated, please use `systemEvent` or `EventTarget` instead.
+     * See [Listen to and launch events](../../../manual/en/scripting/events.md) for details.<br>
+     * <br>
+     * `eventManager` is a singleton object which manages event listener subscriptions and event dispatching.
+     * The EventListener list is managed in such way so that event listeners can be added and removed
+     * while events are being dispatched.
+     *
+     * @zh
+     * 该类已废弃，请使用 `systemEvent` 或 `EventTarget` 代替，详见 [监听和发射事件](../../../manual/zh/scripting/events.md)。<br>
+     * <br>
+     * 事件管理器，它主要管理事件监听器注册和派发系统事件。
+     *
+     * @class eventManager
+     * @static
+     * @example {@link cocos/core/event-manager/CCEventManager/addListener.js}
+     * @deprecated
+     */
+    export const eventManager: EventManager;
+    export default eventManager;
+}
+declare module "cocos/core/platform/event-manager/input-manager" {
+    import { EventMouse } from "cocos/core/platform/event-manager/events";
+    import { Touch } from "cocos/core/platform/event-manager/touch";
+    interface IHTMLElementPosition {
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+    }
+    /**
+     * @en the device accelerometer reports values for each axis in units of g-force.
+     * @zh 设备重力传感器传递的各个轴的数据。
+     */
+    export class Acceleration {
+        x: number;
+        y: number;
+        z: number;
+        timestamp: number;
+        constructor(x?: number, y?: number, z?: number, timestamp?: number);
+    }
+    /**
+     *  This class manages all events of input. include: touch, mouse, accelerometer, keyboard
+     */
+    class InputManager {
+        private _mousePressed;
+        private _isRegisterEvent;
+        private _preTouchPoint;
+        private _prevMousePoint;
+        private _preTouchPool;
+        private _preTouchPoolPointer;
+        private _touches;
+        private _touchesIntegerDict;
+        private _indexBitsUsed;
+        private _maxTouches;
+        private _accelEnabled;
+        private _accelInterval;
+        private _accelMinus;
+        private _accelCurTime;
+        private _acceleration;
+        private _accelDeviceEvent;
+        private _glView;
+        private _pointLocked;
+        handleTouchesBegin(touches: Touch[]): void;
+        handleTouchesMove(touches: Touch[]): void;
+        handleTouchesEnd(touches: Touch[]): void;
+        handleTouchesCancel(touches: Touch[]): void;
+        getSetOfTouchesEndOrCancel(touches: Touch[]): Touch[];
+        getHTMLElementPosition(element: HTMLElement): IHTMLElementPosition;
+        getPreTouch(touch: Touch): Touch;
+        setPreTouch(touch: Touch): void;
+        getTouchByXY(event: MouseEvent, tx: number, ty: number, pos: IHTMLElementPosition): Touch;
+        getMouseEvent(location: {
+            x: number;
+            y: number;
+        }, pos: IHTMLElementPosition, eventType: number): EventMouse;
+        getPointByEvent(event: MouseEvent, pos: IHTMLElementPosition): {
+            x: number;
+            y: number;
+        };
+        getTouchesByEvent(event: TouchEvent, position: IHTMLElementPosition): Touch[];
+        registerSystemEvent(element: HTMLElement | null): void;
+        /**
+         * Whether enable accelerometer event.
+         */
+        setAccelerometerEnabled(isEnable: boolean): void;
+        didAccelerate(eventData: DeviceMotionEvent | DeviceOrientationEvent): void;
+        update(dt: number): void;
+        /**
+         * set accelerometer interval value
+         * @method setAccelerometerInterval
+         * @param {Number} interval
+         */
+        setAccelerometerInterval(interval: any): void;
+        private _getUnUsedIndex;
+        private _removeUsedIndexBit;
+        private _registerMouseEvents;
+        private _registerPointerLockEvent;
+        private _registerWindowMouseEvents;
+        private _registerElementMouseEvents;
+        private _registerMousePointerEvents;
+        private _registerTouchEvents;
+        private _registerKeyboardEvent;
+        private _registerAccelerometerEvent;
+        private _unregisterAccelerometerEvent;
+        private _getUsefulTouches;
+    }
+    const inputManager: InputManager;
+    export default inputManager;
+}
+declare module "cocos/core/platform/event-manager/events" {
+    /**
+     * @category event
+     */
+    import Event from "cocos/core/event/event";
+    import { Vec2 } from "cocos/core/math/vec2";
+    import { Touch } from "cocos/core/platform/event-manager/touch";
+    import { Acceleration } from "cocos/core/platform/event-manager/input-manager";
+    /**
+     * @en The mouse event
+     * @zh 鼠标事件类型
+     */
+    export class EventMouse extends Event {
+        /**
+         * @en The none event code of mouse event.
+         * @zh 无效事件代码
+         */
+        static NONE: number;
+        /**
+         * @en The event code of mouse down event.
+         * @zh 鼠标按下事件代码。
+         */
+        static DOWN: number;
+        /**
+         * @en The event code of mouse up event.
+         * @zh 鼠标按下后释放事件代码。
+         */
+        static UP: number;
+        /**
+         * @en The event code of mouse move event.
+         * @zh 鼠标移动事件。
+         */
+        static MOVE: number;
+        /**
+         * @en The event code of mouse scroll event.
+         * @zh 鼠标滚轮事件。
+         */
+        static SCROLL: number;
+        /**
+         * @en The default tag when no button is pressed
+         * @zh 按键默认的缺省状态
+         */
+        static BUTTON_MISSING: number;
+        /**
+         * @en The tag of mouse's left button.
+         * @zh 鼠标左键的标签。
+         */
+        static BUTTON_LEFT: number;
+        /**
+         * @en The tag of mouse's right button  (The right button number is 2 on browser).
+         * @zh 鼠标右键的标签。
+         */
+        static BUTTON_RIGHT: number;
+        /**
+         * @en The tag of mouse's middle button.
+         * @zh 鼠标中键的标签。
+         */
+        static BUTTON_MIDDLE: number;
+        /**
+         * @en The tag of mouse's button 4.
+         * @zh 鼠标按键 4 的标签。
+         */
+        static BUTTON_4: number;
+        /**
+         * @en The tag of mouse's button 5.
+         * @zh 鼠标按键 5 的标签。
+         */
+        static BUTTON_5: number;
+        /**
+         * @en The tag of mouse's button 6.
+         * @zh 鼠标按键 6 的标签。
+         */
+        static BUTTON_6: number;
+        /**
+         * @en The tag of mouse's button 7.
+         * @zh 鼠标按键 7 的标签。
+         */
+        static BUTTON_7: number;
+        /**
+         * @en The tag of mouse's button 8.
+         * @zh 鼠标按键 8 的标签。
+         */
+        static BUTTON_8: number;
+        /**
+         * @en Mouse movement on x axis of the UI coordinate system.
+         * @zh 鼠标在 UI 坐标系下 X 轴上的移动距离
+         */
+        movementX: number;
+        /**
+         * @en Mouse movement on y axis of the UI coordinate system.
+         * @zh 鼠标在 UI 坐标系下 Y 轴上的移动距离
+         */
+        movementY: number;
+        /**
+         * @en The type of the event, possible values are UP, DOWN, MOVE, SCROLL
+         * @zh 鼠标事件类型，可以是 UP, DOWN, MOVE, CANCELED。
+         */
+        eventType: number;
+        private _button;
+        private _x;
+        private _y;
+        private _prevX;
+        private _prevY;
+        private _scrollX;
+        private _scrollY;
+        /**
+         * @param eventType - The type of the event, possible values are UP, DOWN, MOVE, SCROLL
+         * @param bubbles - Indicate whether the event bubbles up through the hierarchy or not.
+         */
+        constructor(eventType: number, bubbles?: boolean, prevLoc?: Vec2);
+        /**
+         * @en Sets scroll data of the mouse.
+         * @zh 设置鼠标滚轮的滚动数据。
+         * @param scrollX - The scroll value on x axis
+         * @param scrollY - The scroll value on y axis
+         */
+        setScrollData(scrollX: number, scrollY: number): void;
+        /**
+         * @en Returns the scroll value on x axis.
+         * @zh 获取鼠标滚动的 X 轴距离，只有滚动时才有效。
+         */
+        getScrollX(): number;
+        /**
+         * @en Returns the scroll value on y axis.
+         * @zh 获取滚轮滚动的 Y 轴距离，只有滚动时才有效。
+         */
+        getScrollY(): number;
+        /**
+         * @en Sets cursor location.
+         * @zh 设置当前鼠标位置。
+         * @param x - The location on x axis
+         * @param y - The location on y axis
+         */
+        setLocation(x: number, y: number): void;
+        /**
+         * @en Returns cursor location.
+         * @zh 获取鼠标相对于左下角位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the current cursor location in game view coordinates.
+         * @zh 获取当前事件在游戏窗口内的坐标位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getLocationInView(out?: Vec2): Vec2;
+        /**
+         * @en Returns the current cursor location in ui coordinates.
+         * @zh 获取当前事件在 UI 窗口内的坐标位置，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUILocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the previous touch location.
+         * @zh 获取鼠标点击在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the previous touch location.
+         * @zh 获取鼠标点击在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUIPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the delta distance from the previous location to current location.
+         * @zh 获取鼠标距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getDelta(out?: Vec2): Vec2;
+        /**
+         * @en Returns the X axis delta distance from the previous location to current location.
+         * @zh 获取鼠标距离上一次事件移动的 X 轴距离。
+         */
+        getDeltaX(): number;
+        /**
+         * @en Returns the Y axis delta distance from the previous location to current location.
+         * @zh 获取鼠标距离上一次事件移动的 Y 轴距离。
+         */
+        getDeltaY(): number;
+        /**
+         * @en Returns the delta distance from the previous location to current location in the UI coordinates.
+         * @zh 获取鼠标距离上一次事件移动在 UI 坐标系下的距离对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUIDelta(out?: Vec2): Vec2;
+        /**
+         * @en Returns the X axis delta distance from the previous location to current location in the UI coordinates.
+         * @zh 获取鼠标距离上一次事件移动在 UI 坐标系下的 X 轴距离。
+         */
+        getUIDeltaX(): number;
+        /**
+         * @en Returns the Y axis delta distance from the previous location to current location in the UI coordinates.
+         * @zh 获取鼠标距离上一次事件移动在 UI 坐标系下的 Y 轴距离。
+         */
+        getUIDeltaY(): number;
+        /**
+         * @en Sets mouse button code.
+         * @zh 设置鼠标按键。
+         * @param button - The button code
+         */
+        setButton(button: number): void;
+        /**
+         * @en Returns mouse button code.
+         * @zh 获取鼠标按键。
+         */
+        getButton(): number;
+        /**
+         * @en Returns location data on X axis.
+         * @zh 获取鼠标当前 X 轴位置。
+         */
+        getLocationX(): number;
+        /**
+         * @en Returns location data on Y axis.
+         * @zh 获取鼠标当前 Y 轴位置。
+         */
+        getLocationY(): number;
+        /**
+         * @en Returns location data on X axis.
+         * @zh 获取鼠标当前 X 轴位置。
+         */
+        getUILocationX(): number;
+        /**
+         * @en Returns location data on Y axis.
+         * @zh 获取鼠标当前 Y 轴位置。
+         */
+        getUILocationY(): number;
+    }
+    /**
+     * @en
+     * The touch event.
+     *
+     * @zh
+     * 触摸事件。
+     */
+    export class EventTouch extends Event {
+        /**
+         * @en The maximum touch point numbers simultaneously
+         * @zh 同时存在的最大触点数量。
+         */
+        static MAX_TOUCHES: number;
+        /**
+         * @en The event type code of touch began event.
+         * @zh 开始触摸事件。
+         */
+        static BEGAN: number;
+        /**
+         * @en The event type code of touch moved event.
+         * @zh 触摸后移动事件。
+         */
+        static MOVED: number;
+        /**
+         * @en The event type code of touch ended event.
+         * @zh 结束触摸事件。
+         */
+        static ENDED: number;
+        /**
+         * @en The event type code of touch canceled event.
+         * @zh 取消触摸事件。
+         */
+        static CANCELLED: number;
+        /**
+         * @en The current touch object
+         * @zh 当前触点对象
+         */
+        touch: Touch | null;
+        /**
+         * @en Indicate whether the touch event is simulated or real
+         * @zh 表示触摸事件是真实触点触发的还是模拟的
+         */
+        simulate: boolean;
+        private _eventCode;
+        private _touches;
+        private _allTouches;
+        /**
+         * @param touches - An array of current touches
+         * @param bubbles - Indicate whether the event bubbles up through the hierarchy or not.
+         * @param eventCode - The type code of the touch event
+         */
+        constructor(changedTouches?: Touch[], bubbles?: boolean, eventCode?: number, touches?: Touch[]);
+        /**
+         * @en Returns event type code.
+         * @zh 获取触摸事件类型。
+         */
+        getEventCode(): number;
+        /**
+         * @en Returns touches of event.
+         * @zh 获取有变动的触摸点的列表。
+         * 注意：第一根手指按下不动，接着按第二根手指，这时候触点信息就只有变动的这根手指（第二根手指）的信息。
+         * 如果需要获取全部手指的信息，请使用 `getAllTouches`。
+         */
+        getTouches(): Touch[];
+        /**
+         * @en Returns touches of event.
+         * @zh 获取所有触摸点的列表。
+         * 注意：如果手指行为是 touch end，这个时候列表是没有该手指信息的。如需知道该手指信息，可通过 `getTouches` 获取识别。
+         */
+        getAllTouches(): Touch[];
+        /**
+         * @en Sets touch location.
+         * @zh 设置当前触点位置
+         * @param x - The current touch location on the x axis
+         * @param y - The current touch location on the y axis
+         */
+        setLocation(x: number, y: number): void;
+        /**
+         * @en Returns the current touch location.
+         * @zh 获取触点位置。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the current touch location in UI coordinates.
+         * @zh 获取 UI 坐标系下的触点位置。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUILocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the current touch location in game screen coordinates.
+         * @zh 获取当前触点在游戏窗口中的位置。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getLocationInView(out?: Vec2): Vec2;
+        /**
+         * @en Returns the previous touch location.
+         * @zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getPreviousLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the start touch location.
+         * @zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getStartLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the start touch location in UI coordinates.
+         * @zh 获获取触点落下时的 UI 世界下位置对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getUIStartLocation(out?: Vec2): Vec2;
+        /**
+         * @en Returns the id of the current touch point.
+         * @zh 获取触点的标识 ID，可以用来在多点触摸中跟踪触点。
+         */
+        getID(): number | null;
+        /**
+         * @en Returns the delta distance from the previous location to current location.
+         * @zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+         */
+        getDelta(out?: Vec2): Vec2;
+        /**
+         * @en Returns the delta distance from the previous location to current location.
+         * @zh 获取触点距离上一次事件 UI 世界下移动的距离对象，对象包含 x 和 y 属性。
+         * @param out - Pass the out object to avoid object creation, very good practice
+        */
+        getUIDelta(out?: Vec2): Vec2;
+        /**
+         * @en Returns the X axis delta distance from the previous location to current location.
+         * @zh 获取触点距离上一次事件移动的 x 轴距离。
+         */
+        getDeltaX(): number;
+        /**
+         * @en Returns the Y axis delta distance from the previous location to current location.
+         * @zh 获取触点距离上一次事件移动的 y 轴距离。
+         */
+        getDeltaY(): number;
+        /**
+         * @en Returns location X axis data.
+         * @zh 获取当前触点 X 轴位置。
+         */
+        getLocationX(): number;
+        /**
+         * @en Returns location Y axis data.
+         * @zh 获取当前触点 Y 轴位置。
+         */
+        getLocationY(): number;
+    }
+    /**
+     * @en
+     * The acceleration event.
+     * @zh
+     * 加速计事件。
+     */
+    export class EventAcceleration extends Event {
+        /**
+         * @en The acceleration object
+         * @zh 加速度对象
+         */
+        acc: Acceleration;
+        /**
+         * @param acc - The acceleration
+         * @param bubbles - Indicate whether the event bubbles up through the hierarchy or not.
+         */
+        constructor(acc: Acceleration, bubbles?: boolean);
+    }
+    /**
+     * @en
+     * The keyboard event.
+     * @zh
+     * 键盘事件。
+     */
+    export class EventKeyboard extends Event {
+        /**
+         * @en The keyCode read-only property represents a system and implementation dependent numerical code
+         * identifying the unmodified value of the pressed key.
+         * This is usually the decimal ASCII (RFC 20) or Windows 1252 code corresponding to the key.
+         * If the key can't be identified, this value is 0.
+         * @zh keyCode 是只读属性它表示一个系统和依赖于实现的数字代码，可以识别按键的未修改值。
+         * 这通常是十进制 ASCII (RFC20) 或者 Windows 1252 代码，所对应的密钥。
+         * 如果无法识别该键，则该值为 0。
+         */
+        keyCode: number;
+        /**
+         * @en Raw DOM KeyboardEvent.
+         * @zh 原始 DOM KeyboardEvent 事件对象
+         */
+        rawEvent?: KeyboardEvent;
+        /**
+         * @en Indicates whether the current key is being pressed
+         * @zh 表示当前按键是否正在被按下
+         */
+        isPressed: boolean;
+        /**
+         * @param keyCode - The key code of the current key or the DOM KeyboardEvent
+         * @param isPressed - Indicates whether the current key is being pressed
+         * @param bubbles - Indicates whether the event bubbles up through the hierarchy or not.
+         */
+        constructor(keyCode: number | KeyboardEvent, isPressed: boolean, bubbles?: boolean);
+    }
+}
+declare module "cocos/core/platform/event-manager/event-listener" {
+    /**
+     * @hidden
+     */
+    import { EventKeyboard, EventAcceleration, EventMouse } from "cocos/core/platform/event-manager/events";
+    import { Node } from "cocos/core/scene-graph/index";
+    export interface IEventListenerCreateInfo {
+        event?: number;
+        [x: string]: any;
+    }
+    export interface IListenerMask {
+        index: number;
+        node: Node;
+    }
+    /**
+     * @en The base class of event listener.                                                                        <br/>
+     * If you need custom listener which with different callback, you need to inherit this class.               <br/>
+     * For instance, you could refer to EventListenerAcceleration, EventListenerKeyboard,                       <br/>
+     * EventListenerTouchOneByOne, EventListenerCustom.<br/>
+     * @zh 封装用户的事件处理逻辑
+     * 注意：这是一个抽象类，开发者不应该直接实例化这个类，请参考 [[create]] 。
+     */
+    export class EventListener {
+        /**
+         * @en The type code of unknown event listener.<br/>
+         * @zh 未知的事件监听器类型
+         */
+        static UNKNOWN: number;
+        /**
+         * @en The type code of one by one touch event listener.<br/>
+         * @zh 触摸事件监听器类型，触点会一个一个得分开被派发
+         */
+        static TOUCH_ONE_BY_ONE: number;
+        /**
+         * @en The type code of all at once touch event listener.<br/>
+         * @zh 触摸事件监听器类型，触点会被一次性全部派发
+         */
+        static TOUCH_ALL_AT_ONCE: number;
+        /**
+         * @en The type code of keyboard event listener.<br/>
+         * @zh 键盘事件监听器类型
+         */
+        static KEYBOARD: number;
+        /**
+         * @en The type code of mouse event listener.<br/>
+         * @zh 鼠标事件监听器类型
+         */
+        static MOUSE: number;
+        /**
+         * @en The type code of acceleration event listener.<br/>
+         * @zh 加速器事件监听器类型
+         */
+        static ACCELERATION: number;
+        /**
+         * @en The type code of custom event listener.<br/>
+         * @zh 自定义事件监听器类型
+         */
+        static CUSTOM: number;
+        static ListenerID: {
+            MOUSE: string;
+            TOUCH_ONE_BY_ONE: string;
+            TOUCH_ALL_AT_ONCE: string;
+            KEYBOARD: string;
+            ACCELERATION: string;
+        };
+        /**
+         * @en Create a EventListener object with configuration including the event type, handlers and other parameters.<br/>
+         * In handlers, this refer to the event listener object itself.<br/>
+         * You can also pass custom parameters in the configuration object,<br/>
+         * all custom parameters will be polyfilled into the event listener object and can be accessed in handlers.<br/>
+         * @zh 通过指定不同的 Event 对象来设置想要创建的事件监听器。
+         * @param argObj a json object
+         */
+        static create(argObj: IEventListenerCreateInfo): EventListener;
+        owner: Object | null;
+        mask: IListenerMask | null;
+        _previousIn?: boolean;
+        _target: any;
+        protected _onEvent: ((...args: any[]) => any) | null;
+        private _type;
+        private _listenerID;
+        private _registered;
+        private _fixedPriority;
+        private _node;
+        private _paused;
+        private _isEnabled;
+        get onEvent(): ((...args: any[]) => any) | null;
+        constructor(type: number, listenerID: string, callback: ((...args: any[]) => any) | null);
+        /**
+         * @en
+         * <p><br/>
+         *     Sets paused state for the listener<br/>
+         *     The paused state is only used for scene graph priority listeners.<br/>
+         *     `EventDispatcher.resumeAllEventListenersForTarget(node)` will set the paused state to `true`,<br/>
+         *     while `EventDispatcher.pauseAllEventListenersForTarget(node)` will set it to `false`.<br/>
+         *     @note 1) Fixed priority listeners will never get paused. If a fixed priority doesn't want to receive events,<br/>
+         *              call `setEnabled(false)` instead.<br/>
+         *            2) In `Node`'s onEnter and onExit, the `paused state` of the listeners<br/>
+         *              which associated with that node will be automatically updated.<br/>
+         * </p><br/>
+         * @zh
+         * *为侦听器设置暂停状态<br/>
+         * 暂停状态仅用于场景图优先级侦听器。<br/>
+         * `EventDispatcher :: resumeAllEventListenersForTarget（node）`将暂停状态设置为`true`，<br/>
+         * 而`EventDispatcher :: pauseAllEventListenersForTarget（node）`将它设置为`false`。<br/>
+         * 注意：<br/>
+         * - 固定优先级侦听器永远不会被暂停。 如果固定优先级不想接收事件，改为调用`setEnabled（false）`。<br/>
+         * - 在“Node”的onEnter和onExit中，监听器的“暂停状态”与该节点关联的*将自动更新。
+         */
+        _setPaused(paused: boolean): void;
+        /**
+         * @en Checks whether the listener is paused.<br/>
+         * @zh 检查侦听器是否已暂停。
+         */
+        _isPaused(): boolean;
+        /**
+         * @en Marks the listener was registered by EventDispatcher.<br/>
+         * @zh 标记监听器已由 EventDispatcher 注册。
+         */
+        _setRegistered(registered: boolean): void;
+        /**
+         * @en Checks whether the listener was registered by EventDispatcher<br/>
+         * @zh 检查监听器是否已由 EventDispatcher 注册。
+         * @private
+         */
+        _isRegistered(): boolean;
+        /**
+         * @en Gets the type of this listener<br/>
+         * note： It's different from `EventType`, e.g.<br/>
+         * TouchEvent has two kinds of event listeners - EventListenerOneByOne, EventListenerAllAtOnce<br/>
+         * @zh 获取此侦听器的类型<br/>
+         * 注意：它与`EventType`不同，例如<br/>
+         * TouchEvent 有两种事件监听器 -  EventListenerOneByOne，EventListenerAllAtOnce
+         */
+        _getType(): number;
+        /**
+         * @en Gets the listener ID of this listener<br/>
+         * When event is being dispatched, listener ID is used as key for searching listeners according to event type.<br/>
+         * @zh 获取此侦听器的侦听器 ID。<br/>
+         * 调度事件时，侦听器 ID 用作根据事件类型搜索侦听器的键。
+         */
+        _getListenerID(): string;
+        /**
+         * @en Sets the fixed priority for this listener<br/>
+         * note: This method is only used for `fixed priority listeners`,<br/>
+         *   it needs to access a non-zero value. 0 is reserved for scene graph priority listeners<br/>
+         * @zh 设置此侦听器的固定优先级。<br/>
+         * 注意：此方法仅用于“固定优先级侦听器”，<br/>
+         * 它需要访问非零值。 0保留给场景图优先级侦听器。
+         */
+        _setFixedPriority(fixedPriority: number): void;
+        /**
+         * @en Gets the fixed priority of this listener<br/>
+         * @zh 获取此侦听器的固定优先级。
+         * @return 如果它是场景图优先级侦听器则返回 0 ，则对于固定优先级侦听器则不为零
+         */
+        _getFixedPriority(): number;
+        /**
+         * @en Sets scene graph priority for this listener<br/>
+         * @zh 设置此侦听器的场景图优先级。
+         * @param {Node} node
+         */
+        _setSceneGraphPriority(node: any): void;
+        /**
+         * @en Gets scene graph priority of this listener<br/>
+         * @zh 获取此侦听器的场景图优先级。
+         * @return 如果它是固定优先级侦听器，则为场景图优先级侦听器非 null 。
+         */
+        _getSceneGraphPriority(): any;
+        /**
+         * @en Checks whether the listener is available.<br/>
+         * @zh 检测监听器是否有效
+         */
+        checkAvailable(): boolean;
+        /**
+         * @en Clones the listener, its subclasses have to override this method.<br/>
+         * @zh 克隆监听器,它的子类必须重写此方法。
+         */
+        clone(): EventListener | null;
+        /**
+         * @en
+         * Enables or disables the listener<br/>
+         * note: Only listeners with `enabled` state will be able to receive events.<br/>
+         * When an listener was initialized, it's enabled by default.<br/>
+         * An event listener can receive events when it is enabled and is not paused.<br/>
+         * paused state is always false when it is a fixed priority listener.<br/>
+         * @zh
+         * 启用或禁用监听器。<br/>
+         * 注意：只有处于“启用”状态的侦听器才能接收事件。<br/>
+         * 初始化侦听器时，默认情况下启用它。<br/>
+         * 事件侦听器可以在启用且未暂停时接收事件。<br/>
+         * 当固定优先级侦听器时，暂停状态始终为false。<br/>
+         */
+        setEnabled(enabled: boolean): void;
+        /**
+         * @en Checks whether the listener is enabled<br/>
+         * @zh 检查监听器是否可用。
+         */
+        isEnabled(): boolean;
+    }
+    export class Mouse extends EventListener {
+        onMouseDown: Function | null;
+        onMouseUp: Function | null;
+        onMouseMove: Function | null;
+        onMouseScroll: Function | null;
+        constructor();
+        _callback(event: EventMouse): void;
+        clone(): Mouse;
+        checkAvailable(): boolean;
+    }
+    export class TouchOneByOne extends EventListener {
+        swallowTouches: boolean;
+        onTouchBegan: Function | null;
+        onTouchMoved: Function | null;
+        onTouchEnded: Function | null;
+        onTouchCancelled: Function | null;
+        _claimedTouches: any[];
+        constructor();
+        setSwallowTouches(needSwallow: any): void;
+        isSwallowTouches(): boolean;
+        clone(): TouchOneByOne;
+        checkAvailable(): boolean;
+    }
+    export class TouchAllAtOnce extends EventListener {
+        onTouchesBegan: Function | null;
+        onTouchesMoved: Function | null;
+        onTouchesEnded: Function | null;
+        onTouchesCancelled: Function | null;
+        constructor();
+        clone(): TouchAllAtOnce;
+        checkAvailable(): boolean;
+    }
+    export class Acceleration extends EventListener {
+        _onAccelerationEvent: Function | null;
+        constructor(callback: Function | null);
+        _callback(event: EventAcceleration): void;
+        checkAvailable(): boolean;
+        clone(): Acceleration;
+    }
+    export class Keyboard extends EventListener {
+        onKeyPressed: Function | null;
+        onKeyReleased: Function | null;
+        constructor();
+        _callback(event: EventKeyboard): void;
+        clone(): Keyboard;
+        checkAvailable(): boolean;
+    }
+}
+declare module "cocos/core/assets/scripts" {
+    import { Asset } from "cocos/core/assets/asset";
+    /**
+     * @zh
+     * 脚本资源基类。
+     */
+    export class Script extends Asset {
+    }
+    /**
+     * @zh
+     * JavaScript 脚本资源。
+     */
+    export class JavaScript extends Script {
+    }
+    /**
+     * @zh
+     * Typescript 脚本资源。
+     */
+    export class TypeScript extends Script {
+    }
+}
 declare module "cocos/core/gfx/define" {
     /**
      * @category gfx
@@ -4056,20 +7330,19 @@ declare module "cocos/core/gfx/define" {
         UNKNOWN = 0,
         BUFFER = 1,
         TEXTURE = 2,
-        TEXTURE_VIEW = 3,
-        RENDER_PASS = 4,
-        FRAMEBUFFER = 5,
-        SAMPLER = 6,
-        SHADER = 7,
-        DESCRIPTOR_SET_LAYOUT = 8,
-        PIPELINE_LAYOUT = 9,
-        PIPELINE_STATE = 10,
-        DESCRIPTOR_SET = 11,
-        INPUT_ASSEMBLER = 12,
-        COMMAND_BUFFER = 13,
-        FENCE = 14,
-        QUEUE = 15,
-        WINDOW = 16
+        RENDER_PASS = 3,
+        FRAMEBUFFER = 4,
+        SAMPLER = 5,
+        SHADER = 6,
+        DESCRIPTOR_SET_LAYOUT = 7,
+        PIPELINE_LAYOUT = 8,
+        PIPELINE_STATE = 9,
+        DESCRIPTOR_SET = 10,
+        INPUT_ASSEMBLER = 11,
+        COMMAND_BUFFER = 12,
+        FENCE = 13,
+        QUEUE = 14,
+        WINDOW = 15
     }
     /**
      * @en GFX base object.
@@ -4605,16 +7878,6 @@ declare module "cocos/core/gfx/define" {
      */
     export function GFXGetTypeSize(type: GFXType): number;
     export function getTypedArrayConstructor(info: GFXFormatInfo): TypedArrayConstructor;
-}
-declare module "cocos/core/platform/sys" {
-    /**
-     * @en A set of system related variables
-     * @zh 一系列系统相关环境变量
-     * @main
-     */
-    export const sys: {
-        [x: string]: any;
-    };
 }
 declare module "cocos/core/3d/misc/buffer" {
     import { GFXFormat } from "cocos/core/gfx/define";
@@ -6002,174 +9265,422 @@ declare module "cocos/core/gfx/texture" {
         abstract resize(width: number, height: number): void;
     }
 }
-declare module "cocos/core/memop/pool" {
+declare module "cocos/core/gfx/descriptor-set-layout" {
     /**
-     * 可以自动分配内存的数据结构
-     * @category memop
+     * @category gfx
      */
+    import { GFXDescriptorType, GFXObject, GFXShaderStageFlags } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXSampler } from "cocos/core/gfx/sampler";
+    export interface IGFXDescriptorSetLayoutBinding {
+        descriptorType: GFXDescriptorType;
+        count: number;
+        stageFlags: GFXShaderStageFlags;
+        immutableSamplers?: GFXSampler[];
+    }
+    export interface IGFXDescriptorSetLayoutInfo {
+        bindings: IGFXDescriptorSetLayoutBinding[];
+    }
+    export const DESCRIPTOR_DYNAMIC_TYPE: number;
     /**
-     * @zh 对象池。
+     * @en GFX descriptor sets layout.
+     * @zh GFX 描述符集布局。
      */
-    export class Pool<T> {
-        private _ctor;
-        private _elementsPerBatch;
-        private _nextAvail;
-        private _freepool;
-        /**
-         * 构造函数。
-         * @param ctor 元素构造函数。
-         * @param size 初始大小。
-         */
-        constructor(ctor: () => T, elementsPerBatch: number);
-        /**
-         * @zh 从对象池中取出一个对象。
-         */
-        alloc(): T;
-        /**
-         * @zh 将一个对象放回对象池中。
-         * @param obj 释放的对象。
-         */
-        free(obj: T): void;
-        /**
-         * @zh 将一组对象放回对象池中。
-         * @param objs 一组要释放的对象。
-         */
-        freeArray(objs: T[]): void;
-        /**
-         * 释放对象池中所有资源。
-         * @param dtor 销毁回调，对每个释放的对象调用一次。
-         */
-        destroy(dtor?: (obj: T) => void): void;
+    export abstract class GFXDescriptorSetLayout extends GFXObject {
+        get bindings(): IGFXDescriptorSetLayoutBinding[];
+        protected _device: GFXDevice;
+        protected _bindings: IGFXDescriptorSetLayoutBinding[];
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXDescriptorSetLayoutInfo): boolean;
+        abstract destroy(): void;
     }
 }
-declare module "cocos/core/memop/recycle-pool" {
+declare module "cocos/core/gfx/descriptor-set" {
     /**
-     * @category memop
+     * @category gfx
      */
+    import { GFXBuffer } from "cocos/core/gfx/buffer";
+    import { GFXDescriptorType, GFXObject } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXSampler } from "cocos/core/gfx/sampler";
+    import { GFXTexture } from "cocos/core/gfx/texture";
+    import { GFXDescriptorSetLayout } from "cocos/core/gfx/descriptor-set-layout";
+    export const DESCRIPTOR_BUFFER_TYPE: number;
+    export const DESCRIPTOR_SAMPLER_TYPE = GFXDescriptorType.SAMPLER;
+    export interface IGFXDescriptorSetInfo {
+        layout: GFXDescriptorSetLayout;
+    }
     /**
-     * @zh 循环对象池。
+     * @en GFX descriptor sets.
+     * @zh GFX 描述符集组。
      */
-    export class RecyclePool<T = any> {
-        private _fn;
-        private _count;
-        private _data;
+    export abstract class GFXDescriptorSet extends GFXObject {
+        get layout(): GFXDescriptorSetLayout;
+        protected _device: GFXDevice;
+        protected _layout: GFXDescriptorSetLayout | null;
+        protected _buffers: GFXBuffer[];
+        protected _textures: GFXTexture[];
+        protected _samplers: GFXSampler[];
+        protected _isDirty: boolean;
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXDescriptorSetInfo): boolean;
+        abstract destroy(): void;
+        abstract update(): void;
         /**
-         * 构造函数。
-         * @param fn 对象构造函数。
-         * @param size 初始大小。
+         * @en Bind buffer to the specified descriptor.
+         * @zh 在指定的描述符位置上绑定缓冲。
+         * @param binding The target binding.
+         * @param buffer The buffer to be bound.
          */
-        constructor(fn: () => T, size: number);
+        bindBuffer(binding: number, buffer: GFXBuffer): void;
         /**
-         * @zh 对象池大小。
+         * @en Bind sampler to the specified descriptor.
+         * @zh 在指定的描述符位置上绑定采样器。
+         * @param binding The target binding.
+         * @param sampler The sampler to be bound.
          */
-        get length(): number;
+        bindSampler(binding: number, sampler: GFXSampler): void;
         /**
-         * @zh 对象池数组。
+         * @en Bind texture to the specified descriptor.
+         * @zh 在指定的描述符位置上绑定纹理。
+         * @param binding The target binding.
+         * @param texture The texture to be bound.
          */
-        get data(): T[];
+        bindTexture(binding: number, texture: GFXTexture): void;
         /**
-         * @zh 清空对象池。
+         * @en Get buffer from the specified binding location.
+         * @zh 获取当前指定绑定位置上的缓冲。
+         * @param binding The target binding.
          */
-        reset(): void;
+        getBuffer(binding: number): GFXBuffer;
         /**
-         * @zh 设置对象池大小。
-         * @param size 对象池大小。
+         * @en Get sampler from the specified binding location.
+         * @zh 获取当前指定绑定位置上的采样器。
+         * @param binding The target binding.
          */
-        resize(size: number): void;
+        getSampler(binding: number): GFXSampler;
         /**
-         * @zh 从对象池中取出一个对象。
+         * @en Get texture from the specified binding location.
+         * @zh 获取当前指定绑定位置上的贴图。
+         * @param binding The target binding.
          */
-        add(): T;
-        /**
-         * @zh 释放对象池中的一个元素。
-         * @param idx 释放对象的索引。
-         */
-        removeAt(idx: number): void;
+        getTexture(binding: number): GFXTexture;
     }
 }
-declare module "cocos/core/memop/cached-array" {
+declare module "cocos/core/utils/murmurhash2_gc" {
+    export function murmurhash2_32_gc(input: string | Uint8Array, seed: number): number;
+}
+declare module "cocos/core/gfx/render-pass" {
     /**
-     * @category memop
+     * @category gfx
      */
+    import { GFXFormat, GFXLoadOp, GFXObject, GFXPipelineBindPoint, GFXStoreOp, GFXTextureLayout } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
     /**
-     * @zh
-     * 缓存数组
-     * 该数据结构内存只增不减，适用于处理内存常驻递增的分配策略
+     * @en Color attachment.
+     * @zh GFX 颜色附件。
      */
-    export class CachedArray<T> {
-        /**
-         * @zh
-         * 实际存储的数据内容
-         */
-        array: T[];
-        /**
-         * @zh
-         * 数组长度
-         */
-        length: number;
-        /**
-         * @zh
-         * 比较函数
-         */
-        private _compareFn;
-        /**
-         * 构造函数
-         * @param length 数组初始化长度
-         * @param compareFn 比较函数
-         */
-        constructor(length: number, compareFn?: (a: T, b: T) => number);
-        /**
-         * @zh
-         * 向数组中添加一个元素
-         * @param item 数组元素
-         */
-        push(item: T): void;
-        /**
-         * @zh
-         * 弹出数组最后一个元素
-         * @param item 数组元素
-         */
-        pop(): T | undefined;
-        /**
-         * @zh
-         * 得到数组中指定索引的元素
-         * @param item 数组元素
-         */
-        get(idx: number): T;
-        /**
-         * @zh
-         * 清空数组所有元素
-         */
-        clear(): void;
-        /**
-         * @zh
-         * 排序数组
-         */
-        sort(): void;
-        /**
-         * @zh
-         * 连接一个指定数组中的所有元素到当前数组末尾
-         */
-        concat(array: T[]): void;
-        /**
-         * @zh 删除指定位置的元素并将最后一个元素移动至该位置。
-         * @param idx 数组索引。
-         */
-        fastRemove(idx: number): void;
-        /**
-         * @zh 返回某个数组元素对应的下标。
-         * @param val 数组元素。
-         */
-        indexOf(val: T): number;
+    export class GFXColorAttachment {
+        format: GFXFormat;
+        sampleCount: number;
+        loadOp: GFXLoadOp;
+        storeOp: GFXStoreOp;
+        beginLayout: GFXTextureLayout;
+        endLayout: GFXTextureLayout;
+    }
+    /**
+     * @en Depth stencil attachment.
+     * @zh GFX 深度模板附件。
+     */
+    export class GFXDepthStencilAttachment {
+        format: GFXFormat;
+        sampleCount: number;
+        depthLoadOp: GFXLoadOp;
+        depthStoreOp: GFXStoreOp;
+        stencilLoadOp: GFXLoadOp;
+        stencilStoreOp: GFXStoreOp;
+        beginLayout: GFXTextureLayout;
+        endLayout: GFXTextureLayout;
+    }
+    export interface IGFXSubPassInfo {
+        bindPoint: GFXPipelineBindPoint;
+        inputs: number[];
+        colors: number[];
+        resolves: number[];
+        depthStencil?: number;
+        preserves: number[];
+    }
+    export interface IGFXRenderPassInfo {
+        colorAttachments: GFXColorAttachment[];
+        depthStencilAttachment: GFXDepthStencilAttachment | null;
+        subPasses?: IGFXSubPassInfo[];
+    }
+    /**
+     * @en GFX render pass.
+     * @zh GFX 渲染过程。
+     */
+    export abstract class GFXRenderPass extends GFXObject {
+        protected _device: GFXDevice;
+        protected _colorInfos: GFXColorAttachment[];
+        protected _depthStencilInfo: GFXDepthStencilAttachment | null;
+        protected _subPasses: IGFXSubPassInfo[];
+        protected _hash: number;
+        get colorAttachments(): GFXColorAttachment[];
+        get depthStencilAttachment(): GFXDepthStencilAttachment | null;
+        get subPasses(): IGFXSubPassInfo[];
+        get hash(): number;
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXRenderPassInfo): boolean;
+        abstract destroy(): void;
+        protected computeHash(): number;
     }
 }
-declare module "cocos/core/memop/index" {
+declare module "cocos/core/gfx/framebuffer" {
     /**
-     * @hidden
+     * @category gfx
      */
-    export * from "cocos/core/memop/pool";
-    export * from "cocos/core/memop/recycle-pool";
-    export * from "cocos/core/memop/cached-array";
+    import { GFXObject } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXRenderPass } from "cocos/core/gfx/render-pass";
+    import { GFXTexture } from "cocos/core/gfx/texture";
+    export interface IGFXFramebufferInfo {
+        renderPass: GFXRenderPass;
+        colorTextures: (GFXTexture | null)[];
+        depthStencilTexture: GFXTexture | null;
+        colorMipmapLevels?: number[];
+        depStencilMipmapLevel?: number;
+    }
+    /**
+     * @en GFX frame buffer.
+     * @zh GFX 帧缓冲。
+     */
+    export abstract class GFXFramebuffer extends GFXObject {
+        /**
+         * @en Get current render pass.
+         * @zh GFX 渲染过程。
+         */
+        get renderPass(): GFXRenderPass;
+        /**
+         * @en Get current color views.
+         * @zh 颜色纹理视图数组。
+         */
+        get colorTextures(): (GFXTexture | null)[];
+        /**
+         * @en Get current depth stencil views.
+         * @zh 深度模板纹理视图。
+         */
+        get depthStencilTexture(): GFXTexture | null;
+        protected _device: GFXDevice;
+        protected _renderPass: GFXRenderPass | null;
+        protected _colorTextures: (GFXTexture | null)[];
+        protected _depthStencilTexture: GFXTexture | null;
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXFramebufferInfo): boolean;
+        abstract destroy(): void;
+    }
+}
+declare module "cocos/core/gfx/input-assembler" {
+    /**
+     * @category gfx
+     */
+    import { GFXBuffer } from "cocos/core/gfx/buffer";
+    import { GFXFormat, GFXObject } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    export interface IGFXAttribute {
+        name: string;
+        format: GFXFormat;
+        isNormalized?: boolean;
+        stream?: number;
+        isInstanced?: boolean;
+        location?: number;
+    }
+    export interface IGFXInputAssemblerInfo {
+        attributes: IGFXAttribute[];
+        vertexBuffers: GFXBuffer[];
+        indexBuffer?: GFXBuffer;
+        indirectBuffer?: GFXBuffer;
+    }
+    /**
+     * @en GFX input assembler.
+     * @zh GFX 输入汇集器。
+     */
+    export abstract class GFXInputAssembler extends GFXObject {
+        /**
+         * @en Get current vertex buffers.
+         * @zh 顶点缓冲数组。
+         */
+        get vertexBuffers(): GFXBuffer[];
+        /**
+         * @en Get current index buffer.
+         * @zh 索引缓冲。
+         */
+        get indexBuffer(): GFXBuffer | null;
+        /**
+         * @en Get current attributes.
+         * @zh 顶点属性数组。
+         */
+        get attributes(): IGFXAttribute[];
+        /**
+         * @en Get hash of current attributes.
+         * @zh 获取顶点属性数组的哈希值。
+         */
+        get attributesHash(): number;
+        /**
+         * @en Get current vertex count.
+         * @zh 顶点数量。
+         */
+        get vertexCount(): number;
+        set vertexCount(count: number);
+        /**
+         * @en Get starting vertex.
+         * @zh 起始顶点。
+         */
+        get firstVertex(): number;
+        set firstVertex(first: number);
+        /**
+         * @en Get current index count.
+         * @zh 索引数量。
+         */
+        get indexCount(): number;
+        set indexCount(count: number);
+        /**
+         * @en Get starting index.
+         * @zh 起始索引。
+         */
+        get firstIndex(): number;
+        set firstIndex(first: number);
+        /**
+         * @en Get current vertex offset.
+         * @zh 顶点偏移量。
+         */
+        get vertexOffset(): number;
+        set vertexOffset(offset: number);
+        /**
+         * @en Get current instance count.
+         * @zh 实例数量。
+         */
+        get instanceCount(): number;
+        set instanceCount(count: number);
+        /**
+         * @en Get starting instance.
+         * @zh 起始实例。
+         */
+        get firstInstance(): number;
+        set firstInstance(first: number);
+        /**
+         * @en Is the assembler an indirect command?
+         * @zh 是否间接绘制。
+         */
+        get isIndirect(): boolean;
+        /**
+         * @en Get the indirect buffer, if present.
+         * @zh 间接绘制缓冲。
+         */
+        get indirectBuffer(): GFXBuffer | null;
+        protected _device: GFXDevice;
+        protected _attributes: IGFXAttribute[];
+        protected _vertexBuffers: GFXBuffer[];
+        protected _indexBuffer: GFXBuffer | null;
+        protected _vertexCount: number;
+        protected _firstVertex: number;
+        protected _indexCount: number;
+        protected _firstIndex: number;
+        protected _vertexOffset: number;
+        protected _instanceCount: number;
+        protected _firstInstance: number;
+        protected _isIndirect: boolean;
+        protected _attributesHash: number;
+        protected _indirectBuffer: GFXBuffer | null;
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXInputAssemblerInfo): boolean;
+        abstract destroy(): void;
+        /**
+         * @en Get the specified vertex buffer.
+         * @zh 获取顶点缓冲。
+         * @param stream The stream index of the vertex buffer.
+         */
+        getVertexBuffer(stream?: number): GFXBuffer | null;
+        protected computeAttributesHash(): number;
+    }
+}
+declare module "cocos/core/gfx/shader" {
+    /**
+     * @category gfx
+     */
+    import { GFXObject, GFXShaderStageFlagBit, GFXType } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
+    export class GFXShaderStage {
+        stage: GFXShaderStageFlagBit;
+        source: string;
+    }
+    /**
+     * @en GFX uniform.
+     * @zh GFX uniform。
+     */
+    export class GFXUniform {
+        name: string;
+        type: GFXType;
+        count: number;
+    }
+    /**
+     * @en GFX uniform block.
+     * @zh GFX uniform 块。
+     */
+    export class GFXUniformBlock {
+        set: number;
+        binding: number;
+        name: string;
+        members: GFXUniform[];
+        count: number;
+    }
+    /**
+     * @en GFX uniform sampler.
+     * @zh GFX Uniform 采样器。
+     */
+    export class GFXUniformSampler {
+        set: number;
+        binding: number;
+        name: string;
+        type: GFXType;
+        count: number;
+    }
+    export class GFXShaderInfo {
+        name: string;
+        stages: GFXShaderStage[];
+        attributes: IGFXAttribute[];
+        blocks: GFXUniformBlock[];
+        samplers: GFXUniformSampler[];
+    }
+    /**
+     * @en GFX shader.
+     * @zh GFX 着色器。
+     */
+    export abstract class GFXShader extends GFXObject {
+        /**
+         * @en Get current shader id.
+         * @zh 着色器 id。
+         */
+        get id(): number;
+        /**
+         * @en Get current shader name.
+         * @zh 着色器名称。
+         */
+        get name(): string;
+        get attributes(): IGFXAttribute[];
+        get blocks(): GFXUniformBlock[];
+        get samplers(): GFXUniformSampler[];
+        protected _device: GFXDevice;
+        protected _id: number;
+        protected _name: string;
+        protected _stages: GFXShaderStage[];
+        protected _attributes: IGFXAttribute[];
+        protected _blocks: GFXUniformBlock[];
+        protected _samplers: GFXUniformSampler[];
+        constructor(device: GFXDevice);
+        abstract initialize(info: GFXShaderInfo): boolean;
+        abstract destroy(): void;
+    }
 }
 declare module "cocos/core/utils/path" {
     /**
@@ -6268,146 +9779,6 @@ declare module "cocos/core/utils/html-text-parser" {
         private _escapeSpecialSymbol;
     }
 }
-declare module "cocos/core/data/_decorators/serializable" {
-    export const field: PropertyDecorator;
-    export function formerlySerializedAs(name: string): PropertyDecorator;
-    /**
-     * @en
-     * Marks the property as editor only.
-     * @zh
-     * 设置该属性仅在编辑器中生效。
-     */
-    export const editorOnly: PropertyDecorator;
-}
-declare module "cocos/core/data/_decorators/utils" {
-    /**
-     * A class decorator which does nothing.
-     */
-    export const emptyClassOrPropertyDecorator: ClassDecorator & PropertyDecorator;
-    /**
-     * Ignoring all arguments and return the `emptyClassDecorator`.
-     */
-    export const ignoringArgsClassDecorator: () => ClassDecorator & PropertyDecorator;
-    export const ignoringArgsPropertyDecorator: () => PropertyDecorator;
-}
-declare module "cocos/core/data/_decorators/editable" {
-    export { executeInEditMode, requireComponent, menu, executionOrder, disallowMultiple, playOnFocus, inspector, icon, help, } from "cocos/core/data/class-decorator";
-    export const field: PropertyDecorator;
-    /**
-     * @en
-     * Sets the condition to show the property.
-     * @zh
-     * 设置在编辑器展示该属性的条件。
-     * @param condition 展示条件，当返回 `true` 时展示；否则不展示。
-     */
-    export const visible: (condition: boolean | (() => boolean)) => PropertyDecorator;
-    export const readOnly: PropertyDecorator;
-    /**
-     * @en
-     * Sets the display name of the property in editor.
-     * @zh
-     * 设置该属性在编辑器中的显示名称。
-     * @param text 显示名称。
-     */
-    export const displayName: (text: string) => PropertyDecorator;
-    /**
-     * @en
-     * Sets the tooltip content of the property in editor.
-     * @zh
-     * 设置该属性在编辑器中的工具提示内容。
-     * @param text 工具提示。
-     */
-    export const tooltip: (text: string) => PropertyDecorator;
-    /**
-     * @en
-     * Sets the allowed range of the property in editor.
-     * @zh
-     * 设置该属性在编辑器中允许设置的范围。
-     * @param values 范围。
-     */
-    export const range: (values: [number, number, number] | [number, number]) => PropertyDecorator;
-    /**
-     * @en
-     * Sets the allowed min value of the property in editor.
-     * @zh
-     * 设置该属性在编辑器中允许的最小值。
-     * @param value 最小值。
-     */
-    export const rangeMin: (value: number) => PropertyDecorator;
-    /**
-     * @en
-     * Sets the allowed max value of the property in editor.
-     * @zh
-     * 设置该属性在编辑器中允许的最大值。
-     * @param value 最大值。
-     */
-    export const rangeMax: (value: number) => PropertyDecorator;
-    /**
-     * @en
-     * Sets the step of the property in editor.
-     * @zh
-     * 设置该属性在编辑器中的步进值。
-     * @param value 步进值。
-     */
-    export const rangeStep: (value: number) => PropertyDecorator;
-    /**
-     * @en
-     * Enable a slider be given to coordinate the property in editor.
-     * @zh
-     * 允许在编辑器中提供滑动条来调节值
-     */
-    export const slide: PropertyDecorator;
-    /**
-     * @en
-     * Sets the display order of the property in editor.
-     * @zh
-     * 设置该属性在编辑器中的显示顺序。
-     * @param order 显示顺序。
-     */
-    export const displayOrder: (order: number) => PropertyDecorator;
-    /**
-     * @en
-     * Sets the unit of the property in editor.
-     * @zh
-     * 设置该属性在编辑器中的计量单位。
-     * @param name 计量单位的名称。
-     */
-    export const unit: (name: 'lm' | 'lx' | 'cd/m²') => PropertyDecorator;
-    /**
-     * @en
-     * Sets to convert the value into radian before feed it to the property in editor.
-     * @zh
-     * 设置在编辑器中赋值该属性前将值先转换为弧度制。
-     */
-    export const radian: PropertyDecorator;
-    /**
-     * @en
-     * Enable multi-line display of the property in editor.
-     * @zh
-     * 允许在编辑器中对该属性进行多行显示。
-     */
-    export const multiline: PropertyDecorator;
-}
-declare module "cocos/core/data/_decorators/type" {
-    export { string, integer, float, boolean, type, } from "cocos/core/data/class-decorator";
-}
-declare module "cocos/core/data/_decorators/override" {
-    export const override: PropertyDecorator;
-}
-declare module "cocos/core/data/_decorators/animatable" {
-    /**
-     *
-     * @param value
-     */
-    export function animatable(value: boolean): PropertyDecorator;
-}
-declare module "cocos/core/data/_decorators/index" {
-    export * as serializable from "cocos/core/data/_decorators/serializable";
-    export * as editable from "cocos/core/data/_decorators/editable";
-    export * from "cocos/core/data/_decorators/type";
-    export * from "cocos/core/data/_decorators/override";
-    export * from "cocos/core/data/_decorators/animatable";
-}
 declare module "cocos/core/utils/prefab-helper" {
     export class PrefabInfo {
         root: null;
@@ -6420,24 +9791,6 @@ declare module "cocos/core/utils/prefab-helper" {
         };
     }
     export default function syncWithPrefab(node: any): void;
-}
-declare module "cocos/core/assets/raw-asset" {
-    import { CCObject } from "cocos/core/data/object";
-    /**
-     * 原生资源的基类。内部使用。
-     * @private
-     */
-    export class RawAsset extends CCObject {
-        /**
-         * 内部使用。
-         */
-        static isRawAssetType(ctor: Function): boolean;
-        /**
-         * 内部使用。
-         */
-        _uuid: string;
-        constructor(...args: ConstructorParameters<typeof CCObject>);
-    }
 }
 declare module "cocos/core/data/utils/compiler" {
     export function flattenCodeArray(array: any): string;
@@ -6512,3006 +9865,27 @@ declare module "cocos/core/assets/prefab" {
         private _instantiate;
     }
 }
-declare module "cocos/core/event/event" {
+declare module "cocos/core/assets/scene-asset" {
+    import { Scene } from "cocos/core/scene-graph/index";
+    import { Asset } from "cocos/core/assets/asset";
     /**
-     * 事件相关
-     * @category event
-     */
-    /**
-     * @en
-     * Base class of all kinds of events.
+     * @en Class for scene handling.
+     * @zh 场景资源类。
+     * @class SceneAsset
+     * @extends Asset
      *
-     * @zh
-     * 所有事件对象的基类，包含事件相关基本信息。
      */
-    export default class Event {
+    export default class SceneAsset extends Asset {
         /**
-         * @en
-         * Code for event without type.
-         *
-         * @zh
-         * 没有类型的事件。
+         * 场景结点。
          */
-        static NO_TYPE: string;
+        scene: Scene | null;
         /**
-         * @en
-         * The type code of Touch event.
-         *
-         * @zh
-         * 触摸事件类型。
-         */
-        static TOUCH: string;
-        /**
-         * @en
-         * The type code of Mouse event.
-         *
-         * @zh
-         * 鼠标事件类型。
-         */
-        static MOUSE: string;
-        /**
-         * @en
-         * The type code of Keyboard event.
-         *
-         * @zh
-         * 键盘事件类型。
-         */
-        static KEYBOARD: string;
-        /**
-         * @en
-         * The type code of Acceleration event.
-         *
-         * @zh
-         * 加速器事件类型。
-         */
-        static ACCELERATION: string;
-        /**
-         * @en
-         * Events not currently dispatched are in this phase.
-         *
-         * @zh
-         * 尚未派发事件阶段。
-         */
-        static NONE: number;
-        /**
-         * @en
-         * The capturing phase comprises the journey from the root to the last node before the event target's node
-         * [markdown](http://www.w3.org/TR/DOM-Level-3-Events/#event-flow)
-         *
-         * @zh
-         * 捕获阶段，包括事件目标节点之前从根节点到最后一个节点的过程。
-         */
-        static CAPTURING_PHASE: number;
-        /**
-         * @en
-         * The target phase comprises only the event target node
-         * [markdown] (http://www.w3.org/TR/DOM-Level-3-Events/#event-flow)
-         *
-         * @zh
-         * 目标阶段仅包括事件目标节点。
-         */
-        static AT_TARGET: number;
-        /**
-         * @en
-         * The bubbling phase comprises any subsequent nodes encountered on the return trip to the root of the hierarchy
-         * [markdown] (http://www.w3.org/TR/DOM-Level-3-Events/#event-flow)
-         *
-         * @zh
-         * 冒泡阶段， 包括回程遇到到层次根节点的任何后续节点。
-         */
-        static BUBBLING_PHASE: number;
-        /**
-         * @en
-         * The name of the event (case-sensitive), e.g. "click", "fire", or "submit".
-         *
-         * @zh
-         * 事件类型。
-         */
-        type: string;
-        /**
-         * @en
-         * Indicate whether the event bubbles up through the hierarchy or not.
-         *
-         * @zh
-         * 表示该事件是否进行冒泡。
-         */
-        bubbles: boolean;
-        /**
-         * @en
-         * A reference to the target to which the event was originally dispatched.
-         *
-         * @zh
-         * 最初事件触发的目标。
-         */
-        target: Object | null;
-        /**
-         * @en
-         * A reference to the currently registered target for the event.
-         *
-         * @zh
-         * 当前目标。
-         */
-        currentTarget: Object | null;
-        /**
-         * @en
-         * Indicates which phase of the event flow is currently being evaluated.
-         * Returns an integer value represented by 4 constants:
-         *  - Event.NONE = 0
-         *  - Event.CAPTURING_PHASE = 1
-         *  - Event.AT_TARGET = 2
-         *  - Event.BUBBLING_PHASE = 3
-         * The phases are explained in the [section 3.1, Event dispatch and DOM event flow]
-         * [markdown](http://www.w3.org/TR/DOM-Level-3-Events/#event-flow), of the DOM Level 3 Events specification.
-         *
-         * @zh
-         * 事件阶段。
-         */
-        eventPhase: number;
-        /**
-         * @en
-         * Stops propagation for current event.
-         *
-         * @zh
-         * 停止传递当前事件。
-         */
-        propagationStopped: boolean;
-        /**
-         * @en
-         * Stops propagation for current event immediately,
-         * the event won't even be dispatched to the listeners attached in the current target.
-         *
-         * @zh
-         * 立即停止当前事件的传递，事件甚至不会被分派到所连接的当前目标。
-         */
-        propagationImmediateStopped: boolean;
-        /**
-         * @param type - The name of the event (case-sensitive), e.g. "click", "fire", or "submit"
-         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
-         */
-        constructor(type: string, bubbles?: boolean);
-        /**
-         * @en
-         * Reset the event for being stored in the object pool.
-         *
-         * @zh
-         * 重置事件对象以便在对象池中存储。
-         */
-        unuse(): void;
-        /**
-         * @en
-         * Reinitialize the event for being used again after retrieved from the object pool.
-         * @zh
-         * 重新初始化让对象池中取出的事件可再次使用。
-         * @param type - The name of the event (case-sensitive), e.g. "click", "fire", or "submit"
-         * @param bubbles - A boolean indicating whether the event bubbles up through the tree or not
-         */
-        reuse(type: string, bubbles?: boolean): void;
-        /**
-         * @en
-         * Checks whether the event has been stopped.
-         *
-         * @zh
-         * 检查该事件是否已经停止传递。
-         */
-        isStopped(): boolean;
-        /**
-         * @en
-         * Gets current target of the event                                                            <br/>
-         * note: It only be available when the event listener is associated with node.                <br/>
-         * It returns 0 when the listener is associated with fixed priority.
-         * @zh
-         * 获取当前目标节点
-         * @returns - The target with which the event associates.
-         */
-        getCurrentTarget(): Object | null;
-        /**
-         * @en
-         * Gets the event type.
-         * @zh
-         * 获取事件类型。
-         */
-        getType(): string;
-    }
-}
-declare module "cocos/core/platform/event-manager/event-enum" {
-    /**
-     * @en The event type supported by SystemEvent and Node events
-     * @zh SystemEvent 支持的事件类型以及节点事件类型
-     */
-    export enum SystemEventType {
-        /**
-         * @en
-         * The event type for touch start event, you can use its value directly: 'touchstart'.
-         *
-         * @zh
-         * 手指开始触摸事件。
-         */
-        TOUCH_START = "touch-start",
-        /**
-         * @en
-         * The event type for touch move event, you can use its value directly: 'touchmove'.
-         *
-         * @zh
-         * 当手指在屏幕上移动时。
-         */
-        TOUCH_MOVE = "touch-move",
-        /**
-         * @en
-         * The event type for touch end event, you can use its value directly: 'touchend'.
-         *
-         * @zh
-         * 手指结束触摸事件。
-         */
-        TOUCH_END = "touch-end",
-        /**
-         * @en
-         * The event type for touch end event, you can use its value directly: 'touchcancel'.
-         *
-         * @zh
-         * 当手指在目标节点区域外离开屏幕时。
-         */
-        TOUCH_CANCEL = "touch-cancel",
-        /**
-         * @en
-         * The event type for mouse down events, you can use its value directly: 'mousedown'.
-         *
-         * @zh
-         * 当鼠标按下时触发一次。
-         */
-        MOUSE_DOWN = "mouse-down",
-        /**
-         * @en
-         * The event type for mouse move events, you can use its value directly: 'mousemove'.
-         *
-         * @zh
-         * 当鼠标在目标节点在目标节点区域中移动时，不论是否按下。
-         */
-        MOUSE_MOVE = "mouse-move",
-        /**
-         * @en
-         * The event type for mouse up events, you can use its value directly: 'mouseup'.
-         *
-         * @zh
-         * 当鼠标从按下状态松开时触发一次。
-         */
-        MOUSE_UP = "mouse-up",
-        /**
-         * @en
-         * The event type for mouse wheel events, you can use its value directly: 'mousewheel'.
-         *
-         * @zh 手指开始触摸事件
-         */
-        MOUSE_WHEEL = "mouse-wheel",
-        /**
-         * @en
-         * The event type for mouse leave target events, you can use its value directly: 'mouseleave'.
-         *
-         * @zh
-         * 当鼠标移入目标节点区域时，不论是否按下.
-         */
-        MOUSE_ENTER = "mouse-enter",
-        /**
-         * @en
-         * The event type for mouse leave target events, you can use its value directly: 'mouseleave'.
-         *
-         * @zh
-         * 当鼠标移出目标节点区域时，不论是否按下。
-         */
-        MOUSE_LEAVE = "mouse-leave",
-        /**
-         * @en The event type for press the key down event, you can use its value directly: 'keydown'
-         * @zh 当按下按键时触发的事件
-         */
-        KEY_DOWN = "keydown",
-        /**
-         * @en The event type for press the key up event, you can use its value directly: 'keyup'
-         * @zh 当松开按键时触发的事件
-         */
-        KEY_UP = "keyup",
-        /**
-         * @en
-         * The event type for press the devicemotion event, you can use its value directly: 'devicemotion'
-         *
-         * @zh
-         * 重力感应
-         */
-        DEVICEMOTION = "devicemotion",
-        /**
-         * @en
-         * The event type for position, rotation, scale changed.Use the type parameter as [[Node.TransformBit]] to check which part is changed
-         *
-         * @zh
-         * 节点改变位置、旋转或缩放事件。如果具体需要判断是哪一个事件，可通过判断回调的第一个参数类型是 [[Node.TransformBit]] 中的哪一个来获取
-         * @example
-         * ```
-         * this.node.on(Node.EventType.TRANSFORM_CHANGED, (type)=>{
-         *  if (type & Node.TransformBit.POSITION) {
-         *       //...
-         *   }
-         * }, this);
-         * ```
-         */
-        TRANSFORM_CHANGED = "transform-changed",
-        /**
-         * @en The event type for notifying the host scene has been changed for a persist node.
-         * @zh 当场景常驻节点的场景发生改变时触发的事件，一般在切换场景过程中触发。
-         */
-        SCENE_CHANGED_FOR_PERSISTS = "scene-changed-for-persists",
-        /**
-         * @en
-         * The event type for size change events.
-         * Performance note, this event will be triggered every time corresponding properties being changed,
-         * if the event callback have heavy logic it may have great performance impact, try to avoid such scenario.
-         *
-         * @zh
-         * 当节点尺寸改变时触发的事件。
-         * 性能警告：这个事件会在每次对应的属性被修改时触发，如果事件回调损耗较高，有可能对性能有很大的负面影响，请尽量避免这种情况。
-         */
-        SIZE_CHANGED = "size-changed",
-        /**
-         * @en
-         * The event type for anchor point change events.
-         * Performance note, this event will be triggered every time corresponding properties being changed,
-         * if the event callback have heavy logic it may have great performance impact, try to avoid such scenario.
-         *
-         * @zh
-         * 当节点的 UITransform 锚点改变时触发的事件。
-         * 性能警告：这个事件会在每次对应的属性被修改时触发，如果事件回调损耗较高，有可能对性能有很大的负面影响，请尽量避免这种情况。
-         * @deprecated
-         */
-        ANCHOR_CHANGED = "anchor-changed",
-        /**
-         * @en
-         * The event type for adding a new child node to the target node.
-         *
-         * @zh
-         * 给目标节点添加子节点时触发的事件。
-         */
-        CHILD_ADDED = "child-added",
-        /**
-         * @en
-         * The event type for removing a child node from the target node.
-         *
-         * @zh
-         * 给目标节点移除子节点时触发的事件。
-         */
-        CHILD_REMOVED = "child-removed",
-        /**
-         * @en The event type for changing the parent of the target node
-         * @zh 目标节点的父节点改变时触发的事件。
-         */
-        PARENT_CHANGED = "parent-changed",
-        /**
-         * @en The event type for destroying the target node
-         * @zh 目标节点被销毁时触发的事件。
-         */
-        NODE_DESTROYED = "node-destroyed"
-    }
-}
-declare module "cocos/core/platform/event-manager/touch" {
-    /**
-     * @category event
-     */
-    import { Vec2 } from "cocos/core/math/index";
-    /**
-     * @en The touch point class
-     * @zh 封装了触点相关的信息。
-     */
-    export class Touch {
-        private _point;
-        private _prevPoint;
-        private _lastModified;
-        private _id;
-        private _startPoint;
-        private _startPointCaptured;
-        get lastModified(): number;
-        /**
-         * @param x - x position of the touch point
-         * @param y - y position of the touch point
-         * @param id - The id of the touch point
-         */
-        constructor(x: number, y: number, id?: number);
-        /**
-         * @en Returns the current touch location in OpenGL coordinates.、
-         * @zh 获取当前触点位置。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns X axis location value.
-         * @zh 获取当前触点 X 轴位置。
-         */
-        getLocationX(): number;
-        /**
-         * @en Returns Y axis location value.
-         * @zh 获取当前触点 Y 轴位置。
-         */
-        getLocationY(): number;
-        /**
-         * @en Returns the current touch location in UI coordinates.、
-         * @zh 获取当前触点在 UI 坐标系中的位置。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUILocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns X axis location value in UI coordinates.
-         * @zh 获取当前触点在 UI 坐标系中 X 轴位置。
-         */
-        getUILocationX(): number;
-        /**
-         * @en Returns Y axis location value in UI coordinates.
-         * @zh 获取当前触点在 UI 坐标系中 Y 轴位置。
-         */
-        getUILocationY(): number;
-        /**
-         * @en Returns the previous touch location.
-         * @zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the previous touch location in UI coordinates.
-         * @zh 获取触点在上一次事件时在 UI 坐标系中的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUIPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the start touch location.
-         * @zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getStartLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the start touch location in UI coordinates.
-         * @zh 获获取触点落下时在 UI 坐标系中的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUIStartLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the delta distance from the previous touche to the current one.
-         * @zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getDelta(out?: Vec2): Vec2;
-        /**
-         * @en Returns the delta distance from the previous touche to the current one in UI coordinates.
-         * @zh 获取触点距离上一次事件移动在 UI 坐标系中的距离对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUIDelta(out?: Vec2): Vec2;
-        /**
-         * @en Returns the current touch location in screen coordinates.
-         * @zh 获取当前事件在游戏窗口内的坐标位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getLocationInView(out?: Vec2): Vec2;
-        /**
-         * @en Returns the previous touch location in screen coordinates.
-         * @zh 获取触点在上一次事件时在游戏窗口中的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getPreviousLocationInView(out?: Vec2): Vec2;
-        /**
-         * @en Returns the start touch location in screen coordinates.
-         * @zh 获取触点落下时在游戏窗口中的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getStartLocationInView(out?: Vec2): Vec2;
-        /**
-         * @en Returns the id of the touch point.
-         * @zh 触点的标识 ID，可以用来在多点触摸中跟踪触点。
-         */
-        getID(): number;
-        /**
-         * @en Resets touch point information.
-         * @zh 重置触点相关的信息。
-         * @param id - The id of the touch point
-         * @param x - x position of the touch point
-         * @param y - y position of the touch point
-         */
-        setTouchInfo(id?: number, x?: number, y?: number): void;
-        /**
-         * @en Sets touch point location.
-         * @zh 设置触点位置。
-         * @param point - The location
-         */
-        setPoint(point: Vec2): void;
-        /**
-         * @en Sets touch point location.
-         * @zh 设置触点位置。
-         * @param x - x position
-         * @param y - y position
-         */
-        setPoint(x: number, y: number): void;
-        /**
-         * @en Sets the location previously registered for the current touch.
-         * @zh 设置触点在前一次触发时收集的位置。
-         * @param point - The location
-         */
-        setPrevPoint(point: Vec2): void;
-        /**
-         * @en Sets the location previously registered for the current touch.
-         * @zh 设置触点在前一次触发时收集的位置。
-         * @param x - x position
-         * @param y - y position
-         */
-        setPrevPoint(x: number, y: number): void;
-    }
-}
-declare module "cocos/core/platform/macro" {
-    /**
-     * @en
-     * Predefined constants
-     * @zh
-     * 预定义常量。
-     */
-    const macro: {
-        /**
-         * @en
-         * The image format supported by the engine defaults, and the supported formats may differ in different build platforms and device types.
-         * Currently all platform and device support ['.webp', '.jpg', '.jpeg', '.bmp', '.png'], ios mobile platform
-         * @zh
-         * 引擎默认支持的图片格式，支持的格式可能在不同的构建平台和设备类型上有所差别。
-         * 目前所有平台和设备支持的格式有 ['.webp', '.jpg', '.jpeg', '.bmp', '.png']. The iOS mobile platform also supports the PVR format。
-         */
-        SUPPORT_TEXTURE_FORMATS: string[];
-        /**
-         * @en Key map for keyboard event
-         * @zh 键盘事件的按键值。
-         * @example {@link cocos/core/platform/CCCommon/KEY.js}
-         */
-        KEY: {
-            /**
-             * @en None
-             * @zh 没有分配
-             * @readonly
-             */
-            none: number;
-            /**
-             * @en The back key
-             * @zh 返回键
-             * @readonly
-             */
-            back: number;
-            /**
-             * @en The menu key
-             * @zh 菜单键
-             * @readonly
-             */
-            menu: number;
-            /**
-             * @en The backspace key
-             * @zh 退格键
-             * @readonly
-             */
-            backspace: number;
-            /**
-             * @en The tab key
-             * @zh Tab 键
-             * @readonly
-             */
-            tab: number;
-            /**
-             * @en The enter key
-             * @zh 回车键
-             * @readonly
-             */
-            enter: number;
-            /**
-             * @en The shift key
-             * @zh Shift 键
-             * @readonly
-             */
-            shift: number;
-            /**
-             * @en The ctrl key
-             * @zh Ctrl 键
-             * @readonly
-             */
-            ctrl: number;
-            /**
-             * @en The alt key
-             * @zh Alt 键
-             * @readonly
-             */
-            alt: number;
-            /**
-             * @en The pause key
-             * @zh 暂停键
-             * @readonly
-             */
-            pause: number;
-            /**
-             * @en The caps lock key
-             * @zh 大写锁定键
-             * @readonly
-             */
-            capslock: number;
-            /**
-             * @en The esc key
-             * @zh ESC 键
-             * @readonly
-             */
-            escape: number;
-            /**
-             * @en The space key
-             * @zh 空格键
-             * @readonly
-             */
-            space: number;
-            /**
-             * @en The page up key
-             * @zh 向上翻页键
-             * @readonly
-             */
-            pageup: number;
-            /**
-             * @en The page down key
-             * @zh 向下翻页键
-             * @readonly
-             */
-            pagedown: number;
-            /**
-             * @en The end key
-             * @zh 结束键
-             * @readonly
-             */
-            end: number;
-            /**
-             * @en The home key
-             * @zh 主菜单键
-             * @readonly
-             */
-            home: number;
-            /**
-             * @en The left key
-             * @zh 向左箭头键
-             * @readonly
-             */
-            left: number;
-            /**
-             * @en The up key
-             * @zh 向上箭头键
-             * @readonly
-             */
-            up: number;
-            /**
-             * @en The right key
-             * @zh 向右箭头键
-             * @readonly
-             */
-            right: number;
-            /**
-             * @en The down key
-             * @zh 向下箭头键
-             * @readonly
-             */
-            down: number;
-            /**
-             * @en The select key
-             * @zh Select 键
-             * @readonly
-             */
-            select: number;
-            /**
-             * @en The insert key
-             * @zh 插入键
-             * @readonly
-             */
-            insert: number;
-            /**
-             * @en The Delete key
-             * @zh 删除键
-             * @readonly
-             */
-            Delete: number;
-            /**
-             * @en The '0' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 0 键
-             * @readonly
-             */
-            0: number;
-            /**
-             * @en The '1' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 1 键
-             * @readonly
-             */
-            1: number;
-            /**
-             * @en The '2' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 2 键
-             * @readonly
-             */
-            2: number;
-            /**
-             * @en The '3' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 3 键
-             * @readonly
-             */
-            3: number;
-            /**
-             * @en The '4' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 4 键
-             * @readonly
-             */
-            4: number;
-            /**
-             * @en The '5' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 5 键
-             * @readonly
-             */
-            5: number;
-            /**
-             * @en The '6' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 6 键
-             * @readonly
-             */
-            6: number;
-            /**
-             * @en The '7' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 7 键
-             * @readonly
-             */
-            7: number;
-            /**
-             * @en The '8' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 8 键
-             * @readonly
-             */
-            8: number;
-            /**
-             * @en The '9' key on the top of the alphanumeric keyboard.
-             * @zh 字母键盘上的 9 键
-             * @readonly
-             */
-            9: number;
-            /**
-             * @en The a key
-             * @zh A 键
-             * @readonly
-             */
-            a: number;
-            /**
-             * @en The b key
-             * @zh B 键
-             * @readonly
-             */
-            b: number;
-            /**
-             * @en The c key
-             * @zh C 键
-             * @readonly
-             */
-            c: number;
-            /**
-             * @en The d key
-             * @zh D 键
-             * @readonly
-             */
-            d: number;
-            /**
-             * @en The e key
-             * @zh E 键
-             * @readonly
-             */
-            e: number;
-            /**
-             * @en The f key
-             * @zh F 键
-             * @readonly
-             */
-            f: number;
-            /**
-             * @en The g key
-             * @zh G 键
-             * @readonly
-             */
-            g: number;
-            /**
-             * @en The h key
-             * @zh H 键
-             * @readonly
-             */
-            h: number;
-            /**
-             * @en The i key
-             * @zh I 键
-             * @readonly
-             */
-            i: number;
-            /**
-             * @en The j key
-             * @zh J 键
-             * @readonly
-             */
-            j: number;
-            /**
-             * @en The k key
-             * @zh K 键
-             * @readonly
-             */
-            k: number;
-            /**
-             * @en The l key
-             * @zh L 键
-             * @readonly
-             */
-            l: number;
-            /**
-             * @en The m key
-             * @zh M 键
-             * @readonly
-             */
-            m: number;
-            /**
-             * @en The n key
-             * @zh N 键
-             * @readonly
-             */
-            n: number;
-            /**
-             * @en The o key
-             * @zh O 键
-             * @readonly
-             */
-            o: number;
-            /**
-             * @en The p key
-             * @zh P 键
-             * @readonly
-             */
-            p: number;
-            /**
-             * @en The q key
-             * @zh Q 键
-             * @readonly
-             */
-            q: number;
-            /**
-             * @en The r key
-             * @zh R 键
-             * @readonly
-             */
-            r: number;
-            /**
-             * @en The s key
-             * @zh S 键
-             * @readonly
-             */
-            s: number;
-            /**
-             * @en The t key
-             * @zh T 键
-             * @readonly
-             */
-            t: number;
-            /**
-             * @en The u key
-             * @zh U 键
-             * @readonly
-             */
-            u: number;
-            /**
-             * @en The v key
-             * @zh V 键
-             * @readonly
-             */
-            v: number;
-            /**
-             * @en The w key
-             * @zh W 键
-             * @readonly
-             */
-            w: number;
-            /**
-             * @en The x key
-             * @zh X 键
-             * @readonly
-             */
-            x: number;
-            /**
-             * @en The y key
-             * @zh Y 键
-             * @readonly
-             */
-            y: number;
-            /**
-             * @en The z key
-             * @zh Z 键
-             * @readonly
-             */
-            z: number;
-            /**
-             * @en The numeric keypad 0
-             * @zh 数字键盘 0
-             * @readonly
-             */
-            num0: number;
-            /**
-             * @en The numeric keypad 1
-             * @zh 数字键盘 1
-             * @readonly
-             */
-            num1: number;
-            /**
-             * @en The numeric keypad 2
-             * @zh 数字键盘 2
-             * @readonly
-             */
-            num2: number;
-            /**
-             * @en The numeric keypad 3
-             * @zh 数字键盘 3
-             * @readonly
-             */
-            num3: number;
-            /**
-             * @en The numeric keypad 4
-             * @zh 数字键盘 4
-             * @readonly
-             */
-            num4: number;
-            /**
-             * @en The numeric keypad 5
-             * @zh 数字键盘 5
-             * @readonly
-             */
-            num5: number;
-            /**
-             * @en The numeric keypad 6
-             * @zh 数字键盘 6
-             * @readonly
-             */
-            num6: number;
-            /**
-             * @en The numeric keypad 7
-             * @zh 数字键盘 7
-             * @readonly
-             */
-            num7: number;
-            /**
-             * @en The numeric keypad 8
-             * @zh 数字键盘 8
-             * @readonly
-             */
-            num8: number;
-            /**
-             * @en The numeric keypad 9
-             * @zh 数字键盘 9
-             * @readonly
-             */
-            num9: number;
-            /**
-             * @en The numeric keypad '*'
-             * @zh 数字键盘 *
-             * @readonly
-             */
-            '*': number;
-            /**
-             * @en The numeric keypad '+'
-             * @zh 数字键盘 +
-             * @readonly
-             */
-            '+': number;
-            /**
-             * @en The numeric keypad '-'
-             * @zh 数字键盘 -
-             * @readonly
-             */
-            '-': number;
-            /**
-             * @en The numeric keypad 'delete'
-             * @zh 数字键盘删除键
-             * @readonly
-             */
-            numdel: number;
-            /**
-             * @en The numeric keypad '/'
-             * @zh 数字键盘 /
-             * @readonly
-             */
-            '/': number;
-            /**
-             * @en The F1 function key
-             * @zh F1 功能键
-             * @readonly
-             */
-            f1: number;
-            /**
-             * @en The F2 function key
-             * @zh F2 功能键
-             * @readonly
-             */
-            f2: number;
-            /**
-             * @en The F3 function key
-             * @zh F3 功能键
-             * @readonly
-             */
-            f3: number;
-            /**
-             * @en The F4 function key
-             * @zh F4 功能键
-             * @readonly
-             */
-            f4: number;
-            /**
-             * @en The F5 function key
-             * @zh F5 功能键
-             * @readonly
-             */
-            f5: number;
-            /**
-             * @en The F6 function key
-             * @zh F6 功能键
-             * @readonly
-             */
-            f6: number;
-            /**
-             * @en The F7 function key
-             * @zh F7 功能键
-             * @readonly
-             */
-            f7: number;
-            /**
-             * @en The F8 function key
-             * @zh F8 功能键
-             * @readonly
-             */
-            f8: number;
-            /**
-             * @en The F9 function key
-             * @zh F9 功能键
-             * @readonly
-             */
-            f9: number;
-            /**
-             * @en The F10 function key
-             * @zh F10 功能键
-             * @readonly
-             */
-            f10: number;
-            /**
-             * @en The F11 function key
-             * @zh F11 功能键
-             * @readonly
-             */
-            f11: number;
-            /**
-             * @en The F12 function key
-             * @zh F12 功能键
-             * @readonly
-             */
-            f12: number;
-            /**
-             * @en The numlock key
-             * @zh 数字锁定键
-             * @readonly
-             */
-            numlock: number;
-            /**
-             * @en The scroll lock key
-             * @zh 滚动锁定键
-             * @readonly
-             */
-            scrolllock: number;
-            /**
-             * @en The ';' key.
-             * @zh 分号键
-             * @readonly
-             */
-            ';': number;
-            /**
-             * @en The ';' key.
-             * @zh 分号键
-             * @readonly
-             */
-            semicolon: number;
-            /**
-             * @en The '=' key.
-             * @zh 等于号键
-             * @readonly
-             */
-            equal: number;
-            /**
-             * @en The '=' key.
-             * @zh 等于号键
-             * @readonly
-             */
-            '=': number;
-            /**
-             * @en The ',' key.
-             * @zh 逗号键
-             * @readonly
-             */
-            ',': number;
-            /**
-             * @en The ',' key.
-             * @zh 逗号键
-             * @readonly
-             */
-            comma: number;
-            /**
-             * @en The dash '-' key.
-             * @zh 中划线键
-             * @readonly
-             */
-            dash: number;
-            /**
-             * @en The '.' key.
-             * @zh 句号键
-             * @readonly
-             */
-            '.': number;
-            /**
-             * @en The '.' key
-             * @zh 句号键
-             * @readonly
-             */
-            period: number;
-            /**
-             * @en The forward slash key
-             * @zh 正斜杠键
-             * @readonly
-             */
-            forwardslash: number;
-            /**
-             * @en The grave key
-             * @zh 按键 `
-             * @readonly
-             */
-            grave: number;
-            /**
-             * @en The '[' key
-             * @zh 按键 [
-             * @readonly
-             */
-            '[': number;
-            /**
-             * @en The '[' key
-             * @zh 按键 [
-             * @readonly
-             */
-            openbracket: number;
-            /**
-             * @en The '\' key
-             * @zh 反斜杠键
-             * @readonly
-             */
-            backslash: number;
-            /**
-             * @en The ']' key
-             * @zh 按键 ]
-             * @readonly
-             */
-            ']': number;
-            /**
-             * @en The ']' key
-             * @zh 按键 ]
-             * @readonly
-             */
-            closebracket: number;
-            /**
-             * @en The quote key
-             * @zh 单引号键
-             * @readonly
-             */
-            quote: number;
-            /**
-             * @en The dpad left key
-             * @zh 导航键 向左
-             * @readonly
-             */
-            dpadLeft: number;
-            /**
-             * @en The dpad right key
-             * @zh 导航键 向右
-             * @readonly
-             */
-            dpadRight: number;
-            /**
-             * @en The dpad up key
-             * @zh 导航键 向上
-             * @readonly
-             */
-            dpadUp: number;
-            /**
-             * @en The dpad down key
-             * @zh 导航键 向下
-             * @readonly
-             */
-            dpadDown: number;
-            /**
-             * @en The dpad center key
-             * @zh 导航键 确定键
-             * @readonly
-             */
-            dpadCenter: number;
-        };
-        /**
-         * PI / 180
-         */
-        RAD: number;
-        /**
-         * One degree
-         */
-        DEG: number;
-        /**
-         * A maximum value of number
-         */
-        REPEAT_FOREVER: number;
-        /**
-         * A minimal float value
-         */
-        FLT_EPSILON: number;
-        /**
-         * @en Oriented vertically
-         * @zh 竖屏朝向
-         */
-        ORIENTATION_PORTRAIT: number;
-        /**
-         * @en Oriented horizontally
-         * @zh 横屏朝向
-         */
-        ORIENTATION_LANDSCAPE: number;
-        /**
-         * @en Oriented automatically
-         * @zh 自动适配朝向
-         */
-        ORIENTATION_AUTO: number;
-        /**
-         * <p>
-         *   If enabled, the texture coordinates will be calculated by using this formula: <br/>
-         *      - texCoord.left = (rect.x*2+1) / (texture.wide*2);                  <br/>
-         *      - texCoord.right = texCoord.left + (rect.width*2-2)/(texture.wide*2); <br/>
-         *                                                                                 <br/>
-         *  The same for bottom and top.                                                   <br/>
-         *                                                                                 <br/>
-         *  This formula prevents artifacts by using 99% of the texture.                   <br/>
-         *  The "correct" way to prevent artifacts is by expand the texture's border with the same color by 1 pixel<br/>
-         *                                                                                  <br/>
-         *  Affected component:                                                                 <br/>
-         *      - TMXLayer                                                       <br/>
-         *                                                                                  <br/>
-         *  Enabled by default. To disabled set it to 0. <br/>
-         *  To modify it, in Web engine please refer to CCMacro.js, in JSB please refer to CCConfig.h
-         * </p>
-         * Currently not useful in 3D engine
-         */
-        /**
-         * @en
-         * Whether or not enabled tiled map auto culling. If you set the TiledMap skew or rotation,
-         * then need to manually disable this, otherwise, the rendering will be wrong.
-         * Currently not useful in 3D engine
-         * @zh
-         * 是否开启瓦片地图的自动裁减功能。瓦片地图如果设置了 skew, rotation 的话，需要手动关闭，否则渲染会出错。
-         * 在 3D 引擎中暂时无效。
-         * @default true
-         */
-        ENABLE_TILEDMAP_CULLING: boolean;
-        /**
-         * @en
-         * The timeout to determine whether a touch is no longer active and should be removed.
-         * The reason to add this timeout is due to an issue in X5 browser core,
-         * when X5 is presented in wechat on Android, if a touch is glissed from the bottom up, and leave the page area,
-         * no touch cancel event is triggered, and the touch will be considered active forever.
-         * After multiple times of this action, our maximum touches number will be reached and all new touches will be ignored.
-         * So this new mechanism can remove the touch that should be inactive if it's not updated during the last 5000 milliseconds.
-         * Though it might remove a real touch if it's just not moving for the last 5 seconds which is not easy with the sensibility of mobile touch screen.
-         * You can modify this value to have a better behavior if you find it's not enough.
-         * @zh
-         * 用于甄别一个触点对象是否已经失效并且可以被移除的延时时长
-         * 添加这个时长的原因是 X5 内核在微信浏览器中出现的一个 bug。
-         * 在这个环境下，如果用户将一个触点从底向上移出页面区域，将不会触发任何 touch cancel 或 touch end 事件，而这个触点会被永远当作停留在页面上的有效触点。
-         * 重复这样操作几次之后，屏幕上的触点数量将达到我们的事件系统所支持的最高触点数量，之后所有的触摸事件都将被忽略。
-         * 所以这个新的机制可以在触点在一定时间内没有任何更新的情况下视为失效触点并从事件系统中移除。
-         * 当然，这也可能移除一个真实的触点，如果用户的触点真的在一定时间段内完全没有移动（这在当前手机屏幕的灵敏度下会很难）。
-         * 你可以修改这个值来获得你需要的效果，默认值是 5000 毫秒。
-         * @default 5000
-         */
-        TOUCH_TIMEOUT: number;
-        /**
-         * @en
-         * The max concurrent task number for the downloader
-         * @zh
-         * 下载任务的最大并发数限制，在安卓平台部分机型或版本上可能需要限制在较低的水平
-         * @default 64
-         */
-        DOWNLOAD_MAX_CONCURRENT: number;
-        /**
-         * @en
-         * Boolean that indicates if the canvas contains an alpha channel, default sets to false for better performance.
-         * Though if you want to make your canvas background transparent and show other dom elements at the background,
-         * you can set it to true before {{game.init}}.
-         * Web only.
-         * @zh
-         * 用于设置 Canvas 背景是否支持 alpha 通道，默认为 false，这样可以有更高的性能表现。
-         * 如果你希望 Canvas 背景是透明的，并显示背后的其他 DOM 元素，你可以在 {{game.init}} 之前将这个值设为 true。
-         * 仅支持 Web
+         * @en Indicates the raw assets of this scene can be load after scene launched.
+         * @zh 指示该场景依赖的资源可否在场景切换后再延迟加载。
          * @default false
          */
-        ENABLE_TRANSPARENT_CANVAS: boolean;
-        /**
-         * @en
-         * Boolean that indicates if the WebGL context is created with `antialias` option turned on, default value is false.
-         * Set it to true could make your game graphics slightly smoother, like texture hard edges when rotated.
-         * Whether to use this really depend on your game design and targeted platform,
-         * device with retina display usually have good detail on graphics with or without this option,
-         * you probably don't want antialias if your game style is pixel art based.
-         * Also, it could have great performance impact with some browser / device using software MSAA.
-         * You can set it to true before {{game.init}}.
-         * Web only.
-         * @zh
-         * 用于设置在创建 WebGL Context 时是否开启抗锯齿选项，默认值是 false。
-         * 将这个选项设置为 true 会让你的游戏画面稍稍平滑一些，比如旋转硬边贴图时的锯齿。是否开启这个选项很大程度上取决于你的游戏和面向的平台。
-         * 在大多数拥有 retina 级别屏幕的设备上用户往往无法区分这个选项带来的变化；如果你的游戏选择像素艺术风格，你也多半不会想开启这个选项。
-         * 同时，在少部分使用软件级别抗锯齿算法的设备或浏览器上，这个选项会对性能产生比较大的影响。
-         * 你可以在 {{game.init}} 之前设置这个值，否则它不会生效。
-         * 仅支持 Web
-         * @default false
-         */
-        ENABLE_WEBGL_ANTIALIAS: boolean;
-        /**
-         * @en
-         * Whether or not clear dom Image object cache after uploading to gl texture.
-         * Concretely, we are setting image.src to empty string to release the cache.
-         * Normally you don't need to enable this option, because on web the Image object doesn't consume too much memory.
-         * But on Wechat Game platform, the current version cache decoded data in Image object, which has high memory usage.
-         * So we enabled this option by default on Wechat, so that we can release Image cache immediately after uploaded to GPU.
-         * Currently not useful in 3D engine
-         * @zh
-         * 是否在将贴图上传至 GPU 之后删除 DOM Image 缓存。
-         * 具体来说，我们通过设置 image.src 为空字符串来释放这部分内存。
-         * 正常情况下，你不需要开启这个选项，因为在 web 平台，Image 对象所占用的内存很小。
-         * 但是在微信小游戏平台的当前版本，Image 对象会缓存解码后的图片数据，它所占用的内存空间很大。
-         * 所以我们在微信平台默认开启了这个选项，这样我们就可以在上传 GL 贴图之后立即释放 Image 对象的内存，避免过高的内存占用。
-         * 在 3D 引擎中暂时无效。
-         * @default false
-         */
-        CLEANUP_IMAGE_CACHE: boolean;
-        /**
-         * @en
-         * Whether to enable multi-touch.
-         * @zh
-         * 是否开启多点触摸
-         * @default true
-         */
-        ENABLE_MULTI_TOUCH: boolean;
-    };
-    export { macro };
-}
-declare module "cocos/core/event/callbacks-invoker" {
-    class CallbackInfo {
-        callback: Function;
-        target: Object | undefined;
-        once: boolean;
-        set(callback: Function, target?: Object, once?: boolean): void;
-        reset(): void;
-        check(): boolean;
-    }
-    /**
-     * @zh 事件监听器列表的简单封装。
-     * @en A simple list of event callbacks
-     */
-    export class CallbackList {
-        callbackInfos: Array<CallbackInfo | null>;
-        isInvoking: boolean;
-        containCanceled: boolean;
-        /**
-         * @zh 从列表中移除与指定目标相同回调函数的事件。
-         * @en Remove the event listeners with the given callback from the list
-         *
-         * @param cb - The callback to be removed
-         */
-        removeByCallback(cb: Function): void;
-        /**
-         * @zh 从列表中移除与指定目标相同调用者的事件。
-         * @en Remove the event listeners with the given target from the list
-         * @param target
-         */
-        removeByTarget(target: Object): void;
-        /**
-         * @zh 移除指定编号事件。
-         * @en Remove the event listener at the given index
-         * @param index
-         */
-        cancel(index: number): void;
-        /**
-         * @zh 注销所有事件。
-         * @en Cancel all event listeners
-         */
-        cancelAll(): void;
-        /**
-         * @zh 立即删除所有取消的回调。（在移除过程中会更加紧凑的排列数组）
-         * @en Delete all canceled callbacks and compact array
-         */
-        purgeCanceled(): void;
-        /**
-         * @zh 清除并重置所有数据。
-         * @en Clear all data
-         */
-        clear(): void;
-    }
-    export interface ICallbackTable {
-        [x: string]: CallbackList | undefined;
-    }
-    /**
-     * @zh CallbacksInvoker 用来根据事件名（Key）管理事件监听器列表并调用回调方法。
-     * @en CallbacksInvoker is used to manager and invoke event listeners with different event keys,
-     * each key is mapped to a CallbackList.
-     */
-    export class CallbacksInvoker {
-        _callbackTable: ICallbackTable;
-        /**
-         * @zh 向一个事件名注册一个新的事件监听器，包含回调函数和调用者
-         * @en Register an event listener to a given event key with callback and target.
-         *
-         * @param key - Event type
-         * @param callback - Callback function when event triggered
-         * @param target - Callback callee
-         * @param once - Whether invoke the callback only once (and remove it)
-         */
-        on(key: string, callback: Function, target?: Object, once?: boolean): Function;
-        /**
-         * @zh 检查指定事件是否已注册回调。
-         * @en Checks whether there is correspond event listener registered on the given event
-         * @param key - Event type
-         * @param callback - Callback function when event triggered
-         * @param target - Callback callee
-         */
-        hasEventListener(key: string, callback?: Function, target?: Object): boolean;
-        /**
-         * @zh 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
-         * @en Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
-         * @param keyOrTarget - The event type or target with which the listeners will be removed
-         */
-        removeAll(keyOrTarget: string | Object): void;
-        /**
-         * @zh 删除以指定事件，回调函数，目标注册的回调。
-         * @en Remove event listeners registered with the given event key, callback and target
-         * @param key - Event type
-         * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
-         * @param target - The callback callee of the event listener
-         */
-        off(key: string, callback?: Function, target?: Object): void;
-        /**
-         * @zh 派发一个指定事件，并传递需要的参数
-         * @en Trigger an event directly with the event name and necessary arguments.
-         * @param key - event type
-         * @param arg0 - The first argument to be passed to the callback
-         * @param arg1 - The second argument to be passed to the callback
-         * @param arg2 - The third argument to be passed to the callback
-         * @param arg3 - The fourth argument to be passed to the callback
-         * @param arg4 - The fifth argument to be passed to the callback
-         */
-        emit(key: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
-        /**
-         * 移除所有回调。
-         */
-        clear(): void;
-    }
-}
-declare module "cocos/core/event/eventify" {
-    type Constructor<T = {}> = new (...args: any[]) => T;
-    type EventType = string;
-    /**
-     * @zh
-     * 实现该接口的对象具有处理事件的能力。
-     * @en
-     * Objects those implement this interface have essentially the capability to process events.
-     */
-    export interface IEventified {
-        /**
-         * @zh 检查指定事件是否已注册回调。
-         * @en Checks whether there is correspond event listener registered on the given event.
-         * @param type - Event type.
-         * @param callback - Callback function when event triggered.
-         * @param target - Callback callee.
-         */
-        hasEventListener(type: string, callback?: Function, target?: object): boolean;
-        /**
-         * @en
-         * Register an callback of a specific event type on the EventTarget.
-         * This type of event should be triggered via `emit`.
-         * @zh
-         * 注册事件目标的特定事件类型回调。这种类型的事件应该被 `emit` 触发。
-         *
-         * @param type - A string representing the event type to listen for.
-         * @param callback - The callback that will be invoked when the event is dispatched.
-         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-         * @param thisArg - The target (this object) to invoke the callback, can be null
-         * @return - Just returns the incoming callback so you can save the anonymous function easier.
-         * @example
-         * import { log } from 'cc';
-         * eventTarget.on('fire', function () {
-         *     log("fire in the hole");
-         * }, node);
-         */
-        on<TFunction extends Function>(type: EventType, callback: TFunction, thisArg?: any, once?: boolean): typeof callback;
-        /**
-         * @en
-         * Register an callback of a specific event type on the EventTarget,
-         * the callback will remove itself after the first time it is triggered.
-         * @zh
-         * 注册事件目标的特定事件类型回调，回调会在第一时间被触发后删除自身。
-         *
-         * @param type - A string representing the event type to listen for.
-         * @param callback - The callback that will be invoked when the event is dispatched.
-         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-         * @param target - The target (this object) to invoke the callback, can be null
-         * @example
-         * import { log } from 'cc';
-         * eventTarget.once('fire', function () {
-         *     log("this is the callback and will be invoked only once");
-         * }, node);
-         */
-        once<TFunction extends Function>(type: EventType, callback: TFunction, thisArg?: any): typeof callback;
-        /**
-         * @en
-         * Removes the listeners previously registered with the same type, callback, target and or useCapture,
-         * if only type is passed as parameter, all listeners registered with that type will be removed.
-         * @zh
-         * 删除之前用同类型，回调，目标或 useCapture 注册的事件监听器，如果只传递 type，将会删除 type 类型的所有事件监听器。
-         *
-         * @param type - A string representing the event type being removed.
-         * @param callback - The callback to remove.
-         * @param target - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
-         * @example
-         * import { log } from 'cc';
-         * // register fire eventListener
-         * var callback = eventTarget.on('fire', function () {
-         *     log("fire in the hole");
-         * }, target);
-         * // remove fire event listener
-         * eventTarget.off('fire', callback, target);
-         * // remove all fire event listeners
-         * eventTarget.off('fire');
-         */
-        off<TFunction extends Function>(type: EventType, callback?: TFunction, thisArg?: any): void;
-        /**
-         * @en Removes all callbacks previously registered with the same target (passed as parameter).
-         * This is not for removing all listeners in the current event target,
-         * and this is not for removing all listeners the target parameter have registered.
-         * It's only for removing all listeners (callback and target couple) registered on the current event target by the target parameter.
-         * @zh 在当前 EventTarget 上删除指定目标（target 参数）注册的所有事件监听器。
-         * 这个函数无法删除当前 EventTarget 的所有事件监听器，也无法删除 target 参数所注册的所有事件监听器。
-         * 这个函数只能删除 target 参数在当前 EventTarget 上注册的所有事件监听器。
-         * @param typeOrTarget - The target to be searched for all related listeners
-         */
-        targetOff(typeOrTarget: string | object): void;
-        /**
-         * @zh 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
-         * @en Removes all callbacks registered in a certain event type or all callbacks registered with a certain target
-         * @param typeOrTarget - The event type or target with which the listeners will be removed
-         */
-        removeAll(typeOrTarget: string | object): void;
-        /**
-         * @zh 派发一个指定事件，并传递需要的参数
-         * @en Trigger an event directly with the event name and necessary arguments.
-         * @param type - event type
-         * @param args - Arguments when the event triggered
-         */
-        emit(type: EventType, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
-    }
-    /**
-     * @en Generate a new class from the given base class, after polyfill all functionalities in [[IEventified]] as if it's extended from [[EventTarget]]
-     * @zh 生成一个类，该类继承自指定的基类，并以和 [[EventTarget]] 等同的方式实现了 [[IEventified]] 的所有接口。
-     * @param base The base class
-     * @example
-     * ```ts
-     * class Base { say() { console.log('Hello!'); } }
-     * class MyClass extends Eventify(Base) { }
-     * function (o: MyClass) {
-     *     o.say(); // Ok: Extend from `Base`
-     *     o.emit('sing', 'The ghost'); // Ok: `MyClass` implements IEventified
-     * }
-     * ```
-     */
-    export function Eventify<TBase>(base: Constructor<TBase>): Constructor<TBase & IEventified>;
-}
-declare module "cocos/core/event/event-target" {
-    class Empty {
-    }
-    /**
-     * @en
-     * EventTarget is an object to which an event is dispatched when something has occurred.
-     * [[Node]]s are the most common event targets, but other objects can be event targets too.
-     * If a class cannot extend from EventTarget, it can consider using [[Eventify]].
-     *
-     * @zh
-     * 事件目标是具有注册监听器、派发事件能力的类，[[Node]] 是最常见的事件目标，
-     * 但是其他类也可以继承自事件目标以获得管理监听器和派发事件的能力。
-     * 如果无法继承自 EventTarget，也可以使用 [[Eventify]]
-     */
-    export const EventTarget: new (...args: any[]) => Empty & import("cocos/core/event/eventify").IEventified;
-    export type EventTarget = InstanceType<typeof EventTarget>;
-}
-declare module "cocos/core/event/index" {
-    /**
-     * @hidden
-     */
-    export { default as Event } from "cocos/core/event/event";
-    export { EventTarget } from "cocos/core/event/event-target";
-    export { Eventify } from "cocos/core/event/eventify";
-}
-declare module "cocos/core/platform/event-manager/event-manager" {
-    /**
-     * @hidden
-     */
-    import { Event } from "cocos/core/event/index";
-    import { EventListener } from "cocos/core/platform/event-manager/event-listener";
-    import { Node } from "cocos/core/scene-graph/index";
-    class EventManager {
-        private _listenersMap;
-        private _priorityDirtyFlagMap;
-        private _nodeListenersMap;
-        private _toAddedListeners;
-        private _toRemovedListeners;
-        private _dirtyListeners;
-        private _inDispatch;
-        private _isEnabled;
-        private _internalCustomListenerIDs;
-        private _currentTouch;
-        private _currentTouchListener;
-        /**
-         * @en Pauses all listeners which are associated the specified target.
-         * @zh 暂停传入的 node 相关的所有监听器的事件响应。
-         * @param node - 暂停目标节点
-         * @param recursive - 是否往子节点递归暂停。默认为 false。
-         */
-        pauseTarget(node: Node, recursive?: boolean): void;
-        /**
-         * @en
-         * Resumes all listeners which are associated the specified target.
-         *
-         * @zh
-         * 恢复传入的 node 相关的所有监听器的事件响应。
-         *
-         * @param node - 监听器节点。
-         * @param recursive - 是否往子节点递归。默认为 false。
-         */
-        resumeTarget(node: Node, recursive?: boolean): void;
-        frameUpdateListeners(): void;
-        /**
-         * @en
-         * Query whether the specified event listener id has been added.
-         *
-         * @zh
-         * 查询指定的事件 ID 是否存在。
-         *
-         * @param listenerID - 查找监听器 ID。
-         * @returns 是否已查找到。
-         */
-        hasEventListener(listenerID: string): boolean;
-        /**
-         * @en
-         * <p>
-         * Adds a event listener for a specified event.<br/>
-         * if the parameter "nodeOrPriority" is a node,
-         * it means to add a event listener for a specified event with the priority of scene graph.<br/>
-         * if the parameter "nodeOrPriority" is a Number,
-         * it means to add a event listener for a specified event with the fixed priority.<br/>
-         * </p>
-         *
-         * @zh
-         * 将事件监听器添加到事件管理器中。<br/>
-         * 如果参数 “nodeOrPriority” 是节点，优先级由 node 的渲染顺序决定，显示在上层的节点将优先收到事件。<br/>
-         * 如果参数 “nodeOrPriority” 是数字，优先级则固定为该参数的数值，数字越小，优先级越高。<br/>
-         *
-         * @param listener - 指定事件监听器。
-         * @param nodeOrPriority - 监听程序的优先级。
-         * @returns
-         */
-        addListener(listener: EventListener, nodeOrPriority: any | number): any;
-        /**
-         * @en
-         * Adds a Custom event listener. It will use a fixed priority of 1.
-         *
-         * @zh
-         * 向事件管理器添加一个自定义事件监听器。
-         *
-         * @param eventName - 自定义事件名。
-         * @param callback - 事件回调。
-         * @returns 返回自定义监听器。
-         */
-        addCustomListener(eventName: string, callback: Function): EventListener;
-        /**
-         * @en
-         * Remove a listener.
-         *
-         * @zh
-         * 移除一个已添加的监听器。
-         *
-         * @param listener - 需要移除的监听器。
-         */
-        removeListener(listener: EventListener): void;
-        /**
-         * @en
-         * Removes all listeners with the same event listener type or removes all listeners of a node.
-         *
-         * @zh
-         * 移除注册到 eventManager 中指定类型的所有事件监听器。<br/>
-         * 1. 如果传入的第一个参数类型是 Node，那么事件管理器将移除与该对象相关的所有事件监听器。
-         * （如果第二参数 recursive 是 true 的话，就会连同该对象的子控件上所有的事件监听器也一并移除）<br/>
-         * 2. 如果传入的第一个参数类型是 Number（该类型 EventListener 中定义的事件类型），
-         * 那么事件管理器将移除该类型的所有事件监听器。<br/>
-         *
-         * 下列是目前存在监听器类型：       <br/>
-         * `EventListener.UNKNOWN`       <br/>
-         * `EventListener.KEYBOARD`      <br/>
-         * `EventListener.ACCELERATION`，<br/>
-         *
-         * @param listenerType - 监听器类型。
-         * @param recursive - 递归子节点的同类型监听器一并移除。默认为 false。
-         */
-        removeListeners(listenerType: number | any, recursive?: boolean): void;
-        /**
-         * @en
-         * Removes all custom listeners with the same event name.
-         *
-         * @zh
-         * 移除同一事件名的自定义事件监听器。
-         *
-         * @param customEventName - 自定义事件监听器名。
-         */
-        removeCustomListeners(customEventName: any): void;
-        /**
-         * @en
-         * Removes all listeners.
-         *
-         * @zh
-         * 移除所有事件监听器。
-         */
-        removeAllListeners(): void;
-        /**
-         * @en
-         * Sets listener's priority with fixed value.
-         *
-         * @zh
-         * 设置 FixedPriority 类型监听器的优先级。
-         *
-         * @param listener - 监听器。
-         * @param fixedPriority - 优先级。
-         */
-        setPriority(listener: EventListener, fixedPriority: number): void;
-        /**
-         * @en
-         * Whether to enable dispatching events.
-         *
-         * @zh
-         * 启用或禁用事件管理器，禁用后不会分发任何事件。
-         *
-         * @param enabled - 是否启用事件管理器。
-         */
-        setEnabled(enabled: boolean): void;
-        /**
-         * @en
-         * Checks whether dispatching events is enabled.
-         *
-         * @zh 检测事件管理器是否启用。
-         *
-         * @returns
-         */
-        isEnabled(): boolean;
-        /**
-         * @en
-         * Dispatches the event, also removes all EventListeners marked for deletion from the event dispatcher list.
-         *
-         * @zh
-         * 分发事件。
-         *
-         * @param event - 分发事件。
-         */
-        dispatchEvent(event: Event): void;
-        _onListenerCallback(listener: EventListener, event: Event): boolean;
-        /**
-         * @en
-         * Dispatches a Custom Event with a event name an optional user data.
-         *
-         * @zh
-         * 分发自定义事件。
-         *
-         * @param eventName - 自定义事件名。
-         * @param optionalUserData
-         */
-        dispatchCustomEvent(eventName: any, optionalUserData: any): void;
-        private _setDirtyForNode;
-        private _addListener;
-        private _forceAddEventListener;
-        private _getListeners;
-        private _updateDirtyFlagForSceneGraph;
-        private _removeAllListenersInVector;
-        private _removeListenersForListenerID;
-        private _sortEventListeners;
-        private _sortListenersOfSceneGraphPriority;
-        private _sortEventListenersOfSceneGraphPriorityDes;
-        private _sortListenersOfFixedPriority;
-        private _sortListenersOfFixedPriorityAsc;
-        private _onUpdateListeners;
-        private _updateTouchListeners;
-        private _cleanToRemovedListeners;
-        private _onTouchEventCallback;
-        private _dispatchTouchEvent;
-        private _onTouchesEventCallback;
-        private _associateNodeAndEventListener;
-        private _dissociateNodeAndEventListener;
-        private _dispatchEventToListeners;
-        private _setDirty;
-        private _sortNumberAsc;
-        private _removeListenerInCallback;
-        private _removeListenerInVector;
-    }
-    /**
-     * @en
-     * This class has been deprecated, please use `systemEvent` or `EventTarget` instead.
-     * See [Listen to and launch events](../../../manual/en/scripting/events.md) for details.<br>
-     * <br>
-     * `eventManager` is a singleton object which manages event listener subscriptions and event dispatching.
-     * The EventListener list is managed in such way so that event listeners can be added and removed
-     * while events are being dispatched.
-     *
-     * @zh
-     * 该类已废弃，请使用 `systemEvent` 或 `EventTarget` 代替，详见 [监听和发射事件](../../../manual/zh/scripting/events.md)。<br>
-     * <br>
-     * 事件管理器，它主要管理事件监听器注册和派发系统事件。
-     *
-     * @class eventManager
-     * @static
-     * @example {@link cocos/core/event-manager/CCEventManager/addListener.js}
-     * @deprecated
-     */
-    export const eventManager: EventManager;
-    export default eventManager;
-}
-declare module "cocos/core/platform/event-manager/input-manager" {
-    import { EventMouse } from "cocos/core/platform/event-manager/events";
-    import { Touch } from "cocos/core/platform/event-manager/touch";
-    interface IHTMLElementPosition {
-        left: number;
-        top: number;
-        width: number;
-        height: number;
-    }
-    /**
-     * @en the device accelerometer reports values for each axis in units of g-force.
-     * @zh 设备重力传感器传递的各个轴的数据。
-     */
-    export class Acceleration {
-        x: number;
-        y: number;
-        z: number;
-        timestamp: number;
-        constructor(x?: number, y?: number, z?: number, timestamp?: number);
-    }
-    /**
-     *  This class manages all events of input. include: touch, mouse, accelerometer, keyboard
-     */
-    class InputManager {
-        private _mousePressed;
-        private _isRegisterEvent;
-        private _preTouchPoint;
-        private _prevMousePoint;
-        private _preTouchPool;
-        private _preTouchPoolPointer;
-        private _touches;
-        private _touchesIntegerDict;
-        private _indexBitsUsed;
-        private _maxTouches;
-        private _accelEnabled;
-        private _accelInterval;
-        private _accelMinus;
-        private _accelCurTime;
-        private _acceleration;
-        private _accelDeviceEvent;
-        private _glView;
-        private _pointLocked;
-        handleTouchesBegin(touches: Touch[]): void;
-        handleTouchesMove(touches: Touch[]): void;
-        handleTouchesEnd(touches: Touch[]): void;
-        handleTouchesCancel(touches: Touch[]): void;
-        getSetOfTouchesEndOrCancel(touches: Touch[]): Touch[];
-        getHTMLElementPosition(element: HTMLElement): IHTMLElementPosition;
-        getPreTouch(touch: Touch): Touch;
-        setPreTouch(touch: Touch): void;
-        getTouchByXY(event: MouseEvent, tx: number, ty: number, pos: IHTMLElementPosition): Touch;
-        getMouseEvent(location: {
-            x: number;
-            y: number;
-        }, pos: IHTMLElementPosition, eventType: number): EventMouse;
-        getPointByEvent(event: MouseEvent, pos: IHTMLElementPosition): {
-            x: number;
-            y: number;
-        };
-        getTouchesByEvent(event: TouchEvent, position: IHTMLElementPosition): Touch[];
-        registerSystemEvent(element: HTMLElement | null): void;
-        /**
-         * Whether enable accelerometer event.
-         */
-        setAccelerometerEnabled(isEnable: boolean): void;
-        didAccelerate(eventData: DeviceMotionEvent | DeviceOrientationEvent): void;
-        update(dt: number): void;
-        /**
-         * set accelerometer interval value
-         * @method setAccelerometerInterval
-         * @param {Number} interval
-         */
-        setAccelerometerInterval(interval: any): void;
-        private _getUnUsedIndex;
-        private _removeUsedIndexBit;
-        private _registerMouseEvents;
-        private _registerPointerLockEvent;
-        private _registerWindowMouseEvents;
-        private _registerElementMouseEvents;
-        private _registerMousePointerEvents;
-        private _registerTouchEvents;
-        private _registerKeyboardEvent;
-        private _registerAccelerometerEvent;
-        private _unregisterAccelerometerEvent;
-    }
-    const inputManager: InputManager;
-    export default inputManager;
-}
-declare module "cocos/core/platform/event-manager/events" {
-    /**
-     * @category event
-     */
-    import Event from "cocos/core/event/event";
-    import { Vec2 } from "cocos/core/math/vec2";
-    import { Touch } from "cocos/core/platform/event-manager/touch";
-    import { Acceleration } from "cocos/core/platform/event-manager/input-manager";
-    /**
-     * @en The mouse event
-     * @zh 鼠标事件类型
-     */
-    export class EventMouse extends Event {
-        /**
-         * @en The none event code of mouse event.
-         * @zh 无效事件代码
-         */
-        static NONE: number;
-        /**
-         * @en The event code of mouse down event.
-         * @zh 鼠标按下事件代码。
-         */
-        static DOWN: number;
-        /**
-         * @en The event code of mouse up event.
-         * @zh 鼠标按下后释放事件代码。
-         */
-        static UP: number;
-        /**
-         * @en The event code of mouse move event.
-         * @zh 鼠标移动事件。
-         */
-        static MOVE: number;
-        /**
-         * @en The event code of mouse scroll event.
-         * @zh 鼠标滚轮事件。
-         */
-        static SCROLL: number;
-        /**
-         * @en The default tag when no button is pressed
-         * @zh 按键默认的缺省状态
-         */
-        static BUTTON_MISSING: number;
-        /**
-         * @en The tag of mouse's left button.
-         * @zh 鼠标左键的标签。
-         */
-        static BUTTON_LEFT: number;
-        /**
-         * @en The tag of mouse's right button  (The right button number is 2 on browser).
-         * @zh 鼠标右键的标签。
-         */
-        static BUTTON_RIGHT: number;
-        /**
-         * @en The tag of mouse's middle button.
-         * @zh 鼠标中键的标签。
-         */
-        static BUTTON_MIDDLE: number;
-        /**
-         * @en The tag of mouse's button 4.
-         * @zh 鼠标按键 4 的标签。
-         */
-        static BUTTON_4: number;
-        /**
-         * @en The tag of mouse's button 5.
-         * @zh 鼠标按键 5 的标签。
-         */
-        static BUTTON_5: number;
-        /**
-         * @en The tag of mouse's button 6.
-         * @zh 鼠标按键 6 的标签。
-         */
-        static BUTTON_6: number;
-        /**
-         * @en The tag of mouse's button 7.
-         * @zh 鼠标按键 7 的标签。
-         */
-        static BUTTON_7: number;
-        /**
-         * @en The tag of mouse's button 8.
-         * @zh 鼠标按键 8 的标签。
-         */
-        static BUTTON_8: number;
-        /**
-         * @en Mouse movement on x axis of the UI coordinate system.
-         * @zh 鼠标在 UI 坐标系下 X 轴上的移动距离
-         */
-        movementX: number;
-        /**
-         * @en Mouse movement on y axis of the UI coordinate system.
-         * @zh 鼠标在 UI 坐标系下 Y 轴上的移动距离
-         */
-        movementY: number;
-        /**
-         * @en The type of the event, possible values are UP, DOWN, MOVE, SCROLL
-         * @zh 鼠标事件类型，可以是 UP, DOWN, MOVE, CANCELED。
-         */
-        eventType: number;
-        private _button;
-        private _x;
-        private _y;
-        private _prevX;
-        private _prevY;
-        private _scrollX;
-        private _scrollY;
-        /**
-         * @param eventType - The type of the event, possible values are UP, DOWN, MOVE, SCROLL
-         * @param bubbles - Indicate whether the event bubbles up through the hierarchy or not.
-         */
-        constructor(eventType: number, bubbles?: boolean, prevLoc?: Vec2);
-        /**
-         * @en Sets scroll data of the mouse.
-         * @zh 设置鼠标滚轮的滚动数据。
-         * @param scrollX - The scroll value on x axis
-         * @param scrollY - The scroll value on y axis
-         */
-        setScrollData(scrollX: number, scrollY: number): void;
-        /**
-         * @en Returns the scroll value on x axis.
-         * @zh 获取鼠标滚动的 X 轴距离，只有滚动时才有效。
-         */
-        getScrollX(): number;
-        /**
-         * @en Returns the scroll value on y axis.
-         * @zh 获取滚轮滚动的 Y 轴距离，只有滚动时才有效。
-         */
-        getScrollY(): number;
-        /**
-         * @en Sets cursor location.
-         * @zh 设置当前鼠标位置。
-         * @param x - The location on x axis
-         * @param y - The location on y axis
-         */
-        setLocation(x: number, y: number): void;
-        /**
-         * @en Returns cursor location.
-         * @zh 获取鼠标相对于左下角位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the current cursor location in game view coordinates.
-         * @zh 获取当前事件在游戏窗口内的坐标位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getLocationInView(out?: Vec2): Vec2;
-        /**
-         * @en Returns the current cursor location in ui coordinates.
-         * @zh 获取当前事件在 UI 窗口内的坐标位置，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUILocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the previous touch location.
-         * @zh 获取鼠标点击在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the previous touch location.
-         * @zh 获取鼠标点击在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUIPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the delta distance from the previous location to current location.
-         * @zh 获取鼠标距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getDelta(out?: Vec2): Vec2;
-        /**
-         * @en Returns the X axis delta distance from the previous location to current location.
-         * @zh 获取鼠标距离上一次事件移动的 X 轴距离。
-         */
-        getDeltaX(): number;
-        /**
-         * @en Returns the Y axis delta distance from the previous location to current location.
-         * @zh 获取鼠标距离上一次事件移动的 Y 轴距离。
-         */
-        getDeltaY(): number;
-        /**
-         * @en Returns the delta distance from the previous location to current location in the UI coordinates.
-         * @zh 获取鼠标距离上一次事件移动在 UI 坐标系下的距离对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUIDelta(out?: Vec2): Vec2;
-        /**
-         * @en Returns the X axis delta distance from the previous location to current location in the UI coordinates.
-         * @zh 获取鼠标距离上一次事件移动在 UI 坐标系下的 X 轴距离。
-         */
-        getUIDeltaX(): number;
-        /**
-         * @en Returns the Y axis delta distance from the previous location to current location in the UI coordinates.
-         * @zh 获取鼠标距离上一次事件移动在 UI 坐标系下的 Y 轴距离。
-         */
-        getUIDeltaY(): number;
-        /**
-         * @en Sets mouse button code.
-         * @zh 设置鼠标按键。
-         * @param button - The button code
-         */
-        setButton(button: number): void;
-        /**
-         * @en Returns mouse button code.
-         * @zh 获取鼠标按键。
-         */
-        getButton(): number;
-        /**
-         * @en Returns location data on X axis.
-         * @zh 获取鼠标当前 X 轴位置。
-         */
-        getLocationX(): number;
-        /**
-         * @en Returns location data on Y axis.
-         * @zh 获取鼠标当前 Y 轴位置。
-         */
-        getLocationY(): number;
-        /**
-         * @en Returns location data on X axis.
-         * @zh 获取鼠标当前 X 轴位置。
-         */
-        getUILocationX(): number;
-        /**
-         * @en Returns location data on Y axis.
-         * @zh 获取鼠标当前 Y 轴位置。
-         */
-        getUILocationY(): number;
-    }
-    /**
-     * @en
-     * The touch event.
-     *
-     * @zh
-     * 触摸事件。
-     */
-    export class EventTouch extends Event {
-        /**
-         * @en The maximum touch point numbers simultaneously
-         * @zh 同时存在的最大触点数量。
-         */
-        static MAX_TOUCHES: number;
-        /**
-         * @en The event type code of touch began event.
-         * @zh 开始触摸事件。
-         */
-        static BEGAN: number;
-        /**
-         * @en The event type code of touch moved event.
-         * @zh 触摸后移动事件。
-         */
-        static MOVED: number;
-        /**
-         * @en The event type code of touch ended event.
-         * @zh 结束触摸事件。
-         */
-        static ENDED: number;
-        /**
-         * @en The event type code of touch canceled event.
-         * @zh 取消触摸事件。
-         */
-        static CANCELLED: number;
-        /**
-         * @en The current touch object
-         * @zh 当前触点对象
-         */
-        touch: Touch | null;
-        /**
-         * @en Indicate whether the touch event is simulated or real
-         * @zh 表示触摸事件是真实触点触发的还是模拟的
-         */
-        simulate: boolean;
-        private _eventCode;
-        private _touches;
-        /**
-         * @param touches - An array of current touches
-         * @param bubbles - Indicate whether the event bubbles up through the hierarchy or not.
-         * @param eventCode - The type code of the touch event
-         */
-        constructor(touches?: Touch[], bubbles?: boolean, eventCode?: number);
-        /**
-         * @en Returns event type code.
-         * @zh 获取触摸事件类型。
-         */
-        getEventCode(): number;
-        /**
-         * @en Returns touches of event.
-         * @zh 获取触摸点的列表。
-         */
-        getTouches(): Touch[];
-        /**
-         * @en Sets touch location.
-         * @zh 设置当前触点位置
-         * @param x - The current touch location on the x axis
-         * @param y - The current touch location on the y axis
-         */
-        setLocation(x: number, y: number): void;
-        /**
-         * @en Returns the current touch location.
-         * @zh 获取触点位置。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the current touch location in UI coordinates.
-         * @zh 获取 UI 坐标系下的触点位置。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUILocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the current touch location in game screen coordinates.
-         * @zh 获取当前触点在游戏窗口中的位置。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getLocationInView(out?: Vec2): Vec2;
-        /**
-         * @en Returns the previous touch location.
-         * @zh 获取触点在上一次事件时的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getPreviousLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the start touch location.
-         * @zh 获获取触点落下时的位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getStartLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the start touch location in UI coordinates.
-         * @zh 获获取触点落下时的 UI 世界下位置对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getUIStartLocation(out?: Vec2): Vec2;
-        /**
-         * @en Returns the id of the current touch point.
-         * @zh 获取触点的标识 ID，可以用来在多点触摸中跟踪触点。
-         */
-        getID(): number | null;
-        /**
-         * @en Returns the delta distance from the previous location to current location.
-         * @zh 获取触点距离上一次事件移动的距离对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-         */
-        getDelta(out?: Vec2): Vec2;
-        /**
-         * @en Returns the delta distance from the previous location to current location.
-         * @zh 获取触点距离上一次事件 UI 世界下移动的距离对象，对象包含 x 和 y 属性。
-         * @param out - Pass the out object to avoid object creation, very good practice
-        */
-        getUIDelta(out?: Vec2): Vec2;
-        /**
-         * @en Returns the X axis delta distance from the previous location to current location.
-         * @zh 获取触点距离上一次事件移动的 x 轴距离。
-         */
-        getDeltaX(): number;
-        /**
-         * @en Returns the Y axis delta distance from the previous location to current location.
-         * @zh 获取触点距离上一次事件移动的 y 轴距离。
-         */
-        getDeltaY(): number;
-        /**
-         * @en Returns location X axis data.
-         * @zh 获取当前触点 X 轴位置。
-         */
-        getLocationX(): number;
-        /**
-         * @en Returns location Y axis data.
-         * @zh 获取当前触点 Y 轴位置。
-         */
-        getLocationY(): number;
-    }
-    /**
-     * @en
-     * The acceleration event.
-     * @zh
-     * 加速计事件。
-     */
-    export class EventAcceleration extends Event {
-        /**
-         * @en The acceleration object
-         * @zh 加速度对象
-         */
-        acc: Acceleration;
-        /**
-         * @param acc - The acceleration
-         * @param bubbles - Indicate whether the event bubbles up through the hierarchy or not.
-         */
-        constructor(acc: Acceleration, bubbles?: boolean);
-    }
-    /**
-     * @en
-     * The keyboard event.
-     * @zh
-     * 键盘事件。
-     */
-    export class EventKeyboard extends Event {
-        /**
-         * @en The keyCode read-only property represents a system and implementation dependent numerical code
-         * identifying the unmodified value of the pressed key.
-         * This is usually the decimal ASCII (RFC 20) or Windows 1252 code corresponding to the key.
-         * If the key can't be identified, this value is 0.
-         * @zh keyCode 是只读属性它表示一个系统和依赖于实现的数字代码，可以识别按键的未修改值。
-         * 这通常是十进制 ASCII (RFC20) 或者 Windows 1252 代码，所对应的密钥。
-         * 如果无法识别该键，则该值为 0。
-         */
-        keyCode: number;
-        /**
-         * @en Raw DOM KeyboardEvent.
-         * @zh 原始 DOM KeyboardEvent 事件对象
-         */
-        rawEvent?: KeyboardEvent;
-        /**
-         * @en Indicates whether the current key is being pressed
-         * @zh 表示当前按键是否正在被按下
-         */
-        isPressed: boolean;
-        /**
-         * @param keyCode - The key code of the current key or the DOM KeyboardEvent
-         * @param isPressed - Indicates whether the current key is being pressed
-         * @param bubbles - Indicates whether the event bubbles up through the hierarchy or not.
-         */
-        constructor(keyCode: number | KeyboardEvent, isPressed: boolean, bubbles?: boolean);
-    }
-}
-declare module "cocos/core/platform/event-manager/event-listener" {
-    /**
-     * @hidden
-     */
-    import { EventKeyboard, EventAcceleration, EventMouse } from "cocos/core/platform/event-manager/events";
-    import { Node } from "cocos/core/scene-graph/index";
-    export interface IEventListenerCreateInfo {
-        event?: number;
-        [x: string]: any;
-    }
-    export interface IListenerMask {
-        index: number;
-        node: Node;
-    }
-    /**
-     * @en The base class of event listener.                                                                        <br/>
-     * If you need custom listener which with different callback, you need to inherit this class.               <br/>
-     * For instance, you could refer to EventListenerAcceleration, EventListenerKeyboard,                       <br/>
-     * EventListenerTouchOneByOne, EventListenerCustom.<br/>
-     * @zh 封装用户的事件处理逻辑
-     * 注意：这是一个抽象类，开发者不应该直接实例化这个类，请参考 [[create]] 。
-     */
-    export class EventListener {
-        /**
-         * @en The type code of unknown event listener.<br/>
-         * @zh 未知的事件监听器类型
-         */
-        static UNKNOWN: number;
-        /**
-         * @en The type code of one by one touch event listener.<br/>
-         * @zh 触摸事件监听器类型，触点会一个一个得分开被派发
-         */
-        static TOUCH_ONE_BY_ONE: number;
-        /**
-         * @en The type code of all at once touch event listener.<br/>
-         * @zh 触摸事件监听器类型，触点会被一次性全部派发
-         */
-        static TOUCH_ALL_AT_ONCE: number;
-        /**
-         * @en The type code of keyboard event listener.<br/>
-         * @zh 键盘事件监听器类型
-         */
-        static KEYBOARD: number;
-        /**
-         * @en The type code of mouse event listener.<br/>
-         * @zh 鼠标事件监听器类型
-         */
-        static MOUSE: number;
-        /**
-         * @en The type code of acceleration event listener.<br/>
-         * @zh 加速器事件监听器类型
-         */
-        static ACCELERATION: number;
-        /**
-         * @en The type code of custom event listener.<br/>
-         * @zh 自定义事件监听器类型
-         */
-        static CUSTOM: number;
-        static ListenerID: {
-            MOUSE: string;
-            TOUCH_ONE_BY_ONE: string;
-            TOUCH_ALL_AT_ONCE: string;
-            KEYBOARD: string;
-            ACCELERATION: string;
-        };
-        /**
-         * @en Create a EventListener object with configuration including the event type, handlers and other parameters.<br/>
-         * In handlers, this refer to the event listener object itself.<br/>
-         * You can also pass custom parameters in the configuration object,<br/>
-         * all custom parameters will be polyfilled into the event listener object and can be accessed in handlers.<br/>
-         * @zh 通过指定不同的 Event 对象来设置想要创建的事件监听器。
-         * @param argObj a json object
-         */
-        static create(argObj: IEventListenerCreateInfo): EventListener;
-        owner: Object | null;
-        mask: IListenerMask | null;
-        _previousIn?: boolean;
-        _target: any;
-        protected _onEvent: ((...args: any[]) => any) | null;
-        private _type;
-        private _listenerID;
-        private _registered;
-        private _fixedPriority;
-        private _node;
-        private _paused;
-        private _isEnabled;
-        get onEvent(): ((...args: any[]) => any) | null;
-        constructor(type: number, listenerID: string, callback: ((...args: any[]) => any) | null);
-        /**
-         * @en
-         * <p><br/>
-         *     Sets paused state for the listener<br/>
-         *     The paused state is only used for scene graph priority listeners.<br/>
-         *     `EventDispatcher.resumeAllEventListenersForTarget(node)` will set the paused state to `true`,<br/>
-         *     while `EventDispatcher.pauseAllEventListenersForTarget(node)` will set it to `false`.<br/>
-         *     @note 1) Fixed priority listeners will never get paused. If a fixed priority doesn't want to receive events,<br/>
-         *              call `setEnabled(false)` instead.<br/>
-         *            2) In `Node`'s onEnter and onExit, the `paused state` of the listeners<br/>
-         *              which associated with that node will be automatically updated.<br/>
-         * </p><br/>
-         * @zh
-         * *为侦听器设置暂停状态<br/>
-         * 暂停状态仅用于场景图优先级侦听器。<br/>
-         * `EventDispatcher :: resumeAllEventListenersForTarget（node）`将暂停状态设置为`true`，<br/>
-         * 而`EventDispatcher :: pauseAllEventListenersForTarget（node）`将它设置为`false`。<br/>
-         * 注意：<br/>
-         * - 固定优先级侦听器永远不会被暂停。 如果固定优先级不想接收事件，改为调用`setEnabled（false）`。<br/>
-         * - 在“Node”的onEnter和onExit中，监听器的“暂停状态”与该节点关联的*将自动更新。
-         */
-        _setPaused(paused: boolean): void;
-        /**
-         * @en Checks whether the listener is paused.<br/>
-         * @zh 检查侦听器是否已暂停。
-         */
-        _isPaused(): boolean;
-        /**
-         * @en Marks the listener was registered by EventDispatcher.<br/>
-         * @zh 标记监听器已由 EventDispatcher 注册。
-         */
-        _setRegistered(registered: boolean): void;
-        /**
-         * @en Checks whether the listener was registered by EventDispatcher<br/>
-         * @zh 检查监听器是否已由 EventDispatcher 注册。
-         * @private
-         */
-        _isRegistered(): boolean;
-        /**
-         * @en Gets the type of this listener<br/>
-         * note： It's different from `EventType`, e.g.<br/>
-         * TouchEvent has two kinds of event listeners - EventListenerOneByOne, EventListenerAllAtOnce<br/>
-         * @zh 获取此侦听器的类型<br/>
-         * 注意：它与`EventType`不同，例如<br/>
-         * TouchEvent 有两种事件监听器 -  EventListenerOneByOne，EventListenerAllAtOnce
-         */
-        _getType(): number;
-        /**
-         * @en Gets the listener ID of this listener<br/>
-         * When event is being dispatched, listener ID is used as key for searching listeners according to event type.<br/>
-         * @zh 获取此侦听器的侦听器 ID。<br/>
-         * 调度事件时，侦听器 ID 用作根据事件类型搜索侦听器的键。
-         */
-        _getListenerID(): string;
-        /**
-         * @en Sets the fixed priority for this listener<br/>
-         * note: This method is only used for `fixed priority listeners`,<br/>
-         *   it needs to access a non-zero value. 0 is reserved for scene graph priority listeners<br/>
-         * @zh 设置此侦听器的固定优先级。<br/>
-         * 注意：此方法仅用于“固定优先级侦听器”，<br/>
-         * 它需要访问非零值。 0保留给场景图优先级侦听器。
-         */
-        _setFixedPriority(fixedPriority: number): void;
-        /**
-         * @en Gets the fixed priority of this listener<br/>
-         * @zh 获取此侦听器的固定优先级。
-         * @return 如果它是场景图优先级侦听器则返回 0 ，则对于固定优先级侦听器则不为零
-         */
-        _getFixedPriority(): number;
-        /**
-         * @en Sets scene graph priority for this listener<br/>
-         * @zh 设置此侦听器的场景图优先级。
-         * @param {Node} node
-         */
-        _setSceneGraphPriority(node: any): void;
-        /**
-         * @en Gets scene graph priority of this listener<br/>
-         * @zh 获取此侦听器的场景图优先级。
-         * @return 如果它是固定优先级侦听器，则为场景图优先级侦听器非 null 。
-         */
-        _getSceneGraphPriority(): any;
-        /**
-         * @en Checks whether the listener is available.<br/>
-         * @zh 检测监听器是否有效
-         */
-        checkAvailable(): boolean;
-        /**
-         * @en Clones the listener, its subclasses have to override this method.<br/>
-         * @zh 克隆监听器,它的子类必须重写此方法。
-         */
-        clone(): EventListener | null;
-        /**
-         * @en
-         * Enables or disables the listener<br/>
-         * note: Only listeners with `enabled` state will be able to receive events.<br/>
-         * When an listener was initialized, it's enabled by default.<br/>
-         * An event listener can receive events when it is enabled and is not paused.<br/>
-         * paused state is always false when it is a fixed priority listener.<br/>
-         * @zh
-         * 启用或禁用监听器。<br/>
-         * 注意：只有处于“启用”状态的侦听器才能接收事件。<br/>
-         * 初始化侦听器时，默认情况下启用它。<br/>
-         * 事件侦听器可以在启用且未暂停时接收事件。<br/>
-         * 当固定优先级侦听器时，暂停状态始终为false。<br/>
-         */
-        setEnabled(enabled: boolean): void;
-        /**
-         * @en Checks whether the listener is enabled<br/>
-         * @zh 检查监听器是否可用。
-         */
-        isEnabled(): boolean;
-    }
-    export class Mouse extends EventListener {
-        onMouseDown: Function | null;
-        onMouseUp: Function | null;
-        onMouseMove: Function | null;
-        onMouseScroll: Function | null;
-        constructor();
-        _callback(event: EventMouse): void;
-        clone(): Mouse;
-        checkAvailable(): boolean;
-    }
-    export class TouchOneByOne extends EventListener {
-        swallowTouches: boolean;
-        onTouchBegan: Function | null;
-        onTouchMoved: Function | null;
-        onTouchEnded: Function | null;
-        onTouchCancelled: Function | null;
-        _claimedTouches: any[];
-        constructor();
-        setSwallowTouches(needSwallow: any): void;
-        isSwallowTouches(): boolean;
-        clone(): TouchOneByOne;
-        checkAvailable(): boolean;
-    }
-    export class TouchAllAtOnce extends EventListener {
-        onTouchesBegan: Function | null;
-        onTouchesMoved: Function | null;
-        onTouchesEnded: Function | null;
-        onTouchesCancelled: Function | null;
-        constructor();
-        clone(): TouchAllAtOnce;
-        checkAvailable(): boolean;
-    }
-    export class Acceleration extends EventListener {
-        _onAccelerationEvent: Function | null;
-        constructor(callback: Function | null);
-        _callback(event: EventAcceleration): void;
-        checkAvailable(): boolean;
-        clone(): Acceleration;
-    }
-    export class Keyboard extends EventListener {
-        onKeyPressed: Function | null;
-        onKeyReleased: Function | null;
-        constructor();
-        _callback(event: EventKeyboard): void;
-        clone(): Keyboard;
-        checkAvailable(): boolean;
-    }
-}
-declare module "cocos/core/components/system" {
-    /**
-     * @hidden
-     */
-    import { ISchedulable } from "cocos/core/scheduler";
-    export default class System implements ISchedulable {
-        protected _id: string;
-        protected _priority: number;
-        protected _executeInEditMode: boolean;
-        set priority(value: number);
-        get priority(): number;
-        set id(id: string);
-        get id(): string;
-        static sortByPriority(a: System, b: System): 1 | 0 | -1;
-        init(): void;
-        update(dt: number): void;
-        postUpdate(dt: number): void;
-    }
-}
-declare module "cocos/core/scheduler" {
-    import System from "cocos/core/components/system";
-    export interface ISchedulable {
-        id?: string;
-        uuid?: string;
-    }
-    /**
-     * @en
-     * Scheduler is responsible of triggering the scheduled callbacks.<br>
-     * You should not use NSTimer. Instead use this class.<br>
-     * <br>
-     * There are 2 different types of callbacks (selectors):<br>
-     *     - update callback: the 'update' callback will be called every frame. You can customize the priority.<br>
-     *     - custom callback: A custom callback will be called every frame, or with a custom interval of time<br>
-     * <br>
-     * The 'custom selectors' should be avoided when possible. It is faster,<br>
-     * and consumes less memory to use the 'update callback'. *
-     * @zh
-     * Scheduler 是负责触发回调函数的类。<br>
-     * 通常情况下，建议使用 `director.getScheduler()` 来获取系统定时器。<br>
-     * 有两种不同类型的定时器：<br>
-     *     - update 定时器：每一帧都会触发。您可以自定义优先级。<br>
-     *     - 自定义定时器：自定义定时器可以每一帧或者自定义的时间间隔触发。<br>
-     * 如果希望每帧都触发，应该使用 update 定时器，使用 update 定时器更快，而且消耗更少的内存。
-     *
-     * @class Scheduler
-     */
-    export class Scheduler extends System {
-        /**
-         * @en Priority level reserved for system services.
-         * @zh 系统服务的优先级。
-         */
-        static PRIORITY_SYSTEM: number;
-        /**
-         * @en Minimum priority level for user scheduling.
-         * @zh 用户调度最低优先级。
-         */
-        static PRIORITY_NON_SYSTEM: number;
-        static ID: string;
-        private _timeScale;
-        private _updatesNegList;
-        private _updates0List;
-        private _updatesPosList;
-        private _hashForUpdates;
-        private _hashForTimers;
-        private _currentTarget;
-        private _currentTargetSalvaged;
-        private _updateHashLocked;
-        private _arrayForTimers;
-        /**
-         * @en This method should be called for any target which needs to schedule tasks, and this method should be called before any scheduler API usage.<bg>
-         * This method will add a `id` property if it doesn't exist.
-         * @zh 任何需要用 Scheduler 管理任务的对象主体都应该调用这个方法，并且应该在调用任何 Scheduler API 之前调用这个方法。<bg>
-         * 这个方法会给对象添加一个 `id` 属性，如果这个属性不存在的话。
-         * @param {Object} target
-         */
-        static enableForTarget(target: ISchedulable): void;
-        constructor();
-        /**
-         * @en
-         * Modifies the time of all scheduled callbacks.<br>
-         * You can use this property to create a 'slow motion' or 'fast forward' effect.<br>
-         * Default is 1.0. To create a 'slow motion' effect, use values below 1.0.<br>
-         * To create a 'fast forward' effect, use values higher than 1.0.<br>
-         * Note：It will affect EVERY scheduled selector / action.
-         * @zh
-         * 设置时间间隔的缩放比例。<br>
-         * 您可以使用这个方法来创建一个 “slow motion（慢动作）” 或 “fast forward（快进）” 的效果。<br>
-         * 默认是 1.0。要创建一个 “slow motion（慢动作）” 效果,使用值低于 1.0。<br>
-         * 要使用 “fast forward（快进）” 效果，使用值大于 1.0。<br>
-         * 注意：它影响该 Scheduler 下管理的所有定时器。
-         * @param {Number} timeScale
-         */
-        setTimeScale(timeScale: any): void;
-        /**
-         * @en Returns time scale of scheduler.
-         * @zh 获取时间间隔的缩放比例。
-         * @return {Number}
-         */
-        getTimeScale(): number;
-        /**
-         * @en 'update' the scheduler. (You should NEVER call this method, unless you know what you are doing.)
-         * @zh update 调度函数。(不应该直接调用这个方法，除非完全了解这么做的结果)
-         * @param {Number} dt delta time
-         */
-        update(dt: any): void;
-        /**
-         * @en
-         * <p>
-         *   The scheduled method will be called every 'interval' seconds.<br/>
-         *   If paused is YES, then it won't be called until it is resumed.<br/>
-         *   If 'interval' is 0, it will be called every frame, but if so, it recommended to use 'scheduleUpdateForTarget:' instead.<br/>
-         *   If the callback function is already scheduled, then only the interval parameter will be updated without re-scheduling it again.<br/>
-         *   repeat let the action be repeated repeat + 1 times, use `macro.REPEAT_FOREVER` to let the action run continuously<br/>
-         *   delay is the amount of time the action will wait before it'll start<br/>
-         * </p>
-         * @zh
-         * 指定回调函数，调用对象等信息来添加一个新的定时器。<br/>
-         * 如果 paused 值为 true，那么直到 resume 被调用才开始计时。<br/>
-         * 当时间间隔达到指定值时，设置的回调函数将会被调用。<br/>
-         * 如果 interval 值为 0，那么回调函数每一帧都会被调用，但如果是这样，
-         * 建议使用 scheduleUpdateForTarget 代替。<br/>
-         * 如果回调函数已经被定时器使用，那么只会更新之前定时器的时间间隔参数，不会设置新的定时器。<br/>
-         * repeat 值可以让定时器触发 repeat + 1 次，使用 `macro.REPEAT_FOREVER`
-         * 可以让定时器一直循环触发。<br/>
-         * delay 值指定延迟时间，定时器会在延迟指定的时间之后开始计时。
-         * @param {Function} callback
-         * @param {Object} target
-         * @param {Number} interval
-         * @param {Number} [repeat]
-         * @param {Number} [delay=0]
-         * @param {Boolean} [paused=fasle]
-         */
-        schedule(callback: Function, target: ISchedulable, interval: number, repeat?: number, delay?: number, paused?: boolean): void;
-        /**
-         * @en
-         * Schedules the update callback for a given target,
-         * During every frame after schedule started, the "update" function of target will be invoked.
-         * @zh
-         * 使用指定的优先级为指定的对象设置 update 定时器。<br>
-         * update 定时器每一帧都会被触发，触发时自动调用指定对象的 "update" 函数。<br>
-         * 优先级的值越低，定时器被触发的越早。
-         * @param {Object} target
-         * @param {Number} priority
-         * @param {Boolean} paused
-         */
-        scheduleUpdate(target: ISchedulable, priority: Number, paused: Boolean): void;
-        /**
-         * @en
-         * Unschedules a callback for a callback and a given target.<br>
-         * If you want to unschedule the "update", use `unscheduleUpdate()`
-         * @zh
-         * 根据指定的回调函数和调用对象。<br>
-         * 如果需要取消 update 定时器，请使用 unscheduleUpdate()。
-         * @param {Function} callback The callback to be unscheduled
-         * @param {Object} target The target bound to the callback.
-         */
-        unschedule(callback: any, target: ISchedulable): void;
-        /**
-         * @en Unschedules the update callback for a given target.
-         * @zh 取消指定对象的 update 定时器。
-         * @param {Object} target The target to be unscheduled.
-         */
-        unscheduleUpdate(target: ISchedulable): void;
-        /**
-         * @en
-         * Unschedules all scheduled callbacks for a given target.
-         * This also includes the "update" callback.
-         * @zh 取消指定对象的所有定时器，包括 update 定时器。
-         * @param {Object} target The target to be unscheduled.
-         */
-        unscheduleAllForTarget(target: any): void;
-        /**
-         * @en
-         * Unschedules all scheduled callbacks from all targets including the system callbacks.<br/>
-         * You should NEVER call this method, unless you know what you are doing.
-         * @zh
-         * 取消所有对象的所有定时器，包括系统定时器。<br/>
-         * 不用调用此函数，除非你确定你在做什么。
-         */
-        unscheduleAll(): void;
-        /**
-         * @en
-         * Unschedules all callbacks from all targets with a minimum priority.<br/>
-         * You should only call this with `PRIORITY_NON_SYSTEM_MIN` or higher.
-         * @zh
-         * 取消所有优先级的值大于指定优先级的定时器。<br/>
-         * 你应该只取消优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
-         * @param {Number} minPriority The minimum priority of selector to be unscheduled. Which means, all selectors which
-         *        priority is higher than minPriority will be unscheduled.
-         */
-        unscheduleAllWithMinPriority(minPriority: number): void;
-        /**
-         * @en Checks whether a callback for a given target is scheduled.
-         * @zh 检查指定的回调函数和回调对象组合是否存在定时器。
-         * @param {Function} callback The callback to check.
-         * @param {Object} target The target of the callback.
-         * @return {Boolean} True if the specified callback is invoked, false if not.
-         */
-        isScheduled(callback: any, target: ISchedulable): boolean | undefined;
-        /**
-         * @en
-         * Pause all selectors from all targets.<br/>
-         * You should NEVER call this method, unless you know what you are doing.
-         * @zh
-         * 暂停所有对象的所有定时器。<br/>
-         * 不要调用这个方法，除非你知道你正在做什么。
-         */
-        pauseAllTargets(): any;
-        /**
-         * @en
-         * Pause all selectors from all targets with a minimum priority. <br/>
-         * You should only call this with kCCPriorityNonSystemMin or higher.
-         * @zh
-         * 暂停所有优先级的值大于指定优先级的定时器。<br/>
-         * 你应该只暂停优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
-         * @param {Number} minPriority
-         */
-        pauseAllTargetsWithMinPriority(minPriority: number): any;
-        /**
-         * @en
-         * Resume selectors on a set of targets.<br/>
-         * This can be useful for undoing a call to pauseAllCallbacks.
-         * @zh
-         * 恢复指定数组中所有对象的定时器。<br/>
-         * 这个函数是 pauseAllCallbacks 的逆操作。
-         * @param {Array} targetsToResume
-         */
-        resumeTargets(targetsToResume: any): void;
-        /**
-         * @en
-         * Pauses the target.<br/>
-         * All scheduled selectors/update for a given target won't be 'ticked' until the target is resumed.<br/>
-         * If the target is not present, nothing happens.
-         * @zh
-         * 暂停指定对象的定时器。<br/>
-         * 指定对象的所有定时器都会被暂停。<br/>
-         * 如果指定的对象没有定时器，什么也不会发生。
-         * @param {Object} target
-         */
-        pauseTarget(target: ISchedulable): void;
-        /**
-         * @en
-         * Resumes the target.<br/>
-         * The 'target' will be unpaused, so all schedule selectors/update will be 'ticked' again.<br/>
-         * If the target is not present, nothing happens.
-         * @zh
-         * 恢复指定对象的所有定时器。<br/>
-         * 指定对象的所有定时器将继续工作。<br/>
-         * 如果指定的对象没有定时器，什么也不会发生。
-         * @param {Object} target
-         */
-        resumeTarget(target: ISchedulable): void;
-        /**
-         * @en Returns whether or not the target is paused.
-         * @zh 返回指定对象的定时器是否处于暂停状态。
-         * @param {Object} target
-         * @return {Boolean}
-         */
-        isTargetPaused(target: ISchedulable): any;
-        private _removeHashElement;
-        private _removeUpdateFromHash;
-        private _priorityIn;
-        private _appendIn;
-    }
-}
-declare module "cocos/core/scene-graph/base-node-dev" {
-    export function baseNodePolyfill(BaseNode: any): void;
-}
-declare module "cocos/core/scene-graph/layers" {
-    /**
-     * @zh 节点层管理器，层数据是以掩码数据方式存储在 [[Node.layer]] 中，用于射线检测、物理碰撞和用户自定义脚本逻辑。
-     * 每个节点可属于一个或多个层，可通过 “包含式” 或 “排除式” 两种检测器进行层检测。
-     * @en Node's layer manager, it's stored as bit mask data in [[Node.layer]].
-     * Layer information is widely used in raycast, physics and user logic.
-     * Every node can be assigned to multiple layers with different bit masks, you can setup layer with inclusive or exclusive operation.
-     */
-    export class Layers {
-        /**
-         * @en All layers in an Enum
-         * @zh 以 Enum 形式存在的所有层列表
-         */
-        static Enum: {
-            NONE: number;
-            IGNORE_RAYCAST: number;
-            GIZMOS: number;
-            EDITOR: number;
-            UI_3D: number;
-            SCENE_GIZMO: number;
-            UI_2D: number;
-            PROFILER: number;
-            DEFAULT: number;
-            ALL: number;
-        };
-        /**
-         * @en All layers in [[BitMask]] type
-         * @zh 包含所有层的 [[BitMask]]
-         */
-        static BitMask: {
-            NONE: number;
-            IGNORE_RAYCAST: number;
-            GIZMOS: number;
-            EDITOR: number;
-            UI_3D: number;
-            SCENE_GIZMO: number;
-            UI_2D: number;
-            PROFILER: number;
-            DEFAULT: number;
-            ALL: number;
-        };
-        /**
-         * @en
-         * Make a layer mask accepting nothing but the listed layers
-         * @zh
-         * 创建一个包含式层检测器，只接受列表中的层
-         * @param includes All accepted layers
-         * @return A filter which can detect all accepted layers
-         */
-        static makeMaskInclude(includes: number[]): number;
-        /**
-         * @en
-         * Make a layer mask accepting everything but the listed layers
-         * @zh
-         * 创建一个排除式层检测器，只拒绝列表中的层
-         * @param excludes All excluded layers
-         * @return A filter which can detect for excluded layers
-         */
-        static makeMaskExclude(excludes: number[]): number;
-        /**
-         * @zh 添加一个新层，用户可编辑 0 - 19 位为用户自定义层
-         * @en Add a new layer, user can use layers from bit position 0 to 19, other bits are reserved.
-         * @param name Layer's name
-         * @param bitNum Layer's bit position
-         */
-        static addLayer(name: string, bitNum: number): void;
-        /**
-         * @en Remove a layer, user can remove layers from bit position 0 to 19, other bits are reserved.
-         * @zh 移除一个层，用户可编辑 0 - 19 位为用户自定义层
-         * @param bitNum Layer's bit position
-         */
-        static deleteLayer(bitNum: number): void;
-    }
-}
-declare module "cocos/core/scene-graph/node-enum" {
-    /**
-     * @category scene-graph
-     */
-    /**
-     * @en Node's coordinate space
-     * @zh 节点的坐标空间
-     */
-    export enum NodeSpace {
-        LOCAL = 0,
-        WORLD = 1
-    }
-    /**
-     * @en Bit masks for node's transformation
-     * @zh 节点的空间变换位标记
-     */
-    export enum TransformBit {
-        /**
-         * @zh
-         * 无改变
-         */
-        NONE = 0,
-        /**
-         * @zh
-         * 节点位置改变
-         */
-        POSITION = 1,
-        /**
-         * @zh
-         * 节点旋转
-         */
-        ROTATION = 2,
-        /**
-         * @zh
-         * 节点缩放
-         */
-        SCALE = 4,
-        /**
-         * @zh
-         * 节点旋转及缩放
-         */
-        RS = 6,
-        /**
-         * @zh
-         * 节点平移，旋转及缩放
-         */
-        TRS = 7,
-        TRS_MASK = -8
+        asyncLoadAssets: boolean;
     }
 }
 declare module "cocos/core/assets/asset-enum" {
@@ -9792,11 +10166,496 @@ declare module "cocos/core/assets/image-asset" {
         _onDataComplete(): void;
     }
 }
-declare module "cocos/core/utils/murmurhash2_gc" {
-    export function murmurhash2_32_gc(input: string | Uint8Array, seed: number): number;
+declare module "cocos/core/renderer/core/sampler-lib" {
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXSampler } from "cocos/core/gfx/sampler";
+    export enum SamplerInfoIndex {
+        minFilter = 0,
+        magFilter = 1,
+        mipFilter = 2,
+        addressU = 3,
+        addressV = 4,
+        addressW = 5,
+        maxAnisotropy = 6,
+        cmpFunc = 7,
+        minLOD = 8,
+        maxLOD = 9,
+        mipLODBias = 10,
+        total = 11
+    }
+    export const defaultSamplerHash: number;
+    export function genSamplerHash(info: (number | undefined)[]): number;
+    /**
+     * @zh
+     * 维护 sampler 资源实例的全局管理器。
+     */
+    class SamplerLib {
+        protected _cache: Record<number, GFXSampler>;
+        /**
+         * @zh
+         * 获取指定属性的 sampler 资源。
+         * @param device 渲染设备 [GFXDevice]
+         * @param info 目标 sampler 属性
+         */
+        getSampler(device: GFXDevice, hash: number): GFXSampler;
+    }
+    export const samplerLib: SamplerLib;
+}
+declare module "cocos/core/assets/texture-base" {
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXTexture } from "cocos/core/gfx/texture";
+    import { Asset } from "cocos/core/assets/asset";
+    import { Filter, PixelFormat, WrapMode } from "cocos/core/assets/asset-enum";
+    import { GFXSampler } from "cocos/core/gfx/index";
+    /**
+     * 贴图资源基类。它定义了所有贴图共用的概念。
+     */
+    export class TextureBase extends Asset {
+        /**
+         * 此贴图是否为压缩的像素格式。
+         */
+        get isCompressed(): boolean;
+        /**
+         * 此贴图的像素宽度。
+         */
+        get width(): number;
+        /**
+         * 此贴图的像素高度。
+         */
+        get height(): number;
+        static PixelFormat: typeof PixelFormat;
+        static WrapMode: typeof WrapMode;
+        static Filter: typeof Filter;
+        protected _format: number;
+        protected _minFilter: number;
+        protected _magFilter: number;
+        protected _mipFilter: number;
+        protected _wrapS: number;
+        protected _wrapT: number;
+        protected _wrapR: number;
+        protected _anisotropy: number;
+        protected _width: number;
+        protected _height: number;
+        private _id;
+        private _samplerInfo;
+        private _samplerHash;
+        private _gfxSampler;
+        private _gfxDevice;
+        constructor();
+        /**
+         * 获取标识符。
+         * @returns 此贴图的标识符。
+         */
+        getId(): string;
+        /**
+         * 获取像素格式。
+         * @returns 此贴图的像素格式。
+         */
+        getPixelFormat(): number;
+        /**
+         * 获取各向异性。
+         * @returns 此贴图的各向异性。
+         */
+        getAnisotropy(): number;
+        /**
+         * 设置此贴图的缠绕模式。
+         * 注意，若贴图尺寸不是 2 的整数幂，缠绕模式仅允许 `WrapMode.CLAMP_TO_EDGE`。
+         * @param wrapS S(U) 坐标的采样模式。
+         * @param wrapT T(V) 坐标的采样模式。
+         * @param wrapR R(W) 坐标的采样模式。
+         */
+        setWrapMode(wrapS: WrapMode, wrapT: WrapMode, wrapR?: WrapMode): void;
+        /**
+         * 设置此贴图的过滤算法。
+         * @param minFilter 缩小过滤算法。
+         * @param magFilter 放大过滤算法。
+         */
+        setFilters(minFilter: Filter, magFilter: Filter): void;
+        /**
+         * 设置此贴图的 mip 过滤算法。
+         * @param mipFilter mip 过滤算法。
+         */
+        setMipFilter(mipFilter: Filter): void;
+        /**
+         * 设置此贴图的各向异性。
+         * @param anisotropy 各向异性。
+         */
+        setAnisotropy(anisotropy: number): void;
+        /**
+         * 销毁此贴图，并释放占有的所有 GPU 资源。
+         */
+        destroy(): boolean;
+        /**
+         * 获取此贴图底层的 GFX 纹理对象。
+         */
+        getGFXTexture(): GFXTexture | null;
+        /**
+         * 获取此贴图内部使用的 GFX 采样器信息。
+         * @private
+         */
+        getSamplerHash(): number;
+        /**
+         * 获取此贴图底层的 GFX 采样信息。
+         */
+        getGFXSampler(): GFXSampler;
+        /**
+         * @return
+         */
+        _serialize(exporting?: any): any;
+        /**
+         *
+         * @param data
+         */
+        _deserialize(serializedData: any, handle: any): void;
+        protected _getGFXDevice(): GFXDevice | null;
+        protected _getGFXFormat(): any;
+        protected _setGFXFormat(format?: PixelFormat): void;
+        protected _getGFXPixelFormat(format: any): any;
+    }
+}
+declare module "cocos/core/assets/simple-texture" {
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXTexture, IGFXTextureInfo } from "cocos/core/gfx/texture";
+    import { ImageAsset } from "cocos/core/assets/image-asset";
+    import { TextureBase } from "cocos/core/assets/texture-base";
+    export type PresumedGFXTextureInfo = Pick<IGFXTextureInfo, 'usage' | 'flags' | 'format' | 'levelCount'>;
+    /**
+     * 简单贴图基类。
+     * 简单贴图内部创建了 GFX 贴图和该贴图上的 GFX 贴图视图。
+     * 简单贴图允许指定不同的 Mipmap 层级。
+     */
+    export class SimpleTexture extends TextureBase {
+        protected _gfxTexture: GFXTexture | null;
+        private _mipmapLevel;
+        get mipmapLevel(): number;
+        /**
+         * 获取此贴图底层的 GFX 贴图对象。
+         */
+        getGFXTexture(): GFXTexture | null;
+        destroy(): boolean;
+        /**
+         * 更新 0 级 Mipmap。
+         */
+        updateImage(): void;
+        /**
+         * 更新指定层级范围内的 Mipmap。当 Mipmap 数据发生了改变时应调用此方法提交更改。
+         * 若指定的层级范围超出了实际已有的层级范围，只有覆盖的那些层级范围会被更新。
+         * @param firstLevel 起始层级。
+         * @param count 层级数量。
+         */
+        updateMipmaps(firstLevel?: number, count?: number): void;
+        /**
+         * 上传图像数据到指定层级的 Mipmap 中。
+         * 图像的尺寸影响 Mipmap 的更新范围：
+         * - 当图像是 `ArrayBuffer` 时，图像的尺寸必须和 Mipmap 的尺寸一致；否则，
+         * - 若图像的尺寸与 Mipmap 的尺寸相同，上传后整个 Mipmap 的数据将与图像数据一致；
+         * - 若图像的尺寸小于指定层级 Mipmap 的尺寸（不管是长或宽），则从贴图左上角开始，图像尺寸范围内的 Mipmap 会被更新；
+         * - 若图像的尺寸超出了指定层级 Mipmap 的尺寸（不管是长或宽），都将引起错误。
+         * @param source 图像数据源。
+         * @param level Mipmap 层级。
+         * @param arrayIndex 数组索引。
+         */
+        uploadData(source: HTMLCanvasElement | HTMLImageElement | ArrayBufferView, level?: number, arrayIndex?: number): void;
+        protected _assignImage(image: ImageAsset, level: number, arrayIndex?: number): void;
+        protected _checkTextureLoaded(): void;
+        protected _textureReady(): void;
+        /**
+         * Set mipmap level of this texture.
+         * The value is passes as presumed info to `this._getGfxTextureCreateInfo()`.
+         * @param value The mipmap level.
+         */
+        protected _setMipmapLevel(value: number): void;
+        /**
+         * @en This method is overrided by derived classes to provide GFX texture info.
+         * @zh 这个方法被派生类重写以提供GFX纹理信息。
+         * @param presumed The presumed GFX texture info.
+         */
+        protected _getGfxTextureCreateInfo(presumed: PresumedGFXTextureInfo): IGFXTextureInfo | null;
+        protected _tryReset(): void;
+        protected _createTexture(device: GFXDevice): void;
+        protected _tryDestroyTexture(): void;
+    }
+}
+declare module "cocos/core/assets/texture-2d" {
+    import { GFXTextureType } from "cocos/core/gfx/define";
+    import { PixelFormat } from "cocos/core/assets/asset-enum";
+    import { ImageAsset } from "cocos/core/assets/image-asset";
+    import { PresumedGFXTextureInfo, SimpleTexture } from "cocos/core/assets/simple-texture";
+    /**
+     * 贴图创建选项。
+     */
+    export interface ITexture2DCreateInfo {
+        /**
+         * 像素宽度。
+         */
+        width: number;
+        /**
+         * 像素高度。
+         */
+        height: number;
+        /**
+         * 像素格式。
+         * @default PixelFormat.RGBA8888
+         */
+        format?: PixelFormat;
+        /**
+         * mipmap 层级。
+         * @default 1
+         */
+        mipmapLevel?: number;
+    }
+    /**
+     * 二维贴图资源。
+     * 二维贴图资源的每个 Mipmap 层级都为一张图像资源。
+     */
+    export class Texture2D extends SimpleTexture {
+        /**
+         * 所有层级 Mipmap，注意，这里不包含自动生成的 Mipmap。
+         * 当设置 Mipmap 时，贴图的尺寸以及像素格式可能会改变。
+         */
+        get mipmaps(): ImageAsset[];
+        set mipmaps(value: ImageAsset[]);
+        /**
+         * 0 级 Mipmap。
+         * 注意，`this.image = i` 等价于 `this.mipmaps = [i]`，
+         * 也就是说，通过 `this.image` 设置 0 级 Mipmap 时将隐式地清除之前的所有 Mipmap。
+         */
+        get image(): ImageAsset | null;
+        set image(value: ImageAsset | null);
+        _mipmaps: ImageAsset[];
+        initialize(): void;
+        onLoaded(): void;
+        /**
+         * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级。重置后，贴图的像素数据将变为未定义。
+         * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
+         * @param info 贴图重置选项。
+         */
+        reset(info: ITexture2DCreateInfo): void;
+        /**
+         * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级的贴图。重置后，贴图的像素数据将变为未定义。
+         * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
+         * @param width 像素宽度。
+         * @param height 像素高度。
+         * @param format 像素格式。
+         * @param mipmapLevel mipmap 层级。
+         * @deprecated 将在 V1.0.0 移除，请转用 `this.reset()`。
+         */
+        create(width: number, height: number, format?: PixelFormat, mipmapLevel?: number): void;
+        /**
+         * 返回此贴图的字符串表示。
+         */
+        toString(): string;
+        updateMipmaps(firstLevel?: number, count?: number): void;
+        /**
+         * 若此贴图 0 级 Mipmap 的图像资源的实际源存在并为 HTML 元素则返回它，否则返回 `null`。
+         * @returns HTML 元素或 `null`。
+         * @deprecated 请转用 `this.image.data`。
+         */
+        getHtmlElementObj(): HTMLCanvasElement | HTMLImageElement | null;
+        /**
+         * 销毁此贴图，清空所有 Mipmap 并释放占用的 GPU 资源。
+         */
+        destroy(): boolean;
+        /**
+         * 返回此贴图的描述。
+         * @returns 此贴图的描述。
+         */
+        description(): string;
+        /**
+         * 释放占用的 GPU 资源。
+         * @deprecated 请转用 `this.destroy()`。
+         */
+        releaseTexture(): void;
+        _serialize(exporting?: any): any;
+        _deserialize(serializedData: any, handle: any): void;
+        protected _getGfxTextureCreateInfo(presumed: PresumedGFXTextureInfo): {
+            type: GFXTextureType;
+            width: number;
+            height: number;
+        } & Pick<import("index").IGFXTextureInfo, "usage" | "flags" | "format" | "levelCount">;
+        protected _checkTextureLoaded(): void;
+    }
+    export interface ITexture2DSerializeData {
+        base: string;
+        mipmaps: string[];
+    }
+}
+declare module "cocos/core/assets/texture-cube" {
+    import { ImageAsset } from "cocos/core/assets/image-asset";
+    import { PresumedGFXTextureInfo, SimpleTexture } from "cocos/core/assets/simple-texture";
+    import { ITexture2DCreateInfo, Texture2D } from "cocos/core/assets/texture-2d";
+    import { IGFXTextureInfo } from "cocos/core/gfx/index";
+    export type ITextureCubeCreateInfo = ITexture2DCreateInfo;
+    /**
+     * 立方体贴图的 Mipmap。
+     */
+    interface ITextureCubeMipmap {
+        front: ImageAsset;
+        back: ImageAsset;
+        left: ImageAsset;
+        right: ImageAsset;
+        top: ImageAsset;
+        bottom: ImageAsset;
+    }
+    /**
+     * 立方体每个面的约定索引。
+     */
+    enum FaceIndex {
+        right = 0,
+        left = 1,
+        top = 2,
+        bottom = 3,
+        front = 4,
+        back = 5
+    }
+    /**
+     * 立方体贴图资源。
+     * 立方体贴图资源的每个 Mipmap 层级都为 6 张图像资源，分别代表了立方体贴图的 6 个面。
+     */
+    export class TextureCube extends SimpleTexture {
+        static FaceIndex: typeof FaceIndex;
+        /**
+         * 所有层级 Mipmap，注意，这里不包含自动生成的 Mipmap。
+         * 当设置 Mipmap 时，贴图的尺寸以及像素格式可能会改变。
+         */
+        get mipmaps(): ITextureCubeMipmap[];
+        set mipmaps(value: ITextureCubeMipmap[]);
+        /**
+         * 0 级 Mipmap。<br>
+         * 注意，`this.image = i` 等价于 `this.mipmaps = [i]`，
+         * 也就是说，通过 `this.image` 设置 0 级 Mipmap 时将隐式地清除之前的所有 Mipmap。
+         */
+        get image(): ITextureCubeMipmap | null;
+        set image(value: ITextureCubeMipmap | null);
+        /**
+         * 通过二维贴图指定每个 Mipmap 的每个面创建立方体贴图。
+         * @param textures 数组长度必须是6的倍数。
+         * 每 6 个二维贴图依次构成立方体贴图的 Mipmap。6 个面应该按 `FaceIndex` 规定顺序排列。
+         * @param out 出口立方体贴图，若未定义则将创建为新的立方体贴图。
+         * @returns `out`
+         * @example
+         * ```ts
+         * const textures = new Array<Texture2D>(6);
+         * textures[TextureCube.FaceIndex.front] = frontImage;
+         * textures[TextureCube.FaceIndex.back] = backImage;
+         * textures[TextureCube.FaceIndex.left] = leftImage;
+         * textures[TextureCube.FaceIndex.right] = rightImage;
+         * textures[TextureCube.FaceIndex.top] = topImage;
+         * textures[TextureCube.FaceIndex.bottom] = bottomImage;
+         * const textureCube = TextureCube.fromTexture2DArray(textures);
+         * ```
+         */
+        static fromTexture2DArray(textures: Texture2D[], out?: TextureCube): TextureCube;
+        _mipmaps: ITextureCubeMipmap[];
+        onLoaded(): void;
+        /**
+         * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级。重置后，贴图的像素数据将变为未定义。
+         * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
+         * @param info 贴图重置选项。
+         */
+        reset(info: ITextureCubeCreateInfo): void;
+        updateMipmaps(firstLevel?: number, count?: number): void;
+        /**
+         * 销毁此贴图，清空所有 Mipmap 并释放占用的 GPU 资源。
+         */
+        destroy(): boolean;
+        /**
+         * 释放占用的 GPU 资源。
+         * @deprecated 请转用 `this.destroy()`。
+         */
+        releaseTexture(): void;
+        _serialize(exporting?: any): {
+            base: any;
+            mipmaps: {
+                front: string;
+                back: string;
+                left: string;
+                right: string;
+                top: string;
+                bottom: string;
+            }[];
+        };
+        _deserialize(serializedData: ITextureCubeSerializeData, handle: any): void;
+        protected _getGfxTextureCreateInfo(presumed: PresumedGFXTextureInfo): IGFXTextureInfo;
+    }
+    interface ITextureCubeSerializeData {
+        base: string;
+        mipmaps: {
+            front: string;
+            back: string;
+            left: string;
+            right: string;
+            top: string;
+            bottom: string;
+        }[];
+    }
 }
 declare module "cocos/core/3d/builtin/effects" {
     const _default_1: ({
+        name: string;
+        _uuid: string;
+        techniques: {
+            passes: {
+                blendState: {
+                    targets: {
+                        blend: boolean;
+                        blendSrc: number;
+                        blendDst: number;
+                        blendSrcAlpha: number;
+                        blendDstAlpha: number;
+                    }[];
+                };
+                rasterizerState: {
+                    cullMode: number;
+                };
+                program: string;
+            }[];
+        }[];
+        shaders: {
+            name: string;
+            hash: number;
+            glsl3: {
+                vert: string;
+                frag: string;
+            };
+            glsl1: {
+                vert: string;
+                frag: string;
+            };
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
+            builtins: {
+                globals: {
+                    blocks: {
+                        name: string;
+                        defines: never[];
+                    }[];
+                    samplers: never[];
+                };
+                locals: {
+                    blocks: {
+                        name: string;
+                        defines: never[];
+                    }[];
+                    samplers: never[];
+                };
+            };
+            defines: never[];
+            blocks: never[];
+            samplers: never[];
+            attributes: {
+                name: string;
+                type: number;
+                count: number;
+                defines: never[];
+                stageFlags: number;
+                format: number;
+                location: number;
+            }[];
+        }[];
+    } | {
         name: string;
         _uuid: string;
         techniques: {
@@ -10911,6 +11770,18 @@ declare module "cocos/core/3d/builtin/effects" {
     })[];
     export default _default_1;
 }
+declare module "cocos/core/3d/builtin/init" {
+    import { Asset } from "cocos/core/assets/asset";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    class BuiltinResMgr {
+        protected _device: GFXDevice | null;
+        protected _resources: Record<string, Asset>;
+        initBuiltinRes(device: GFXDevice): void;
+        get<T extends Asset>(uuid: string): T;
+    }
+    const builtinResMgr: BuiltinResMgr;
+    export { builtinResMgr };
+}
 declare module "cocos/core/3d/builtin/index" {
     export * from "cocos/core/3d/builtin/init";
     export { default as effects } from "cocos/core/3d/builtin/effects";
@@ -11118,8 +11989,12 @@ declare module "cocos/core/renderer/scene/camera" {
         private updateExposure;
     }
 }
-declare module "cocos/core/data/_decorator" {
-    export { ccclass, property, executeInEditMode, requireComponent, menu, executionOrder, disallowMultiple, playOnFocus, inspector, icon, help, string, integer, float, boolean, type, } from "cocos/core/data/class-decorator";
+declare module "cocos/core/data/class-decorator" {
+    export { ccclass } from "cocos/core/data/decorators/ccclass";
+    export { property } from "cocos/core/data/decorators/property";
+    export { requireComponent, executionOrder, disallowMultiple } from "cocos/core/data/decorators/component";
+    export { executeInEditMode, menu, playOnFocus, inspector, icon, help } from "cocos/core/data/decorators/editable";
+    export { type, integer, float, boolean, string } from "cocos/core/data/decorators/type";
 }
 declare module "cocos/core/components/missing-script" {
     import { Component } from "cocos/core/components/component";
@@ -11170,532 +12045,128 @@ declare module "cocos/core/data/deserialize" {
     }
     export default deserialize;
 }
-declare module "cocos/core/data/instantiate" {
-    import Prefab from "cocos/core/assets/prefab";
-    import { Node } from "cocos/core/scene-graph/node";
+declare module "cocos/core/scene-graph/layers" {
     /**
-     * @zh 从 Prefab 实例化出新节点。
-     * @en Instantiate a node from the Prefab.
-     * @param prefab The prefab.
-     * @returns The instantiated node.
-     * @example
-     * ```ts
-     * import { instantiate, director } from 'cc';
-     * // Instantiate node from prefab.
-     * const node = instantiate(prefabAsset);
-     * node.parent = director.getScene();
-     * ```
+     * @zh 节点层管理器，层数据是以掩码数据方式存储在 [[Node.layer]] 中，用于射线检测、物理碰撞和用户自定义脚本逻辑。
+     * 每个节点可属于一个或多个层，可通过 “包含式” 或 “排除式” 两种检测器进行层检测。
+     * @en Node's layer manager, it's stored as bit mask data in [[Node.layer]].
+     * Layer information is widely used in raycast, physics and user logic.
+     * Every node can be assigned to multiple layers with different bit masks, you can setup layer with inclusive or exclusive operation.
      */
-    function instantiate(prefab: Prefab): Node;
-    namespace instantiate {
-        var _clone: typeof doInstantiate;
-    }
-    /**
-     * @en Clones the object `original.
-     * @zh 克隆指定的任意类型的对象。
-     * @param original An existing object that you want to make a copy of.
-     * It can be any JavaScript object(`typeof original === 'object'`) but:
-     * - it shall not be array or null;
-     * - it shall not be object of `Asset`;
-     * - if it's an object of `CCObject`, it should not have been destroyed.
-     * @returns The newly instantiated object.
-     * @example
-     * ```ts
-     * import { instantiate, director } from 'cc';
-     * // Clone a node.
-     * const node = instantiate(targetNode);
-     * node.parent = director.getScene();
-     * ```
-     */
-    function instantiate<T>(original: T): T;
-    namespace instantiate {
-        var _clone: typeof doInstantiate;
-    }
-    function doInstantiate(obj: any, parent?: any): any;
-    export default instantiate;
-}
-declare module "cocos/core/data/utils/compact-value-type-array" {
-    export enum StorageUnit {
-        Uint8 = 0,
-        Uint16 = 1,
-        Uint32 = 2,
-        Int8 = 3,
-        Int16 = 4,
-        Int32 = 5,
-        Float32 = 6,
-        Float64 = 7
-    }
-    export enum ElementType {
-        Scalar = 0,
-        Vec2 = 1,
-        Vec3 = 2,
-        Vec4 = 3,
-        Quat = 4,
-        Mat4 = 5
-    }
-    export type StorageUnitElementType = number;
-    export function combineStorageUnitElementType(unit: StorageUnit, elementType: ElementType): number;
-    export function extractStorageUnitElementType(combined: StorageUnitElementType): {
-        storageUnit: number;
-        elementType: number;
-    };
-    export class CompactValueTypeArray {
-        static StorageUnit: typeof StorageUnit;
-        static ElementType: typeof ElementType;
+    export class Layers {
         /**
-         * Offset into buffer, in bytes.
+         * @en All layers in an Enum
+         * @zh 以 Enum 形式存在的所有层列表
          */
-        private _byteOffset;
+        static Enum: {
+            NONE: number;
+            IGNORE_RAYCAST: number;
+            GIZMOS: number;
+            EDITOR: number;
+            UI_3D: number;
+            SCENE_GIZMO: number;
+            UI_2D: number;
+            PROFILER: number;
+            DEFAULT: number;
+            ALL: number;
+        };
         /**
-         * Unit count this CVTA occupies.
+         * @en All layers in [[BitMask]] type
+         * @zh 包含所有层的 [[BitMask]]
          */
-        private _unitCount;
+        static BitMask: {
+            NONE: number;
+            IGNORE_RAYCAST: number;
+            GIZMOS: number;
+            EDITOR: number;
+            UI_3D: number;
+            SCENE_GIZMO: number;
+            UI_2D: number;
+            PROFILER: number;
+            DEFAULT: number;
+            ALL: number;
+        };
         /**
-         * Element type this CVTA holds.
+         * @en
+         * Make a layer mask accepting nothing but the listed layers
+         * @zh
+         * 创建一个包含式层检测器，只接受列表中的层
+         * @param includes All accepted layers
+         * @return A filter which can detect all accepted layers
          */
-        private _unitElement;
+        static makeMaskInclude(includes: number[]): number;
         /**
-         * Element count this CVTA holds.
+         * @en
+         * Make a layer mask accepting everything but the listed layers
+         * @zh
+         * 创建一个排除式层检测器，只拒绝列表中的层
+         * @param excludes All excluded layers
+         * @return A filter which can detect for excluded layers
          */
-        private _length;
+        static makeMaskExclude(excludes: number[]): number;
         /**
-         * Returns the length in bytes that a buffer needs to encode the specified value array in form of CVTA.
-         * @param values The value array.
-         * @param unit Target element type.
+         * @zh 添加一个新层，用户可编辑 0 - 19 位为用户自定义层
+         * @en Add a new layer, user can use layers from bit position 0 to 19, other bits are reserved.
+         * @param name Layer's name
+         * @param bitNum Layer's bit position
          */
-        static lengthFor(values: any[], elementType: ElementType, unit: StorageUnit): number;
+        static addLayer(name: string, bitNum: number): void;
         /**
-         * Compresses the specified value array in form of CVTA into target buffer.
-         * @param values The value array.
-         * @param unit Target element type.
-         * @param arrayBuffer Target buffer.
-         * @param byteOffset Offset into target buffer.
+         * @en Remove a layer, user can remove layers from bit position 0 to 19, other bits are reserved.
+         * @zh 移除一个层，用户可编辑 0 - 19 位为用户自定义层
+         * @param bitNum Layer's bit position
          */
-        static compress(values: any[], elementType: ElementType, unit: StorageUnit, arrayBuffer: ArrayBuffer, byteOffset: number, presumedByteOffset: number): CompactValueTypeArray;
-        /**
-         * Decompresses this CVTA.
-         * @param arrayBuffer The buffer this CVTA stored in.
-         */
-        decompress<T>(arrayBuffer: ArrayBuffer): T[];
-    }
-    export function isCompactValueTypeArray(value: any): value is CompactValueTypeArray;
-}
-declare module "cocos/core/data/index" {
-    /**
-     * @category core/data
-     */
-    import * as _decorator from "cocos/core/data/_decorator";
-    export { _decorator };
-    export { default as CCClass } from "cocos/core/data/class";
-    export { CCObject, isValid } from "cocos/core/data/object";
-    export { default as deserialize } from "cocos/core/data/deserialize";
-    export { default as instantiate } from "cocos/core/data/instantiate";
-    export { CCInteger, CCFloat, CCBoolean, CCString } from "cocos/core/data/utils/attribute";
-    export { CompactValueTypeArray } from "cocos/core/data/utils/compact-value-type-array";
-}
-declare module "cocos/core/pipeline/pipeline-serialization" {
-    import { GFXFormat, GFXLoadOp, GFXStoreOp, GFXTextureLayout, GFXTextureType, GFXTextureUsageBit } from "cocos/core/gfx/define";
-    import { RenderTexture } from "cocos/core/assets/render-texture";
-    import { Material } from "cocos/core/assets/material";
-    /**
-     * @en The tag of the render flow, including SCENE, POSTPROCESS and UI.
-     * @zh 渲染流程的标签，包含：常规场景（SCENE），后处理（POSTPROCESS），UI 界面（UI）
-     */
-    export enum RenderFlowTag {
-        SCENE = 0,
-        POSTPROCESS = 1,
-        UI = 2
-    }
-    export class RenderTextureDesc {
-        name: string;
-        type: GFXTextureType;
-        usage: GFXTextureUsageBit;
-        format: GFXFormat;
-        width: number;
-        height: number;
-    }
-    export class RenderTextureConfig {
-        name: string;
-        texture: RenderTexture | null;
-    }
-    export class MaterialConfig {
-        name: string;
-        material: Material | null;
-    }
-    export class FrameBufferDesc {
-        name: string;
-        renderPass: number;
-        colorTextures: string[];
-        depthStencilTexture: string;
-        texture: RenderTexture | null;
-    }
-    export class ColorDesc {
-        format: GFXFormat;
-        loadOp: GFXLoadOp;
-        storeOp: GFXStoreOp;
-        sampleCount: number;
-        beginLayout: GFXTextureLayout;
-        endLayout: GFXTextureLayout;
-    }
-    export class DepthStencilDesc {
-        format: GFXFormat;
-        depthLoadOp: GFXLoadOp;
-        depthStoreOp: GFXStoreOp;
-        stencilLoadOp: GFXLoadOp;
-        stencilStoreOp: GFXStoreOp;
-        sampleCount: number;
-        beginLayout: GFXTextureLayout;
-        endLayout: GFXTextureLayout;
-    }
-    export class RenderPassDesc {
-        index: number;
-        colorAttachments: never[];
-        depthStencilAttachment: DepthStencilDesc;
-    }
-    export enum RenderQueueSortMode {
-        FRONT_TO_BACK = 0,
-        BACK_TO_FRONT = 1
-    }
-    /**
-     * @en The render queue descriptor
-     * @zh 渲染队列描述信息
-     */
-    export class RenderQueueDesc {
-        /**
-         * @en Whether the render queue is a transparent queue
-         * @zh 当前队列是否是半透明队列
-         */
-        isTransparent: boolean;
-        /**
-         * @en The sort mode of the render queue
-         * @zh 渲染队列的排序模式
-         */
-        sortMode: RenderQueueSortMode;
-        /**
-         * @en The stages using this queue
-         * @zh 使用当前渲染队列的阶段列表
-         */
-        stages: string[];
+        static deleteLayer(bitNum: number): void;
     }
 }
-declare module "cocos/core/pipeline/render-window" {
-    import { GFXRenderPass, GFXTexture, GFXFramebuffer, IGFXRenderPassInfo, GFXDevice } from "cocos/core/gfx/index";
-    import { Root } from "cocos/core/root";
-    export interface IRenderWindowInfo {
-        title?: string;
-        width: number;
-        height: number;
-        renderPassInfo: IGFXRenderPassInfo;
-        swapchainBufferIndices?: number;
-        shouldSyncSizeWithSwapchain?: boolean;
-    }
-    export class RenderWindow {
-        /**
-         * @en Get window width.
-         * @zh 窗口宽度。
-         */
-        get width(): number;
-        /**
-         * @en Get window height.
-         * @zh 窗口高度。
-         */
-        get height(): number;
-        /**
-         * @en Get window frame buffer.
-         * @zh GFX帧缓冲。
-         */
-        get framebuffer(): GFXFramebuffer;
-        get shouldSyncSizeWithSwapchain(): boolean;
-        get hasOnScreenAttachments(): boolean;
-        get hasOffScreenAttachments(): boolean;
-        static registerCreateFunc(root: Root): void;
-        protected _title: string;
-        protected _width: number;
-        protected _height: number;
-        protected _nativeWidth: number;
-        protected _nativeHeight: number;
-        protected _renderPass: GFXRenderPass | null;
-        protected _colorTextures: (GFXTexture | null)[];
-        protected _depthStencilTexture: GFXTexture | null;
-        protected _framebuffer: GFXFramebuffer | null;
-        protected _swapchainBufferIndices: number;
-        protected _shouldSyncSizeWithSwapchain: boolean;
-        protected _hasOnScreenAttachments: boolean;
-        protected _hasOffScreenAttachments: boolean;
-        private constructor();
-        initialize(device: GFXDevice, info: IRenderWindowInfo): boolean;
-        destroy(): void;
-        /**
-         * @en Resize window.
-         * @zh 重置窗口大小。
-         * @param width The new width.
-         * @param height The new height.
-         */
-        resize(width: number, height: number): void;
-    }
-}
-declare module "cocos/core/pipeline/render-view" {
+declare module "cocos/core/scene-graph/node-enum" {
     /**
-     * @category pipeline
+     * @category scene-graph
      */
-    import { Camera } from "cocos/core/renderer/scene/camera";
-    import { RenderFlow } from "cocos/core/pipeline/render-flow";
-    import { RenderWindow } from "cocos/core/pipeline/render-window";
     /**
-     * @en The predefined priority of render view
-     * @zh 预设渲染视图优先级。
+     * @en Node's coordinate space
+     * @zh 节点的坐标空间
      */
-    export enum RenderViewPriority {
-        GENERAL = 100
+    export enum NodeSpace {
+        LOCAL = 0,
+        WORLD = 1
     }
     /**
-     * @en Render view information descriptor
-     * @zh 渲染视图描述信息。
+     * @en Bit masks for node's transformation
+     * @zh 节点的空间变换位标记
      */
-    export interface IRenderViewInfo {
-        camera: Camera;
-        name: string;
-        priority: number;
-        flows?: string[];
-    }
-    /**
-     * @en Render target information descriptor
-     * @zh 渲染目标描述信息。
-     */
-    export interface IRenderTargetInfo {
-        width?: number;
-        height?: number;
-    }
-    /**
-     * @en Render view represents a view from its camera, it also manages a list of [[RenderFlow]]s which will be executed for it.
-     * @zh 渲染视图代表了它的相机所拍摄的视图，它也管理一组在视图上执行的 [[RenderFlow]]。
-     */
-    export class RenderView {
+    export enum TransformBit {
         /**
-         * @en Name
-         * @zh 名称。
+         * @zh
+         * 无改变
          */
-        get name(): string;
+        NONE = 0,
         /**
-         * @en The GFX window
-         * @zh GFX 窗口。
+         * @zh
+         * 节点位置改变
          */
-        get window(): RenderWindow;
-        set window(val: RenderWindow);
+        POSITION = 1,
         /**
-         * @en The priority among other render views, used for sorting.
-         * @zh 在所有 RenderView 中的优先级，用于排序。
+         * @zh
+         * 节点旋转
          */
-        get priority(): number;
-        set priority(val: number);
+        ROTATION = 2,
         /**
-         * @en The visibility is a mask which allows nodes in the scene be seen by the current view if their [[Node.layer]] bit is included in this mask.
-         * @zh 可见性是一个掩码，如果场景中节点的 [[Node.layer]] 位被包含在该掩码中，则对应节点对该视图是可见的。
+         * @zh
+         * 节点缩放
          */
-        set visibility(vis: number);
-        get visibility(): number;
+        SCALE = 4,
         /**
-         * @en The camera correspond to this render view
-         * @zh 该视图对应的相机。
-         * @readonly
+         * @zh
+         * 节点旋转及缩放
          */
-        get camera(): Camera;
+        RS = 6,
         /**
-         * @en Whether the view is enabled
-         * @zh 是否启用。
-         * @readonly
+         * @zh
+         * 节点平移，旋转及缩放
          */
-        get isEnable(): boolean;
-        /**
-         * @en Render flow list
-         * @zh 渲染流程列表。
-         * @readonly
-         */
-        get flows(): RenderFlow[];
-        private _name;
-        private _window;
-        private _priority;
-        private _visibility;
-        private _camera;
-        private _isEnable;
-        private _flows;
-        /**
-         * @en The constructor
-         * @zh 构造函数。
-         * @param camera
-         */
-        constructor(camera: Camera);
-        /**
-         * @en Initialization function with a render view information descriptor
-         * @zh 使用一个渲染视图描述信息来初始化。
-         * @param info Render view information descriptor
-         */
-        initialize(info: IRenderViewInfo): boolean;
-        /**
-         * @en The destroy function
-         * @zh 销毁函数。
-         */
-        destroy(): void;
-        /**
-         * @en Enable or disable this render view
-         * @zh 启用或禁用该渲染视图。
-         * @param isEnable Whether to enable or disable this view
-         */
-        enable(isEnable: boolean): void;
-        /**
-         * @en Set the execution render flows with their names, the flows found in the pipeline will then be executed for this view in the render process
-         * @zh 使用对应的名字列表设置需要执行的渲染流程，所有在渲染管线中找到的对应渲染流程都会用来对当前视图执行渲染。
-         * @param flows The names of all [[RenderFlow]]s
-         */
-        setExecuteFlows(flows: string[] | undefined): void;
-        onGlobalPipelineStateChanged(): void;
-    }
-}
-declare module "cocos/core/pipeline/render-stage" {
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
-    import { RenderFlow } from "cocos/core/index";
-    /**
-     * @en The render stage information descriptor
-     * @zh 渲染阶段描述信息。
-     */
-    export interface IRenderStageInfo {
-        name: string;
-        priority: number;
-        tag?: number;
-    }
-    /**
-     * @en The render stage actually renders render objects to the output window or other [[GFXFrameBuffer]].
-     * Typically, a render stage collects render objects it's responsible for, clear the camera,
-     * record and execute command buffer, and at last present the render result.
-     * @zh 渲染阶段是实质上的渲染执行者，它负责收集渲染数据并执行渲染将渲染结果输出到屏幕或其他 [[GFXFrameBuffer]] 中。
-     * 典型的渲染阶段会收集它所管理的渲染对象，按照 [[Camera]] 的清除标记进行清屏，记录并执行渲染指令缓存，并最终呈现渲染结果。
-     */
-    export abstract class RenderStage {
-        /**
-         * @en Name of the current stage
-         * @zh 当前渲染阶段的名字。
-         */
-        get name(): string;
-        /**
-         * @en Priority of the current stage
-         * @zh 当前渲染阶段的优先级。
-         */
-        get priority(): number;
-        /**
-         * @en Tag of the current stage
-         * @zh 当前渲染阶段的标签。
-         */
-        get tag(): number;
-        /**
-         * @en Name
-         * @zh 名称。
-         */
-        protected _name: string;
-        /**
-         * @en Priority
-         * @zh 优先级。
-         */
-        protected _priority: number;
-        /**
-         * @en Type
-         * @zh 类型。
-         */
-        protected _tag: number;
-        protected _pipeline: RenderPipeline;
-        protected _flow: RenderFlow;
-        /**
-         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
-         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
-         * @param info The render stage information
-         */
-        initialize(info: IRenderStageInfo): boolean;
-        /**
-         * @en Activate the current render stage in the given render flow
-         * @zh 为指定的渲染流程开启当前渲染阶段
-         * @param flow The render flow to activate this render stage
-         */
-        activate(pipeline: RenderPipeline, flow: RenderFlow): void;
-        /**
-         * @en Destroy function
-         * @zh 销毁函数。
-         */
-        abstract destroy(): any;
-        /**
-         * @en Render function
-         * @zh 渲染函数。
-         * @param view The render view
-         */
-        abstract render(view: RenderView): any;
-    }
-}
-declare module "cocos/core/pipeline/render-flow" {
-    import { RenderStage } from "cocos/core/pipeline/render-stage";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
-    /**
-     * @en Render flow information descriptor
-     * @zh 渲染流程描述信息。
-     */
-    export interface IRenderFlowInfo {
-        name: string;
-        priority: number;
-        tag?: number;
-    }
-    /**
-     * @en Render flow is a sub process of the [[RenderPipeline]], it dispatch the render task to all the [[RenderStage]]s.
-     * @zh 渲染流程是渲染管线（[[RenderPipeline]]）的一个子过程，它将渲染任务派发到它的所有渲染阶段（[[RenderStage]]）中执行。
-     */
-    export abstract class RenderFlow {
-        /**
-         * @en The name of the render flow
-         * @zh 渲染流程的名字
-         */
-        get name(): string;
-        /**
-         * @en Priority of the current flow
-         * @zh 当前渲染流程的优先级。
-         */
-        get priority(): number;
-        /**
-         * @en Tag of the current flow
-         * @zh 当前渲染流程的标签。
-         */
-        get tag(): number;
-        /**
-         * @en The stages of flow.
-         * @zh 渲染流程 stage 列表。
-         * @readonly
-         */
-        get stages(): RenderStage[];
-        protected _name: string;
-        protected _priority: number;
-        protected _tag: number;
-        protected _stages: RenderStage[];
-        protected _pipeline: RenderPipeline;
-        /**
-         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
-         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
-         * @param info The render flow information
-         */
-        initialize(info: IRenderFlowInfo): boolean;
-        /**
-         * @en Activate the current render flow in the given pipeline
-         * @zh 为指定的渲染管线开启当前渲染流程
-         * @param pipeline The render pipeline to activate this render flow
-         */
-        activate(pipeline: RenderPipeline): void;
-        /**
-         * @en Render function, it basically run all render stages in sequence for the given view.
-         * @zh 渲染函数，对指定的渲染视图按顺序执行所有渲染阶段。
-         * @param view Render view。
-         */
-        render(view: RenderView): void;
-        /**
-         * @en Destroy function.
-         * @zh 销毁函数。
-         */
-        destroy(): void;
+        TRS = 7,
+        TRS_MASK = -8
     }
 }
 declare module "cocos/core/renderer/core/pass-utils" {
@@ -11746,105 +12217,265 @@ declare module "cocos/core/renderer/core/pass-utils" {
     export type MacroRecord = Record<string, number | boolean | string>;
     export function overrideMacros(target: MacroRecord, source: MacroRecord): boolean;
 }
-declare module "cocos/core/pipeline/render-pipeline" {
-    import { Asset } from "cocos/core/assets/asset";
-    import { RenderFlow } from "cocos/core/pipeline/render-flow";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
-    import { GFXDevice, GFXDescriptorSet, GFXCommandBuffer, GFXDescriptorSetLayout } from "cocos/core/gfx/index";
-    import { IDescriptorSetLayoutInfo } from "cocos/core/pipeline/define";
+declare module "cocos/core/renderer/core/native-pools" {
     /**
-     * @en Render pipeline information descriptor
-     * @zh 渲染管线描述信息。
+     * @hidden
      */
-    export interface IRenderPipelineInfo {
-        flows: RenderFlow[];
-        tag?: number;
+    export class NativeBufferPool {
+        private _arrayBuffers;
+        private _chunkSize;
+        constructor(dataType: number, entryBits: number, stride: number);
+        allocateNewChunk(): ArrayBuffer;
+    }
+    export class NativeObjectPool<T> {
+        constructor(dataType: number, array: T[]);
+    }
+}
+declare module "cocos/core/renderer/core/memory-pools" {
+    import { GFXRasterizerState, GFXDepthStencilState, GFXBlendState, GFXDescriptorSet, GFXShader, GFXInputAssembler, GFXPipelineLayout, GFXPrimitiveMode, GFXDynamicStateFlags } from "cocos/core/gfx/index";
+    import { RenderPassStage } from "cocos/core/pipeline/define";
+    import { BatchingSchemes } from "cocos/core/renderer/core/pass";
+    interface ITypedArrayConstructor<T> {
+        new (buffer: ArrayBufferLike, byteOffset: number, length?: number): T;
+        readonly BYTES_PER_ELEMENT: number;
+    }
+    interface IBufferManifest {
+        [key: string]: number | string;
+        COUNT: number;
+    }
+    interface IHandle<T extends PoolType> extends Number {
+        _: T;
+    }
+    type GeneralBufferElement = number | IHandle<any>;
+    class BufferPool<P extends PoolType, T extends TypedArray, E extends IBufferManifest, H extends {
+        [key in E[keyof E]]: GeneralBufferElement;
+    }> {
+        private _viewCtor;
+        private _elementCount;
+        private _entryBits;
+        private _stride;
+        private _entriesPerChunk;
+        private _entryMask;
+        private _chunkMask;
+        private _poolFlag;
+        private _arrayBuffers;
+        private _freelists;
+        private _bufferViews;
+        private _nativePool;
+        constructor(dataType: P, viewCtor: ITypedArrayConstructor<T>, enumType: E, entryBits?: number);
+        alloc(): IHandle<P>;
+        /**
+         * Get the specified element out from buffer pool.
+         *
+         * Note the type inference does not work when `element` is not directly
+         * an pre-declared enum value: (e.g. when doing arithmetic operations)
+         * ```ts
+         * SubModelPool.get(handle, SubModelView.SHADER_0 + passIndex); // the return value will have type GeneralBufferElement
+         * ```
+         *
+         * To properly declare the variable type, you have two options:
+         * ```ts
+         * const hShader = SubModelPool.get(handle, SubModelView.SHADER_0 + passIndex) as ShaderHandle; // option #1
+         * const hShader = SubModelPool.get<SubModelView.SHADER_0>(handle, SubModelView.SHADER_0 + passIndex); // option #2
+         * ```
+         */
+        get<V extends E[keyof E]>(handle: IHandle<P>, element: V): H[V];
+        set<V extends E[keyof E]>(handle: IHandle<P>, element: V, value: H[V]): void;
+        free(handle: IHandle<P>): void;
+    }
+    class ObjectPool<T, P extends PoolType> {
+        private _ctor;
+        private _dtor?;
+        private _indexMask;
+        private _poolFlag;
+        private _array;
+        private _freelist;
+        private _nativePool;
+        constructor(dataType: P, ctor: (args: any, obj?: T) => T, dtor?: (obj: T) => void);
+        alloc(...args: any[]): IHandle<P>;
+        get(handle: IHandle<P>): T;
+        free(handle: IHandle<P>): void;
+    }
+    interface IBufferTypeManifest {
+        [key: string]: GeneralBufferElement;
+    }
+    enum PoolType {
+        RASTERIZER_STATE = 0,
+        DEPTH_STENCIL_STATE = 1,
+        BLEND_STATE = 2,
+        DESCRIPTOR_SETS = 3,
+        SHADER = 4,
+        INPUT_ASSEMBLER = 5,
+        PIPELINE_LAYOUT = 6,
+        PASS = 7,
+        SUB_MODEL = 8
+    }
+    export const NULL_HANDLE: IHandle<any>;
+    export type RasterizerStateHandle = IHandle<PoolType.RASTERIZER_STATE>;
+    export type DepthStencilStateHandle = IHandle<PoolType.DEPTH_STENCIL_STATE>;
+    export type BlendStateHandle = IHandle<PoolType.BLEND_STATE>;
+    export type DescriptorSetHandle = IHandle<PoolType.DESCRIPTOR_SETS>;
+    export type ShaderHandle = IHandle<PoolType.SHADER>;
+    export type InputAssemblerHandle = IHandle<PoolType.INPUT_ASSEMBLER>;
+    export type PipelineLayoutHandle = IHandle<PoolType.PIPELINE_LAYOUT>;
+    export type PassHandle = IHandle<PoolType.PASS>;
+    export type SubModelHandle = IHandle<PoolType.SUB_MODEL>;
+    export const RasterizerStatePool: ObjectPool<GFXRasterizerState, PoolType.RASTERIZER_STATE>;
+    export const DepthStencilStatePool: ObjectPool<GFXDepthStencilState, PoolType.DEPTH_STENCIL_STATE>;
+    export const BlendStatePool: ObjectPool<GFXBlendState, PoolType.BLEND_STATE>;
+    export const ShaderPool: ObjectPool<GFXShader, PoolType.SHADER>;
+    export const DSPool: ObjectPool<GFXDescriptorSet, PoolType.DESCRIPTOR_SETS>;
+    export const IAPool: ObjectPool<GFXInputAssembler, PoolType.INPUT_ASSEMBLER>;
+    export const PipelineLayoutPool: ObjectPool<GFXPipelineLayout, PoolType.PIPELINE_LAYOUT>;
+    export enum PassView {
+        PRIORITY = 0,
+        STAGE = 1,
+        PHASE = 2,
+        BATCHING_SCHEME = 3,
+        PRIMITIVE = 4,
+        DYNAMIC_STATES = 5,
+        HASH = 6,
+        RASTERIZER_STATE = 7,
+        DEPTH_STENCIL_STATE = 8,
+        BLEND_STATE = 9,
+        DESCRIPTOR_SET = 10,
+        PIPELINE_LAYOUT = 11,
+        COUNT = 12
+    }
+    interface IPassViewType extends IBufferTypeManifest {
+        [PassView.PRIORITY]: number;
+        [PassView.STAGE]: RenderPassStage;
+        [PassView.PHASE]: number;
+        [PassView.BATCHING_SCHEME]: BatchingSchemes;
+        [PassView.PRIMITIVE]: GFXPrimitiveMode;
+        [PassView.DYNAMIC_STATES]: GFXDynamicStateFlags;
+        [PassView.HASH]: number;
+        [PassView.RASTERIZER_STATE]: RasterizerStateHandle;
+        [PassView.DEPTH_STENCIL_STATE]: DepthStencilStateHandle;
+        [PassView.BLEND_STATE]: BlendStateHandle;
+        [PassView.DESCRIPTOR_SET]: DescriptorSetHandle;
+        [PassView.PIPELINE_LAYOUT]: PipelineLayoutHandle;
+        [PassView.COUNT]: number;
+    }
+    export const PassPool: BufferPool<PoolType.PASS, Uint32Array, typeof PassView, IPassViewType>;
+    export enum SubModelView {
+        PRIORITY = 0,
+        PASS_COUNT = 1,
+        PASS_0 = 2,
+        PASS_1 = 3,
+        PASS_2 = 4,
+        PASS_3 = 5,
+        SHADER_0 = 6,
+        SHADER_1 = 7,
+        SHADER_2 = 8,
+        SHADER_3 = 9,
+        DESCRIPTOR_SET = 10,
+        INPUT_ASSEMBLER = 11,
+        COUNT = 12
+    }
+    interface ISubModelViewType extends IBufferTypeManifest {
+        [SubModelView.PRIORITY]: number;
+        [SubModelView.PASS_COUNT]: number;
+        [SubModelView.PASS_0]: PassHandle;
+        [SubModelView.PASS_1]: PassHandle;
+        [SubModelView.PASS_2]: PassHandle;
+        [SubModelView.PASS_3]: PassHandle;
+        [SubModelView.SHADER_0]: ShaderHandle;
+        [SubModelView.SHADER_1]: ShaderHandle;
+        [SubModelView.SHADER_2]: ShaderHandle;
+        [SubModelView.SHADER_3]: ShaderHandle;
+        [SubModelView.DESCRIPTOR_SET]: DescriptorSetHandle;
+        [SubModelView.INPUT_ASSEMBLER]: InputAssemblerHandle;
+        [SubModelView.COUNT]: number;
+    }
+    export const SubModelPool: BufferPool<PoolType.SUB_MODEL, Uint32Array, typeof SubModelView, ISubModelViewType>;
+}
+declare module "cocos/core/renderer/core/pass-instance" {
+    /**
+     * @category material
+     */
+    import { IPassInfo } from "cocos/core/assets/effect-asset";
+    import { MaterialInstance } from "cocos/core/renderer/core/material-instance";
+    import { Pass, PassOverrides } from "cocos/core/renderer/core/pass";
+    import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
+    export class PassInstance extends Pass {
+        get parent(): Pass;
+        private _parent;
+        private _owner;
+        private _dontNotify;
+        constructor(parent: Pass, owner: MaterialInstance);
+        overridePipelineStates(original: IPassInfo, overrides: PassOverrides): void;
+        tryCompile(defineOverrides?: MacroRecord): boolean | null;
+        beginChangeStatesSilently(): void;
+        endChangeStatesSilently(): void;
+        protected _syncBatchingScheme(): void;
+        protected _onStateChange(): void;
+    }
+}
+declare module "cocos/core/renderer/core/material-instance" {
+    /**
+     * @category material
+     */
+    import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
+    import { Material } from "cocos/core/assets/material";
+    import { PassInstance } from "cocos/core/renderer/core/pass-instance";
+    import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
+    import { PassOverrides } from "cocos/core/renderer/core/pass";
+    export interface IMaterialInstanceInfo {
+        parent: Material;
+        owner?: RenderableComponent;
+        subModelIdx?: number;
     }
     /**
-     * @en Render pipeline describes how we handle the rendering process for all render objects in the related render scene root.
-     * It contains some general pipeline configurations, necessary rendering resources and some [[RenderFlow]]s.
-     * The rendering process function [[render]] is invoked by [[Root]] for all [[RenderView]]s.
-     * @zh 渲染管线对象决定了引擎对相关渲染场景下的所有渲染对象实施的完整渲染流程。
-     * 这个类主要包含一些通用的管线配置，必要的渲染资源和一些 [[RenderFlow]]。
-     * 渲染流程函数 [[render]] 会由 [[Root]] 发起调用并对所有 [[RenderView]] 执行预设的渲染流程。
+     * @zh
+     * 材质实例，当有材质修改需求时，根据材质资源创建的，可任意定制的实例。
      */
-    export abstract class RenderPipeline extends Asset {
-        /**
-         * @en Layout of the pipeline-global descriptor set.
-         * @zh 管线层的全局描述符集布局。
-         * @readonly
-         */
-        get globalDescriptorSetLayout(): Readonly<IDescriptorSetLayoutInfo>;
-        /**
-         * @en Layout of the model-local descriptor set.
-         * @zh 逐模型的描述符集布局。
-         * @readonly
-         */
-        get localDescriptorSetLayout(): Readonly<IDescriptorSetLayoutInfo>;
-        /**
-         * @en The macros for this pipeline.
-         * @zh 管线宏定义。
-         * @readonly
-         */
-        get macros(): MacroRecord;
-        /**
-         * @en The flows of pipeline.
-         * @zh 管线的渲染流程列表。
-         * @readonly
-         */
-        get flows(): RenderFlow[];
-        /**
-         * @en The tag of pipeline.
-         * @zh 管线的标签。
-         * @readonly
-         */
-        get tag(): number;
-        /**
-         * @en Tag
-         * @zh 标签
-         * @readonly
-         */
-        protected _tag: number;
-        /**
-         * @en Flows
-         * @zh 渲染流程列表
-         * @readonly
-         */
-        protected _flows: RenderFlow[];
-        protected _globalDescriptorSetLayout: IDescriptorSetLayoutInfo;
-        protected _localDescriptorSetLayout: IDescriptorSetLayoutInfo;
-        protected _macros: MacroRecord;
-        get device(): GFXDevice;
-        get descriptorSetLayout(): GFXDescriptorSetLayout;
-        get descriptorSet(): GFXDescriptorSet;
-        get commandBuffers(): GFXCommandBuffer[];
-        protected _device: GFXDevice;
-        protected _descriptorSetLayout: GFXDescriptorSetLayout;
-        protected _descriptorSet: GFXDescriptorSet;
-        protected _commandBuffers: GFXCommandBuffer[];
-        /**
-         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
-         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
-         * @param info The render pipeline information
-         */
-        initialize(info: IRenderPipelineInfo): boolean;
-        /**
-         * @en Activate the render pipeline after loaded, it mainly activate the flows
-         * @zh 当渲染管线资源加载完成后，启用管线，主要是启用管线内的 flow
-         */
-        activate(): boolean;
-        /**
-         * @en Render function, it basically run the render process of all flows in sequence for the given view.
-         * @zh 渲染函数，对指定的渲染视图按顺序执行所有渲染流程。
-         * @param view Render view。
-         */
-        render(view: RenderView): void;
-        /**
-         * @en Internal destroy function
-         * @zh 内部销毁函数。
-         */
+    export class MaterialInstance extends Material {
+        get parent(): Material;
+        get owner(): RenderableComponent | null;
+        protected _passes: PassInstance[];
+        private _parent;
+        private _owner;
+        private _subModelIdx;
+        constructor(info: IMaterialInstanceInfo);
+        recompileShaders(overrides: MacroRecord, passIdx?: number): void;
+        overridePipelineStates(overrides: PassOverrides, passIdx?: number): void;
         destroy(): boolean;
+        onPassStateChange(dontNotify: boolean): void;
+        protected _createPasses(): PassInstance[];
+    }
+}
+declare module "cocos/core/renderer/scene/submodel" {
+    import { RenderingSubMesh } from "cocos/core/assets/mesh";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
+    import { RenderPriority } from "cocos/core/pipeline/define";
+    import { IMacroPatch, Pass } from "cocos/core/renderer/core/pass";
+    import { SubModelHandle } from "cocos/core/renderer/core/memory-pools";
+    import { GFXDescriptorSet } from "cocos/core/gfx/index";
+    export class SubModel {
+        protected _device: GFXDevice | null;
+        protected _passes: Pass[] | null;
+        protected _subMesh: RenderingSubMesh | null;
+        protected _patches: IMacroPatch[] | null;
+        protected _handle: SubModelHandle;
+        protected _priority: RenderPriority;
+        protected _inputAssembler: GFXInputAssembler | null;
+        protected _descriptorSet: GFXDescriptorSet | null;
+        set passes(passes: Pass[]);
+        get passes(): Pass[];
+        set subMesh(subMesh: RenderingSubMesh);
+        get subMesh(): RenderingSubMesh;
+        set priority(val: RenderPriority);
+        get priority(): RenderPriority;
+        get handle(): SubModelHandle;
+        get inputAssembler(): GFXInputAssembler;
+        get descriptorSet(): GFXDescriptorSet;
+        initialize(subMesh: RenderingSubMesh, passes: Pass[], patches?: IMacroPatch[] | null): void;
+        destroy(): void;
+        update(): void;
+        onPipelineStateChanged(): void;
+        protected _flushPassInfo(): void;
     }
 }
 declare module "cocos/core/renderer/utils" {
@@ -11873,328 +12504,6 @@ declare module "cocos/core/renderer/core/constants" {
         SHADOWCAST = 4
     }
 }
-declare module "cocos/core/gfx/input-assembler" {
-    /**
-     * @category gfx
-     */
-    import { GFXBuffer } from "cocos/core/gfx/buffer";
-    import { GFXFormat, GFXObject } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    export interface IGFXAttribute {
-        name: string;
-        format: GFXFormat;
-        isNormalized?: boolean;
-        stream?: number;
-        isInstanced?: boolean;
-        location?: number;
-    }
-    export interface IGFXInputAssemblerInfo {
-        attributes: IGFXAttribute[];
-        vertexBuffers: GFXBuffer[];
-        indexBuffer?: GFXBuffer;
-        indirectBuffer?: GFXBuffer;
-    }
-    /**
-     * @en GFX input assembler.
-     * @zh GFX 输入汇集器。
-     */
-    export abstract class GFXInputAssembler extends GFXObject {
-        /**
-         * @en Get current vertex buffers.
-         * @zh 顶点缓冲数组。
-         */
-        get vertexBuffers(): GFXBuffer[];
-        /**
-         * @en Get current index buffer.
-         * @zh 索引缓冲。
-         */
-        get indexBuffer(): GFXBuffer | null;
-        /**
-         * @en Get current attributes.
-         * @zh 顶点属性数组。
-         */
-        get attributes(): IGFXAttribute[];
-        /**
-         * @en Get hash of current attributes.
-         * @zh 获取顶点属性数组的哈希值。
-         */
-        get attributesHash(): number;
-        /**
-         * @en Get current vertex count.
-         * @zh 顶点数量。
-         */
-        get vertexCount(): number;
-        set vertexCount(count: number);
-        /**
-         * @en Get starting vertex.
-         * @zh 起始顶点。
-         */
-        get firstVertex(): number;
-        set firstVertex(first: number);
-        /**
-         * @en Get current index count.
-         * @zh 索引数量。
-         */
-        get indexCount(): number;
-        set indexCount(count: number);
-        /**
-         * @en Get starting index.
-         * @zh 起始索引。
-         */
-        get firstIndex(): number;
-        set firstIndex(first: number);
-        /**
-         * @en Get current vertex offset.
-         * @zh 顶点偏移量。
-         */
-        get vertexOffset(): number;
-        set vertexOffset(offset: number);
-        /**
-         * @en Get current instance count.
-         * @zh 实例数量。
-         */
-        get instanceCount(): number;
-        set instanceCount(count: number);
-        /**
-         * @en Get starting instance.
-         * @zh 起始实例。
-         */
-        get firstInstance(): number;
-        set firstInstance(first: number);
-        /**
-         * @en Is the assembler an indirect command?
-         * @zh 是否间接绘制。
-         */
-        get isIndirect(): boolean;
-        /**
-         * @en Get the indirect buffer, if present.
-         * @zh 间接绘制缓冲。
-         */
-        get indirectBuffer(): GFXBuffer | null;
-        protected _device: GFXDevice;
-        protected _attributes: IGFXAttribute[];
-        protected _vertexBuffers: GFXBuffer[];
-        protected _indexBuffer: GFXBuffer | null;
-        protected _vertexCount: number;
-        protected _firstVertex: number;
-        protected _indexCount: number;
-        protected _firstIndex: number;
-        protected _vertexOffset: number;
-        protected _instanceCount: number;
-        protected _firstInstance: number;
-        protected _isIndirect: boolean;
-        protected _attributesHash: number;
-        protected _indirectBuffer: GFXBuffer | null;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXInputAssemblerInfo): boolean;
-        abstract destroy(): void;
-        /**
-         * @en Get the specified vertex buffer.
-         * @zh 获取顶点缓冲。
-         * @param stream The stream index of the vertex buffer.
-         */
-        getVertexBuffer(stream?: number): GFXBuffer | null;
-        protected computeAttributesHash(): number;
-    }
-}
-declare module "cocos/core/gfx/shader" {
-    /**
-     * @category gfx
-     */
-    import { GFXObject, GFXShaderStageFlagBit, GFXType } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
-    export class GFXShaderStage {
-        stage: GFXShaderStageFlagBit;
-        source: string;
-    }
-    /**
-     * @en GFX uniform.
-     * @zh GFX uniform。
-     */
-    export class GFXUniform {
-        name: string;
-        type: GFXType;
-        count: number;
-    }
-    /**
-     * @en GFX uniform block.
-     * @zh GFX uniform 块。
-     */
-    export class GFXUniformBlock {
-        set: number;
-        binding: number;
-        name: string;
-        members: GFXUniform[];
-        count: number;
-    }
-    /**
-     * @en GFX uniform sampler.
-     * @zh GFX Uniform 采样器。
-     */
-    export class GFXUniformSampler {
-        set: number;
-        binding: number;
-        name: string;
-        type: GFXType;
-        count: number;
-    }
-    export class GFXShaderInfo {
-        name: string;
-        stages: GFXShaderStage[];
-        attributes: IGFXAttribute[];
-        blocks: GFXUniformBlock[];
-        samplers: GFXUniformSampler[];
-    }
-    /**
-     * @en GFX shader.
-     * @zh GFX 着色器。
-     */
-    export abstract class GFXShader extends GFXObject {
-        /**
-         * @en Get current shader id.
-         * @zh 着色器 id。
-         */
-        get id(): number;
-        /**
-         * @en Get current shader name.
-         * @zh 着色器名称。
-         */
-        get name(): string;
-        get attributes(): IGFXAttribute[];
-        get blocks(): GFXUniformBlock[];
-        get samplers(): GFXUniformSampler[];
-        protected _device: GFXDevice;
-        protected _id: number;
-        protected _name: string;
-        protected _stages: GFXShaderStage[];
-        protected _attributes: IGFXAttribute[];
-        protected _blocks: GFXUniformBlock[];
-        protected _samplers: GFXUniformSampler[];
-        constructor(device: GFXDevice);
-        abstract initialize(info: GFXShaderInfo): boolean;
-        abstract destroy(): void;
-    }
-}
-declare module "cocos/core/renderer/core/native-pools" {
-    /**
-     * @hidden
-     */
-    export class NativeBufferPool {
-        private _arrayBuffers;
-        private _chunkSize;
-        constructor(dataType: number, entryBits: number, stride: number);
-        allocateNewChunk(): ArrayBuffer;
-    }
-    export class NativeObjectPool<T> {
-        constructor(dataType: number, array: T[]);
-    }
-}
-declare module "cocos/core/renderer/core/memory-pools" {
-    import { GFXRasterizerState, GFXDepthStencilState, GFXBlendState, GFXDescriptorSet, GFXShader, GFXInputAssembler, GFXPipelineLayout } from "cocos/core/gfx/index";
-    interface ITypedArrayConstructor<T> {
-        new (buffer: ArrayBufferLike, byteOffset: number, length?: number): T;
-        readonly BYTES_PER_ELEMENT: number;
-    }
-    interface IElementEnum {
-        COUNT: number;
-    }
-    class Handle<T extends PoolType> extends Number {
-        m: T;
-    }
-    class BufferPool<T extends TypedArray, E extends IElementEnum, P extends PoolType> {
-        private _viewCtor;
-        private _elementCount;
-        private _entryBits;
-        private _stride;
-        private _entriesPerChunk;
-        private _entryMask;
-        private _chunkMask;
-        private _poolFlag;
-        private _arrayBuffers;
-        private _freelists;
-        private _bufferViews;
-        private _nativePool;
-        constructor(dataType: P, viewCtor: ITypedArrayConstructor<T>, enumType: E, entryBits?: number);
-        alloc(): Handle<P>;
-        get<H extends Number | Handle<any>>(handle: Handle<P>, element: E[keyof E]): H;
-        set(handle: Handle<P>, element: E[keyof E], value: number | Handle<any>): void;
-        free(handle: Handle<P>): void;
-    }
-    class ObjectPool<T, P extends PoolType> {
-        private _ctor;
-        private _dtor?;
-        private _indexMask;
-        private _poolFlag;
-        private _array;
-        private _freelist;
-        private _nativePool;
-        constructor(dataType: P, ctor: (args: any, obj?: T) => T, dtor?: (obj: T) => void);
-        alloc(...args: any[]): Handle<P>;
-        get(handle: Handle<P>): T;
-        free(handle: Handle<P>): void;
-    }
-    enum PoolType {
-        RASTERIZER_STATE = 0,
-        DEPTH_STENCIL_STATE = 1,
-        BLEND_STATE = 2,
-        DESCRIPTOR_SETS = 3,
-        SHADER = 4,
-        INPUT_ASSEMBLER = 5,
-        PIPELINE_LAYOUT = 6,
-        PASS = 7,
-        SUB_MODEL = 8
-    }
-    export const NULL_HANDLE: Handle<any>;
-    export type RasterizerStateHandle = Handle<PoolType.RASTERIZER_STATE>;
-    export type DepthStencilStateHandle = Handle<PoolType.DEPTH_STENCIL_STATE>;
-    export type BlendStateHandle = Handle<PoolType.BLEND_STATE>;
-    export type DescriptorSetHandle = Handle<PoolType.DESCRIPTOR_SETS>;
-    export type ShaderHandle = Handle<PoolType.SHADER>;
-    export type IAHandle = Handle<PoolType.INPUT_ASSEMBLER>;
-    export type PipelineLayoutHandle = Handle<PoolType.PIPELINE_LAYOUT>;
-    export type PassHandle = Handle<PoolType.PASS>;
-    export type SubModelHandle = Handle<PoolType.SUB_MODEL>;
-    export const RasterizerStatePool: ObjectPool<GFXRasterizerState, PoolType.RASTERIZER_STATE>;
-    export const DepthStencilStatePool: ObjectPool<GFXDepthStencilState, PoolType.DEPTH_STENCIL_STATE>;
-    export const BlendStatePool: ObjectPool<GFXBlendState, PoolType.BLEND_STATE>;
-    export const ShaderPool: ObjectPool<GFXShader, PoolType.SHADER>;
-    export const DSPool: ObjectPool<GFXDescriptorSet, PoolType.DESCRIPTOR_SETS>;
-    export const IAPool: ObjectPool<GFXInputAssembler, PoolType.INPUT_ASSEMBLER>;
-    export const PipelineLayoutPool: ObjectPool<GFXPipelineLayout, PoolType.PIPELINE_LAYOUT>;
-    export enum PassView {
-        PRIORITY = 0,
-        STAGE = 1,
-        PHASE = 2,
-        BATCHING_SCHEME = 3,
-        PRIMITIVE = 4,
-        DYNAMIC_STATES = 5,
-        HASH = 6,
-        RASTERIZER_STATE = 7,
-        DEPTH_STENCIL_STATE = 8,
-        BLEND_STATE = 9,
-        DESCRIPTOR_SET = 10,
-        PIPELINE_LAYOUT = 11,
-        COUNT = 12
-    }
-    export const PassPool: BufferPool<Uint32Array, typeof PassView, PoolType.PASS>;
-    export enum SubModelView {
-        PRIORITY = 0,
-        PASS_COUNT = 1,
-        PASS_0 = 2,
-        PASS_1 = 3,
-        PASS_2 = 4,
-        PASS_3 = 5,
-        SHADER_0 = 6,
-        SHADER_1 = 7,
-        SHADER_2 = 8,
-        SHADER_3 = 9,
-        DESCRIPTOR_SET = 10,
-        INPUT_ASSEMBLER = 11,
-        COUNT = 12
-    }
-    export const SubModelPool: BufferPool<Uint32Array, typeof SubModelView, PoolType.SUB_MODEL>;
-}
 declare module "cocos/core/renderer/core/program-lib" {
     /**
      * @category material
@@ -12204,7 +12513,7 @@ declare module "cocos/core/renderer/core/program-lib" {
     import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
     import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
     import { ShaderHandle, PipelineLayoutHandle } from "cocos/core/renderer/core/memory-pools";
-    import { GFXDescriptorSetLayout, IGFXDescriptorSetLayoutBinding } from "cocos/core/index";
+    import { GFXDescriptorSetLayout, IGFXDescriptorSetLayoutBinding } from "cocos/core/gfx/descriptor-set-layout";
     interface IDefineRecord extends IDefineInfo {
         _map: (value: any) => number;
         _offset: number;
@@ -12273,41 +12582,6 @@ declare module "cocos/core/renderer/core/program-lib" {
     }
     export const programLib: ProgramLib;
 }
-declare module "cocos/core/renderer/core/sampler-lib" {
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXSampler } from "cocos/core/gfx/sampler";
-    export enum SamplerInfoIndex {
-        minFilter = 0,
-        magFilter = 1,
-        mipFilter = 2,
-        addressU = 3,
-        addressV = 4,
-        addressW = 5,
-        maxAnisotropy = 6,
-        cmpFunc = 7,
-        minLOD = 8,
-        maxLOD = 9,
-        mipLODBias = 10,
-        total = 11
-    }
-    export const defaultSamplerHash: number;
-    export function genSamplerHash(info: (number | undefined)[]): number;
-    /**
-     * @zh
-     * 维护 sampler 资源实例的全局管理器。
-     */
-    class SamplerLib {
-        protected _cache: Record<number, GFXSampler>;
-        /**
-         * @zh
-         * 获取指定属性的 sampler 资源。
-         * @param device 渲染设备 [GFXDevice]
-         * @param info 目标 sampler 属性
-         */
-        getSampler(device: GFXDevice, hash: number): GFXSampler;
-    }
-    export const samplerLib: SamplerLib;
-}
 declare module "cocos/core/renderer/core/texture-buffer-pool" {
     /**
      * @hidden
@@ -12359,562 +12633,71 @@ declare module "cocos/core/renderer/core/texture-buffer-pool" {
         private _McDonaldAlloc;
     }
 }
-declare module "cocos/core/assets/texture-base" {
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXTexture } from "cocos/core/gfx/texture";
-    import { Asset } from "cocos/core/assets/asset";
-    import { Filter, PixelFormat, WrapMode } from "cocos/core/assets/asset-enum";
-    import { GFXSampler } from "cocos/core/gfx/index";
-    /**
-     * 贴图资源基类。它定义了所有贴图共用的概念。
-     */
-    export class TextureBase extends Asset {
-        /**
-         * 此贴图是否为压缩的像素格式。
-         */
-        get isCompressed(): boolean;
-        /**
-         * 此贴图的像素宽度。
-         */
-        get width(): number;
-        /**
-         * 此贴图的像素高度。
-         */
-        get height(): number;
-        static PixelFormat: typeof PixelFormat;
-        static WrapMode: typeof WrapMode;
-        static Filter: typeof Filter;
-        protected _format: number;
-        protected _minFilter: number;
-        protected _magFilter: number;
-        protected _mipFilter: number;
-        protected _wrapS: number;
-        protected _wrapT: number;
-        protected _wrapR: number;
-        protected _anisotropy: number;
-        protected _width: number;
-        protected _height: number;
-        private _id;
-        private _samplerInfo;
-        private _samplerHash;
-        private _gfxSampler;
-        private _gfxDevice;
-        constructor();
-        /**
-         * 获取标识符。
-         * @returns 此贴图的标识符。
-         */
-        getId(): string;
-        /**
-         * 获取像素格式。
-         * @returns 此贴图的像素格式。
-         */
-        getPixelFormat(): number;
-        /**
-         * 获取各向异性。
-         * @returns 此贴图的各向异性。
-         */
-        getAnisotropy(): number;
-        /**
-         * 设置此贴图的缠绕模式。
-         * 注意，若贴图尺寸不是 2 的整数幂，缠绕模式仅允许 `WrapMode.CLAMP_TO_EDGE`。
-         * @param wrapS S(U) 坐标的采样模式。
-         * @param wrapT T(V) 坐标的采样模式。
-         * @param wrapR R(W) 坐标的采样模式。
-         */
-        setWrapMode(wrapS: WrapMode, wrapT: WrapMode, wrapR?: WrapMode): void;
-        /**
-         * 设置此贴图的过滤算法。
-         * @param minFilter 缩小过滤算法。
-         * @param magFilter 放大过滤算法。
-         */
-        setFilters(minFilter: Filter, magFilter: Filter): void;
-        /**
-         * 设置此贴图的 mip 过滤算法。
-         * @param mipFilter mip 过滤算法。
-         */
-        setMipFilter(mipFilter: Filter): void;
-        /**
-         * 设置此贴图的各向异性。
-         * @param anisotropy 各向异性。
-         */
-        setAnisotropy(anisotropy: number): void;
-        /**
-         * 销毁此贴图，并释放占有的所有 GPU 资源。
-         */
-        destroy(): boolean;
-        /**
-         * 获取此贴图底层的 GFX 纹理对象。
-         */
-        getGFXTexture(): GFXTexture | null;
-        /**
-         * 获取此贴图内部使用的 GFX 采样器信息。
-         * @private
-         */
-        getSamplerHash(): number;
-        /**
-         * 获取此贴图底层的 GFX 采样信息。
-         */
-        getGFXSampler(): GFXSampler;
-        /**
-         * @return
-         */
-        _serialize(exporting?: any): any;
-        /**
-         *
-         * @param data
-         */
-        _deserialize(serializedData: any, handle: any): void;
-        protected _getGFXDevice(): GFXDevice | null;
-        protected _getGFXFormat(): any;
-        protected _setGFXFormat(format?: PixelFormat): void;
-        protected _getGFXPixelFormat(format: any): any;
+declare module "cocos/core/data/utils/compact-value-type-array" {
+    export enum StorageUnit {
+        Uint8 = 0,
+        Uint16 = 1,
+        Uint32 = 2,
+        Int8 = 3,
+        Int16 = 4,
+        Int32 = 5,
+        Float32 = 6,
+        Float64 = 7
     }
-}
-declare module "cocos/core/assets/simple-texture" {
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXTexture, IGFXTextureInfo } from "cocos/core/gfx/texture";
-    import { ImageAsset } from "cocos/core/assets/image-asset";
-    import { TextureBase } from "cocos/core/assets/texture-base";
-    export type PresumedGFXTextureInfo = Pick<IGFXTextureInfo, 'usage' | 'flags' | 'format' | 'levelCount'>;
-    /**
-     * 简单贴图基类。
-     * 简单贴图内部创建了 GFX 贴图和该贴图上的 GFX 贴图视图。
-     * 简单贴图允许指定不同的 Mipmap 层级。
-     */
-    export class SimpleTexture extends TextureBase {
-        protected _gfxTexture: GFXTexture | null;
-        private _mipmapLevel;
-        get mipmapLevel(): number;
-        /**
-         * 获取此贴图底层的 GFX 贴图对象。
-         */
-        getGFXTexture(): GFXTexture | null;
-        destroy(): boolean;
-        /**
-         * 更新 0 级 Mipmap。
-         */
-        updateImage(): void;
-        /**
-         * 更新指定层级范围内的 Mipmap。当 Mipmap 数据发生了改变时应调用此方法提交更改。
-         * 若指定的层级范围超出了实际已有的层级范围，只有覆盖的那些层级范围会被更新。
-         * @param firstLevel 起始层级。
-         * @param count 层级数量。
-         */
-        updateMipmaps(firstLevel?: number, count?: number): void;
-        /**
-         * 上传图像数据到指定层级的 Mipmap 中。
-         * 图像的尺寸影响 Mipmap 的更新范围：
-         * - 当图像是 `ArrayBuffer` 时，图像的尺寸必须和 Mipmap 的尺寸一致；否则，
-         * - 若图像的尺寸与 Mipmap 的尺寸相同，上传后整个 Mipmap 的数据将与图像数据一致；
-         * - 若图像的尺寸小于指定层级 Mipmap 的尺寸（不管是长或宽），则从贴图左上角开始，图像尺寸范围内的 Mipmap 会被更新；
-         * - 若图像的尺寸超出了指定层级 Mipmap 的尺寸（不管是长或宽），都将引起错误。
-         * @param source 图像数据源。
-         * @param level Mipmap 层级。
-         * @param arrayIndex 数组索引。
-         */
-        uploadData(source: HTMLCanvasElement | HTMLImageElement | ArrayBufferView, level?: number, arrayIndex?: number): void;
-        protected _assignImage(image: ImageAsset, level: number, arrayIndex?: number): void;
-        protected _checkTextureLoaded(): void;
-        protected _textureReady(): void;
-        /**
-         * Set mipmap level of this texture.
-         * The value is passes as presumed info to `this._getGfxTextureCreateInfo()`.
-         * @param value The mipmap level.
-         */
-        protected _setMipmapLevel(value: number): void;
-        /**
-         * @en This method is overrided by derived classes to provide GFX texture info.
-         * @zh 这个方法被派生类重写以提供GFX纹理信息。
-         * @param presumed The presumed GFX texture info.
-         */
-        protected _getGfxTextureCreateInfo(presumed: PresumedGFXTextureInfo): IGFXTextureInfo | null;
-        protected _tryReset(): void;
-        protected _createTexture(device: GFXDevice): void;
-        protected _tryDestroyTexture(): void;
+    export enum ElementType {
+        Scalar = 0,
+        Vec2 = 1,
+        Vec3 = 2,
+        Vec4 = 3,
+        Quat = 4,
+        Mat4 = 5
     }
-}
-declare module "cocos/core/assets/texture-2d" {
-    import { GFXTextureType } from "cocos/core/gfx/define";
-    import { PixelFormat } from "cocos/core/assets/asset-enum";
-    import { ImageAsset } from "cocos/core/assets/image-asset";
-    import { PresumedGFXTextureInfo, SimpleTexture } from "cocos/core/assets/simple-texture";
-    /**
-     * 贴图创建选项。
-     */
-    export interface ITexture2DCreateInfo {
+    export type StorageUnitElementType = number;
+    export function combineStorageUnitElementType(unit: StorageUnit, elementType: ElementType): number;
+    export function extractStorageUnitElementType(combined: StorageUnitElementType): {
+        storageUnit: number;
+        elementType: number;
+    };
+    export class CompactValueTypeArray {
+        static StorageUnit: typeof StorageUnit;
+        static ElementType: typeof ElementType;
         /**
-         * 像素宽度。
+         * Offset into buffer, in bytes.
          */
-        width: number;
+        private _byteOffset;
         /**
-         * 像素高度。
+         * Unit count this CVTA occupies.
          */
-        height: number;
+        private _unitCount;
         /**
-         * 像素格式。
-         * @default PixelFormat.RGBA8888
+         * Element type this CVTA holds.
          */
-        format?: PixelFormat;
+        private _unitElement;
         /**
-         * mipmap 层级。
-         * @default 1
+         * Element count this CVTA holds.
          */
-        mipmapLevel?: number;
+        private _length;
+        /**
+         * Returns the length in bytes that a buffer needs to encode the specified value array in form of CVTA.
+         * @param values The value array.
+         * @param unit Target element type.
+         */
+        static lengthFor(values: any[], elementType: ElementType, unit: StorageUnit): number;
+        /**
+         * Compresses the specified value array in form of CVTA into target buffer.
+         * @param values The value array.
+         * @param unit Target element type.
+         * @param arrayBuffer Target buffer.
+         * @param byteOffset Offset into target buffer.
+         */
+        static compress(values: any[], elementType: ElementType, unit: StorageUnit, arrayBuffer: ArrayBuffer, byteOffset: number, presumedByteOffset: number): CompactValueTypeArray;
+        /**
+         * Decompresses this CVTA.
+         * @param arrayBuffer The buffer this CVTA stored in.
+         */
+        decompress<T>(arrayBuffer: ArrayBuffer): T[];
     }
-    /**
-     * 二维贴图资源。
-     * 二维贴图资源的每个 Mipmap 层级都为一张图像资源。
-     */
-    export class Texture2D extends SimpleTexture {
-        /**
-         * 所有层级 Mipmap，注意，这里不包含自动生成的 Mipmap。
-         * 当设置 Mipmap 时，贴图的尺寸以及像素格式可能会改变。
-         */
-        get mipmaps(): ImageAsset[];
-        set mipmaps(value: ImageAsset[]);
-        /**
-         * 0 级 Mipmap。
-         * 注意，`this.image = i` 等价于 `this.mipmaps = [i]`，
-         * 也就是说，通过 `this.image` 设置 0 级 Mipmap 时将隐式地清除之前的所有 Mipmap。
-         */
-        get image(): ImageAsset | null;
-        set image(value: ImageAsset | null);
-        _mipmaps: ImageAsset[];
-        initialize(): void;
-        onLoaded(): void;
-        /**
-         * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级。重置后，贴图的像素数据将变为未定义。
-         * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
-         * @param info 贴图重置选项。
-         */
-        reset(info: ITexture2DCreateInfo): void;
-        /**
-         * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级的贴图。重置后，贴图的像素数据将变为未定义。
-         * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
-         * @param width 像素宽度。
-         * @param height 像素高度。
-         * @param format 像素格式。
-         * @param mipmapLevel mipmap 层级。
-         * @deprecated 将在 V1.0.0 移除，请转用 `this.reset()`。
-         */
-        create(width: number, height: number, format?: PixelFormat, mipmapLevel?: number): void;
-        /**
-         * 返回此贴图的字符串表示。
-         */
-        toString(): string;
-        updateMipmaps(firstLevel?: number, count?: number): void;
-        /**
-         * 若此贴图 0 级 Mipmap 的图像资源的实际源存在并为 HTML 元素则返回它，否则返回 `null`。
-         * @returns HTML 元素或 `null`。
-         * @deprecated 请转用 `this.image.data`。
-         */
-        getHtmlElementObj(): HTMLCanvasElement | HTMLImageElement | null;
-        /**
-         * 销毁此贴图，清空所有 Mipmap 并释放占用的 GPU 资源。
-         */
-        destroy(): boolean;
-        /**
-         * 返回此贴图的描述。
-         * @returns 此贴图的描述。
-         */
-        description(): string;
-        /**
-         * 释放占用的 GPU 资源。
-         * @deprecated 请转用 `this.destroy()`。
-         */
-        releaseTexture(): void;
-        _serialize(exporting?: any): any;
-        _deserialize(serializedData: any, handle: any): void;
-        protected _getGfxTextureCreateInfo(presumed: PresumedGFXTextureInfo): {
-            type: GFXTextureType;
-            width: number;
-            height: number;
-        } & Pick<import("index").IGFXTextureInfo, "usage" | "format" | "flags" | "levelCount">;
-        protected _checkTextureLoaded(): void;
-    }
-    export interface ITexture2DSerializeData {
-        base: string;
-        mipmaps: string[];
-    }
-}
-declare module "cocos/core/renderer/scene/submodel" {
-    import { RenderingSubMesh } from "cocos/core/assets/mesh";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
-    import { RenderPriority } from "cocos/core/pipeline/define";
-    import { IMacroPatch, Pass } from "cocos/core/renderer/core/pass";
-    import { SubModelHandle } from "cocos/core/renderer/core/memory-pools";
-    import { GFXDescriptorSet } from "cocos/core/gfx/index";
-    export class SubModel {
-        protected _device: GFXDevice | null;
-        protected _passes: Pass[] | null;
-        protected _subMesh: RenderingSubMesh | null;
-        protected _patches: IMacroPatch[] | null;
-        protected _handle: SubModelHandle;
-        protected _priority: RenderPriority;
-        protected _inputAssembler: GFXInputAssembler | null;
-        protected _descriptorSet: GFXDescriptorSet | null;
-        set passes(passes: Pass[]);
-        get passes(): Pass[];
-        set subMesh(subMesh: RenderingSubMesh);
-        get subMesh(): RenderingSubMesh;
-        set priority(val: RenderPriority);
-        get priority(): RenderPriority;
-        get handle(): SubModelHandle;
-        get inputAssembler(): GFXInputAssembler;
-        get descriptorSet(): GFXDescriptorSet;
-        initialize(subMesh: RenderingSubMesh, passes: Pass[], patches?: IMacroPatch[] | null): void;
-        destroy(): void;
-        update(): void;
-        onPipelineStateChanged(): void;
-        protected _flushPassInfo(): void;
-    }
-}
-declare module "cocos/core/pipeline/instanced-buffer" {
-    /**
-     * @hidden
-     */
-    import { GFXTexture } from "cocos/core/gfx/index";
-    import { GFXBuffer } from "cocos/core/gfx/buffer";
-    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
-    import { IInstancedAttributeBlock, Pass } from "cocos/core/renderer/index";
-    import { SubModel } from "cocos/core/renderer/scene/submodel";
-    import { ShaderHandle, DescriptorSetHandle, PassHandle } from "cocos/core/renderer/core/memory-pools";
-    export interface IInstancedItem {
-        count: number;
-        capacity: number;
-        vb: GFXBuffer;
-        data: Uint8Array;
-        ia: GFXInputAssembler;
-        stride: number;
-        hShader: ShaderHandle;
-        hDescriptorSet: DescriptorSetHandle;
-        lightingMap: GFXTexture;
-    }
-    export class InstancedBuffer {
-        private static _buffers;
-        static get(pass: Pass, extraKey?: number): InstancedBuffer;
-        instances: IInstancedItem[];
-        hPass: PassHandle;
-        hasPendingModels: boolean;
-        dynamicOffsets: number[];
-        private _device;
-        constructor(pass: Pass);
-        destroy(): void;
-        merge(subModel: SubModel, attrs: IInstancedAttributeBlock, passIdx: number): void;
-        uploadBuffers(): void;
-        clear(): void;
-    }
-}
-declare module "cocos/core/renderer/scene/model" {
-    import { Material } from "cocos/core/assets/material";
-    import { RenderingSubMesh } from "cocos/core/assets/mesh";
-    import { aabb } from "cocos/core/geometry/index";
-    import { GFXBuffer } from "cocos/core/gfx/buffer";
-    import { Node } from "cocos/core/scene-graph/index";
-    import { RenderScene } from "cocos/core/renderer/scene/render-scene";
-    import { Texture2D } from "cocos/core/assets/texture-2d";
-    import { SubModel } from "cocos/core/renderer/scene/submodel";
-    import { Pass, IMacroPatch } from "cocos/core/renderer/core/pass";
-    import { Vec3, Vec4 } from "cocos/core/math/index";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { IGFXAttribute, GFXDescriptorSet } from "cocos/core/gfx/index";
-    import { GFXFormat } from "cocos/core/gfx/define";
-    export interface IInstancedAttribute {
-        name: string;
-        format: GFXFormat;
-        isNormalized?: boolean;
-        view: ArrayBufferView;
-    }
-    export interface IInstancedAttributeBlock {
-        buffer: Uint8Array;
-        list: IInstancedAttribute[];
-    }
-    export enum ModelType {
-        DEFAULT = 0,
-        SKINNING = 1,
-        BAKED_SKINNING = 2,
-        UI_BATCH = 3,
-        PARTICLE_BATCH = 4,
-        LINE = 5
-    }
-    /**
-     * A representation of a model
-     */
-    export class Model {
-        get subModels(): SubModel[];
-        get inited(): boolean;
-        get worldBounds(): aabb | null;
-        get modelBounds(): aabb | null;
-        get localBuffer(): GFXBuffer | null;
-        get updateStamp(): number;
-        get isInstancingEnabled(): boolean;
-        type: ModelType;
-        scene: RenderScene | null;
-        node: Node;
-        transform: Node;
-        enabled: boolean;
-        visFlags: number;
-        castShadow: boolean;
-        receiveShadow: boolean;
-        isDynamicBatching: boolean;
-        instancedAttributes: IInstancedAttributeBlock;
-        protected _worldBounds: aabb | null;
-        protected _modelBounds: aabb | null;
-        protected _subModels: SubModel[];
-        protected _device: GFXDevice;
-        protected _inited: boolean;
-        protected _descriptorSetCount: number;
-        protected _updateStamp: number;
-        protected _transformUpdated: boolean;
-        private _localData;
-        private _localBuffer;
-        private _instMatWorldIdx;
-        private _lightmap;
-        private _lightmapUVParam;
-        /**
-         * Setup a default empty model
-         */
-        constructor();
-        initialize(node: Node): void;
-        destroy(): void;
-        attachToScene(scene: RenderScene): void;
-        detachFromScene(): void;
-        updateTransform(stamp: number): void;
-        updateUBOs(stamp: number): void;
-        /**
-         * Create the bounding shape of this model
-         * @param minPos the min position of the model
-         * @param maxPos the max position of the model
-         */
-        createBoundingShape(minPos?: Vec3, maxPos?: Vec3): void;
-        initSubModel(idx: number, subMeshData: RenderingSubMesh, mat: Material): void;
-        setSubModelMesh(idx: number, subMesh: RenderingSubMesh): void;
-        setSubModelMaterial(idx: number, mat: Material): void;
-        onGlobalPipelineStateChanged(): void;
-        updateLightingmap(texture: Texture2D | null, uvParam: Vec4): void;
-        getMacroPatches(subModelIndex: number): IMacroPatch[] | null;
-        protected _updateAttributesAndBinding(subModelIndex: number): void;
-        protected _getInstancedAttributeIndex(name: string): number;
-        protected _updateInstancedAttributes(attributes: IGFXAttribute[], pass: Pass): void;
-        protected _initLocalDescriptors(subModelIndex: number): void;
-        protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
-    }
-}
-declare module "cocos/core/3d/framework/renderable-component" {
-    import { Material } from "cocos/core/assets/material";
-    import { Component } from "cocos/core/components/component";
-    import { MaterialInstance } from "cocos/core/renderer/core/material-instance";
-    import { Model } from "cocos/core/renderer/scene/model";
-    export class RenderableComponent extends Component {
-        protected _materials: (Material | null)[];
-        protected _visFlags: number;
-        get visibility(): number;
-        set visibility(val: number);
-        get sharedMaterials(): (Material | null)[];
-        set sharedMaterials(val: (Material | null)[]);
-        /**
-         * @en The materials of the model.
-         * @zh 模型材质。
-         */
-        get materials(): (MaterialInstance | null)[];
-        set materials(val: (MaterialInstance | null)[]);
-        protected _materialInstances: (MaterialInstance | null)[];
-        protected _models: Model[];
-        get sharedMaterial(): Material | null;
-        /**
-         * @en Get the shared material asset of the specified sub-model.
-         * @zh 获取指定子模型的共享材质资源。
-         */
-        getMaterial(idx: number): Material | null;
-        /**
-         * @en Set the shared material asset of the specified sub-model,
-         * new material instance will be created automatically if the sub-model is already using one.
-         * @zh 设置指定子模型的 sharedMaterial，如果对应位置有材质实例则会创建一个对应的材质实例。
-         */
-        setMaterial(material: Material | null, index: number): void;
-        get material(): Material | null;
-        set material(val: Material | null);
-        /**
-         * @en Get the material instance of the specified sub-model.
-         * @zh 获取指定子模型的材质实例。
-         */
-        getMaterialInstance(idx: number): Material | null;
-        /**
-         * @en Set the material instance of the specified sub-model.
-         * @zh 获取指定子模型的材质实例。
-         */
-        setMaterialInstance(index: number, matInst: Material | null): void;
-        /**
-         * @en Get the actual rendering material of the specified sub-model.
-         * (material instance if there is one, or the shared material asset)
-         * @zh 获取指定位置可供渲染的材质，如果有材质实例则使用材质实例，如果没有则使用材质资源
-         */
-        getRenderMaterial(index: number): Material | null;
-        _collectModels(): Model[];
-        protected _attachToScene(): void;
-        protected _detachFromScene(): void;
-        protected _onMaterialModified(index: number, material: Material | null): void;
-        protected _onRebuildPSO(index: number, material: Material | null): void;
-        protected _clearMaterials(): void;
-        protected _onVisibilityChange(val: any): void;
-    }
-}
-declare module "cocos/core/renderer/core/pass-instance" {
-    /**
-     * @category material
-     */
-    import { IPassInfo } from "cocos/core/assets/effect-asset";
-    import { MaterialInstance } from "cocos/core/renderer/core/material-instance";
-    import { Pass, PassOverrides } from "cocos/core/renderer/core/pass";
-    import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
-    export class PassInstance extends Pass {
-        get parent(): Pass;
-        private _parent;
-        private _owner;
-        private _dontNotify;
-        constructor(parent: Pass, owner: MaterialInstance);
-        overridePipelineStates(original: IPassInfo, overrides: PassOverrides): void;
-        tryCompile(defineOverrides?: MacroRecord): boolean | null;
-        beginChangeStatesSilently(): void;
-        endChangeStatesSilently(): void;
-        protected _syncBatchingScheme(): void;
-        protected _onStateChange(): void;
-    }
-}
-declare module "cocos/core/renderer/core/material-instance" {
-    /**
-     * @category material
-     */
-    import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
-    import { Material } from "cocos/core/assets/material";
-    import { PassInstance } from "cocos/core/renderer/core/pass-instance";
-    import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
-    import { PassOverrides } from "cocos/core/renderer/core/pass";
-    export interface IMaterialInstanceInfo {
-        parent: Material;
-        owner?: RenderableComponent;
-        subModelIdx?: number;
-    }
-    /**
-     * @zh
-     * 材质实例，当有材质修改需求时，根据材质资源创建的，可任意定制的实例。
-     */
-    export class MaterialInstance extends Material {
-        get parent(): Material;
-        get owner(): RenderableComponent | null;
-        protected _passes: PassInstance[];
-        private _parent;
-        private _owner;
-        private _subModelIdx;
-        constructor(info: IMaterialInstanceInfo);
-        recompileShaders(overrides: MacroRecord, passIdx?: number): void;
-        overridePipelineStates(overrides: PassOverrides, passIdx?: number): void;
-        destroy(): boolean;
-        onPassStateChange(dontNotify: boolean): void;
-        protected _createPasses(): PassInstance[];
-    }
+    export function isCompactValueTypeArray(value: any): value is CompactValueTypeArray;
 }
 declare module "cocos/core/renderer/data-pool-manager" {
     import { AnimationClip } from "cocos/core/animation/animation-clip";
@@ -13570,20 +13353,6 @@ declare module "cocos/core/renderer/models/skeletal-animation-utils" {
         clear(): void;
     }
 }
-declare module "cocos/core/data/utils/asserts" {
-    /**
-     * Asserts that the expression is non-nullable, i.e. is neither `null` nor `undefined`.
-     * @param expr Testing expression.
-     * @param message Optional message.
-     */
-    export function assertIsNonNullable<T>(expr: T, message?: string): asserts expr is NonNullable<T>;
-    /**
-     * Asserts that the expression evaluated to `true`.
-     * @param expr Testing expression.
-     * @param message Optional message.
-     */
-    export function assertIsTrue(expr: boolean, message?: string): void;
-}
 declare module "cocos/core/assets/morph-rendering" {
     /**
      * @hidden
@@ -13809,7 +13578,6 @@ declare module "cocos/core/renderer/scene/ambient" {
         protected _albedoArray: Float32Array;
         protected _colorArray: Float32Array;
         activate(): void;
-        update(): void;
     }
 }
 declare module "cocos/core/renderer/scene/deprecated" {
@@ -13894,233 +13662,6 @@ declare module "cocos/core/renderer/scene/directional-light" {
         update(): void;
     }
 }
-declare module "cocos/core/gfx/render-pass" {
-    /**
-     * @category gfx
-     */
-    import { GFXFormat, GFXLoadOp, GFXObject, GFXPipelineBindPoint, GFXStoreOp, GFXTextureLayout } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    /**
-     * @en Color attachment.
-     * @zh GFX 颜色附件。
-     */
-    export class GFXColorAttachment {
-        format: GFXFormat;
-        sampleCount: number;
-        loadOp: GFXLoadOp;
-        storeOp: GFXStoreOp;
-        beginLayout: GFXTextureLayout;
-        endLayout: GFXTextureLayout;
-    }
-    /**
-     * @en Depth stencil attachment.
-     * @zh GFX 深度模板附件。
-     */
-    export class GFXDepthStencilAttachment {
-        format: GFXFormat;
-        sampleCount: number;
-        depthLoadOp: GFXLoadOp;
-        depthStoreOp: GFXStoreOp;
-        stencilLoadOp: GFXLoadOp;
-        stencilStoreOp: GFXStoreOp;
-        beginLayout: GFXTextureLayout;
-        endLayout: GFXTextureLayout;
-    }
-    export interface IGFXSubPassInfo {
-        bindPoint: GFXPipelineBindPoint;
-        inputs: number[];
-        colors: number[];
-        resolves: number[];
-        depthStencil?: number;
-        preserves: number[];
-    }
-    export interface IGFXRenderPassInfo {
-        colorAttachments: GFXColorAttachment[];
-        depthStencilAttachment: GFXDepthStencilAttachment | null;
-        subPasses?: IGFXSubPassInfo[];
-    }
-    /**
-     * @en GFX render pass.
-     * @zh GFX 渲染过程。
-     */
-    export abstract class GFXRenderPass extends GFXObject {
-        protected _device: GFXDevice;
-        protected _colorInfos: GFXColorAttachment[];
-        protected _depthStencilInfo: GFXDepthStencilAttachment | null;
-        protected _subPasses: IGFXSubPassInfo[];
-        protected _hash: number;
-        get colorAttachments(): GFXColorAttachment[];
-        get depthStencilAttachment(): GFXDepthStencilAttachment | null;
-        get subPasses(): IGFXSubPassInfo[];
-        get hash(): number;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXRenderPassInfo): boolean;
-        abstract destroy(): void;
-        protected computeHash(): number;
-    }
-}
-declare module "cocos/core/gfx/pipeline-state" {
-    /**
-     * @category gfx
-     */
-    import { GFXBlendFactor, GFXBlendOp, GFXColorMask, GFXComparisonFunc, GFXCullMode, GFXDynamicStateFlags, GFXObject, GFXPolygonMode, GFXPrimitiveMode, GFXShadeModel, GFXStencilOp, GFXColor } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
-    import { GFXRenderPass } from "cocos/core/gfx/render-pass";
-    import { GFXShader } from "cocos/core/gfx/shader";
-    import { GFXPipelineLayout } from "cocos/core/index";
-    /**
-     * @en GFX rasterizer state.
-     * @zh GFX 光栅化状态。
-     */
-    export class GFXRasterizerState {
-        isDiscard: boolean;
-        polygonMode: GFXPolygonMode;
-        shadeModel: GFXShadeModel;
-        cullMode: GFXCullMode;
-        isFrontFaceCCW: boolean;
-        depthBias: number;
-        depthBiasClamp: number;
-        depthBiasSlop: number;
-        isDepthClip: boolean;
-        isMultisample: boolean;
-        lineWidth: number;
-        compare(state: GFXRasterizerState): boolean;
-    }
-    /**
-     * @en GFX depth stencil state.
-     * @zh GFX 深度模板状态。
-     */
-    export class GFXDepthStencilState {
-        depthTest: boolean;
-        depthWrite: boolean;
-        depthFunc: GFXComparisonFunc;
-        stencilTestFront: boolean;
-        stencilFuncFront: GFXComparisonFunc;
-        stencilReadMaskFront: number;
-        stencilWriteMaskFront: number;
-        stencilFailOpFront: GFXStencilOp;
-        stencilZFailOpFront: GFXStencilOp;
-        stencilPassOpFront: GFXStencilOp;
-        stencilRefFront: number;
-        stencilTestBack: boolean;
-        stencilFuncBack: GFXComparisonFunc;
-        stencilReadMaskBack: number;
-        stencilWriteMaskBack: number;
-        stencilFailOpBack: GFXStencilOp;
-        stencilZFailOpBack: GFXStencilOp;
-        stencilPassOpBack: GFXStencilOp;
-        stencilRefBack: number;
-        compare(state: GFXDepthStencilState): boolean;
-    }
-    /**
-     * @en GFX blend target.
-     * @zh GFX 混合目标。
-     */
-    export class GFXBlendTarget {
-        blend: boolean;
-        blendSrc: GFXBlendFactor;
-        blendDst: GFXBlendFactor;
-        blendEq: GFXBlendOp;
-        blendSrcAlpha: GFXBlendFactor;
-        blendDstAlpha: GFXBlendFactor;
-        blendAlphaEq: GFXBlendOp;
-        blendColorMask: GFXColorMask;
-        compare(target: GFXBlendTarget): boolean;
-    }
-    /**
-     * @en GFX blend state.
-     * @zh GFX混合状态。
-     */
-    export class GFXBlendState {
-        isA2C: boolean;
-        isIndepend: boolean;
-        blendColor: GFXColor;
-        targets: GFXBlendTarget[];
-    }
-    /**
-     * @en GFX input state.
-     * @zh GFX 输入状态。
-     */
-    export class GFXInputState {
-        attributes: IGFXAttribute[];
-    }
-    export interface IGFXPipelineStateInfo {
-        primitive: GFXPrimitiveMode;
-        shader: GFXShader;
-        pipelineLayout: GFXPipelineLayout;
-        inputState: GFXInputState;
-        rasterizerState: GFXRasterizerState;
-        depthStencilState: GFXDepthStencilState;
-        blendState: GFXBlendState;
-        dynamicStates?: GFXDynamicStateFlags;
-        renderPass: GFXRenderPass;
-    }
-    /**
-     * @en GFX pipeline state.
-     * @zh GFX 管线状态。
-     */
-    export abstract class GFXPipelineState extends GFXObject {
-        /**
-         * @en Get current shader.
-         * @zh GFX 着色器。
-         */
-        get shader(): GFXShader;
-        /**
-         * @en Get current pipeline layout.
-         * @zh GFX 管线布局。
-         */
-        get pipelineLayout(): GFXPipelineLayout;
-        /**
-         * @en Get current primitve mode.
-         * @zh GFX 图元模式。
-         */
-        get primitive(): GFXPrimitiveMode;
-        /**
-         * @en Get current rasterizer state.
-         * @zh GFX 光栅化状态。
-         */
-        get rasterizerState(): GFXRasterizerState;
-        /**
-         * @en Get current depth stencil state.
-         * @zh GFX 深度模板状态。
-         */
-        get depthStencilState(): GFXDepthStencilState;
-        /**
-         * @en Get current blend state.
-         * @zh GFX 混合状态。
-         */
-        get blendState(): GFXBlendState;
-        /**
-         * @en Get current input state.
-         * @zh GFX 输入状态。
-         */
-        get inputState(): GFXInputState;
-        /**
-         * @en Get current dynamic states.
-         * @zh GFX 动态状态数组。
-         */
-        get dynamicStates(): GFXDynamicStateFlags;
-        /**
-         * @en Get current render pass.
-         * @zh GFX 渲染过程。
-         */
-        get renderPass(): GFXRenderPass;
-        protected _device: GFXDevice;
-        protected _shader: GFXShader | null;
-        protected _pipelineLayout: GFXPipelineLayout | null;
-        protected _primitive: GFXPrimitiveMode;
-        protected _is: GFXInputState | null;
-        protected _rs: GFXRasterizerState | null;
-        protected _dss: GFXDepthStencilState | null;
-        protected _bs: GFXBlendState | null;
-        protected _dynamicStates: GFXDynamicStateFlags;
-        protected _renderPass: GFXRenderPass | null;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXPipelineStateInfo): boolean;
-        abstract destroy(): void;
-    }
-}
 declare module "cocos/core/renderer/scene/sphere-light" {
     import { aabb } from "cocos/core/geometry/index";
     import { Vec3 } from "cocos/core/math/index";
@@ -14159,22 +13700,44 @@ declare module "cocos/core/pipeline/pipeline-state-manager" {
         static getOrCreatePipelineState(device: GFXDevice, hPass: PassHandle, shader: GFXShader, renderPass: GFXRenderPass, ia: GFXInputAssembler): GFXPipelineState;
     }
 }
-declare module "cocos/core/renderer/scene/planar-shadows" {
+declare module "cocos/core/renderer/scene/shadows" {
     import { Material } from "cocos/core/assets/material";
     import { frustum } from "cocos/core/geometry/index";
-    import { Color, Mat4, Vec3 } from "cocos/core/math/index";
+    import { Color, Mat4, Vec3, Vec2 } from "cocos/core/math/index";
     import { DirectionalLight } from "cocos/core/renderer/scene/directional-light";
     import { Model } from "cocos/core/renderer/scene/model";
     import { SphereLight } from "cocos/core/renderer/scene/sphere-light";
     import { GFXCommandBuffer, GFXDevice, GFXRenderPass, GFXDescriptorSet, GFXShader } from "cocos/core/gfx/index";
     import { InstancedBuffer } from "cocos/core/pipeline/instanced-buffer";
     import { RenderScene } from "cocos/core/renderer/scene/render-scene";
+    /**
+     * @zh 阴影类型。
+     * @en The shadow type
+     * @static
+     * @enum Shadows.ShadowType
+     */
+    export const ShadowType: {
+        /**
+         * @zh 平面阴影。
+         * @en Planar shadow
+         * @property Planar
+         * @readonly
+         */
+        Planar: number;
+        /**
+         * @zh 阴影贴图。
+         * @en Shadow type
+         * @property ShadowMap
+         * @readonly
+         */
+        ShadowMap: number;
+    };
     interface IShadowRenderData {
         model: Model;
         shaders: GFXShader[];
         instancedBuffer: InstancedBuffer | null;
     }
-    export class PlanarShadows {
+    export class Shadows {
         /**
          * @en Whether activate planar shadow
          * @zh 是否启用平面阴影？
@@ -14199,9 +13762,16 @@ declare module "cocos/core/renderer/scene/planar-shadows" {
          */
         get shadowColor(): Color;
         set shadowColor(color: Color);
+        /**
+         * @en Shadow type
+         * @zh 阴影类型
+         */
+        get type(): number;
+        set type(val: number);
         get matLight(): Mat4;
         get data(): Float32Array;
         protected _enabled: boolean;
+        protected _type: number;
         protected _normal: Vec3;
         protected _distance: number;
         protected _shadowColor: Color;
@@ -14214,7 +13784,34 @@ declare module "cocos/core/renderer/scene/planar-shadows" {
         protected _device: GFXDevice | null;
         protected _globalDescriptorSet: GFXDescriptorSet | null;
         protected _dirty: boolean;
+        /**
+         * @en get or set shadow camera near
+         * @zh 获取或者设置阴影相机近裁剪面
+         */
+        near: number;
+        /**
+         * @en get or set shadow camera far
+         * @zh 获取或者设置阴影相机远裁剪面
+         */
+        far: number;
+        /**
+         * @en get or set shadow camera aspect
+         * @zh 获取或者设置阴影相机的宽高比
+         */
+        aspect: number;
+        /**
+         * @en get or set shadow camera orthoSize
+         * @zh 获取或者设置阴影相机正交大小
+         */
+        orthoSize: number;
+        /**
+         * @en get or set shadow camera orthoSize
+         * @zh 获取或者设置阴影纹理大小
+         */
+        size: Vec2;
         activate(): void;
+        protected _updatePlanarInfo(): void;
+        protected _updatePipeline(): void;
         updateSphereLight(light: SphereLight): void;
         updateDirLight(light: DirectionalLight): void;
         updateShadowList(scene: RenderScene, frstm: frustum, stamp: number, shadowVisible?: boolean): void;
@@ -14405,116 +14002,6 @@ declare module "cocos/core/3d/misc/utils" {
     export { readMesh } from "cocos/core/3d/misc/read-mesh";
     export { createMesh } from "cocos/core/3d/misc/create-mesh";
     export { readBuffer, writeBuffer, mapBuffer } from "cocos/core/3d/misc/buffer";
-}
-declare module "cocos/core/assets/texture-cube" {
-    import { ImageAsset } from "cocos/core/assets/image-asset";
-    import { PresumedGFXTextureInfo, SimpleTexture } from "cocos/core/assets/simple-texture";
-    import { ITexture2DCreateInfo, Texture2D } from "cocos/core/assets/texture-2d";
-    import { IGFXTextureInfo } from "cocos/core/gfx/index";
-    export type ITextureCubeCreateInfo = ITexture2DCreateInfo;
-    /**
-     * 立方体贴图的 Mipmap。
-     */
-    interface ITextureCubeMipmap {
-        front: ImageAsset;
-        back: ImageAsset;
-        left: ImageAsset;
-        right: ImageAsset;
-        top: ImageAsset;
-        bottom: ImageAsset;
-    }
-    /**
-     * 立方体每个面的约定索引。
-     */
-    enum FaceIndex {
-        right = 0,
-        left = 1,
-        top = 2,
-        bottom = 3,
-        front = 4,
-        back = 5
-    }
-    /**
-     * 立方体贴图资源。
-     * 立方体贴图资源的每个 Mipmap 层级都为 6 张图像资源，分别代表了立方体贴图的 6 个面。
-     */
-    export class TextureCube extends SimpleTexture {
-        static FaceIndex: typeof FaceIndex;
-        /**
-         * 所有层级 Mipmap，注意，这里不包含自动生成的 Mipmap。
-         * 当设置 Mipmap 时，贴图的尺寸以及像素格式可能会改变。
-         */
-        get mipmaps(): ITextureCubeMipmap[];
-        set mipmaps(value: ITextureCubeMipmap[]);
-        /**
-         * 0 级 Mipmap。<br>
-         * 注意，`this.image = i` 等价于 `this.mipmaps = [i]`，
-         * 也就是说，通过 `this.image` 设置 0 级 Mipmap 时将隐式地清除之前的所有 Mipmap。
-         */
-        get image(): ITextureCubeMipmap | null;
-        set image(value: ITextureCubeMipmap | null);
-        /**
-         * 通过二维贴图指定每个 Mipmap 的每个面创建立方体贴图。
-         * @param textures 数组长度必须是6的倍数。
-         * 每 6 个二维贴图依次构成立方体贴图的 Mipmap。6 个面应该按 `FaceIndex` 规定顺序排列。
-         * @param out 出口立方体贴图，若未定义则将创建为新的立方体贴图。
-         * @returns `out`
-         * @example
-         * ```ts
-         * const textures = new Array<Texture2D>(6);
-         * textures[TextureCube.FaceIndex.front] = frontImage;
-         * textures[TextureCube.FaceIndex.back] = backImage;
-         * textures[TextureCube.FaceIndex.left] = leftImage;
-         * textures[TextureCube.FaceIndex.right] = rightImage;
-         * textures[TextureCube.FaceIndex.top] = topImage;
-         * textures[TextureCube.FaceIndex.bottom] = bottomImage;
-         * const textureCube = TextureCube.fromTexture2DArray(textures);
-         * ```
-         */
-        static fromTexture2DArray(textures: Texture2D[], out?: TextureCube): TextureCube;
-        _mipmaps: ITextureCubeMipmap[];
-        onLoaded(): void;
-        /**
-         * 将当前贴图重置为指定尺寸、像素格式以及指定 mipmap 层级。重置后，贴图的像素数据将变为未定义。
-         * mipmap 图像的数据不会自动更新到贴图中，你必须显式调用 `this.uploadData` 来上传贴图数据。
-         * @param info 贴图重置选项。
-         */
-        reset(info: ITextureCubeCreateInfo): void;
-        updateMipmaps(firstLevel?: number, count?: number): void;
-        /**
-         * 销毁此贴图，清空所有 Mipmap 并释放占用的 GPU 资源。
-         */
-        destroy(): boolean;
-        /**
-         * 释放占用的 GPU 资源。
-         * @deprecated 请转用 `this.destroy()`。
-         */
-        releaseTexture(): void;
-        _serialize(exporting?: any): {
-            base: any;
-            mipmaps: {
-                front: string;
-                back: string;
-                left: string;
-                right: string;
-                top: string;
-                bottom: string;
-            }[];
-        };
-        _deserialize(serializedData: ITextureCubeSerializeData, handle: any): void;
-        protected _getGfxTextureCreateInfo(presumed: PresumedGFXTextureInfo): IGFXTextureInfo;
-    }
-    interface ITextureCubeSerializeData {
-        base: string;
-        mipmaps: {
-            front: string;
-            back: string;
-            left: string;
-            right: string;
-            top: string;
-            bottom: string;
-        }[];
-    }
 }
 declare module "cocos/core/primitive/utils" {
     import { IGeometry } from "cocos/core/primitive/define";
@@ -14893,7 +14380,6 @@ declare module "cocos/core/renderer/scene/skybox" {
         protected _model: Model | null;
         protected _default: TextureCube | null;
         activate(): void;
-        onGlobalPipelineStateChanged(): void;
         protected _updatePipeline(): void;
         protected _updateGlobalBinding(): void;
     }
@@ -14950,7 +14436,7 @@ declare module "cocos/core/renderer/index" {
     export * from "cocos/core/renderer/scene/directional-light";
     export * from "cocos/core/renderer/scene/light";
     export * from "cocos/core/renderer/scene/model";
-    export * from "cocos/core/renderer/scene/planar-shadows";
+    export * from "cocos/core/renderer/scene/shadows";
     export * from "cocos/core/renderer/scene/render-scene";
     export * from "cocos/core/renderer/scene/skybox";
     export * from "cocos/core/renderer/scene/sphere-light";
@@ -14959,2422 +14445,195 @@ declare module "cocos/core/renderer/index" {
     import "cocos/core/renderer/scene/deprecated";
     import "cocos/core/renderer/ui/render-data";
 }
-declare module "cocos/core/pipeline/forward/enum" {
-    /**
-     * @category pipeline
-     */
-    /**
-     * @zh 前向阶段优先级。
-     * @en The priority of stage in forward rendering
-     */
-    export enum ForwardStagePriority {
-        FORWARD = 10,
-        UI = 20
-    }
-    /**
-     * @zh 前向渲染流程优先级。
-     * @en The priority of flows in forward rendering
-     */
-    export enum ForwardFlowPriority {
-        SHADOW = 0,
-        FORWARD = 1,
-        UI = 10
-    }
-}
-declare module "cocos/core/pipeline/pass-phase" {
+declare module "cocos/core/pipeline/instanced-buffer" {
     /**
      * @hidden
      */
-    export const getPhaseID: (phaseName: string | number) => number;
-}
-declare module "cocos/core/gfx/framebuffer" {
-    /**
-     * @category gfx
-     */
-    import { GFXObject } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXRenderPass } from "cocos/core/gfx/render-pass";
-    import { GFXTexture } from "cocos/core/gfx/texture";
-    export interface IGFXFramebufferInfo {
-        renderPass: GFXRenderPass;
-        colorTextures: (GFXTexture | null)[];
-        depthStencilTexture: GFXTexture | null;
-        colorMipmapLevels?: number[];
-        depStencilMipmapLevel?: number;
-    }
-    /**
-     * @en GFX frame buffer.
-     * @zh GFX 帧缓冲。
-     */
-    export abstract class GFXFramebuffer extends GFXObject {
-        /**
-         * @en Get current render pass.
-         * @zh GFX 渲染过程。
-         */
-        get renderPass(): GFXRenderPass;
-        /**
-         * @en Get current color views.
-         * @zh 颜色纹理视图数组。
-         */
-        get colorTextures(): (GFXTexture | null)[];
-        /**
-         * @en Get current depth stencil views.
-         * @zh 深度模板纹理视图。
-         */
-        get depthStencilTexture(): GFXTexture | null;
-        protected _device: GFXDevice;
-        protected _renderPass: GFXRenderPass | null;
-        protected _colorTextures: (GFXTexture | null)[];
-        protected _depthStencilTexture: GFXTexture | null;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXFramebufferInfo): boolean;
-        abstract destroy(): void;
-    }
-}
-declare module "cocos/core/gfx/fence" {
-    /**
-     * @category gfx
-     */
-    import { GFXObject } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    export interface IGFXFenceInfo {
-    }
-    /**
-     * @en GFX Fence.
-     * @zh GFX 同步信号。
-     */
-    export abstract class GFXFence extends GFXObject {
-        protected _device: GFXDevice;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXFenceInfo): boolean;
-        abstract destroy(): void;
-        /**
-         * @en Wait for this fence.
-         * @zh 等待当前 fence 信号。
-         */
-        abstract wait(): void;
-        /**
-         * @en Reset this fence to unsignaled state.
-         * @zh 重置当前 fence。
-         */
-        abstract reset(): void;
-    }
-}
-declare module "cocos/core/gfx/queue" {
-    /**
-     * @category gfx
-     */
-    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
-    import { GFXObject, GFXQueueType } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXFence } from "cocos/core/gfx/fence";
-    export interface IGFXQueueInfo {
-        type: GFXQueueType;
-    }
-    /**
-     * @en GFX Queue.
-     * @zh GFX 队列。
-     */
-    export abstract class GFXQueue extends GFXObject {
-        /**
-         * @en Get current type.
-         * @zh 队列类型。
-         */
-        get type(): number;
-        protected _device: GFXDevice;
-        protected _type: GFXQueueType;
-        protected _isAsync: boolean;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXQueueInfo): boolean;
-        abstract destroy(): void;
-        isAsync(): boolean;
-        /**
-         * @en Submit command buffers.
-         * @zh 提交命令缓冲数组。
-         * @param cmdBuffs The command buffers to be submitted.
-         * @param fence The syncing fence.
-         */
-        abstract submit(cmdBuffs: GFXCommandBuffer[], fence?: GFXFence): void;
-    }
-}
-declare module "cocos/core/gfx/command-buffer" {
-    /**
-     * @category gfx
-     */
-    import { GFXDescriptorSet } from "cocos/core/gfx/descriptor-set";
-    import { GFXBuffer } from "cocos/core/gfx/buffer";
-    import { GFXBufferTextureCopy, GFXCommandBufferType, GFXObject, GFXStencilFace, GFXColor, GFXRect, GFXViewport } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXFramebuffer } from "cocos/core/gfx/framebuffer";
-    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
-    import { GFXPipelineState } from "cocos/core/gfx/pipeline-state";
-    import { GFXTexture } from "cocos/core/gfx/texture";
-    import { GFXRenderPass } from "cocos/core/gfx/render-pass";
-    import { GFXQueue } from "cocos/core/gfx/queue";
-    export interface IGFXCommandBufferInfo {
-        queue: GFXQueue;
-        type: GFXCommandBufferType;
-    }
-    export interface IGFXDepthBias {
-        constantFactor: number;
-        clamp: number;
-        slopeFactor: number;
-    }
-    export interface IGFXDepthBounds {
-        minBounds: number;
-        maxBounds: number;
-    }
-    export interface IGFXStencilWriteMask {
-        face: GFXStencilFace;
-        writeMask: number;
-    }
-    export interface IGFXStencilCompareMask {
-        face: GFXStencilFace;
-        reference: number;
-        compareMask: number;
-    }
-    /**
-     * @en GFX command buffer.
-     * @zh GFX 命令缓冲。
-     */
-    export abstract class GFXCommandBuffer extends GFXObject {
-        /**
-         * @en Type of the command buffer.
-         * @zh 命令缓冲类型。
-         */
-        get type(): GFXCommandBufferType;
-        /**
-         * @en Type of the command buffer.
-         * @zh 命令缓冲类型。
-         */
-        get queue(): GFXQueue;
-        /**
-         * @en Number of draw calls currently recorded.
-         * @zh 绘制调用次数。
-         */
-        get numDrawCalls(): number;
-        /**
-         * @en Number of instances currently recorded.
-         * @zh 绘制 Instance 数量。
-         */
-        get numInstances(): number;
-        /**
-         * @en Number of triangles currently recorded.
-         * @zh 绘制三角形数量。
-         */
-        get numTris(): number;
-        protected _device: GFXDevice;
-        protected _queue: GFXQueue | null;
-        protected _type: GFXCommandBufferType;
-        protected _numDrawCalls: number;
-        protected _numInstances: number;
-        protected _numTris: number;
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXCommandBufferInfo): boolean;
-        abstract destroy(): void;
-        /**
-         * @en Begin recording commands.
-         * @zh 开始记录命令。
-         * @param renderPass [Secondary Command Buffer Only] The render pass the subsequent commands will be executed in
-         * @param subpass [Secondary Command Buffer Only] The subpass the subsequent commands will be executed in
-         * @param frameBuffer [Secondary Command Buffer Only, Optional] The framebuffer to be used in the subpass
-         */
-        abstract begin(renderPass?: GFXRenderPass, subpass?: number, frameBuffer?: GFXFramebuffer): void;
-        /**
-         * @en End recording commands.
-         * @zh 结束记录命令。
-         */
-        abstract end(): void;
-        /**
-         * @en Begin render pass.
-         * @zh 开始 RenderPass。
-         * @param framebuffer The frame buffer used.
-         * @param renderArea The target render area.
-         * @param clearFlag The clear flags.
-         * @param clearColors The clearing colors.
-         * @param clearDepth The clearing depth.
-         * @param clearStencil The clearing stencil.
-         */
-        abstract beginRenderPass(renderPass: GFXRenderPass, framebuffer: GFXFramebuffer, renderArea: GFXRect, clearColors: GFXColor[], clearDepth: number, clearStencil: number): void;
-        /**
-         * @en End render pass.
-         * @zh 结束 RenderPass。
-         */
-        abstract endRenderPass(): void;
-        /**
-         * @en Bind pipeline state.
-         * @zh 绑定 GFX 管线状态。
-         * @param pipelineState The pipeline state to be bound.
-         */
-        abstract bindPipelineState(pipelineState: GFXPipelineState): void;
-        /**
-         * @en Bind descriptor set.
-         * @zh 绑定 GFX 描述符集。
-         * @param descriptorSet The descriptor set to be bound.
-         */
-        abstract bindDescriptorSet(set: number, descriptorSets: GFXDescriptorSet, dynamicOffsets?: number[]): void;
-        /**
-         * @en Bind input assembler.
-         * @zh 绑定GFX输入汇集器。
-         * @param inputAssembler The input assembler to be bound.
-         */
-        abstract bindInputAssembler(inputAssembler: GFXInputAssembler): void;
-        /**
-         * @en Set viewport.
-         * @zh 设置视口。
-         * @param viewport The new viewport.
-         */
-        abstract setViewport(viewport: GFXViewport): void;
-        /**
-         * @en Set scissor range.
-         * @zh 设置剪裁区域。
-         * @param scissor The new scissor range.
-         */
-        abstract setScissor(scissor: GFXRect): void;
-        /**
-         * @en Set line width.
-         * @zh 设置线宽。
-         * @param lineWidth The new line width.
-         */
-        abstract setLineWidth(lineWidth: number): void;
-        /**
-         * @en Set depth bias.
-         * @zh 设置深度偏移。
-         * @param depthBiasConstantFactor The new depth bias factor.
-         * @param depthBiasClamp The new depth bias clamp threshold.
-         * @param depthBiasSlopeFactor  The new depth bias slope factor.
-         */
-        abstract setDepthBias(depthBiasConstantFactor: number, depthBiasClamp: number, depthBiasSlopeFactor: number): void;
-        /**
-         * @en Set blend constants.
-         * @zh 设置混合因子。
-         * @param blendConstants The new blend constants.
-         */
-        abstract setBlendConstants(blendConstants: number[]): void;
-        /**
-         * @en Set depth bound.
-         * @zh 设置深度边界。
-         * @param minDepthBounds The new minimum depth bound.
-         * @param maxDepthBounds The new maximum depth bound.
-         */
-        abstract setDepthBound(minDepthBounds: number, maxDepthBounds: number): void;
-        /**
-         * @en Set stencil write mask.
-         * @zh 设置模板写掩码。
-         * @param face The effective triangle face.
-         * @param writeMask The new stencil write mask.
-         */
-        abstract setStencilWriteMask(face: GFXStencilFace, writeMask: number): void;
-        /**
-         * @en Set stencil compare mask.
-         * @zh 设置模板比较掩码。
-         * @param face The effective triangle face.
-         * @param reference The new stencil reference constant.
-         * @param compareMask The new stencil read mask.
-         */
-        abstract setStencilCompareMask(face: GFXStencilFace, reference: number, compareMask: number): void;
-        /**
-         * @en Draw the specified primitives.
-         * @zh 绘制。
-         * @param inputAssembler The target input assembler.
-         */
-        abstract draw(inputAssembler: GFXInputAssembler): void;
-        /**
-         * @en Update buffer.
-         * @zh 更新缓冲。
-         * @param buffer The buffer to be updated.
-         * @param data The source data.
-         * @param offset Offset into the buffer.
-         */
-        abstract updateBuffer(buffer: GFXBuffer, data: ArrayBuffer, offset?: number): void;
-        /**
-         * @en Copy buffer to texture.
-         * @zh 拷贝缓冲到纹理。
-         * @param srcBuff The buffer to be copied.
-         * @param dstTex The texture to copy to.
-         * @param dstLayout The target texture layout.
-         * @param regions The region descriptions.
-         */
-        abstract copyBuffersToTexture(buffers: ArrayBufferView[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
-        /**
-         * @en Execute specified command buffers.
-         * @zh 执行一组命令缓冲。
-         * @param cmdBuffs The command buffers to be executed.
-         * @param count The number of command buffers to be executed.
-         */
-        abstract execute(cmdBuffs: GFXCommandBuffer[], count: number): void;
-    }
-}
-declare module "cocos/core/pipeline/render-queue" {
-    /**
-     * @category pipeline
-     */
-    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
-    import { CachedArray } from "cocos/core/memop/cached-array";
-    import { IRenderObject, IRenderPass, IRenderQueueDesc } from "cocos/core/pipeline/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXRenderPass } from "cocos/core/gfx/index";
-    /**
-     * @en Comparison sorting function. Opaque objects are sorted by priority -> depth front to back -> shader ID.
-     * @zh 比较排序函数。不透明对象按优先级 -> 深度由前向后 -> Shader ID 顺序排序。
-     */
-    export function opaqueCompareFn(a: IRenderPass, b: IRenderPass): number;
-    /**
-     * @en Comparison sorting function. Transparent objects are sorted by priority -> depth back to front -> shader ID.
-     * @zh 比较排序函数。半透明对象按优先级 -> 深度由后向前 -> Shader ID 顺序排序。
-     */
-    export function transparentCompareFn(a: IRenderPass, b: IRenderPass): number;
-    /**
-     * @en The render queue. It manages a [[GFXRenderPass]] queue which will be executed by the [[RenderStage]].
-     * @zh 渲染队列。它管理一个 [[GFXRenderPass]] 队列，队列中的渲染过程会被 [[RenderStage]] 所执行。
-     */
-    export class RenderQueue {
-        /**
-         * @en A cached array of render passes
-         * @zh 基于缓存数组的渲染过程队列。
-         */
-        queue: CachedArray<IRenderPass>;
-        private _passDesc;
-        private _passPool;
-        /**
-         * @en Construct a RenderQueue with render queue descriptor
-         * @zh 利用渲染队列描述来构造一个 RenderQueue。
-         * @param desc Render queue descriptor
-         */
-        constructor(desc: IRenderQueueDesc);
-        /**
-         * @en Clear the render queue
-         * @zh 清空渲染队列。
-         */
-        clear(): void;
-        /**
-         * @en Insert a render pass into the queue
-         * @zh 插入渲染过程。
-         * @param renderObj The render object of the pass
-         * @param modelIdx The model id
-         * @param passIdx The pass id
-         * @returns Whether the new render pass is successfully added
-         */
-        insertRenderPass(renderObj: IRenderObject, subModelIdx: number, passIdx: number): boolean;
-        /**
-         * @en Sort the current queue
-         * @zh 排序渲染队列。
-         */
-        sort(): void;
-        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
-    }
-}
-declare module "cocos/core/pipeline/ui/ui-stage" {
-    import { IRenderStageInfo, RenderStage } from "cocos/core/pipeline/render-stage";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { UIFlow } from "cocos/core/pipeline/ui/ui-flow";
-    import { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
-    import { RenderQueueDesc } from "cocos/core/pipeline/pipeline-serialization";
-    import { RenderQueue } from "cocos/core/pipeline/render-queue";
-    /**
-     * @en The UI render stage
-     * @zh UI渲阶段。
-     */
-    export class UIStage extends RenderStage {
-        static initInfo: IRenderStageInfo;
-        protected renderQueues: RenderQueueDesc[];
-        protected _renderQueues: RenderQueue[];
-        private _renderArea;
-        initialize(info: IRenderStageInfo): boolean;
-        activate(pipeline: ForwardPipeline, flow: UIFlow): void;
-        destroy(): void;
-        render(view: RenderView): void;
-    }
-}
-declare module "cocos/core/pipeline/forward/scene-culling" {
-    import { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    export function sceneCulling(pipeline: ForwardPipeline, view: RenderView): void;
-}
-declare module "cocos/core/pipeline/ui/ui-flow" {
-    import { IRenderFlowInfo, RenderFlow } from "cocos/core/pipeline/render-flow";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    /**
-     * @en The UI render flow
-     * @zh UI渲染流程。
-     */
-    export class UIFlow extends RenderFlow {
-        static initInfo: IRenderFlowInfo;
-        initialize(info: IRenderFlowInfo): boolean;
-        destroy(): void;
-        render(view: RenderView): void;
-    }
-}
-declare module "cocos/core/pipeline/pipeline-funcs" {
-    /**
-     * @category pipeline
-     */
-    import { GFXColor } from "cocos/core/gfx/define";
-    /**
-     * @en Convert color in SRGB space to linear space
-     * @zh SRGB 颜色空间转换为线性空间。
-     * @param out Output color object
-     * @param gamma Gamma value in SRGB space
-     */
-    export function SRGBToLinear(out: GFXColor, gamma: GFXColor): void;
-    /**
-     * @en Convert color in linear space to SRGB space
-     * @zh 线性空间转换为 SRGB 颜色空间。
-     * @param out Output color object
-     * @param linear Color value in linear space
-     */
-    export function LinearToSRGB(out: GFXColor, linear: GFXColor): void;
-}
-declare module "cocos/core/pipeline/batched-buffer" {
-    /**
-     * @hidden
-     */
-    import { GFXDescriptorSet } from "cocos/core/gfx/index";
+    import { GFXTexture } from "cocos/core/gfx/index";
     import { GFXBuffer } from "cocos/core/gfx/buffer";
     import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
+    import { IInstancedAttributeBlock, Pass } from "cocos/core/renderer/index";
     import { SubModel } from "cocos/core/renderer/scene/submodel";
-    import { IRenderObject } from "cocos/core/pipeline/define";
-    import { Pass } from "cocos/core/renderer/index";
-    import { PassHandle, ShaderHandle } from "cocos/core/renderer/core/memory-pools";
-    export interface IBatchedItem {
-        vbs: GFXBuffer[];
-        vbDatas: Uint8Array[];
-        vbIdx: GFXBuffer;
-        vbIdxData: Float32Array;
-        vbCount: number;
-        mergeCount: number;
+    import { ShaderHandle, DescriptorSetHandle, PassHandle } from "cocos/core/renderer/core/memory-pools";
+    export interface IInstancedItem {
+        count: number;
+        capacity: number;
+        vb: GFXBuffer;
+        data: Uint8Array;
         ia: GFXInputAssembler;
-        ubo: GFXBuffer;
-        uboData: Float32Array;
-        descriptorSet: GFXDescriptorSet;
-        hPass: PassHandle;
+        stride: number;
         hShader: ShaderHandle;
+        hDescriptorSet: DescriptorSetHandle;
+        lightingMap: GFXTexture;
     }
-    export class BatchedBuffer {
+    export class InstancedBuffer {
         private static _buffers;
-        static get(pass: Pass, extraKey?: number): BatchedBuffer;
-        batches: IBatchedItem[];
+        static get(pass: Pass, extraKey?: number): InstancedBuffer;
+        instances: IInstancedItem[];
+        hPass: PassHandle;
+        hasPendingModels: boolean;
         dynamicOffsets: number[];
         private _device;
         constructor(pass: Pass);
         destroy(): void;
-        merge(subModel: SubModel, passIdx: number, ro: IRenderObject): void;
+        merge(subModel: SubModel, attrs: IInstancedAttributeBlock, passIdx: number): void;
+        uploadBuffers(): void;
         clear(): void;
     }
 }
-declare module "cocos/core/pipeline/render-batched-queue" {
-    /**
-     * @category pipeline
-     */
-    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
-    import { BatchedBuffer } from "cocos/core/pipeline/batched-buffer";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXRenderPass } from "cocos/core/gfx/index";
-    /**
-     * @en The render queue for dynamic batching
-     * @zh 渲染合批队列。
-     */
-    export class RenderBatchedQueue {
-        /**
-         * @en A set of dynamic batched buffer
-         * @zh 动态合批缓存集合。
-         */
-        queue: Set<BatchedBuffer>;
-        /**
-         * @en Clear the render queue
-         * @zh 清空渲染队列。
-         */
-        clear(): void;
-        /**
-         * @en Record command buffer for the current queue
-         * @zh 记录命令缓冲。
-         * @param cmdBuff The command buffer to store the result
-         */
-        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
-    }
-}
-declare module "cocos/core/pipeline/render-instanced-queue" {
-    /**
-     * @category pipeline
-     */
-    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
-    import { InstancedBuffer } from "cocos/core/pipeline/instanced-buffer";
-    import { GFXDevice, GFXRenderPass } from "cocos/core/gfx/index";
-    /**
-     * @en Render queue for instanced batching
-     * @zh 渲染合批队列。
-     */
-    export class RenderInstancedQueue {
-        /**
-         * @en A set of instanced buffer
-         * @zh Instance 合批缓存集合。
-         */
-        queue: Set<InstancedBuffer>;
-        /**
-         * @en Clear the render queue
-         * @zh 清空渲染队列。
-         */
-        clear(): void;
-        /**
-         * @en Record command buffer for the current queue
-         * @zh 记录命令缓冲。
-         * @param cmdBuff The command buffer to store the result
-         */
-        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
-    }
-}
-declare module "predefine" {
-    import { legacyCC } from "cocos/core/global-exports";
-    export default legacyCC;
-}
-declare module "cocos/core/legacy" { }
-declare module "extensions/ccpool/node-pool" {
-    /**
-     * @hidden
-     */
-    import { Component } from "cocos/core/components/component";
-    import { Node } from "cocos/core/scene-graph/index";
-    /****************************************************************************
-     Copyright (c) 2016 Chukong Technologies Inc.
-     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
-    
-     http://www.cocos2d-x.org
-    
-     Permission is hereby granted, free of charge, to any person obtaining a copy
-     of this software and associated documentation files (the "Software"), to deal
-     in the Software without restriction, including without limitation the rights
-     to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-     copies of the Software, and to permit persons to whom the Software is
-     furnished to do so, subject to the following conditions:
-    
-     The above copyright notice and this permission notice shall be included in
-     all copies or substantial portions of the Software.
-    
-     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-     THE SOFTWARE.
-     ****************************************************************************/
-    type Constructor<T = {}> = new (...args: any[]) => T;
-    interface IPoolHandlerComponent extends Component {
-        unuse(): void;
-        reuse(args: any): void;
-    }
-    /**
-     * @en
-     *  `NodePool` is the cache pool designed for node type.<br/>
-     *  It can helps you to improve your game performance for objects which need frequent release and recreate operations<br/>
-     *
-     * It's recommended to create `NodePool` instances by node type, the type corresponds to node type in game design, not the class,
-     * for example, a prefab is a specific node type. <br/>
-     * When you create a node pool, you can pass a Component which contains `unuse`, `reuse` functions to control the content of node.<br/>
-     *
-     * Some common use case is :<br/>
-     *      1. Bullets in game (die very soon, massive creation and recreation, no side effect on other objects)<br/>
-     *      2. Blocks in candy crash (massive creation and recreation)<br/>
-     *      etc...
-     * @zh
-     * `NodePool` 是用于管理节点对象的对象缓存池。<br/>
-     * 它可以帮助您提高游戏性能，适用于优化对象的反复创建和销毁<br/>
-     * 以前 cocos2d-x 中的 pool 和新的节点事件注册系统不兼容，因此请使用 `NodePool` 来代替。
-     *
-     * 新的 NodePool 需要实例化之后才能使用，每种不同的节点对象池需要一个不同的对象池实例，这里的种类对应于游戏中的节点设计，一个 prefab 相当于一个种类的节点。<br/>
-     * 在创建缓冲池时，可以传入一个包含 unuse, reuse 函数的组件类型用于节点的回收和复用逻辑。<br/>
-     *
-     * 一些常见的用例是：<br/>
-     *      1.在游戏中的子弹（死亡很快，频繁创建，对其他对象无副作用）<br/>
-     *      2.糖果粉碎传奇中的木块（频繁创建）。
-     *      等等....
-     */
-    export class NodePool {
-        /**
-         * @en The pool handler component, it could be the class name or the constructor.
-         * @zh 缓冲池处理组件，用于节点的回收和复用逻辑，这个属性可以是组件类名或组件的构造函数。
-         */
-        poolHandlerComp?: Constructor<IPoolHandlerComponent> | string;
-        private _pool;
-        /**
-         * @en
-         * Constructor for creating a pool for a specific node template (usually a prefab).
-         * You can pass a component (type or name) argument for handling event for reusing and recycling node.
-         * @zh
-         * 使用构造函数来创建一个节点专用的对象池，您可以传递一个组件类型或名称，用于处理节点回收和复用时的事件逻辑。
-         * @param poolHandlerComp @en The constructor or the class name of the component to control the unuse/reuse logic. @zh 处理节点回收和复用事件逻辑的组件类型或名称。
-         * @example
-         * import { NodePool, Prefab } from 'cc';
-         *  properties: {
-         *      template: Prefab
-         *     },
-         *     onLoad () {
-         *       // MyTemplateHandler is a component with 'unuse' and 'reuse' to handle events when node is reused or recycled.
-         *       this.myPool = new NodePool('MyTemplateHandler');
-         *     }
-         *  }
-         */
-        constructor(poolHandlerComp?: Constructor<IPoolHandlerComponent> | string);
-        /**
-         * @en The current available size in the pool
-         * @zh 获取当前缓冲池的可用对象数量
-         */
-        size(): number;
-        /**
-         * @en Destroy all cached nodes in the pool
-         * @zh 销毁对象池中缓存的所有节点
-         */
-        clear(): void;
-        /**
-         * @en Put a new Node into the pool.
-         * It will automatically remove the node from its parent without cleanup.
-         * It will also invoke unuse method of the poolHandlerComp if exist.
-         * @zh 向缓冲池中存入一个不再需要的节点对象。
-         * 这个函数会自动将目标节点从父节点上移除，但是不会进行 cleanup 操作。
-         * 这个函数会调用 poolHandlerComp 的 unuse 函数，如果组件和函数都存在的话。
-         * @example
-         * import { instantiate } from 'cc';
-         * const myNode = instantiate(this.template);
-         * this.myPool.put(myNode);
-         */
-        put(obj: Node): void;
-        /**
-         * @en Get a obj from pool, if no available object in pool, null will be returned.
-         * This function will invoke the reuse function of poolHandlerComp if exist.
-         * @zh 获取对象池中的对象，如果对象池没有可用对象，则返回空。
-         * 这个函数会调用 poolHandlerComp 的 reuse 函数，如果组件和函数都存在的话。
-         * @param args - 向 poolHandlerComp 中的 'reuse' 函数传递的参数
-         * @example
-         *   let newNode = this.myPool.get();
-         */
-        get(...args: any[]): Node | null;
-    }
-}
-declare module "cocos/core/primitive/primitive" {
-    import { Mesh } from "cocos/core/assets/mesh";
-    enum PrimitiveType {
-        BOX = 0,
-        SPHERE = 1,
-        CYLINDER = 2,
-        CONE = 3,
-        CAPSULE = 4,
-        TORUS = 5,
-        PLANE = 6,
-        QUAD = 7
-    }
-    /**
-     * @en
-     * Basic primitive mesh, this can be generate some primitive mesh at runtime.
-     * @zh
-     * 基础图形网格，可以在运行时构建一些基础的网格。
-     */
-    export class Primitive extends Mesh {
-        static PrimitiveType: typeof PrimitiveType;
-        /**
-         * @en
-         * The type of the primitive mesh, set it before you call onLoaded.
-         * @zh
-         * 此基础图形网格的类型，请在 onLoaded 调用之前设置。
-         */
-        type: number;
-        /**
-         * @en
-         * The option for build the primitive mesh, set it before you call onLoaded.
-         * @zh
-         * 创建此基础图形网格的可选参数，请在 onLoaded 调用之前设置。
-         */
-        info: Record<string, number>;
-        constructor(type?: PrimitiveType);
-        /**
-         * @en
-         * Construct the primitive mesh with `type` and `info`.
-         * @zh
-         * 根据`type`和`info`构建相应的网格。
-         */
-        onLoaded(): void;
-    }
-    export namespace Primitive {
-        type PrimitiveType = EnumAlias<typeof PrimitiveType>;
-    }
-}
-declare module "exports/base" {
-    /**
-     * @hidden
-     */
-    import { legacyCC } from "cocos/core/global-exports";
-    import "predefine";
-    import "cocos/core/legacy";
-    export * from "cocos/core/index";
-    import * as renderer from "cocos/core/renderer/index";
-    export { renderer };
-    export * from "extensions/ccpool/node-pool";
-    export { legacyCC as cclegacy };
-    import * as primitives from "cocos/core/primitive/index";
-    export { primitives, };
-    export * from "cocos/core/primitive/primitive";
-}
-declare module "cocos/core/pipeline/render-additive-light-queue" {
-    /**
-     * @category pipeline
-     */
-    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { GFXDevice, GFXRenderPass } from "cocos/core/gfx/index";
-    import { ForwardPipeline } from "exports/base";
-    /**
-     * @zh 叠加光照队列。
-     */
-    export class RenderAdditiveLightQueue {
-        private _validLights;
-        private _lightPasses;
-        private _lightBufferCount;
-        private _lightBufferStride;
-        private _lightBufferElementCount;
-        private _lightBuffer;
-        private _firstlightBufferView;
-        private _lightBufferData;
-        private _isHDR;
-        private _fpScale;
-        private _renderObjects;
-        private _instancedQueue;
-        private _batchedQueue;
-        private _lightMeterScale;
-        constructor(pipeline: ForwardPipeline);
-        gatherLightPasses(view: RenderView): void;
-        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
-        protected _updateUBOs(view: RenderView): void;
-    }
-}
-declare module "cocos/core/pipeline/forward/forward-stage" {
-    import { RenderQueue } from "cocos/core/pipeline/render-queue";
-    import { IRenderStageInfo, RenderStage } from "cocos/core/pipeline/render-stage";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { ForwardFlow } from "cocos/core/pipeline/forward/forward-flow";
-    import { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
-    import { RenderQueueDesc } from "cocos/core/pipeline/pipeline-serialization";
-    /**
-     * @en The forward render stage
-     * @zh 前向渲染阶段。
-     */
-    export class ForwardStage extends RenderStage {
-        static initInfo: IRenderStageInfo;
-        protected renderQueues: RenderQueueDesc[];
-        protected _renderQueues: RenderQueue[];
-        private _renderArea;
-        private _batchedQueue;
-        private _instancedQueue;
-        private _phaseID;
-        private _additiveLightQueue;
-        constructor();
-        initialize(info: IRenderStageInfo): boolean;
-        activate(pipeline: ForwardPipeline, flow: ForwardFlow): void;
-        destroy(): void;
-        render(view: RenderView): void;
-        /**
-         * @en Clear the given render queue
-         * @zh 清空指定的渲染队列
-         * @param rq The render queue
-         */
-        protected renderQueueClearFunc(rq: RenderQueue): void;
-        /**
-         * @en Sort the given render queue
-         * @zh 对指定的渲染队列执行排序
-         * @param rq The render queue
-         */
-        protected renderQueueSortFunc(rq: RenderQueue): void;
-    }
-}
-declare module "cocos/core/pipeline/forward/forward-flow" {
-    import { IRenderFlowInfo, RenderFlow } from "cocos/core/pipeline/render-flow";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
-    /**
-     * @en The forward flow in forward render pipeline
-     * @zh 前向渲染流程。
-     */
-    export class ForwardFlow extends RenderFlow {
-        /**
-         * @en The shared initialization information of forward render flow
-         * @zh 共享的前向渲染流程初始化参数
-         */
-        static initInfo: IRenderFlowInfo;
-        initialize(info: IRenderFlowInfo): boolean;
-        activate(pipeline: RenderPipeline): void;
-        render(view: RenderView): void;
-        destroy(): void;
-    }
-}
-declare module "cocos/core/pipeline/render-shadowMap-batched-queue" {
-    /**
-     * @category pipeline
-     */
-    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
-    import { IRenderObject } from "cocos/core/pipeline/define";
-    import { GFXDevice, GFXRenderPass, GFXBuffer } from "cocos/core/gfx/index";
-    /**
-     * @zh
-     * 阴影渲染队列
-     */
-    export class RenderShadowMapBatchedQueue {
-        private _subModelsArray;
-        private _passArray;
-        private _shaderArray;
-        private _shadowMapBuffer;
-        private _phaseID;
-        /**
-         * @zh
-         * clear ligth-Batched-Queue
-         */
-        clear(shadowMapBuffer: GFXBuffer): void;
-        add(renderObj: IRenderObject, subModelIdx: number, passIdx: number): void;
-        /**
-         * @zh
-         * record CommandBuffer
-         */
-        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
-    }
-}
-declare module "cocos/core/pipeline/shadow/shadow-stage" {
-    import { IRenderStageInfo, RenderStage } from "cocos/core/pipeline/render-stage";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { GFXFramebuffer } from "cocos/core/gfx/framebuffer";
-    /**
-     * @zh
-     * 阴影渲染阶段。
-     */
-    export class ShadowStage extends RenderStage {
-        static initInfo: IRenderStageInfo;
-        setShadowFrameBuffer(shadowFrameBuffer: GFXFramebuffer): void;
-        private _additiveShadowQueue;
-        private _shadowFrameBuffer;
-        private _renderArea;
-        /**
-         * 构造函数。
-         * @param flow 渲染阶段。
-         */
-        constructor();
-        /**
-         * @zh
-         * 销毁函数。
-         */
-        destroy(): void;
-        /**
-         * @zh
-         * 渲染函数。
-         * @param view 渲染视图。
-         */
-        render(view: RenderView): void;
-    }
-}
-declare module "cocos/core/pipeline/shadow/shadow-flow" {
-    import { IRenderFlowInfo, RenderFlow } from "cocos/core/pipeline/render-flow";
-    import { GFXFramebuffer } from "cocos/core/gfx/index";
-    import { RenderView, ForwardPipeline } from "cocos/core/index";
-    /**
-     * @zh 阴影贴图绘制流程
-     */
-    export class ShadowFlow extends RenderFlow {
-        get shadowFrameBuffer(): GFXFramebuffer | null;
-        static initInfo: IRenderFlowInfo;
-        private _shadowRenderPass;
-        private _shadowRenderTargets;
-        private _shadowFrameBuffer;
-        private _depth;
-        private _width;
-        private _height;
-        initialize(info: IRenderFlowInfo): boolean;
-        activate(pipeline: ForwardPipeline): void;
-        render(view: RenderView): void;
-        private resizeShadowMap;
-    }
-}
-declare module "cocos/core/renderer/scene/fog" {
-    import { Color } from "cocos/core/math/index";
-    /**
-     * @zh
-     * 全局雾类型。
-     * @en
-     * The global fog type
-     * @static
-     * @enum FogInfo.FogType
-     */
-    export const FogType: {
-        /**
-         * @zh
-         * 线性雾。
-         * @en
-         * Linear fog
-         * @readonly
-         */
-        LINEAR: number;
-        /**
-         * @zh
-         * 指数雾。
-         * @en
-         * Exponential fog
-         * @readonly
-         */
-        EXP: number;
-        /**
-         * @zh
-         * 指数平方雾。
-         * @en
-         * Exponential square fog
-         * @readonly
-         */
-        EXP_SQUARED: number;
-        /**
-         * @zh
-         * 层叠雾。
-         * @en
-         * Layered fog
-         * @readonly
-         */
-        LAYERED: number;
-    };
-    export class Fog {
-        /**
-         * @zh 是否启用全局雾效
-         * @en Enable global fog
-         */
-        set enabled(val: boolean);
-        get enabled(): boolean;
-        /**
-         * @zh 全局雾颜色
-         * @en Global fog color
-         */
-        set fogColor(val: Color);
-        get fogColor(): Color;
-        /**
-         * @zh 全局雾类型
-         * @en Global fog type
-         */
-        get type(): number;
-        set type(val: number);
-        /**
-         * @zh 全局雾浓度
-         * @en Global fog density
-         */
-        get fogDensity(): number;
-        set fogDensity(val: number);
-        /**
-         * @zh 雾效起始位置，只适用于线性雾
-         * @en Global fog start position, only for linear fog
-         */
-        get fogStart(): number;
-        set fogStart(val: number);
-        /**
-         * @zh 雾效结束位置，只适用于线性雾
-         * @en Global fog end position, only for linear fog
-         */
-        get fogEnd(): number;
-        set fogEnd(val: number);
-        /**
-         * @zh 雾效衰减
-         * @en Global fog attenuation
-         */
-        get fogAtten(): number;
-        set fogAtten(val: number);
-        /**
-         * @zh 雾效顶部范围，只适用于层级雾
-         * @en Global fog top range, only for layered fog
-         */
-        get fogTop(): number;
-        set fogTop(val: number);
-        /**
-         * @zh 雾效范围，只适用于层级雾
-         * @en Global fog range, only for layered fog
-         */
-        get fogRange(): number;
-        set fogRange(val: number);
-        /**
-         * @zh 当前雾化类型。
-         * @en The current global fog type.
-         * @returns {FogType}
-         * Returns the current global fog type
-         * - 0:Disable global Fog
-         * - 1:Linear fog
-         * - 2:Exponential fog
-         * - 3:Exponential square fog
-         * - 4:Layered fog
-         */
-        get currType(): number;
-        get colorArray(): Float32Array;
-        protected _type: number;
-        protected _fogColor: Color;
-        protected _enabled: boolean;
-        protected _fogDensity: number;
-        protected _fogStart: number;
-        protected _fogEnd: number;
-        protected _fogAtten: number;
-        protected _fogTop: number;
-        protected _fogRange: number;
-        protected _currType: number;
-        protected _colorArray: Float32Array;
-        activate(): void;
-        protected _updatePipeline(): void;
-    }
-}
-declare module "cocos/core/renderer/scene/shadow" {
-    import { Vec2 } from "cocos/core/math/index";
-    /**
-     * @en Scene level shadow related information
-     * @zh 常规阴影相关信息
-     */
-    export class Shadow {
-        /**
-         * @en Whether activate shadow
-         * @zh 是否启用常规阴影？
-         */
-        get enabled(): boolean;
-        set enabled(val: boolean);
-        protected _enabled: boolean;
-        /**
-         * @en get or set shadow camera near
-         * @zh 获取或者设置阴影相机近裁剪面
-         */
-        near: number;
-        /**
-         * @en get or set shadow camera far
-         * @zh 获取或者设置阴影相机远裁剪面
-         */
-        far: number;
-        /**
-         * @en get or set shadow camera aspect
-         * @zh 获取或者设置阴影相机的宽高比
-         */
-        aspect: number;
-        /**
-         * @en get or set shadow camera orthoSize
-         * @zh 获取或者设置阴影相机正交大小
-         */
-        orthoSize: number;
-        /**
-         * @en get or set shadow camera orthoSize
-         * @zh 获取或者设置阴影纹理大小
-         */
-        size: Vec2;
-        activate(): void;
-        protected _updatePipeline(): void;
-    }
-}
-declare module "cocos/core/pipeline/forward/forward-pipeline" {
-    import { RenderPipeline, IRenderPipelineInfo } from "cocos/core/pipeline/render-pipeline";
-    import { RenderTextureConfig, MaterialConfig } from "cocos/core/pipeline/pipeline-serialization";
-    import { IRenderObject } from "cocos/core/pipeline/define";
-    import { GFXClearFlag } from "cocos/core/gfx/define";
-    import { GFXRenderPass } from "cocos/core/gfx/index";
-    import { RenderView } from "cocos/core/pipeline/render-view";
-    import { Fog } from "cocos/core/renderer/scene/fog";
-    import { Ambient } from "cocos/core/renderer/scene/ambient";
-    import { Skybox } from "cocos/core/renderer/scene/skybox";
-    import { PlanarShadows } from "cocos/core/renderer/scene/planar-shadows";
-    import { Shadow } from "cocos/core/renderer/scene/shadow";
-    /**
-     * @en The forward render pipeline
-     * @zh 前向渲染管线。
-     */
-    export class ForwardPipeline extends RenderPipeline {
-        get isHDR(): boolean;
-        set isHDR(val: boolean);
-        get shadingScale(): number;
-        get fpScale(): number;
-        /**
-         * @en Get shadow UBO.
-         * @zh 获取阴影UBO。
-         */
-        get shadowUBO(): Float32Array;
-        protected renderTextures: RenderTextureConfig[];
-        protected materials: MaterialConfig[];
-        fog: Fog;
-        ambient: Ambient;
-        skybox: Skybox;
-        planarShadows: PlanarShadows;
-        shadowMap: Shadow;
-        /**
-         * @en The list for render objects, only available after the scene culling of the current frame.
-         * @zh 渲染对象数组，仅在当前帧的场景剔除完成后有效。
-         * @readonly
-         */
-        renderObjects: IRenderObject[];
-        shadowObjects: IRenderObject[];
-        protected _isHDR: boolean;
-        protected _shadingScale: number;
-        protected _fpScale: number;
-        protected _renderPasses: Map<GFXClearFlag, GFXRenderPass>;
-        protected _globalUBO: Float32Array;
-        protected _shadowUBO: Float32Array;
-        initialize(info: IRenderPipelineInfo): boolean;
-        activate(): boolean;
-        getRenderPass(clearFlags: GFXClearFlag): GFXRenderPass;
-        /**
-         * @en Update all UBOs
-         * @zh 更新全部 UBO。
-         */
-        updateUBOs(view: RenderView): void;
-        private _activeRenderer;
-        private _updateUBO;
-        private destroyUBOs;
-        destroy(): boolean;
-    }
-}
-declare module "cocos/core/root" {
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
-    import { IRenderViewInfo, RenderView } from "cocos/core/pipeline/render-view";
-    import { Camera, Light, Model } from "cocos/core/renderer/index";
-    import { DataPoolManager } from "cocos/core/renderer/data-pool-manager";
-    import { IRenderSceneInfo, RenderScene } from "cocos/core/renderer/scene/render-scene";
-    import { UI } from "cocos/core/renderer/ui/ui";
-    import { RenderWindow, IRenderWindowInfo } from "cocos/core/pipeline/render-window";
-    /**
-     * @zh
-     * Root描述信息
-     */
-    export interface IRootInfo {
-        enableHDR?: boolean;
-    }
-    /**
-     * @zh
-     * 场景描述信息
-     */
-    export interface ISceneInfo {
-        name: string;
-    }
-    /**
-     * @zh
-     * Root类
-     */
-    export class Root {
-        /**
-         * @zh
-         * GFX设备
-         */
-        get device(): GFXDevice;
-        /**
-         * @zh
-         * 主窗口
-         */
-        get mainWindow(): RenderWindow | null;
-        /**
-         * @zh
-         * 当前窗口
-         */
-        set curWindow(window: RenderWindow | null);
-        get curWindow(): RenderWindow | null;
-        /**
-         * @zh
-         * 临时窗口（用于数据传输）
-         */
-        set tempWindow(window: RenderWindow | null);
-        get tempWindow(): RenderWindow | null;
-        /**
-         * @zh
-         * 窗口列表
-         */
-        get windows(): RenderWindow[];
-        /**
-         * @zh
-         * 渲染管线
-         */
-        get pipeline(): RenderPipeline;
-        /**
-         * @zh
-         * UI实例
-         */
-        get ui(): UI;
-        /**
-         * @zh
-         * 场景列表
-         */
-        get scenes(): RenderScene[];
-        /**
-         * @zh
-         * 渲染视图列表
-         */
-        get views(): RenderView[];
-        /**
-         * @zh
-         * 累计时间（秒）
-         */
-        get cumulativeTime(): number;
-        /**
-         * @zh
-         * 帧时间（秒）
-         */
-        get frameTime(): number;
-        /**
-         * @zh
-         * 一秒内的累计帧数
-         */
-        get frameCount(): number;
-        /**
-         * @zh
-         * 每秒帧率
-         */
-        get fps(): number;
-        /**
-         * @zh
-         * 每秒固定帧率
-         */
-        set fixedFPS(fps: number);
-        get fixedFPS(): number;
-        get dataPoolManager(): DataPoolManager;
-        _createSceneFun: (root: Root) => RenderScene;
-        _createWindowFun: (root: Root) => RenderWindow;
-        private _device;
-        private _windows;
-        private _mainWindow;
-        private _curWindow;
-        private _tempWindow;
-        private _pipeline;
-        private _ui;
-        private _dataPoolMgr;
-        private _scenes;
-        private _views;
-        private _modelPools;
-        private _cameraPool;
-        private _lightPools;
-        private _time;
-        private _frameTime;
-        private _fpsTime;
-        private _frameCount;
-        private _fps;
-        private _fixedFPS;
-        private _fixedFPSFrameTime;
-        /**
-         * 构造函数
-         * @param device GFX设备
-         */
-        constructor(device: GFXDevice);
-        /**
-         * @zh
-         * 初始化函数
-         * @param info Root描述信息
-         */
-        initialize(info: IRootInfo): boolean;
-        destroy(): void;
-        /**
-         * @zh
-         * 重置大小
-         * @param width 屏幕宽度
-         * @param height 屏幕高度
-         */
-        resize(width: number, height: number): void;
-        setRenderPipeline(rppl: RenderPipeline): boolean;
-        /**
-         * @zh
-         * 激活指定窗口为当前窗口
-         * @param window GFX窗口
-         */
-        activeWindow(window: RenderWindow): void;
-        /**
-         * @zh
-         * 重置累计时间
-         */
-        resetCumulativeTime(): void;
-        /**
-         * @zh
-         * 每帧执行函数
-         * @param deltaTime 间隔时间
-         */
-        frameMove(deltaTime: number): void;
-        /**
-         * @zh
-         * 创建窗口
-         * @param info GFX窗口描述信息
-         */
-        createWindow(info: IRenderWindowInfo): RenderWindow | null;
-        /**
-         * @zh
-         * 销毁指定的窗口
-         * @param window GFX窗口
-         */
-        destroyWindow(window: RenderWindow): void;
-        /**
-         * @zh
-         * 销毁全部窗口
-         */
-        destroyWindows(): void;
-        /**
-         * @zh
-         * 创建渲染场景
-         * @param info 渲染场景描述信息
-         */
-        createScene(info: IRenderSceneInfo): RenderScene;
-        /**
-         * @zh
-         * 销毁指定的渲染场景
-         * @param scene 渲染场景
-         */
-        destroyScene(scene: RenderScene): void;
-        /**
-         * @zh
-         * 销毁全部场景
-         */
-        destroyScenes(): void;
-        /**
-         * @zh
-         * 创建渲染视图
-         * @param info 渲染视图描述信息
-         */
-        createView(info: IRenderViewInfo): RenderView;
-        /**
-         * @zh
-         * 销毁指定的渲染视图
-         * @param view 渲染视图
-         */
-        destroyView(view: RenderView): void;
-        /**
-         * @zh
-         * 销毁全部渲染视图
-         */
-        destroyViews(): void;
-        createModel<T extends Model>(mClass: typeof Model): T;
-        destroyModel(m: Model): void;
-        createCamera(): Camera;
-        destroyCamera(c: Camera): void;
-        createLight<T extends Light>(lClass: new () => T): T;
-        destroyLight(l: Light): void;
-        sortViews(): void;
-    }
-}
-declare module "cocos/core/assets/effect-asset" {
-    import { GFXDynamicStateFlags, GFXPrimitiveMode } from "cocos/core/gfx/define";
-    import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
-    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
-    import { GFXUniformBlock, GFXUniformSampler } from "cocos/core/gfx/shader";
-    import { RenderPassStage } from "cocos/core/pipeline/define";
-    import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
-    import { Asset } from "cocos/core/assets/asset";
-    import { IGFXDescriptorSetLayoutBinding } from "cocos/core/gfx/index";
-    export interface IPropertyInfo {
-        type: number;
-        handleInfo?: [string, number, number];
-        samplerHash?: number;
-        value?: number[] | string;
-    }
-    export interface IPassStates {
-        priority?: number;
-        primitive?: GFXPrimitiveMode;
-        stage?: RenderPassStage;
-        rasterizerState?: GFXRasterizerState;
-        depthStencilState?: GFXDepthStencilState;
-        blendState?: GFXBlendState;
-        dynamicStates?: GFXDynamicStateFlags;
-        phase?: string | number;
-    }
-    export interface IPassInfo extends IPassStates {
-        program: string;
-        embeddedMacros?: MacroRecord;
-        propertyIndex?: number;
-        switch?: string;
-        properties?: Record<string, IPropertyInfo>;
-    }
-    export interface ITechniqueInfo {
-        passes: IPassInfo[];
-        name?: string;
-    }
-    export interface IBlockInfo extends GFXUniformBlock, IGFXDescriptorSetLayoutBinding {
-    }
-    export interface ISamplerInfo extends GFXUniformSampler, IGFXDescriptorSetLayoutBinding {
-    }
-    export interface IAttributeInfo extends IGFXAttribute {
-        defines: string[];
-    }
-    export interface IDefineInfo {
-        name: string;
-        type: string;
-        range?: number[];
-        options?: string[];
-        default?: string;
-    }
-    export interface IBuiltin {
-        name: string;
-        defines: string[];
-    }
-    export interface IBuiltinInfo {
-        blocks: IBuiltin[];
-        samplers: IBuiltin[];
-    }
-    export interface IShaderInfo {
-        name: string;
-        hash: number;
-        glsl4: {
-            vert: string;
-            frag: string;
-        };
-        glsl3: {
-            vert: string;
-            frag: string;
-        };
-        glsl1: {
-            vert: string;
-            frag: string;
-        };
-        builtins: {
-            globals: IBuiltinInfo;
-            locals: IBuiltinInfo;
-        };
-        defines: IDefineInfo[];
-        blocks: IBlockInfo[];
-        samplers: ISamplerInfo[];
-        attributes: IAttributeInfo[];
-    }
-    export interface IPreCompileInfo {
-        [name: string]: boolean[] | number[] | string[];
-    }
-    /**
-     * @zh
-     * Effect 资源，作为材质实例初始化的模板，每个 effect 资源都应是全局唯一的。
-     */
-    export class EffectAsset extends Asset {
-        /**
-         * @zh
-         * 将指定 effect 注册到全局管理器。
-         */
-        static register(asset: EffectAsset): void;
-        /**
-         * @zh
-         * 将指定 effect 从全局管理器移除。
-         */
-        static remove(name: string): void;
-        /**
-         * @zh
-         * 获取指定名字的 effect 资源。
-         */
-        static get(name: string): EffectAsset | null;
-        /**
-         * @zh
-         * 获取所有已注册的 effect 资源。
-         */
-        static getAll(): Record<string, EffectAsset>;
-        protected static _effects: Record<string, EffectAsset>;
-        /**
-         * @zh
-         * 当前 effect 的所有可用 technique。
-         */
-        techniques: ITechniqueInfo[];
-        /**
-         * @zh
-         * 当前 effect 使用的所有 shader。
-         */
-        shaders: IShaderInfo[];
-        /**
-         * @zh
-         * 每个 shader 需要预编译的宏定义组合。
-         */
-        combinations: IPreCompileInfo[];
-        /**
-         * @zh
-         * 通过 Loader 加载完成时的回调，将自动注册 effect 资源。
-         */
-        onLoaded(): void;
-        protected _precompile(): void;
-    }
-}
-declare module "cocos/core/renderer/core/pass" {
-    import { IPassInfo, IPassStates, IPropertyInfo } from "cocos/core/assets/effect-asset";
-    import { GFXDescriptorSet } from "cocos/core/gfx/descriptor-set";
+declare module "cocos/core/renderer/scene/model" {
+    import { Material } from "cocos/core/assets/material";
+    import { RenderingSubMesh } from "cocos/core/assets/mesh";
+    import { aabb } from "cocos/core/geometry/index";
     import { GFXBuffer } from "cocos/core/gfx/buffer";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
-    import { GFXSampler } from "cocos/core/gfx/sampler";
-    import { GFXTexture } from "cocos/core/gfx/texture";
-    import { RenderPassStage } from "cocos/core/pipeline/define";
-    import { Root } from "cocos/core/root";
-    import { IProgramInfo } from "cocos/core/renderer/core/program-lib";
-    import { PassHandle, ShaderHandle } from "cocos/core/renderer/core/memory-pools";
-    import { getBindingFromHandle, getPropertyTypeFromHandle, getOffsetFromHandle, getTypeFromHandle, MacroRecord, MaterialProperty, PropertyType } from "cocos/core/renderer/core/pass-utils";
-    import { GFXPrimitiveMode, GFXType, GFXDynamicStateFlagBit } from "cocos/core/gfx/define";
-    export interface IPassInfoFull extends IPassInfo {
-        passIndex: number;
-        defines: MacroRecord;
-        stateOverrides?: PassOverrides;
-    }
-    export type PassOverrides = RecursivePartial<IPassStates>;
-    export interface IBlock {
-        view: Float32Array;
-        dirty: boolean;
-    }
-    export interface IMacroPatch {
-        name: string;
-        value: boolean | number | string;
-    }
-    interface IPassDynamics {
-        [type: number]: {
-            dirty: boolean;
-            value: number[];
-        };
-    }
-    export enum BatchingSchemes {
-        INSTANCING = 1,
-        VB_MERGING = 2
-    }
-    export namespace Pass {
-        type getPropertyTypeFromHandle = typeof getPropertyTypeFromHandle;
-        type getTypeFromHandle = typeof getTypeFromHandle;
-        type getBindingFromHandle = typeof getBindingFromHandle;
-        type fillinPipelineInfo = typeof Pass.fillPipelineInfo;
-        type getPassHash = typeof Pass.getPassHash;
-        type getOffsetFromHandle = typeof getOffsetFromHandle;
-        type PropertyType = typeof PropertyType;
-    }
-    /**
-     * @zh
-     * 渲染 pass，储存实际描述绘制过程的各项资源。
-     */
-    export class Pass {
-        /**
-         * @zh
-         * 根据 handle 获取 unform 的绑定类型（UBO 或贴图等）。
-         */
-        static PropertyType: typeof PropertyType;
-        static getPropertyTypeFromHandle: (handle: number) => number;
-        /**
-         * @zh
-         * 根据 handle 获取 UBO member 的具体类型。
-         */
-        static getTypeFromHandle: (handle: number) => number;
-        /**
-         * @zh
-         * 根据 handle 获取 binding。
-         */
-        static getBindingFromHandle: (handle: number) => number;
-        static fillPipelineInfo(hPass: PassHandle, info: PassOverrides): void;
-        /**
-         * @en
-         * Get pass hash value by [[Pass]] hash information.
-         * @zh
-         * 根据 [[Pass]] 的哈希信息获取哈希值。
-         *
-         * @param hPass Handle of the pass info used to compute hash value.
-         */
-        static getPassHash(hPass: PassHandle, hShader: ShaderHandle): number;
-        protected static getOffsetFromHandle: (handle: number) => number;
-        protected _buffers: Record<number, GFXBuffer>;
-        protected _samplers: Record<number, GFXSampler>;
-        protected _textures: Record<number, GFXTexture>;
-        protected _descriptorSet: GFXDescriptorSet;
-        protected _passIndex: number;
-        protected _propertyIndex: number;
-        protected _programName: string;
-        protected _dynamics: IPassDynamics;
-        protected _propertyHandleMap: Record<string, number>;
-        protected _blocks: IBlock[];
-        protected _shaderInfo: IProgramInfo;
-        protected _defines: MacroRecord;
-        protected _properties: Record<string, IPropertyInfo>;
-        protected _root: Root;
-        protected _device: GFXDevice;
-        protected _hShaderDefault: ShaderHandle;
-        protected _handle: PassHandle;
-        constructor(root: Root);
-        /**
-         * @zh
-         * 根据指定参数初始化当前 pass，shader 会在这一阶段就尝试编译。
-         */
-        initialize(info: IPassInfoFull): void;
-        /**
-         * @en
-         * Get the handle of a UBO member, or specific channels of it.
-         * @zh
-         * 获取指定 UBO 成员，或其更具体分量的读写句柄。默认以成员自身的类型为目标读写类型（即读写时必须传入与成员类型相同的变量）。
-         * @param name Name of the target UBO member.
-         * @param offset Channel offset into the member.
-         * @param targetType Target type of the handle, i.e. the type of data when read/write to it.
-         * @example
-         * ```
-         * import { Vec3, GFXType } from 'cc';
-         * // say 'pbrParams' is a uniform vec4
-         * const hParams = pass.getHandle('pbrParams'); // get the default handle
-         * pass.setUniform(hAlbedo, new Vec3(1, 0, 0)); // wrong! pbrParams.w is NaN now
-         *
-         * // say 'albedoScale' is a uniform vec4, and we only want to modify the w component in the form of a single float
-         * const hThreshold = pass.getHandle('albedoScale', 3, GFXType.FLOAT);
-         * pass.setUniform(hThreshold, 0.5); // now, albedoScale.w = 0.5
-         * ```
-         */
-        getHandle(name: string, offset?: number, targetType?: GFXType): number | undefined;
-        /**
-         * @zh
-         * 获取指定 uniform 的 binding。
-         * @param name 目标 uniform 名。
-         */
-        getBinding(name: string): number | undefined;
-        /**
-         * @zh
-         * 设置指定普通向量类 uniform 的值，如果需要频繁更新请尽量使用此接口。
-         * @param handle 目标 uniform 的 handle。
-         * @param value 目标值。
-         */
-        setUniform(handle: number, value: MaterialProperty): void;
-        /**
-         * @zh
-         * 获取指定普通向量类 uniform 的值。
-         * @param handle 目标 uniform 的 handle。
-         * @param out 输出向量。
-         */
-        getUniform(handle: number, out: MaterialProperty): any;
-        /**
-         * @zh
-         * 设置指定数组类 uniform 的值，如果需要频繁更新请尽量使用此接口。
-         * @param handle 目标 uniform 的 handle。
-         * @param value 目标值。
-         */
-        setUniformArray(handle: number, value: MaterialProperty[]): void;
-        /**
-         * @zh
-         * 绑定实际 [[GFXBuffer]] 到指定 binding。
-         * @param binding 目标 UBO 的 binding。
-         * @param value 目标 buffer。
-         */
-        bindBuffer(binding: number, value: GFXBuffer): void;
-        /**
-         * @zh
-         * 绑定实际 [[GFXTexture]] 到指定 binding。
-         * @param binding 目标贴图类 uniform 的 binding。
-         * @param value 目标 texture
-         */
-        bindTexture(binding: number, value: GFXTexture): void;
-        /**
-         * @zh
-         * 绑定实际 [[GFXSampler]] 到指定 binding。
-         * @param binding 目标贴图类 uniform 的 binding。
-         * @param value 目标 sampler。
-         */
-        bindSampler(binding: number, value: GFXSampler): void;
-        /**
-         * @zh
-         * 设置运行时 pass 内可动态更新的管线状态属性。
-         * @param state 目标管线状态。
-         * @param value 目标值。
-         */
-        setDynamicState(state: GFXDynamicStateFlagBit, value: any): void;
-        /**
-         * @zh
-         * 重载当前所有管线状态。
-         * @param original 原始管线状态。
-         * @param value 管线状态重载值。
-         */
-        overridePipelineStates(original: IPassInfo, overrides: PassOverrides): void;
-        /**
-         * @zh
-         * 更新当前 Uniform 数据。
-         */
-        update(): void;
-        /**
-         * @zh
-         * 销毁当前 pass。
-         */
-        destroy(): void;
-        /**
-         * @zh
-         * 重置指定（非数组） Uniform 为 Effect 默认值。
-         */
-        resetUniform(name: string): void;
-        /**
-         * @zh
-         * 重置指定贴图为 Effect 默认值。
-         */
-        resetTexture(name: string): void;
-        /**
-         * @zh
-         * 重置所有 UBO 为默认值。
-         */
-        resetUBOs(): void;
-        /**
-         * @zh
-         * 重置所有 texture 和 sampler 为初始默认值。
-         */
-        resetTextures(): void;
-        /**
-         * @zh
-         * 尝试编译 shader 并获取相关资源引用。
-         * @param defineOverrides shader 预处理宏定义重载
-         */
-        tryCompile(): boolean | null;
-        getShaderVariant(patches?: IMacroPatch[] | null): ShaderHandle;
-        beginChangeStatesSilently(): void;
-        endChangeStatesSilently(): void;
-        protected _doInit(info: IPassInfoFull, copyDefines?: boolean): void;
-        protected _syncBatchingScheme(): void;
-        get root(): Root;
-        get device(): GFXDevice;
-        get shaderInfo(): IProgramInfo;
-        get setLayouts(): import("index").GFXDescriptorSetLayout[];
-        get program(): string;
-        get properties(): Record<string, IPropertyInfo>;
-        get defines(): Record<string, string | number | boolean>;
-        get passIndex(): number;
-        get propertyIndex(): number;
-        get dynamics(): IPassDynamics;
-        get blocks(): IBlock[];
-        get handle(): PassHandle;
-        get priority(): number;
-        get primitive(): GFXPrimitiveMode;
-        get stage(): RenderPassStage;
-        get phase(): number;
-        get rasterizerState(): GFXRasterizerState;
-        get depthStencilState(): GFXDepthStencilState;
-        get blendState(): GFXBlendState;
-        get dynamicStates(): GFXDynamicStateFlagBit;
-        get batchingScheme(): BatchingSchemes;
-        get hash(): number;
-    }
-}
-declare module "cocos/core/pipeline/define" {
-    /**
-     * @category pipeline
-     */
-    import { Pass } from "cocos/core/renderer/core/pass";
-    import { Model } from "cocos/core/renderer/scene/model";
+    import { Node } from "cocos/core/scene-graph/index";
+    import { RenderScene } from "cocos/core/renderer/scene/render-scene";
+    import { Texture2D } from "cocos/core/assets/texture-2d";
     import { SubModel } from "cocos/core/renderer/scene/submodel";
-    import { GFXBindingMappingInfo, IGFXDescriptorSetLayoutBinding } from "cocos/core/gfx/index";
-    import { IBlockInfo, ISamplerInfo } from "cocos/core/assets/effect-asset";
-    export const PIPELINE_FLOW_FORWARD: string;
-    export const PIPELINE_FLOW_SHADOW: string;
-    export const PIPELINE_FLOW_SMAA: string;
-    export const PIPELINE_FLOW_TONEMAP: string;
-    /**
-     * @en The predefined render pass stage ids
-     * @zh 预设的渲染阶段。
-     */
-    export enum RenderPassStage {
-        DEFAULT = 100,
-        UI = 200
-    }
-    /**
-     * @en The predefined render priorities
-     * @zh 预设的渲染优先级。
-     */
-    export enum RenderPriority {
-        MIN = 0,
-        MAX = 255,
-        DEFAULT = 128
-    }
-    /**
-     * @en Render object interface
-     * @zh 渲染对象接口。
-     */
-    export interface IRenderObject {
-        model: Model;
-        depth: number;
-    }
-    export interface IRenderPass {
-        hash: number;
-        depth: number;
-        shaderId: number;
-        subModel: SubModel;
-        passIdx: number;
-    }
-    /**
-     * @en Render batch interface
-     * @zh 渲染批次接口。
-     */
-    export interface IRenderBatch {
-        pass: Pass;
-    }
-    /**
-     * @en Render queue descriptor
-     * @zh 渲染队列描述。
-     */
-    export interface IRenderQueueDesc {
-        isTransparent: boolean;
-        phases: number;
-        sortFunc: (a: IRenderPass, b: IRenderPass) => number;
-    }
-    export interface IDescriptorSetLayoutInfo {
-        bindings: IGFXDescriptorSetLayoutBinding[];
-        record: Record<string, IBlockInfo | ISamplerInfo>;
-    }
-    export const globalDescriptorSetLayout: IDescriptorSetLayoutInfo;
-    export const localDescriptorSetLayout: IDescriptorSetLayoutInfo;
-    /**
-     * @en The uniform bindings
-     * @zh Uniform 参数绑定。
-     */
-    export enum PipelineGlobalBindings {
-        UBO_GLOBAL = 0,
-        UBO_SHADOW = 1,
-        SAMPLER_ENVIRONMENT = 2,
-        SAMPLER_SHADOWMAP = 3,
-        COUNT = 4
-    }
-    export enum ModelLocalBindings {
-        UBO_LOCAL = 0,
-        UBO_FORWARD_LIGHTS = 1,
-        UBO_SKINNING_ANIMATION = 2,
-        UBO_SKINNING_TEXTURE = 3,
-        UBO_MORPH = 4,
-        SAMPLER_JOINTS = 5,
-        SAMPLER_MORPH_POSITION = 6,
-        SAMPLER_MORPH_NORMAL = 7,
-        SAMPLER_MORPH_TANGENT = 8,
-        SAMPLER_LIGHTING_MAP = 9,
-        SAMPLER_SPRITE = 10,
-        COUNT = 11
-    }
-    /**
-     * @en Check whether the given uniform binding is a builtin binding
-     * @zh 检查指定的 UniformBinding 是否是引擎内置的
-     * @param binding
-     */
-    export const isBuiltinBinding: (set: number) => boolean;
-    export enum SetIndex {
-        GLOBAL = 0,
-        MATERIAL = 1,
-        LOCAL = 2
-    }
-    export const bindingMappingInfo: GFXBindingMappingInfo;
-    /**
-     * @en The global uniform buffer object
-     * @zh 全局 UBO。
-     */
-    export class UBOGlobal {
-        static TIME_OFFSET: number;
-        static SCREEN_SIZE_OFFSET: number;
-        static SCREEN_SCALE_OFFSET: number;
-        static NATIVE_SIZE_OFFSET: number;
-        static MAT_VIEW_OFFSET: number;
-        static MAT_VIEW_INV_OFFSET: number;
-        static MAT_PROJ_OFFSET: number;
-        static MAT_PROJ_INV_OFFSET: number;
-        static MAT_VIEW_PROJ_OFFSET: number;
-        static MAT_VIEW_PROJ_INV_OFFSET: number;
-        static CAMERA_POS_OFFSET: number;
-        static EXPOSURE_OFFSET: number;
-        static MAIN_LIT_DIR_OFFSET: number;
-        static MAIN_LIT_COLOR_OFFSET: number;
-        static AMBIENT_SKY_OFFSET: number;
-        static AMBIENT_GROUND_OFFSET: number;
-        static GLOBAL_FOG_COLOR_OFFSET: number;
-        static GLOBAL_FOG_BASE_OFFSET: number;
-        static GLOBAL_FOG_ADD_OFFSET: number;
-        static COUNT: number;
-        static SIZE: number;
-        static BLOCK: IBlockInfo;
-    }
-    /**
-     * @en The uniform buffer object for shadow
-     * @zh 阴影 UBO。
-     */
-    export class UBOShadow {
-        static MAT_LIGHT_PLANE_PROJ_OFFSET: number;
-        static MAT_LIGHT_VIEW_PROJ_OFFSET: number;
-        static SHADOW_COLOR_OFFSET: number;
-        static COUNT: number;
-        static SIZE: number;
-        static BLOCK: IBlockInfo;
-    }
-    export const UNIFORM_SHADOWMAP: ISamplerInfo;
-    export const UNIFORM_ENVIRONMENT: ISamplerInfo;
-    /**
-     * @en The local uniform buffer object
-     * @zh 本地 UBO。
-     */
-    export class UBOLocal {
-        static MAT_WORLD_OFFSET: number;
-        static MAT_WORLD_IT_OFFSET: number;
-        static LIGHTINGMAP_UVPARAM: number;
-        static COUNT: number;
-        static SIZE: number;
-        static BLOCK: IBlockInfo;
-    }
-    export const INST_MAT_WORLD = "a_matWorld0";
-    export class UBOLocalBatched {
-        static BATCHING_COUNT: number;
-        static MAT_WORLDS_OFFSET: number;
-        static COUNT: number;
-        static SIZE: number;
-        static BLOCK: IBlockInfo;
-    }
-    /**
-     * @en The uniform buffer object for forward lighting
-     * @zh 前向灯光 UBO。
-     */
-    export class UBOForwardLight {
-        static LIGHTS_PER_PASS: number;
-        static LIGHT_POS_OFFSET: number;
-        static LIGHT_COLOR_OFFSET: number;
-        static LIGHT_SIZE_RANGE_ANGLE_OFFSET: number;
-        static LIGHT_DIR_OFFSET: number;
-        static COUNT: number;
-        static SIZE: number;
-        static BLOCK: IBlockInfo;
-    }
-    export const JOINT_UNIFORM_CAPACITY = 30;
-    /**
-     * @en The uniform buffer object for skinning texture
-     * @zh 骨骼贴图 UBO。
-     */
-    export class UBOSkinningTexture {
-        static JOINTS_TEXTURE_INFO_OFFSET: number;
-        static COUNT: number;
-        static SIZE: number;
-        static BLOCK: IBlockInfo;
-    }
-    export class UBOSkinningAnimation {
-        static JOINTS_ANIM_INFO_OFFSET: number;
-        static COUNT: number;
-        static SIZE: number;
-        static BLOCK: IBlockInfo;
-    }
-    export const INST_JOINT_ANIM_INFO = "a_jointAnimInfo";
-    export class UBOSkinning {
-        static JOINTS_OFFSET: number;
-        static COUNT: number;
-        static SIZE: number;
-        static BLOCK: IBlockInfo;
-    }
-    /**
-     * @en The uniform buffer object for morph setting
-     * @zh 形变配置的 UBO
-     */
-    export class UBOMorph {
-        static readonly MAX_MORPH_TARGET_COUNT = 60;
-        static readonly OFFSET_OF_WEIGHTS = 0;
-        static readonly OFFSET_OF_DISPLACEMENT_TEXTURE_WIDTH: number;
-        static readonly OFFSET_OF_DISPLACEMENT_TEXTURE_HEIGHT: number;
-        static readonly COUNT_BASE_4_BYTES: number;
-        static readonly SIZE: number;
-        static readonly BLOCK: IBlockInfo;
-    }
-    /**
-     * @en The sampler for joint texture
-     * @zh 骨骼纹理采样器。
-     */
-    export const UniformJointTexture: ISamplerInfo;
-    /**
-     * @en The sampler for morph texture of position
-     * @zh 位置形变纹理采样器。
-     */
-    export const UniformPositionMorphTexture: Readonly<ISamplerInfo>;
-    /**
-     * @en The sampler for morph texture of normal
-     * @zh 法线形变纹理采样器。
-     */
-    export const UniformNormalMorphTexture: Readonly<ISamplerInfo>;
-    /**
-     * @en The sampler for morph texture of tangent
-     * @zh 切线形变纹理采样器。
-     */
-    export const UniformTangentMorphTexture: Readonly<ISamplerInfo>;
-    /**
-     * @en The sampler for light map texture
-     * @zh 光照图纹理采样器。
-     */
-    export const UniformLightingMapSampler: Readonly<ISamplerInfo>;
-    /**
-     * @en The sampler for UI sprites.
-     * @zh UI 精灵纹理采样器。
-     */
-    export const UniformSpriteSampler: Readonly<ISamplerInfo>;
-    export const CAMERA_DEFAULT_MASK: number;
-    export const CAMERA_EDITOR_MASK: number;
-    export const MODEL_ALWAYS_MASK: number;
-}
-declare module "cocos/core/pipeline/index" {
-    /**
-     * @category pipeline
-     */
-    import * as pipelineDefine from "cocos/core/pipeline/define";
-    export const pipeline: typeof pipelineDefine;
-    export { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
-    export { RenderFlow } from "cocos/core/pipeline/render-flow";
-    export { RenderStage } from "cocos/core/pipeline/render-stage";
-    export { RenderView } from "cocos/core/pipeline/render-view";
-    export { RenderWindow } from "cocos/core/pipeline/render-window";
-    export { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
-    export { ForwardFlow } from "cocos/core/pipeline/forward/forward-flow";
-    export { ForwardStage } from "cocos/core/pipeline/forward/forward-stage";
-    export { ShadowFlow } from "cocos/core/pipeline/shadow/shadow-flow";
-    export { ShadowStage } from "cocos/core/pipeline/shadow/shadow-stage";
-}
-declare module "cocos/core/assets/render-texture" {
-    import { GFXTexture, GFXSampler, IGFXRenderPassInfo } from "cocos/core/gfx/index";
-    import { RenderWindow } from "cocos/core/pipeline/index";
-    import { Asset } from "cocos/core/assets/asset";
-    export interface IRenderTextureCreateInfo {
-        name?: string;
-        width: number;
-        height: number;
-        passInfo?: IGFXRenderPassInfo;
-    }
-    export class RenderTexture extends Asset {
-        private _width;
-        private _height;
-        private _window;
-        get width(): number;
-        get height(): number;
-        get window(): RenderWindow | null;
-        initialize(info: IRenderTextureCreateInfo): void;
-        reset(info: IRenderTextureCreateInfo): void;
-        destroy(): boolean;
-        resize(width: number, height: number): void;
-        getGFXTexture(): GFXTexture | null;
-        getGFXSampler(): GFXSampler;
-        onLoaded(): void;
-        protected _initWindow(info?: IRenderTextureCreateInfo): void;
-    }
-}
-declare module "cocos/core/assets/sprite-frame" {
-    import { Rect, Size, Vec2 } from "cocos/core/math/index";
-    import { Asset } from "cocos/core/assets/asset";
-    import { RenderTexture } from "cocos/core/assets/render-texture";
-    import { TextureBase } from "cocos/core/assets/texture-base";
-    import { ImageAsset, ImageSource } from "cocos/core/assets/image-asset";
-    export interface IUV {
-        u: number;
-        v: number;
-    }
-    interface IVertices {
-        x: any;
-        y: any;
-        triangles: any;
-        nu: number[];
-        u: number[];
-        nv: number[];
-        v: number[];
-    }
-    interface ISpriteFrameInitInfo {
-        /**
-         * @zh Texture 对象资源。
-         */
-        texture?: TextureBase | RenderTexture;
-        /**
-         * @zh 精灵帧原始尺寸。
-         */
-        originalSize?: Size;
-        /**
-         * @zh 精灵帧裁切矩形。
-         */
-        rect?: Rect;
-        /**
-         * @zh 精灵帧偏移量。
-         */
-        offset?: Vec2;
-        /**
-         * @zh 上边界。
-         */
-        borderTop?: number;
-        /**
-         * @zh 下边界。
-         */
-        borderBottom?: number;
-        /**
-         * @zh 左边界
-         */
-        borderLeft?: number;
-        /**
-         * @zh 右边界
-         */
-        borderRight?: number;
-        /**
-         * @zh 是否旋转。
-         */
-        isRotate?: boolean;
-        /**
-         * @zh 是否转置 UV。
-         */
-        isFlipUv?: boolean;
-    }
-    /**
-     * @en
-     * A `SpriteFrame` has:<br/>
-     *  - texture: A `Texture2D` that will be used by render components<br/>
-     *  - rectangle: A rectangle of the texture
-     *
-     * @zh
-     * 精灵帧资源。
-     * 一个 SpriteFrame 包含：<br/>
-     *  - 纹理：会被渲染组件使用的 Texture2D 对象。<br/>
-     *  - 矩形：在纹理中的矩形区域。
-     * 可通过 `SpriteFrame` 获取该组件。
-     *
-     * @example
-     * ```ts
-     * import { loader } from 'cc';
-     * // First way to use a SpriteFrame
-     * const url = "assets/PurpleMonster/icon/spriteFrame";
-     * loader.loadRes(url, (err, spriteFrame) => {
-     *   const node = new Node("New Sprite");
-     *   const sprite = node.addComponent(SpriteComponent);
-     *   sprite.spriteFrame = spriteFrame;
-     *   node.parent = self.node;
-     * });
-     *
-     * // Second way to use a SpriteFrame
-     * const self = this;
-     * const url = "test_assets/PurpleMonster";
-     * loader.loadRes(url, (err, imageAsset) => {
-     *  if(err){
-     *    return;
-     *  }
-     *
-     *  const node = new Node("New Sprite");
-     *  const sprite = node.addComponent(SpriteComponent);
-     *  const spriteFrame = new SpriteFrame();
-     *  const tex = imageAsset._texture;
-     *  spriteFrame.texture = tex;
-     *  sprite.spriteFrame = spriteFrame;
-     *  node.parent = self.node;
-     * });
-     *
-     * // Third way to use a SpriteFrame
-     * const self = this;
-     * const cameraComp = this.getComponent(CameraComponent);
-     * const renderTexture = new RenderTexture();
-     * rendetTex.reset({
-     *   width: 512,
-     *   height: 512,
-     *   depthStencilFormat: RenderTexture.DepthStencilFormat.DEPTH_24_STENCIL_8
-     * });
-     *
-     * cameraComp.targetTexture = renderTexture;
-     * const spriteFrame = new SpriteFrame();
-     * spriteFrame.texture = renderTexture;
-     * ```
-     */
-    export class SpriteFrame extends Asset {
-        /**
-         * @en
-         * Create a SpriteFrame object by an image asset or an native image asset
-         * @zh
-         * 通过 Image 资源或者原始 image 资源创建一个 SpriteFrame 对象
-         * @param imageSourceOrImageAsset ImageAsset or ImageSource, ImageSource support HTMLCanvasElement HTMLImageElement IMemoryImageSource
-         */
-        static createWithImage(imageSourceOrImageAsset: ImageSource | ImageAsset): SpriteFrame;
-        /**
-         * @en
-         * Top border of the sprite.
-         *
-         * @zh
-         * sprite 的顶部边框。
-         */
-        get insetTop(): number;
-        set insetTop(value: number);
-        /**
-         * @en
-         * Bottom border of the sprite.
-         *
-         * @zh
-         * sprite 的底部边框。
-         */
-        get insetBottom(): number;
-        set insetBottom(value: number);
-        /**
-         * @en
-         * Left border of the sprite.
-         *
-         * @zh
-         * sprite 的左边边框。
-         */
-        get insetLeft(): number;
-        set insetLeft(value: number);
-        /**
-         * @en
-         * Right border of the sprite.
-         *
-         * @zh
-         * sprite 的右边边框。
-         */
-        get insetRight(): number;
-        set insetRight(value: number);
-        /**
-         * @en
-         * Returns the rect of the sprite frame in the texture.
-         * If it's a atlas texture, a transparent pixel area is proposed for the actual mapping of the current texture.
-         *
-         * @zh
-         * 获取 SpriteFrame 的纹理矩形区域。
-         * 如果是一个 atlas 的贴图，则为当前贴图的实际剔除透明像素区域。
-         */
-        get rect(): Rect;
-        set rect(value: Rect);
-        /**
-         * @en
-         * Returns the original size of the trimmed image.
-         *
-         * @zh
-         * 获取修剪前的原始大小。
-         */
-        get originalSize(): Size;
-        set originalSize(value: Size);
-        /**
-         * @en
-         * Returns the offset of the frame in the texture.
-         *
-         * @zh
-         * 获取偏移量。
-         */
-        get offset(): Vec2;
-        set offset(value: Vec2);
-        /**
-         * @en
-         * Returns whether the sprite frame is rotated in the texture.
-         *
-         * @zh
-         * 获取 SpriteFrame 是否旋转。
-         */
-        get rotated(): boolean;
-        set rotated(rotated: boolean);
-        get texture(): RenderTexture | TextureBase;
-        set texture(value: RenderTexture | TextureBase);
-        get atlasUuid(): string;
-        set atlasUuid(value: string);
-        get width(): number;
-        get height(): number;
-        set _textureSource(value: TextureBase);
-        vertices: IVertices | null;
-        /**
-         * @zh
-         * 不带裁切的 UV。
-         */
-        uv: number[];
-        uvHash: number;
-        /**
-         * @zh
-         * 带有裁切的 UV。
-         */
-        uvSliced: IUV[];
-        protected _rect: Rect;
-        protected _offset: Vec2;
-        protected _originalSize: Size;
-        protected _rotated: boolean;
-        protected _capInsets: number[];
-        protected _atlasUuid: string;
-        protected _texture: TextureBase | RenderTexture;
-        protected _flipUv: boolean;
-        constructor();
-        /**
-         * @en
-         * Returns whether the texture have been loaded.
-         *
-         * @zh
-         * 返回是否已加载精灵帧。
-         */
-        textureLoaded(): boolean;
-        /**
-         * @en
-         * Returns whether the sprite frame is rotated in the texture.
-         *
-         * @zh
-         * 获取 SpriteFrame 是否旋转。
-         * @deprecated 即将在 1.2 废除，请使用 `isRotated = rect.rotated`。
-         */
-        isRotated(): boolean;
-        /**
-         * @en
-         * Set whether the sprite frame is rotated in the texture.
-         *
-         * @zh
-         * 设置 SpriteFrame 是否旋转。
-         * @param value
-         * @deprecated 即将在 1.2 废除，请使用 `rect.rotated = true`。
-         */
-        setRotated(rotated: boolean): void;
-        /**
-         * @en
-         * Returns the rect of the sprite frame in the texture.
-         * If it's a atlas texture, a transparent pixel area is proposed for the actual mapping of the current texture.
-         *
-         * @zh
-         * 获取 SpriteFrame 的纹理矩形区域。
-         * 如果是一个 atlas 的贴图，则为当前贴图的实际剔除透明像素区域。
-         * @deprecated 即将在 1.2 废除，请使用 `rect.set(spritFrame.rect)`。
-         */
-        getRect(out?: Rect): Rect;
-        /**
-         * @en
-         * Sets the rect of the sprite frame in the texture.
-         *
-         * @zh
-         * 设置 SpriteFrame 的纹理矩形区域。
-         * @deprecated 即将在 1.2 废除，请使用 `spritFrame.rect = rect`。
-         */
-        setRect(rect: Rect): void;
-        /**
-         * @en
-         * Returns the original size of the trimmed image.
-         *
-         * @zh
-         * 获取修剪前的原始大小。
-         * @deprecated 即将在 1.2 废除，请使用 `size.set(spritFrame.originalSize)`。
-         */
-        getOriginalSize(out?: Size): Size;
-        /**
-         * @en
-         * Sets the original size of the trimmed image.
-         *
-         * @zh
-         * 设置修剪前的原始大小。
-         *
-         * @param size - 设置精灵原始大小。
-         * @deprecated 即将在 1.2 废除，请使用 `spritFrame.originalSize = size`。
-         */
-        setOriginalSize(size: Size): void;
-        /**
-         * @en
-         * Returns the offset of the frame in the texture.
-         *
-         * @zh
-         * 获取偏移量。
-         *
-         * @param out - 可复用的偏移量。
-         * @deprecated 即将在 1.2 废除，请使用 `offset.set(spritFrame.offset)`。
-         */
-        getOffset(out?: Vec2): Vec2;
-        /**
-         * @en
-         * Sets the offset of the frame in the texture.
-         *
-         * @zh
-         * 设置偏移量。
-         *
-         * @param offsets - 偏移量。
-         * @deprecated 即将在 1.2 废除，请使用 `spritFrame.offset = offset`。
-         */
-        setOffset(offset: Vec2): void;
-        getGFXTexture(): import("index").GFXTexture | null;
-        getGFXSampler(): import("index").GFXSampler;
-        /**
-         * 重置 SpriteFrame 数据。
-         * @param info SpriteFrame 初始化数据。
-         */
-        reset(info?: ISpriteFrameInitInfo, clearData?: boolean): void;
-        /**
-         * @zh
-         * 判断精灵计算的矩形区域是否越界。
-         *
-         * @param texture
-         */
-        checkRect(texture: TextureBase | RenderTexture): boolean;
-        onLoaded(): void;
-        destroy(): boolean;
-        _calculateSlicedUV(): void;
-        /**
-         * @zh
-         * 计算 UV。
-         */
-        _calculateUV(): void;
-        _serialize(exporting?: any): any;
-        _deserialize(serializeData: any, handle: any): void;
-        protected _textureLoaded(): void;
-        protected _refreshTexture(texture: TextureBase | RenderTexture): void;
-    }
-}
-declare module "cocos/core/3d/builtin/init" {
-    import { Asset } from "cocos/core/assets/asset";
+    import { Pass, IMacroPatch } from "cocos/core/renderer/core/pass";
+    import { Vec3, Vec4 } from "cocos/core/math/index";
     import { GFXDevice } from "cocos/core/gfx/device";
-    class BuiltinResMgr {
-        protected _device: GFXDevice | null;
-        protected _resources: Record<string, Asset>;
-        initBuiltinRes(device: GFXDevice): void;
-        get<T extends Asset>(uuid: string): T;
+    import { IGFXAttribute, GFXDescriptorSet } from "cocos/core/gfx/index";
+    import { GFXFormat } from "cocos/core/gfx/define";
+    export interface IInstancedAttribute {
+        name: string;
+        format: GFXFormat;
+        isNormalized?: boolean;
+        view: ArrayBufferView;
     }
-    const builtinResMgr: BuiltinResMgr;
-    export { builtinResMgr };
+    export interface IInstancedAttributeBlock {
+        buffer: Uint8Array;
+        list: IInstancedAttribute[];
+    }
+    export enum ModelType {
+        DEFAULT = 0,
+        SKINNING = 1,
+        BAKED_SKINNING = 2,
+        UI_BATCH = 3,
+        PARTICLE_BATCH = 4,
+        LINE = 5
+    }
+    /**
+     * A representation of a model
+     */
+    export class Model {
+        get subModels(): SubModel[];
+        get inited(): boolean;
+        get worldBounds(): aabb | null;
+        get modelBounds(): aabb | null;
+        get localBuffer(): GFXBuffer | null;
+        get updateStamp(): number;
+        get isInstancingEnabled(): boolean;
+        type: ModelType;
+        scene: RenderScene | null;
+        node: Node;
+        transform: Node;
+        enabled: boolean;
+        visFlags: number;
+        castShadow: boolean;
+        receiveShadow: boolean;
+        isDynamicBatching: boolean;
+        instancedAttributes: IInstancedAttributeBlock;
+        protected _worldBounds: aabb | null;
+        protected _modelBounds: aabb | null;
+        protected _subModels: SubModel[];
+        protected _device: GFXDevice;
+        protected _inited: boolean;
+        protected _descriptorSetCount: number;
+        protected _updateStamp: number;
+        protected _transformUpdated: boolean;
+        private _localData;
+        private _localBuffer;
+        private _instMatWorldIdx;
+        private _lightmap;
+        private _lightmapUVParam;
+        /**
+         * Setup a default empty model
+         */
+        constructor();
+        initialize(node: Node): void;
+        destroy(): void;
+        attachToScene(scene: RenderScene): void;
+        detachFromScene(): void;
+        updateTransform(stamp: number): void;
+        updateUBOs(stamp: number): void;
+        /**
+         * Create the bounding shape of this model
+         * @param minPos the min position of the model
+         * @param maxPos the max position of the model
+         */
+        createBoundingShape(minPos?: Vec3, maxPos?: Vec3): void;
+        initSubModel(idx: number, subMeshData: RenderingSubMesh, mat: Material): void;
+        setSubModelMesh(idx: number, subMesh: RenderingSubMesh): void;
+        setSubModelMaterial(idx: number, mat: Material): void;
+        onGlobalPipelineStateChanged(): void;
+        updateLightingmap(texture: Texture2D | null, uvParam: Vec4): void;
+        getMacroPatches(subModelIndex: number): IMacroPatch[] | null;
+        protected _updateAttributesAndBinding(subModelIndex: number): void;
+        protected _getInstancedAttributeIndex(name: string): number;
+        protected _updateInstancedAttributes(attributes: IGFXAttribute[], pass: Pass): void;
+        protected _initLocalDescriptors(subModelIndex: number): void;
+        protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
+    }
+}
+declare module "cocos/core/3d/framework/renderable-component" {
+    import { Material } from "cocos/core/assets/material";
+    import { Component } from "cocos/core/components/component";
+    import { MaterialInstance } from "cocos/core/renderer/core/material-instance";
+    import { Model } from "cocos/core/renderer/scene/model";
+    export class RenderableComponent extends Component {
+        protected _materials: (Material | null)[];
+        protected _visFlags: number;
+        get visibility(): number;
+        set visibility(val: number);
+        get sharedMaterials(): (Material | null)[];
+        set sharedMaterials(val: (Material | null)[]);
+        /**
+         * @en The materials of the model.
+         * @zh 模型材质。
+         */
+        get materials(): (MaterialInstance | null)[];
+        set materials(val: (MaterialInstance | null)[]);
+        protected _materialInstances: (MaterialInstance | null)[];
+        protected _models: Model[];
+        get sharedMaterial(): Material | null;
+        /**
+         * @en Get the shared material asset of the specified sub-model.
+         * @zh 获取指定子模型的共享材质资源。
+         */
+        getMaterial(idx: number): Material | null;
+        /**
+         * @en Set the shared material asset of the specified sub-model,
+         * new material instance will be created automatically if the sub-model is already using one.
+         * @zh 设置指定子模型的 sharedMaterial，如果对应位置有材质实例则会创建一个对应的材质实例。
+         */
+        setMaterial(material: Material | null, index: number): void;
+        get material(): Material | null;
+        set material(val: Material | null);
+        /**
+         * @en Get the material instance of the specified sub-model.
+         * @zh 获取指定子模型的材质实例。
+         */
+        getMaterialInstance(idx: number): Material | null;
+        /**
+         * @en Set the material instance of the specified sub-model.
+         * @zh 获取指定子模型的材质实例。
+         */
+        setMaterialInstance(index: number, matInst: Material | null): void;
+        /**
+         * @en Get the actual rendering material of the specified sub-model.
+         * (material instance if there is one, or the shared material asset)
+         * @zh 获取指定位置可供渲染的材质，如果有材质实例则使用材质实例，如果没有则使用材质资源
+         */
+        getRenderMaterial(index: number): Material | null;
+        _collectModels(): Model[];
+        protected _attachToScene(): void;
+        protected _detachFromScene(): void;
+        protected _onMaterialModified(index: number, material: Material | null): void;
+        protected _onRebuildPSO(index: number, material: Material | null): void;
+        protected _clearMaterials(): void;
+        protected _onVisibilityChange(val: any): void;
+    }
 }
 declare module "cocos/core/assets/material" {
     import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
@@ -17540,7 +14799,7 @@ declare module "cocos/core/assets/material" {
          * @param name The property or uniform name.
          * @param passIdx The target pass index. If not specified, return the first found value in all passes.
          */
-        getProperty(name: string, passIdx?: number): number | import("index").Vec3 | import("index").Mat4 | import("index").Quat | import("index").Mat3 | import("index").Vec2 | import("index").Vec4 | import("index").Color | GFXTexture | RenderTexture | TextureBase | SpriteFrame | MaterialPropertyFull[] | null;
+        getProperty(name: string, passIdx?: number): number | import("index").Vec3 | import("index").Mat4 | import("index").Quat | import("index").Mat3 | import("index").Vec2 | import("index").Vec4 | import("index").Color | GFXTexture | TextureBase | SpriteFrame | RenderTexture | MaterialPropertyFull[] | null;
         /**
          * @en Copy the target material.
          * @zh 复制目标材质到当前实例。
@@ -17702,6 +14961,271 @@ declare module "cocos/core/components/block-input-events-component" {
     export class BlockInputEventsComponent extends Component {
         onEnable(): void;
         onDisable(): void;
+    }
+}
+declare module "cocos/core/scheduler" {
+    import System from "cocos/core/components/system";
+    export interface ISchedulable {
+        id?: string;
+        uuid?: string;
+    }
+    /**
+     * @en
+     * Scheduler is responsible of triggering the scheduled callbacks.<br>
+     * You should not use NSTimer. Instead use this class.<br>
+     * <br>
+     * There are 2 different types of callbacks (selectors):<br>
+     *     - update callback: the 'update' callback will be called every frame. You can customize the priority.<br>
+     *     - custom callback: A custom callback will be called every frame, or with a custom interval of time<br>
+     * <br>
+     * The 'custom selectors' should be avoided when possible. It is faster,<br>
+     * and consumes less memory to use the 'update callback'. *
+     * @zh
+     * Scheduler 是负责触发回调函数的类。<br>
+     * 通常情况下，建议使用 `director.getScheduler()` 来获取系统定时器。<br>
+     * 有两种不同类型的定时器：<br>
+     *     - update 定时器：每一帧都会触发。您可以自定义优先级。<br>
+     *     - 自定义定时器：自定义定时器可以每一帧或者自定义的时间间隔触发。<br>
+     * 如果希望每帧都触发，应该使用 update 定时器，使用 update 定时器更快，而且消耗更少的内存。
+     *
+     * @class Scheduler
+     */
+    export class Scheduler extends System {
+        /**
+         * @en Priority level reserved for system services.
+         * @zh 系统服务的优先级。
+         */
+        static PRIORITY_SYSTEM: number;
+        /**
+         * @en Minimum priority level for user scheduling.
+         * @zh 用户调度最低优先级。
+         */
+        static PRIORITY_NON_SYSTEM: number;
+        static ID: string;
+        private _timeScale;
+        private _updatesNegList;
+        private _updates0List;
+        private _updatesPosList;
+        private _hashForUpdates;
+        private _hashForTimers;
+        private _currentTarget;
+        private _currentTargetSalvaged;
+        private _updateHashLocked;
+        private _arrayForTimers;
+        /**
+         * @en This method should be called for any target which needs to schedule tasks, and this method should be called before any scheduler API usage.<bg>
+         * This method will add a `id` property if it doesn't exist.
+         * @zh 任何需要用 Scheduler 管理任务的对象主体都应该调用这个方法，并且应该在调用任何 Scheduler API 之前调用这个方法。<bg>
+         * 这个方法会给对象添加一个 `id` 属性，如果这个属性不存在的话。
+         * @param {Object} target
+         */
+        static enableForTarget(target: ISchedulable): void;
+        constructor();
+        /**
+         * @en
+         * Modifies the time of all scheduled callbacks.<br>
+         * You can use this property to create a 'slow motion' or 'fast forward' effect.<br>
+         * Default is 1.0. To create a 'slow motion' effect, use values below 1.0.<br>
+         * To create a 'fast forward' effect, use values higher than 1.0.<br>
+         * Note：It will affect EVERY scheduled selector / action.
+         * @zh
+         * 设置时间间隔的缩放比例。<br>
+         * 您可以使用这个方法来创建一个 “slow motion（慢动作）” 或 “fast forward（快进）” 的效果。<br>
+         * 默认是 1.0。要创建一个 “slow motion（慢动作）” 效果,使用值低于 1.0。<br>
+         * 要使用 “fast forward（快进）” 效果，使用值大于 1.0。<br>
+         * 注意：它影响该 Scheduler 下管理的所有定时器。
+         * @param {Number} timeScale
+         */
+        setTimeScale(timeScale: any): void;
+        /**
+         * @en Returns time scale of scheduler.
+         * @zh 获取时间间隔的缩放比例。
+         * @return {Number}
+         */
+        getTimeScale(): number;
+        /**
+         * @en 'update' the scheduler. (You should NEVER call this method, unless you know what you are doing.)
+         * @zh update 调度函数。(不应该直接调用这个方法，除非完全了解这么做的结果)
+         * @param {Number} dt delta time
+         */
+        update(dt: any): void;
+        /**
+         * @en
+         * <p>
+         *   The scheduled method will be called every 'interval' seconds.<br/>
+         *   If paused is YES, then it won't be called until it is resumed.<br/>
+         *   If 'interval' is 0, it will be called every frame, but if so, it recommended to use 'scheduleUpdateForTarget:' instead.<br/>
+         *   If the callback function is already scheduled, then only the interval parameter will be updated without re-scheduling it again.<br/>
+         *   repeat let the action be repeated repeat + 1 times, use `macro.REPEAT_FOREVER` to let the action run continuously<br/>
+         *   delay is the amount of time the action will wait before it'll start<br/>
+         * </p>
+         * @zh
+         * 指定回调函数，调用对象等信息来添加一个新的定时器。<br/>
+         * 如果 paused 值为 true，那么直到 resume 被调用才开始计时。<br/>
+         * 当时间间隔达到指定值时，设置的回调函数将会被调用。<br/>
+         * 如果 interval 值为 0，那么回调函数每一帧都会被调用，但如果是这样，
+         * 建议使用 scheduleUpdateForTarget 代替。<br/>
+         * 如果回调函数已经被定时器使用，那么只会更新之前定时器的时间间隔参数，不会设置新的定时器。<br/>
+         * repeat 值可以让定时器触发 repeat + 1 次，使用 `macro.REPEAT_FOREVER`
+         * 可以让定时器一直循环触发。<br/>
+         * delay 值指定延迟时间，定时器会在延迟指定的时间之后开始计时。
+         * @param {Function} callback
+         * @param {Object} target
+         * @param {Number} interval
+         * @param {Number} [repeat]
+         * @param {Number} [delay=0]
+         * @param {Boolean} [paused=fasle]
+         */
+        schedule(callback: Function, target: ISchedulable, interval: number, repeat?: number, delay?: number, paused?: boolean): void;
+        /**
+         * @en
+         * Schedules the update callback for a given target,
+         * During every frame after schedule started, the "update" function of target will be invoked.
+         * @zh
+         * 使用指定的优先级为指定的对象设置 update 定时器。<br>
+         * update 定时器每一帧都会被触发，触发时自动调用指定对象的 "update" 函数。<br>
+         * 优先级的值越低，定时器被触发的越早。
+         * @param {Object} target
+         * @param {Number} priority
+         * @param {Boolean} paused
+         */
+        scheduleUpdate(target: ISchedulable, priority: Number, paused: Boolean): void;
+        /**
+         * @en
+         * Unschedules a callback for a callback and a given target.<br>
+         * If you want to unschedule the "update", use `unscheduleUpdate()`
+         * @zh
+         * 根据指定的回调函数和调用对象。<br>
+         * 如果需要取消 update 定时器，请使用 unscheduleUpdate()。
+         * @param {Function} callback The callback to be unscheduled
+         * @param {Object} target The target bound to the callback.
+         */
+        unschedule(callback: any, target: ISchedulable): void;
+        /**
+         * @en Unschedules the update callback for a given target.
+         * @zh 取消指定对象的 update 定时器。
+         * @param {Object} target The target to be unscheduled.
+         */
+        unscheduleUpdate(target: ISchedulable): void;
+        /**
+         * @en
+         * Unschedules all scheduled callbacks for a given target.
+         * This also includes the "update" callback.
+         * @zh 取消指定对象的所有定时器，包括 update 定时器。
+         * @param {Object} target The target to be unscheduled.
+         */
+        unscheduleAllForTarget(target: any): void;
+        /**
+         * @en
+         * Unschedules all scheduled callbacks from all targets including the system callbacks.<br/>
+         * You should NEVER call this method, unless you know what you are doing.
+         * @zh
+         * 取消所有对象的所有定时器，包括系统定时器。<br/>
+         * 不用调用此函数，除非你确定你在做什么。
+         */
+        unscheduleAll(): void;
+        /**
+         * @en
+         * Unschedules all callbacks from all targets with a minimum priority.<br/>
+         * You should only call this with `PRIORITY_NON_SYSTEM_MIN` or higher.
+         * @zh
+         * 取消所有优先级的值大于指定优先级的定时器。<br/>
+         * 你应该只取消优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
+         * @param {Number} minPriority The minimum priority of selector to be unscheduled. Which means, all selectors which
+         *        priority is higher than minPriority will be unscheduled.
+         */
+        unscheduleAllWithMinPriority(minPriority: number): void;
+        /**
+         * @en Checks whether a callback for a given target is scheduled.
+         * @zh 检查指定的回调函数和回调对象组合是否存在定时器。
+         * @param {Function} callback The callback to check.
+         * @param {Object} target The target of the callback.
+         * @return {Boolean} True if the specified callback is invoked, false if not.
+         */
+        isScheduled(callback: any, target: ISchedulable): boolean | undefined;
+        /**
+         * @en
+         * Pause all selectors from all targets.<br/>
+         * You should NEVER call this method, unless you know what you are doing.
+         * @zh
+         * 暂停所有对象的所有定时器。<br/>
+         * 不要调用这个方法，除非你知道你正在做什么。
+         */
+        pauseAllTargets(): any;
+        /**
+         * @en
+         * Pause all selectors from all targets with a minimum priority. <br/>
+         * You should only call this with kCCPriorityNonSystemMin or higher.
+         * @zh
+         * 暂停所有优先级的值大于指定优先级的定时器。<br/>
+         * 你应该只暂停优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
+         * @param {Number} minPriority
+         */
+        pauseAllTargetsWithMinPriority(minPriority: number): any;
+        /**
+         * @en
+         * Resume selectors on a set of targets.<br/>
+         * This can be useful for undoing a call to pauseAllCallbacks.
+         * @zh
+         * 恢复指定数组中所有对象的定时器。<br/>
+         * 这个函数是 pauseAllCallbacks 的逆操作。
+         * @param {Array} targetsToResume
+         */
+        resumeTargets(targetsToResume: any): void;
+        /**
+         * @en
+         * Pauses the target.<br/>
+         * All scheduled selectors/update for a given target won't be 'ticked' until the target is resumed.<br/>
+         * If the target is not present, nothing happens.
+         * @zh
+         * 暂停指定对象的定时器。<br/>
+         * 指定对象的所有定时器都会被暂停。<br/>
+         * 如果指定的对象没有定时器，什么也不会发生。
+         * @param {Object} target
+         */
+        pauseTarget(target: ISchedulable): void;
+        /**
+         * @en
+         * Resumes the target.<br/>
+         * The 'target' will be unpaused, so all schedule selectors/update will be 'ticked' again.<br/>
+         * If the target is not present, nothing happens.
+         * @zh
+         * 恢复指定对象的所有定时器。<br/>
+         * 指定对象的所有定时器将继续工作。<br/>
+         * 如果指定的对象没有定时器，什么也不会发生。
+         * @param {Object} target
+         */
+        resumeTarget(target: ISchedulable): void;
+        /**
+         * @en Returns whether or not the target is paused.
+         * @zh 返回指定对象的定时器是否处于暂停状态。
+         * @param {Object} target
+         * @return {Boolean}
+         */
+        isTargetPaused(target: ISchedulable): any;
+        private _removeHashElement;
+        private _removeUpdateFromHash;
+        private _priorityIn;
+        private _appendIn;
+    }
+}
+declare module "cocos/core/components/system" {
+    /**
+     * @hidden
+     */
+    import { ISchedulable } from "cocos/core/scheduler";
+    export default class System implements ISchedulable {
+        protected _id: string;
+        protected _priority: number;
+        protected _executeInEditMode: boolean;
+        set priority(value: number);
+        get priority(): number;
+        set id(id: string);
+        get id(): string;
+        static sortByPriority(a: System, b: System): 1 | 0 | -1;
+        init(): void;
+        update(dt: number): void;
+        postUpdate(dt: number): void;
     }
 }
 declare module "cocos/core/components/ui-base/deprecated" { }
@@ -17959,7 +15483,7 @@ declare module "cocos/core/animation/animation-state" {
         /**
          * @en The iteration duration of this animation in seconds. (length)
          * @zh 单次动画的持续时间，秒。（动画长度）
-         * @editable.readOnly
+         * @readOnly
          */
         duration: number;
         /**
@@ -18375,7 +15899,7 @@ declare module "cocos/core/load-pipeline/url" {
         /**
          * The base url of raw assets.
          * @private
-         * @editable.readOnly
+         * @readOnly
          */
         _rawAssets: string;
         normalize: (url: any) => any;
@@ -18413,7 +15937,7 @@ declare module "cocos/core/assets/sprite-atlas" {
          *
          * @returns - 精灵贴图。
          */
-        getTexture(): import("index").RenderTexture | import("cocos/core/assets/texture-base").TextureBase | null;
+        getTexture(): import("cocos/core/assets/texture-base").TextureBase | import("index").RenderTexture | null;
         /**
          * @zh
          * 根据键值获取精灵。
@@ -21883,7 +19407,7 @@ declare module "cocos/core/components/ui-base/ui-render-component" {
         set color(value: Readonly<Color>);
         protected _uiMaterial: Material | null;
         protected _uiMaterialIns: MaterialInstance | null;
-        protected getUIRenderMaterial(): Material | MaterialInstance | null;
+        protected getUIRenderMaterial(): MaterialInstance | Material | null;
         getUIMaterialInstance(): MaterialInstance;
         protected _uiMaterialDirty: boolean;
         protected _uiMatInsDirty: boolean;
@@ -21953,7 +19477,7 @@ declare module "cocos/core/components/ui-base/ui-render-component" {
         protected _canRender(): boolean;
         protected _postCanRender(): void;
         protected _updateColor(): void;
-        _updateBlendFunc(): Material | MaterialInstance | null;
+        _updateBlendFunc(): MaterialInstance | Material | null;
         protected _nodeStateChange(type: TransformBit): void;
         _updateBuiltinMaterial(): Material;
         protected _flushAssembler?(): void;
@@ -22950,7 +20474,6 @@ declare module "cocos/core/load-pipeline/plist-parser" {
         _parseDict(node: any): {};
     }
     /**
-     * @type {PlistParser}
      * @name plistParser
      * A Plist Parser
      */
@@ -24072,29 +21595,19 @@ declare module "cocos/ui/components/editbox/edit-box-impl-base" {
     }
 }
 declare module "cocos/ui/components/editbox/edit-box-impl" {
-    import { Color, Size } from "cocos/core/math/index";
     import { EditBoxComponent } from "cocos/ui/components/editbox/edit-box-component";
     import { InputFlag, InputMode, KeyboardReturnType } from "cocos/ui/components/editbox/types";
-    import { Node } from "cocos/core/index";
     import { EditBoxImplBase } from "cocos/ui/components/editbox/edit-box-impl-base";
     export class EditBoxImpl extends EditBoxImplBase {
         _delegate: EditBoxComponent | null;
         _inputMode: InputMode;
         _inputFlag: InputFlag;
         _returnType: KeyboardReturnType;
-        _maxLength: number;
-        _placeholderText: string;
-        _size: Size;
-        _node: Node | null;
-        _editing: boolean;
         __eventListeners: any;
         __fullscreen: boolean;
         __autoResize: boolean;
-        __rotateScreen: boolean;
         __orientationChanged: any;
         _edTxt: HTMLInputElement | HTMLTextAreaElement | null;
-        _textColor: Color;
-        _edFontSize: number;
         private _isTextArea;
         private _textLabelFont;
         private _textLabelFontSize;
@@ -24108,14 +21621,10 @@ declare module "cocos/ui/components/editbox/edit-box-impl" {
         private _placeholderStyleSheet;
         private _domId;
         init(delegate: EditBoxComponent): void;
-        onEnable(): void;
-        onDisable(): void;
         clear(): void;
         update(): void;
         setTabIndex(index: number): void;
         setSize(width: number, height: number): void;
-        setFocus(value: boolean): void;
-        isFocused(): boolean;
         beginEditing(): void;
         endEditing(): void;
         private _createInput;
@@ -25798,7 +23307,7 @@ declare module "cocos/ui/components/scroll-view-component" {
          * 滚动视图的事件回调函数。
          */
         scrollEvents: ComponentEventHandler[];
-        get view(): Node | null;
+        get view(): UITransformComponent | null;
         protected _autoScrolling: boolean;
         protected _scrolling: boolean;
         protected _content: UITransformComponent | null;
@@ -27434,12 +24943,12 @@ declare module "cocos/core/renderer/ui/ui-draw-batch" {
     import { Model } from "cocos/core/renderer/scene/model";
     import { UI } from "cocos/core/renderer/ui/ui";
     import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
-    import { IAHandle, DescriptorSetHandle } from "cocos/core/renderer/core/memory-pools";
+    import { InputAssemblerHandle, DescriptorSetHandle } from "cocos/core/renderer/core/memory-pools";
     export class UIDrawBatch {
         private _bufferBatch;
         camera: Camera | null;
         ia: GFXInputAssembler | null;
-        hIA: IAHandle;
+        hIA: InputAssemblerHandle;
         model: Model | null;
         material: Material | null;
         texture: GFXTexture | null;
@@ -28473,894 +25982,2613 @@ declare module "cocos/core/scene-graph/node" {
         resumeSystemEvents(recursive: boolean): void;
     }
 }
-declare module "cocos/core/scene-graph/scene" {
-    import { Mat4, Quat, Vec3 } from "cocos/core/math/index";
-    import { RenderScene } from "cocos/core/renderer/scene/render-scene";
-    import { BaseNode } from "cocos/core/scene-graph/base-node";
-    import { Component } from "cocos/core/components/component";
+declare module "cocos/core/data/instantiate" {
+    import Prefab from "cocos/core/assets/prefab";
+    import { Node } from "cocos/core/scene-graph/node";
     /**
-     * @en
-     * Scene is a subclass of [[BaseNode]], composed by nodes, representing the root of a runnable environment in the game.
-     * It's managed by [[Director]] and user can switch from a scene to another using [[Director.loadScene]]
-     * @zh
-     * Scene 是 [[BaseNode]] 的子类，由节点所构成，代表着游戏中可运行的某一个整体环境。
-     * 它由 [[Director]] 管理，用户可以使用 [[Director.loadScene]] 来切换场景
+     * @zh 从 Prefab 实例化出新节点。
+     * @en Instantiate a node from the Prefab.
+     * @param prefab The prefab.
+     * @returns The instantiated node.
+     * @example
+     * ```ts
+     * import { instantiate, director } from 'cc';
+     * // Instantiate node from prefab.
+     * const node = instantiate(prefabAsset);
+     * node.parent = director.getScene();
+     * ```
      */
-    export class Scene extends BaseNode {
+    function instantiate(prefab: Prefab): Node;
+    namespace instantiate {
+        var _clone: typeof doInstantiate;
+    }
+    /**
+     * @en Clones the object `original.
+     * @zh 克隆指定的任意类型的对象。
+     * @param original An existing object that you want to make a copy of.
+     * It can be any JavaScript object(`typeof original === 'object'`) but:
+     * - it shall not be array or null;
+     * - it shall not be object of `Asset`;
+     * - if it's an object of `CCObject`, it should not have been destroyed.
+     * @returns The newly instantiated object.
+     * @example
+     * ```ts
+     * import { instantiate, director } from 'cc';
+     * // Clone a node.
+     * const node = instantiate(targetNode);
+     * node.parent = director.getScene();
+     * ```
+     */
+    function instantiate<T>(original: T): T;
+    namespace instantiate {
+        var _clone: typeof doInstantiate;
+    }
+    function doInstantiate(obj: any, parent?: any): any;
+    export default instantiate;
+}
+declare module "cocos/core/data/index" {
+    /**
+     * @category core/data
+     */
+    import * as _decorator from "cocos/core/data/class-decorator";
+    export { _decorator };
+    export { default as CCClass } from "cocos/core/data/class";
+    export { CCObject, isValid } from "cocos/core/data/object";
+    export { default as deserialize } from "cocos/core/data/deserialize";
+    export { default as instantiate } from "cocos/core/data/instantiate";
+    export { CCInteger, CCFloat, CCBoolean, CCString } from "cocos/core/data/utils/attribute";
+    export { CompactValueTypeArray } from "cocos/core/data/utils/compact-value-type-array";
+}
+declare module "cocos/core/pipeline/pipeline-serialization" {
+    import { GFXFormat, GFXLoadOp, GFXStoreOp, GFXTextureLayout, GFXTextureType, GFXTextureUsageBit } from "cocos/core/gfx/define";
+    import { RenderTexture } from "cocos/core/assets/render-texture";
+    import { Material } from "cocos/core/assets/material";
+    /**
+     * @en The tag of the render flow, including SCENE, POSTPROCESS and UI.
+     * @zh 渲染流程的标签，包含：常规场景（SCENE），后处理（POSTPROCESS），UI 界面（UI）
+     */
+    export enum RenderFlowTag {
+        SCENE = 0,
+        POSTPROCESS = 1,
+        UI = 2
+    }
+    export class RenderTextureDesc {
+        name: string;
+        type: GFXTextureType;
+        usage: GFXTextureUsageBit;
+        format: GFXFormat;
+        width: number;
+        height: number;
+    }
+    export class RenderTextureConfig {
+        name: string;
+        texture: RenderTexture | null;
+    }
+    export class MaterialConfig {
+        name: string;
+        material: Material | null;
+    }
+    export class FrameBufferDesc {
+        name: string;
+        renderPass: number;
+        colorTextures: string[];
+        depthStencilTexture: string;
+        texture: RenderTexture | null;
+    }
+    export class ColorDesc {
+        format: GFXFormat;
+        loadOp: GFXLoadOp;
+        storeOp: GFXStoreOp;
+        sampleCount: number;
+        beginLayout: GFXTextureLayout;
+        endLayout: GFXTextureLayout;
+    }
+    export class DepthStencilDesc {
+        format: GFXFormat;
+        depthLoadOp: GFXLoadOp;
+        depthStoreOp: GFXStoreOp;
+        stencilLoadOp: GFXLoadOp;
+        stencilStoreOp: GFXStoreOp;
+        sampleCount: number;
+        beginLayout: GFXTextureLayout;
+        endLayout: GFXTextureLayout;
+    }
+    export class RenderPassDesc {
+        index: number;
+        colorAttachments: never[];
+        depthStencilAttachment: DepthStencilDesc;
+    }
+    export enum RenderQueueSortMode {
+        FRONT_TO_BACK = 0,
+        BACK_TO_FRONT = 1
+    }
+    /**
+     * @en The render queue descriptor
+     * @zh 渲染队列描述信息
+     */
+    export class RenderQueueDesc {
         /**
-         * @en The renderer scene, normally user don't need to use it
-         * @zh 渲染层场景，一般情况下用户不需要关心它
+         * @en Whether the render queue is a transparent queue
+         * @zh 当前队列是否是半透明队列
          */
-        get renderScene(): RenderScene | null;
+        isTransparent: boolean;
         /**
-         * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
-         * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
+         * @en The sort mode of the render queue
+         * @zh 渲染队列的排序模式
          */
-        autoReleaseAssets: boolean;
-        _renderScene: RenderScene | null;
-        dependAssets: null;
-        protected _inited: boolean;
-        protected _prefabSyncedInLiveReload: boolean;
-        protected _pos: Readonly<Vec3>;
-        protected _rot: Readonly<Quat>;
-        protected _scale: Readonly<Vec3>;
-        protected _mat: Readonly<Mat4>;
-        protected _dirtyFlags: number;
-        constructor(name: string);
+        sortMode: RenderQueueSortMode;
         /**
-         * @en Destroy the current scene and all its nodes, this action won't destroy related assets
-         * @zh 销毁当前场景中的所有节点，这个操作不会销毁资源
+         * @en The stages using this queue
+         * @zh 使用当前渲染队列的阶段列表
          */
-        destroy(): boolean;
-        /**
-         * @en Only for compatibility purpose, user should not add any component to the scene
-         * @zh 仅为兼容性保留，用户不应该在场景上直接添加任何组件
-         */
-        addComponent(typeOrClassName: string | Function): Component;
-        _onHierarchyChanged(): void;
-        _onBatchCreated(): void;
-        _onBatchRestored(): void;
-        /**
-         * Refer to [[Node.getPosition]]
-         */
-        getPosition(out?: Vec3): Vec3;
-        /**
-         * Refer to [[Node.getRotation]]
-         */
-        getRotation(out?: Quat): Quat;
-        /**
-         * Refer to [[Node.getScale]]
-         */
-        getScale(out?: Vec3): Vec3;
-        /**
-         * Refer to [[Node.getWorldPosition]]
-         */
-        getWorldPosition(out?: Vec3): Vec3;
-        /**
-         * Refer to [[Node.getWorldRotation]]
-         */
-        getWorldRotation(out?: Quat): Quat;
-        /**
-         * Refer to [[Node.getWorldScale]]
-         */
-        getWorldScale(out?: Vec3): Vec3;
-        /**
-         * Refer to [[Node.getWorldMatrix]]
-         */
-        getWorldMatrix(out?: Mat4): Mat4;
-        /**
-         * Refer to [[Node.getWorldRS]]
-         */
-        getWorldRS(out?: Mat4): Mat4;
-        /**
-         * Refer to [[Node.getWorldRT]]
-         */
-        getWorldRT(out?: Mat4): Mat4;
-        /**
-         * Refer to [[Node.position]]
-         */
-        get position(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.worldPosition]]
-         */
-        get worldPosition(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.rotation]]
-         */
-        get rotation(): Readonly<Quat>;
-        /**
-         * Refer to [[Node.worldRotation]]
-         */
-        get worldRotation(): Readonly<Quat>;
-        /**
-         * Refer to [[Node.scale]]
-         */
-        get scale(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.worldScale]]
-         */
-        get worldScale(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.eulerAngles]]
-         */
-        get eulerAngles(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.worldMatrix]]
-         */
-        get worldMatrix(): Readonly<Mat4>;
-        /**
-         * Refer to [[Node.updateWorldTransform]]
-         */
-        updateWorldTransform(): void;
-        protected _instantiate(): void;
-        protected _load(): void;
-        protected _activate(active: boolean): void;
+        stages: string[];
     }
 }
-declare module "cocos/core/scene-graph/base-node" {
-    /**
-     * @category scene-graph
-     */
-    import { Component } from "cocos/core/components/component";
-    import { CCObject } from "cocos/core/data/object";
-    import { Event } from "cocos/core/event/index";
-    import { SystemEventType } from "cocos/core/platform/event-manager/event-enum";
-    import { ISchedulable } from "cocos/core/scheduler";
-    import IdGenerator from "cocos/core/utils/id-generator";
-    import { NodeEventProcessor } from "cocos/core/scene-graph/node-event-processor";
-    import { Node } from "cocos/core/scene-graph/node";
-    import { Scene } from "cocos/core/scene-graph/scene";
-    type Constructor<T = {}> = new (...args: any[]) => T;
-    export const TRANSFORM_ON: number;
-    /**
-     * @en The base class for [[Node]], it:
-     * - maintains scene hierarchy and life cycle logic
-     * - provides EventTarget ability
-     * - emits events if some properties changed, ref: [[SystemEventType]]
-     * - manages components
-     * @zh [[Node]] 的基类，他会负责：
-     * - 维护场景树以及节点生命周期管理
-     * - 提供 EventTarget 的事件管理和注册能力
-     * - 派发节点状态相关的事件，参考：[[SystemEventType]]
-     * - 管理组件
-     */
-    export class BaseNode extends CCObject implements ISchedulable {
+declare module "cocos/core/pipeline/render-window" {
+    import { GFXRenderPass, GFXTexture, GFXFramebuffer, IGFXRenderPassInfo, GFXDevice } from "cocos/core/gfx/index";
+    import { Root } from "cocos/core/root";
+    export interface IRenderWindowInfo {
+        title?: string;
+        width: number;
+        height: number;
+        renderPassInfo: IGFXRenderPassInfo;
+        swapchainBufferIndices?: number;
+        shouldSyncSizeWithSwapchain?: boolean;
+    }
+    export class RenderWindow {
         /**
-         * @en Gets all components attached to this node.
-         * @zh 获取附加到此节点的所有组件。
+         * @en Get window width.
+         * @zh 窗口宽度。
          */
-        get components(): ReadonlyArray<Component>;
+        get width(): number;
         /**
-         * @en If true, the node is an persist node which won't be destroyed during scene transition.
-         * If false, the node will be destroyed automatically when loading a new scene. Default is false.
-         * @zh 如果为true，则该节点是一个常驻节点，不会在场景转换期间被销毁。
-         * 如果为false，节点将在加载新场景时自动销毁。默认为 false。
-         * @default false
-         * @protected
+         * @en Get window height.
+         * @zh 窗口高度。
          */
-        get _persistNode(): boolean;
-        set _persistNode(value: boolean);
+        get height(): number;
         /**
-         * @en Name of node.
-         * @zh 该节点名称。
+         * @en Get window frame buffer.
+         * @zh GFX帧缓冲。
+         */
+        get framebuffer(): GFXFramebuffer;
+        get shouldSyncSizeWithSwapchain(): boolean;
+        get hasOnScreenAttachments(): boolean;
+        get hasOffScreenAttachments(): boolean;
+        static registerCreateFunc(root: Root): void;
+        protected _title: string;
+        protected _width: number;
+        protected _height: number;
+        protected _nativeWidth: number;
+        protected _nativeHeight: number;
+        protected _renderPass: GFXRenderPass | null;
+        protected _colorTextures: (GFXTexture | null)[];
+        protected _depthStencilTexture: GFXTexture | null;
+        protected _framebuffer: GFXFramebuffer | null;
+        protected _swapchainBufferIndices: number;
+        protected _shouldSyncSizeWithSwapchain: boolean;
+        protected _hasOnScreenAttachments: boolean;
+        protected _hasOffScreenAttachments: boolean;
+        private constructor();
+        initialize(device: GFXDevice, info: IRenderWindowInfo): boolean;
+        destroy(): void;
+        /**
+         * @en Resize window.
+         * @zh 重置窗口大小。
+         * @param width The new width.
+         * @param height The new height.
+         */
+        resize(width: number, height: number): void;
+    }
+}
+declare module "cocos/core/pipeline/render-view" {
+    /**
+     * @category pipeline
+     */
+    import { Camera } from "cocos/core/renderer/scene/camera";
+    import { RenderFlow } from "cocos/core/pipeline/render-flow";
+    import { RenderWindow } from "cocos/core/pipeline/render-window";
+    /**
+     * @en The predefined priority of render view
+     * @zh 预设渲染视图优先级。
+     */
+    export enum RenderViewPriority {
+        GENERAL = 100
+    }
+    /**
+     * @en Render view information descriptor
+     * @zh 渲染视图描述信息。
+     */
+    export interface IRenderViewInfo {
+        camera: Camera;
+        name: string;
+        priority: number;
+        flows?: string[];
+    }
+    /**
+     * @en Render target information descriptor
+     * @zh 渲染目标描述信息。
+     */
+    export interface IRenderTargetInfo {
+        width?: number;
+        height?: number;
+    }
+    /**
+     * @en Render view represents a view from its camera, it also manages a list of [[RenderFlow]]s which will be executed for it.
+     * @zh 渲染视图代表了它的相机所拍摄的视图，它也管理一组在视图上执行的 [[RenderFlow]]。
+     */
+    export class RenderView {
+        /**
+         * @en Name
+         * @zh 名称。
          */
         get name(): string;
-        set name(value: string);
         /**
-         * @en The uuid for editor, will be stripped after building project.
-         * @zh 主要用于编辑器的 uuid，在编辑器下可用于持久化存储，在项目构建之后将变成自增的 id。
-         * @editable.readOnly
+         * @en The GFX window
+         * @zh GFX 窗口。
          */
-        get uuid(): string;
+        get window(): RenderWindow;
+        set window(val: RenderWindow);
         /**
-         * @en All children nodes.
-         * @zh 节点的所有子节点。
-         * @editable.readOnly
+         * @en The priority among other render views, used for sorting.
+         * @zh 在所有 RenderView 中的优先级，用于排序。
          */
-        get children(): this[];
+        get priority(): number;
+        set priority(val: number);
         /**
-         * @en
-         * The local active state of this node.
-         * Note that a Node may be inactive because a parent is not active, even if this returns true.
-         * Use [[activeInHierarchy]]
-         * if you want to check if the Node is actually treated as active in the scene.
-         * @zh
-         * 当前节点的自身激活状态。
-         * 值得注意的是，一个节点的父节点如果不被激活，那么即使它自身设为激活，它仍然无法激活。
-         * 如果你想检查节点在场景中实际的激活状态可以使用 [[activeInHierarchy]]
-         * @default true
+         * @en The visibility is a mask which allows nodes in the scene be seen by the current view if their [[Node.layer]] bit is included in this mask.
+         * @zh 可见性是一个掩码，如果场景中节点的 [[Node.layer]] 位被包含在该掩码中，则对应节点对该视图是可见的。
          */
-        get active(): boolean;
-        set active(isActive: boolean);
+        set visibility(vis: number);
+        get visibility(): number;
         /**
-         * @en Indicates whether this node is active in the scene.
-         * @zh 表示此节点是否在场景中激活。
-         */
-        get activeInHierarchy(): boolean;
-        /**
-         * @en The parent node
-         * @zh 父节点
-         */
-        get parent(): this | null;
-        set parent(value: this | null);
-        /**
-         * @en Which scene this node belongs to.
-         * @zh 此节点属于哪个场景。
+         * @en The camera correspond to this render view
+         * @zh 该视图对应的相机。
          * @readonly
          */
-        get scene(): any;
+        get camera(): Camera;
         /**
-         * @en The event processor of the current node, it provides EventTarget ability.
-         * @zh 当前节点的事件处理器，提供 EventTarget 能力。
+         * @en Whether the view is enabled
+         * @zh 是否启用。
          * @readonly
          */
-        get eventProcessor(): NodeEventProcessor;
-        static _setScene(node: BaseNode): void;
-        protected static idGenerator: IdGenerator;
-        protected static _stacks: Array<Array<(BaseNode | null)>>;
-        protected static _stackId: number;
-        protected static _findComponent(node: BaseNode, constructor: Function): Component | null;
-        protected static _findComponents(node: BaseNode, constructor: Function, components: Component[]): void;
-        protected static _findChildComponent(children: BaseNode[], constructor: any): any;
-        protected static _findChildComponents(children: BaseNode[], constructor: any, components: any): void;
-        protected _parent: this | null;
-        protected _children: this[];
-        protected _active: boolean;
-        protected _components: Component[];
-        protected _prefab: any;
-        protected _scene: any;
-        protected _activeInHierarchy: boolean;
-        protected _id: string;
-        protected _name: string;
-        protected _eventProcessor: NodeEventProcessor;
-        protected _eventMask: number;
-        protected _siblingIndex: number;
-        protected _registerIfAttached: ((this: BaseNode, register: any) => void) | undefined;
-        constructor(name?: string);
+        get isEnable(): boolean;
         /**
-         * @en
-         * Properties configuration function.
-         * All properties in attrs will be set to the node,
-         * when the setter of the node is available,
-         * the property will be set via setter function.
-         * @zh 属性配置函数。在 attrs 的所有属性将被设置为节点属性。
-         * @param attrs - Properties to be set to node
-         * @example
-         * ```
-         * var attrs = { name: 'New Name', active: false };
-         * node.attr(attrs);
-         * ```
+         * @en Render flow list
+         * @zh 渲染流程列表。
+         * @readonly
          */
-        attr(attrs: Object): void;
+        get flows(): RenderFlow[];
+        private _name;
+        private _window;
+        private _priority;
+        private _visibility;
+        private _camera;
+        private _isEnable;
+        private _flows;
         /**
-         * @en Get parent of the node.
-         * @zh 获取该节点的父节点。
+         * @en The constructor
+         * @zh 构造函数。
+         * @param camera
          */
-        getParent(): this | null;
+        constructor(camera: Camera);
         /**
-         * @en Set parent of the node.
-         * @zh 设置该节点的父节点。
+         * @en Initialization function with a render view information descriptor
+         * @zh 使用一个渲染视图描述信息来初始化。
+         * @param info Render view information descriptor
          */
-        setParent(value: this | Scene | null, keepWorldTransform?: boolean): void;
+        initialize(info: IRenderViewInfo): boolean;
         /**
-         * @en Returns a child with the same uuid.
-         * @zh 通过 uuid 获取节点的子节点。
-         * @param uuid - The uuid to find the child node.
-         * @return a Node whose uuid equals to the input parameter
+         * @en The destroy function
+         * @zh 销毁函数。
          */
-        getChildByUuid(uuid: string): this | null;
+        destroy(): void;
         /**
-         * @en Returns a child with the same name.
-         * @zh 通过名称获取节点的子节点。
-         * @param name - A name to find the child node.
-         * @return a CCNode object whose name equals to the input parameter
-         * @example
-         * ```
-         * var child = node.getChildByName("Test Node");
-         * ```
+         * @en Enable or disable this render view
+         * @zh 启用或禁用该渲染视图。
+         * @param isEnable Whether to enable or disable this view
          */
-        getChildByName(name: string): this | null;
+        enable(isEnable: boolean): void;
         /**
-         * @en Returns a child with the given path.
-         * @zh 通过路径获取节点的子节点。
-         * @param path - A path to find the child node.
-         * @return a Node object whose path equals to the input parameter
-         * @example
-         * ```
-         * var child = node.getChildByPath("subNode/Test Node");
-         * ```
+         * @en Set the execution render flows with their names, the flows found in the pipeline will then be executed for this view in the render process
+         * @zh 使用对应的名字列表设置需要执行的渲染流程，所有在渲染管线中找到的对应渲染流程都会用来对当前视图执行渲染。
+         * @param flows The names of all [[RenderFlow]]s
          */
-        getChildByPath(path: string): this | null;
-        /**
-         * @en Add a child to the current node, it will be pushed to the end of [[children]] array.
-         * @zh 添加一个子节点，它会被添加到 [[children]] 数组的末尾。
-         * @param child - the child node to be added
-         */
-        addChild(child: this | Node): void;
-        /**
-         * @en Inserts a child to the node at a specified index.
-         * @zh 插入子节点到指定位置
-         * @param child - the child node to be inserted
-         * @param siblingIndex - the sibling index to place the child in
-         * @example
-         * ```
-         * node.insertChild(child, 2);
-         * ```
-         */
-        insertChild(child: this | Node, siblingIndex: number): void;
-        /**
-         * @en Get the sibling index of the current node in its parent's children array.
-         * @zh 获取当前节点在父节点的 children 数组中的位置。
-         */
-        getSiblingIndex(): number;
-        /**
-         * @en Set the sibling index of the current node in its parent's children array.
-         * @zh 设置当前节点在父节点的 children 数组中的位置。
-         */
-        setSiblingIndex(index: number): void;
-        /**
-         * @en Walk though the sub children tree of the current node.
-         * Each node, including the current node, in the sub tree will be visited two times,
-         * before all children and after all children.
-         * This function call is not recursive, it's based on stack.
-         * Please don't walk any other node inside the walk process.
-         * @zh 遍历该节点的子树里的所有节点并按规则执行回调函数。
-         * 对子树中的所有节点，包含当前节点，会执行两次回调，preFunc 会在访问它的子节点之前调用，postFunc 会在访问所有子节点之后调用。
-         * 这个函数的实现不是基于递归的，而是基于栈展开递归的方式。
-         * 请不要在 walk 过程中对任何其他的节点嵌套执行 walk。
-         * @param preFunc The callback to process node when reach the node for the first time
-         * @param postFunc The callback to process node when re-visit the node after walked all children in its sub tree
-         * @example
-         * ```
-         * node.walk(function (target) {
-         *     console.log('Walked through node ' + target.name + ' for the first time');
-         * }, function (target) {
-         *     console.log('Walked through node ' + target.name + ' after walked all children in its sub tree');
-         * });
-         * ```
-         */
-        walk(preFunc: (target: this) => void, postFunc?: (target: this) => void): void;
-        /**
-         * @en
-         * Remove itself from its parent node.
-         * If the node have no parent, then nothing happens.
-         * @zh
-         * 从父节点中删除该节点。
-         * 如果这个节点是一个孤立节点，那么什么都不会发生。
-         */
-        removeFromParent(): void;
-        /**
-         * @en Removes a child from the container.
-         * @zh 移除节点中指定的子节点。
-         * @param child - The child node which will be removed.
-         */
-        removeChild(child: this | Node): void;
-        /**
-         * @en Removes all children from the container.
-         * @zh 移除节点所有的子节点。
-         */
-        removeAllChildren(): void;
-        /**
-         * @en Is this node a child of the given node?
-         * @zh 是否是指定节点的子节点？
-         * @return True if this node is a child, deep child or identical to the given node.
-         */
-        isChildOf(parent: this | Scene | null): boolean;
-        /**
-         * @en
-         * Returns the component of supplied type if the node has one attached, null if it doesn't.
-         * You can also get component in the node by passing in the name of the script.
-         * @zh
-         * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。
-         * 传入参数也可以是脚本的名称。
-         * @param classConstructor The class of the target component
-         * @example
-         * ```
-         * // get sprite component.
-         * var sprite = node.getComponent(SpriteComponent);
-         * ```
-         */
-        getComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
-        /**
-         * @en
-         * Returns the component of supplied type if the node has one attached, null if it doesn't.
-         * You can also get component in the node by passing in the name of the script.
-         * @zh
-         * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。
-         * 传入参数也可以是脚本的名称。
-         * @param className The class name of the target component
-         * @example
-         * ```
-         * // get custom test class.
-         * var test = node.getComponent("Test");
-         * ```
-         */
-        getComponent(className: string): Component | null;
-        /**
-         * @en Returns all components of given type in the node.
-         * @zh 返回节点上指定类型的所有组件。
-         * @param classConstructor The class of the target component
-         */
-        getComponents<T extends Component>(classConstructor: Constructor<T>): T[];
-        /**
-         * @en Returns all components of given type in the node.
-         * @zh 返回节点上指定类型的所有组件。
-         * @param className The class name of the target component
-         */
-        getComponents(className: string): Component[];
-        /**
-         * @en Returns the component of given type in any of its children using depth first search.
-         * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
-         * @param classConstructor The class of the target component
-         * @example
-         * ```
-         * var sprite = node.getComponentInChildren(SpriteComponent);
-         * ```
-         */
-        getComponentInChildren<T extends Component>(classConstructor: Constructor<T>): T | null;
-        /**
-         * @en Returns the component of given type in any of its children using depth first search.
-         * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
-         * @param className The class name of the target component
-         * @example
-         * ```
-         * var Test = node.getComponentInChildren("Test");
-         * ```
-         */
-        getComponentInChildren(className: string): Component | null;
-        /**
-         * @en Returns all components of given type in self or any of its children.
-         * @zh 递归查找自身或所有子节点中指定类型的组件
-         * @param classConstructor The class of the target component
-         * @example
-         * ```
-         * var sprites = node.getComponentsInChildren(SpriteComponent);
-         * ```
-         */
-        getComponentsInChildren<T extends Component>(classConstructor: Constructor<T>): T[];
-        /**
-         * @en Returns all components of given type in self or any of its children.
-         * @zh 递归查找自身或所有子节点中指定类型的组件
-         * @param className The class name of the target component
-         * @example
-         * ```
-         * var tests = node.getComponentsInChildren("Test");
-         * ```
-         */
-        getComponentsInChildren(className: string): Component[];
-        /**
-         * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
-         * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
-         * @param classConstructor The class of the component to add
-         * @throws `TypeError` if the `classConstructor` does not specify a cc-class constructor extending the `Component`.
-         * @example
-         * ```
-         * var sprite = node.addComponent(SpriteComponent);
-         * ```
-         */
-        addComponent<T extends Component>(classConstructor: Constructor<T>): T;
-        /**
-         * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
-         * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
-         * @param className The class name of the component to add
-         * @throws `TypeError` if the `className` does not specify a cc-class constructor extending the `Component`.
-         * @example
-         * ```
-         * var test = node.addComponent("Test");
-         * ```
-         */
-        addComponent(className: string): Component;
-        /**
-         * @en
-         * Removes a component identified by the given name or removes the component object given.
-         * You can also use component.destroy() if you already have the reference.
-         * @zh
-         * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
-         * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
-         * @param classConstructor The class of the component to remove
-         * @deprecated please destroy the component to remove it.
-         * @example
-         * ```
-         * node.removeComponent(SpriteComponent);
-         * ```
-         */
-        removeComponent<T extends Component>(classConstructor: Constructor<T>): void;
-        /**
-         * @en
-         * Removes a component identified by the given name or removes the component object given.
-         * You can also use component.destroy() if you already have the reference.
-         * @zh
-         * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
-         * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
-         * @param classNameOrInstance The class name of the component to remove or the component instance to be removed
-         * @deprecated please destroy the component to remove it.
-         * @example
-         * ```
-         * import { SpriteComponent } from 'cc';
-         * const sprite = node.getComponent(SpriteComponent);
-         * if (sprite) {
-         *     node.removeComponent(sprite);
-         * }
-         * node.removeComponent('cc.SpriteComponent');
-         * ```
-         */
-        removeComponent(classNameOrInstance: string | Component): void;
-        /**
-         * @en
-         * Register a callback of a specific event type on Node.
-         * Use this method to register touch or mouse event permit propagation based on scene graph,
-         * These kinds of event are triggered with dispatchEvent, the dispatch process has three steps:
-         * 1. Capturing phase: dispatch in capture targets (`_getCapturingTargets`), e.g. parents in node tree, from root to the real target
-         * 2. At target phase: dispatch to the listeners of the real target
-         * 3. Bubbling phase: dispatch in bubble targets (`_getBubblingTargets`), e.g. parents in node tree, from the real target to root
-         * In any moment of the dispatching process, it can be stopped via `event.stopPropagation()` or `event.stopPropagationImmidiate()`.
-         * It's the recommended way to register touch/mouse event for Node,
-         * please do not use `eventManager` directly for Node.
-         * You can also register custom event and use `emit` to trigger custom event on Node.
-         * For such events, there won't be capturing and bubbling phase, your event will be dispatched directly to its listeners registered on the same node.
-         * You can also pass event callback parameters with `emit` by passing parameters after `type`.
-         * @zh
-         * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的 this 对象。
-         * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：
-         * 1. 捕获阶段：派发事件给捕获目标（通过 `_getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。
-         * 2. 目标阶段：派发给目标节点的监听器。
-         * 3. 冒泡阶段：派发事件给冒泡目标（通过 `_getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发直到根节点。
-         * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。
-         * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 `eventManager`。
-         * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器
-         * 你可以通过在 emit 方法调用时在 type 之后传递额外的参数作为事件回调的参数列表
-         * @param type - A string representing the event type to listen for.<br>See {{#crossLink "Node/EventTyupe/POSITION_CHANGED"}}Node Events{{/crossLink}} for all builtin events.
-         * @param callback - The callback that will be invoked when the event is dispatched. The callback is ignored if it is a duplicate (the callbacks are unique).
-         * @param target - The target (this object) to invoke the callback, can be null
-         * @param useCapture - When set to true, the listener will be triggered at capturing phase which is ahead of the final target emit, otherwise it will be triggered during bubbling phase.
-         * @return - Just returns the incoming callback so you can save the anonymous function easier.
-         * @example
-         * ```ts
-         * this.node.on(SystemEventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
-         * node.on(SystemEventType.TOUCH_START, callback, this);
-         * node.on(SystemEventType.TOUCH_MOVE, callback, this);
-         * node.on(SystemEventType.TOUCH_END, callback, this);
-         * ```
-         */
-        on(type: string | SystemEventType, callback: Function, target?: Object, useCapture?: any): void;
-        /**
-         * @en
-         * Removes the callback previously registered with the same type, callback, target and or useCapture.
-         * This method is merely an alias to removeEventListener.
-         * @zh 删除之前与同类型，回调，目标或 useCapture 注册的回调。
-         * @param type - A string representing the event type being removed.
-         * @param callback - The callback to remove.
-         * @param target - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
-         * @param useCapture - When set to true, the listener will be triggered at capturing phase which is ahead of the final target emit, otherwise it will be triggered during bubbling phase.
-         * @example
-         * ```ts
-         * this.node.off(SystemEventType.TOUCH_START, this.memberFunction, this);
-         * node.off(SystemEventType.TOUCH_START, callback, this.node);
-         * ```
-         */
-        off(type: string, callback?: Function, target?: Object, useCapture?: any): void;
-        /**
-         * @en
-         * Register an callback of a specific event type on the Node,
-         * the callback will remove itself after the first time it is triggered.
-         * @zh
-         * 注册节点的特定事件类型回调，回调会在第一时间被触发后删除自身。
-         *
-         * @param type - A string representing the event type to listen for.
-         * @param callback - The callback that will be invoked when the event is dispatched.
-         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-         * @param target - The target (this object) to invoke the callback, can be null
-         */
-        once(type: string, callback: Function, target?: Object, useCapture?: any): void;
-        /**
-         * @en
-         * Trigger an event directly with the event name and necessary arguments.
-         * @zh
-         * 通过事件名发送自定义事件
-         * @param type - event type
-         * @param arg1 - First argument in callback
-         * @param arg2 - Second argument in callback
-         * @param arg3 - Third argument in callback
-         * @param arg4 - Fourth argument in callback
-         * @param arg5 - Fifth argument in callback
-         * @example
-         * ```ts
-         * eventTarget.emit('fire', event);
-         * eventTarget.emit('fire', message, emitter);
-         * ```
-         */
-        emit(type: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
-        /**
-         * @en
-         * Dispatches an event into the event flow.
-         * The event target is the EventTarget object upon which the dispatchEvent() method is called.
-         * @zh 分发事件到事件流中。
-         * @param event - The Event object that is dispatched into the event flow
-         */
-        dispatchEvent(event: Event): void;
-        /**
-         * @en Checks whether the EventTarget object has any callback registered for a specific type of event.
-         * @zh 检查事件目标对象是否有为特定类型的事件注册的回调。
-         * @param type - The type of event.
-         * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
-         * @param target - The callback callee of the event listener
-         * @return True if a callback of the specified type is registered; false otherwise.
-         */
-        hasEventListener(type: string, callback?: Function, target?: Object): boolean;
-        /**
-         * @en Removes all callbacks previously registered with the same target.
-         * @zh 移除目标上的所有注册事件。
-         * @param target - The target to be searched for all related callbacks
-         */
-        targetOff(target: string | Object): void;
-        destroy(): boolean;
-        /**
-         * @en
-         * Destroy all children from the node, and release all their own references to other objects.
-         * Actual destruct operation will delayed until before rendering.
-         * @zh
-         * 销毁所有子节点，并释放所有它们对其它对象的引用。
-         * 实际销毁操作会延迟到当前帧渲染前执行。
-         */
-        destroyAllChildren(): void;
-        _removeComponent(component: Component): void;
-        _updateSiblingIndex(): void;
-        protected _onSetParent(oldParent: this | null, keepWorldTransform?: boolean): void;
-        protected _onPostActivated(active: boolean): void;
-        protected _onBatchRestored(): void;
-        protected _onBatchCreated(): void;
-        protected _onPreDestroy(): void;
-        protected _onHierarchyChanged(oldParent: this | null): void;
-        protected _instantiate(cloned: any): any;
-        protected _onHierarchyChangedBase(oldParent: this | null): void;
-        protected _onPreDestroyBase(): boolean;
-        protected _disableChildComps(): void;
-        protected _onSiblingIndexChanged?(siblingIndex: number): void;
-        /**
-         * Ensures that this node has already had the specified component(s). If not, this method throws.
-         * @param constructor Constructor of the component.
-         * @throws If one or more component of same type have been existed in this node.
-         */
-        protected _checkMultipleComp?(constructor: Function): void;
+        setExecuteFlows(flows: string[] | undefined): void;
+        onGlobalPipelineStateChanged(): void;
     }
 }
-declare module "cocos/core/scene-graph/node-event-processor" {
+declare module "cocos/core/pipeline/render-stage" {
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
+    import { RenderFlow } from "cocos/core/index";
+    /**
+     * @en The render stage information descriptor
+     * @zh 渲染阶段描述信息。
+     */
+    export interface IRenderStageInfo {
+        name: string;
+        priority: number;
+        tag?: number;
+    }
+    /**
+     * @en The render stage actually renders render objects to the output window or other [[GFXFrameBuffer]].
+     * Typically, a render stage collects render objects it's responsible for, clear the camera,
+     * record and execute command buffer, and at last present the render result.
+     * @zh 渲染阶段是实质上的渲染执行者，它负责收集渲染数据并执行渲染将渲染结果输出到屏幕或其他 [[GFXFrameBuffer]] 中。
+     * 典型的渲染阶段会收集它所管理的渲染对象，按照 [[Camera]] 的清除标记进行清屏，记录并执行渲染指令缓存，并最终呈现渲染结果。
+     */
+    export abstract class RenderStage {
+        /**
+         * @en Name of the current stage
+         * @zh 当前渲染阶段的名字。
+         */
+        get name(): string;
+        /**
+         * @en Priority of the current stage
+         * @zh 当前渲染阶段的优先级。
+         */
+        get priority(): number;
+        /**
+         * @en Tag of the current stage
+         * @zh 当前渲染阶段的标签。
+         */
+        get tag(): number;
+        /**
+         * @en Name
+         * @zh 名称。
+         */
+        protected _name: string;
+        /**
+         * @en Priority
+         * @zh 优先级。
+         */
+        protected _priority: number;
+        /**
+         * @en Type
+         * @zh 类型。
+         */
+        protected _tag: number;
+        protected _pipeline: RenderPipeline;
+        protected _flow: RenderFlow;
+        /**
+         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
+         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
+         * @param info The render stage information
+         */
+        initialize(info: IRenderStageInfo): boolean;
+        /**
+         * @en Activate the current render stage in the given render flow
+         * @zh 为指定的渲染流程开启当前渲染阶段
+         * @param flow The render flow to activate this render stage
+         */
+        activate(pipeline: RenderPipeline, flow: RenderFlow): void;
+        /**
+         * @en Destroy function
+         * @zh 销毁函数。
+         */
+        abstract destroy(): any;
+        /**
+         * @en Render function
+         * @zh 渲染函数。
+         * @param view The render view
+         */
+        abstract render(view: RenderView): any;
+    }
+}
+declare module "cocos/core/pipeline/render-flow" {
+    import { RenderStage } from "cocos/core/pipeline/render-stage";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
+    /**
+     * @en Render flow information descriptor
+     * @zh 渲染流程描述信息。
+     */
+    export interface IRenderFlowInfo {
+        name: string;
+        priority: number;
+        tag?: number;
+    }
+    /**
+     * @en Render flow is a sub process of the [[RenderPipeline]], it dispatch the render task to all the [[RenderStage]]s.
+     * @zh 渲染流程是渲染管线（[[RenderPipeline]]）的一个子过程，它将渲染任务派发到它的所有渲染阶段（[[RenderStage]]）中执行。
+     */
+    export abstract class RenderFlow {
+        /**
+         * @en The name of the render flow
+         * @zh 渲染流程的名字
+         */
+        get name(): string;
+        /**
+         * @en Priority of the current flow
+         * @zh 当前渲染流程的优先级。
+         */
+        get priority(): number;
+        /**
+         * @en Tag of the current flow
+         * @zh 当前渲染流程的标签。
+         */
+        get tag(): number;
+        /**
+         * @en The stages of flow.
+         * @zh 渲染流程 stage 列表。
+         * @readonly
+         */
+        get stages(): RenderStage[];
+        protected _name: string;
+        protected _priority: number;
+        protected _tag: number;
+        protected _stages: RenderStage[];
+        protected _pipeline: RenderPipeline;
+        /**
+         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
+         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
+         * @param info The render flow information
+         */
+        initialize(info: IRenderFlowInfo): boolean;
+        /**
+         * @en Activate the current render flow in the given pipeline
+         * @zh 为指定的渲染管线开启当前渲染流程
+         * @param pipeline The render pipeline to activate this render flow
+         */
+        activate(pipeline: RenderPipeline): void;
+        /**
+         * @en Render function, it basically run all render stages in sequence for the given view.
+         * @zh 渲染函数，对指定的渲染视图按顺序执行所有渲染阶段。
+         * @param view Render view。
+         */
+        render(view: RenderView): void;
+        /**
+         * @en Destroy function.
+         * @zh 销毁函数。
+         */
+        destroy(): void;
+    }
+}
+declare module "cocos/core/pipeline/render-pipeline" {
+    import { Asset } from "cocos/core/assets/asset";
+    import { RenderFlow } from "cocos/core/pipeline/render-flow";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
+    import { GFXDevice, GFXDescriptorSet, GFXCommandBuffer, GFXDescriptorSetLayout } from "cocos/core/gfx/index";
+    import { IDescriptorSetLayoutInfo } from "cocos/core/pipeline/define";
+    /**
+     * @en Render pipeline information descriptor
+     * @zh 渲染管线描述信息。
+     */
+    export interface IRenderPipelineInfo {
+        flows: RenderFlow[];
+        tag?: number;
+    }
+    /**
+     * @en Render pipeline describes how we handle the rendering process for all render objects in the related render scene root.
+     * It contains some general pipeline configurations, necessary rendering resources and some [[RenderFlow]]s.
+     * The rendering process function [[render]] is invoked by [[Root]] for all [[RenderView]]s.
+     * @zh 渲染管线对象决定了引擎对相关渲染场景下的所有渲染对象实施的完整渲染流程。
+     * 这个类主要包含一些通用的管线配置，必要的渲染资源和一些 [[RenderFlow]]。
+     * 渲染流程函数 [[render]] 会由 [[Root]] 发起调用并对所有 [[RenderView]] 执行预设的渲染流程。
+     */
+    export abstract class RenderPipeline extends Asset {
+        /**
+         * @en Layout of the pipeline-global descriptor set.
+         * @zh 管线层的全局描述符集布局。
+         * @readonly
+         */
+        get globalDescriptorSetLayout(): Readonly<IDescriptorSetLayoutInfo>;
+        /**
+         * @en Layout of the model-local descriptor set.
+         * @zh 逐模型的描述符集布局。
+         * @readonly
+         */
+        get localDescriptorSetLayout(): Readonly<IDescriptorSetLayoutInfo>;
+        /**
+         * @en The macros for this pipeline.
+         * @zh 管线宏定义。
+         * @readonly
+         */
+        get macros(): MacroRecord;
+        /**
+         * @en The flows of pipeline.
+         * @zh 管线的渲染流程列表。
+         * @readonly
+         */
+        get flows(): RenderFlow[];
+        /**
+         * @en The tag of pipeline.
+         * @zh 管线的标签。
+         * @readonly
+         */
+        get tag(): number;
+        /**
+         * @en Tag
+         * @zh 标签
+         * @readonly
+         */
+        protected _tag: number;
+        /**
+         * @en Flows
+         * @zh 渲染流程列表
+         * @readonly
+         */
+        protected _flows: RenderFlow[];
+        protected _globalDescriptorSetLayout: IDescriptorSetLayoutInfo;
+        protected _localDescriptorSetLayout: IDescriptorSetLayoutInfo;
+        protected _macros: MacroRecord;
+        get device(): GFXDevice;
+        get descriptorSetLayout(): GFXDescriptorSetLayout;
+        get descriptorSet(): GFXDescriptorSet;
+        get commandBuffers(): GFXCommandBuffer[];
+        protected _device: GFXDevice;
+        protected _descriptorSetLayout: GFXDescriptorSetLayout;
+        protected _descriptorSet: GFXDescriptorSet;
+        protected _commandBuffers: GFXCommandBuffer[];
+        /**
+         * @en The initialization process, user shouldn't use it in most case, only useful when need to generate render pipeline programmatically.
+         * @zh 初始化函数，正常情况下不会用到，仅用于程序化生成渲染管线的情况。
+         * @param info The render pipeline information
+         */
+        initialize(info: IRenderPipelineInfo): boolean;
+        /**
+         * @en Activate the render pipeline after loaded, it mainly activate the flows
+         * @zh 当渲染管线资源加载完成后，启用管线，主要是启用管线内的 flow
+         */
+        activate(): boolean;
+        /**
+         * @en Render function, it basically run the render process of all flows in sequence for the given view.
+         * @zh 渲染函数，对指定的渲染视图按顺序执行所有渲染流程。
+         * @param view Render view。
+         */
+        render(view: RenderView): void;
+        /**
+         * @en Internal destroy function
+         * @zh 内部销毁函数。
+         */
+        destroy(): boolean;
+    }
+}
+declare module "cocos/core/pipeline/forward/enum" {
+    /**
+     * @category pipeline
+     */
+    /**
+     * @zh 前向阶段优先级。
+     * @en The priority of stage in forward rendering
+     */
+    export enum ForwardStagePriority {
+        FORWARD = 10,
+        UI = 20
+    }
+    /**
+     * @zh 前向渲染流程优先级。
+     * @en The priority of flows in forward rendering
+     */
+    export enum ForwardFlowPriority {
+        SHADOW = 0,
+        FORWARD = 1,
+        UI = 10
+    }
+}
+declare module "cocos/core/pipeline/pass-phase" {
     /**
      * @hidden
      */
-    import Event from "cocos/core/event/event";
-    import { EventListener } from "cocos/core/platform/event-manager/event-listener";
-    import { BaseNode } from "cocos/core/scene-graph/base-node";
-    import { CallbacksInvoker } from "cocos/core/event/callbacks-invoker";
+    export const getPhaseID: (phaseName: string | number) => number;
+}
+declare module "cocos/core/pipeline/render-queue" {
+    /**
+     * @category pipeline
+     */
+    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
+    import { CachedArray } from "cocos/core/memop/cached-array";
+    import { IRenderObject, IRenderPass, IRenderQueueDesc } from "cocos/core/pipeline/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXRenderPass } from "cocos/core/gfx/index";
+    /**
+     * @en Comparison sorting function. Opaque objects are sorted by priority -> depth front to back -> shader ID.
+     * @zh 比较排序函数。不透明对象按优先级 -> 深度由前向后 -> Shader ID 顺序排序。
+     */
+    export function opaqueCompareFn(a: IRenderPass, b: IRenderPass): number;
+    /**
+     * @en Comparison sorting function. Transparent objects are sorted by priority -> depth back to front -> shader ID.
+     * @zh 比较排序函数。半透明对象按优先级 -> 深度由后向前 -> Shader ID 顺序排序。
+     */
+    export function transparentCompareFn(a: IRenderPass, b: IRenderPass): number;
+    /**
+     * @en The render queue. It manages a [[GFXRenderPass]] queue which will be executed by the [[RenderStage]].
+     * @zh 渲染队列。它管理一个 [[GFXRenderPass]] 队列，队列中的渲染过程会被 [[RenderStage]] 所执行。
+     */
+    export class RenderQueue {
+        /**
+         * @en A cached array of render passes
+         * @zh 基于缓存数组的渲染过程队列。
+         */
+        queue: CachedArray<IRenderPass>;
+        private _passDesc;
+        private _passPool;
+        /**
+         * @en Construct a RenderQueue with render queue descriptor
+         * @zh 利用渲染队列描述来构造一个 RenderQueue。
+         * @param desc Render queue descriptor
+         */
+        constructor(desc: IRenderQueueDesc);
+        /**
+         * @en Clear the render queue
+         * @zh 清空渲染队列。
+         */
+        clear(): void;
+        /**
+         * @en Insert a render pass into the queue
+         * @zh 插入渲染过程。
+         * @param renderObj The render object of the pass
+         * @param modelIdx The model id
+         * @param passIdx The pass id
+         * @returns Whether the new render pass is successfully added
+         */
+        insertRenderPass(renderObj: IRenderObject, subModelIdx: number, passIdx: number): boolean;
+        /**
+         * @en Sort the current queue
+         * @zh 排序渲染队列。
+         */
+        sort(): void;
+        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
+    }
+}
+declare module "cocos/core/pipeline/ui/ui-stage" {
+    import { IRenderStageInfo, RenderStage } from "cocos/core/pipeline/render-stage";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { UIFlow } from "cocos/core/pipeline/ui/ui-flow";
+    import { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
+    import { RenderQueueDesc } from "cocos/core/pipeline/pipeline-serialization";
+    import { RenderQueue } from "cocos/core/pipeline/render-queue";
+    /**
+     * @en The UI render stage
+     * @zh UI渲阶段。
+     */
+    export class UIStage extends RenderStage {
+        static initInfo: IRenderStageInfo;
+        protected renderQueues: RenderQueueDesc[];
+        protected _renderQueues: RenderQueue[];
+        private _renderArea;
+        initialize(info: IRenderStageInfo): boolean;
+        activate(pipeline: ForwardPipeline, flow: UIFlow): void;
+        destroy(): void;
+        render(view: RenderView): void;
+    }
+}
+declare module "cocos/core/pipeline/forward/scene-culling" {
+    import { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    export function sceneCulling(pipeline: ForwardPipeline, view: RenderView): void;
+}
+declare module "cocos/core/pipeline/ui/ui-flow" {
+    import { IRenderFlowInfo, RenderFlow } from "cocos/core/pipeline/render-flow";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    /**
+     * @en The UI render flow
+     * @zh UI渲染流程。
+     */
+    export class UIFlow extends RenderFlow {
+        static initInfo: IRenderFlowInfo;
+        initialize(info: IRenderFlowInfo): boolean;
+        destroy(): void;
+        render(view: RenderView): void;
+    }
+}
+declare module "cocos/core/pipeline/pipeline-funcs" {
+    /**
+     * @category pipeline
+     */
+    import { GFXColor } from "cocos/core/gfx/define";
+    /**
+     * @en Convert color in SRGB space to linear space
+     * @zh SRGB 颜色空间转换为线性空间。
+     * @param out Output color object
+     * @param gamma Gamma value in SRGB space
+     */
+    export function SRGBToLinear(out: GFXColor, gamma: GFXColor): void;
+    /**
+     * @en Convert color in linear space to SRGB space
+     * @zh 线性空间转换为 SRGB 颜色空间。
+     * @param out Output color object
+     * @param linear Color value in linear space
+     */
+    export function LinearToSRGB(out: GFXColor, linear: GFXColor): void;
+}
+declare module "cocos/core/pipeline/batched-buffer" {
+    /**
+     * @hidden
+     */
+    import { GFXDescriptorSet } from "cocos/core/gfx/index";
+    import { GFXBuffer } from "cocos/core/gfx/buffer";
+    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
+    import { SubModel } from "cocos/core/renderer/scene/submodel";
+    import { IRenderObject } from "cocos/core/pipeline/define";
+    import { Pass } from "cocos/core/renderer/index";
+    import { PassHandle, ShaderHandle } from "cocos/core/renderer/core/memory-pools";
+    export interface IBatchedItem {
+        vbs: GFXBuffer[];
+        vbDatas: Uint8Array[];
+        vbIdx: GFXBuffer;
+        vbIdxData: Float32Array;
+        vbCount: number;
+        mergeCount: number;
+        ia: GFXInputAssembler;
+        ubo: GFXBuffer;
+        uboData: Float32Array;
+        descriptorSet: GFXDescriptorSet;
+        hPass: PassHandle;
+        hShader: ShaderHandle;
+    }
+    export class BatchedBuffer {
+        private static _buffers;
+        static get(pass: Pass, extraKey?: number): BatchedBuffer;
+        batches: IBatchedItem[];
+        dynamicOffsets: number[];
+        private _device;
+        constructor(pass: Pass);
+        destroy(): void;
+        merge(subModel: SubModel, passIdx: number, ro: IRenderObject): void;
+        clear(): void;
+    }
+}
+declare module "cocos/core/pipeline/render-batched-queue" {
+    /**
+     * @category pipeline
+     */
+    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
+    import { BatchedBuffer } from "cocos/core/pipeline/batched-buffer";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXRenderPass } from "cocos/core/gfx/index";
+    /**
+     * @en The render queue for dynamic batching
+     * @zh 渲染合批队列。
+     */
+    export class RenderBatchedQueue {
+        /**
+         * @en A set of dynamic batched buffer
+         * @zh 动态合批缓存集合。
+         */
+        queue: Set<BatchedBuffer>;
+        /**
+         * @en Clear the render queue
+         * @zh 清空渲染队列。
+         */
+        clear(): void;
+        /**
+         * @en Record command buffer for the current queue
+         * @zh 记录命令缓冲。
+         * @param cmdBuff The command buffer to store the result
+         */
+        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
+    }
+}
+declare module "cocos/core/pipeline/render-instanced-queue" {
+    /**
+     * @category pipeline
+     */
+    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
+    import { InstancedBuffer } from "cocos/core/pipeline/instanced-buffer";
+    import { GFXDevice, GFXRenderPass } from "cocos/core/gfx/index";
+    /**
+     * @en Render queue for instanced batching
+     * @zh 渲染合批队列。
+     */
+    export class RenderInstancedQueue {
+        /**
+         * @en A set of instanced buffer
+         * @zh Instance 合批缓存集合。
+         */
+        queue: Set<InstancedBuffer>;
+        /**
+         * @en Clear the render queue
+         * @zh 清空渲染队列。
+         */
+        clear(): void;
+        /**
+         * @en Record command buffer for the current queue
+         * @zh 记录命令缓冲。
+         * @param cmdBuff The command buffer to store the result
+         */
+        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
+    }
+}
+declare module "predefine" {
+    import { legacyCC } from "cocos/core/global-exports";
+    export default legacyCC;
+}
+declare module "cocos/core/legacy" { }
+declare module "extensions/ccpool/node-pool" {
+    /**
+     * @hidden
+     */
+    import { Component } from "cocos/core/components/component";
+    import { Node } from "cocos/core/scene-graph/index";
+    /****************************************************************************
+     Copyright (c) 2016 Chukong Technologies Inc.
+     Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+    
+     http://www.cocos2d-x.org
+    
+     Permission is hereby granted, free of charge, to any person obtaining a copy
+     of this software and associated documentation files (the "Software"), to deal
+     in the Software without restriction, including without limitation the rights
+     to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     copies of the Software, and to permit persons to whom the Software is
+     furnished to do so, subject to the following conditions:
+    
+     The above copyright notice and this permission notice shall be included in
+     all copies or substantial portions of the Software.
+    
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+     THE SOFTWARE.
+     ****************************************************************************/
+    type Constructor<T = {}> = new (...args: any[]) => T;
+    interface IPoolHandlerComponent extends Component {
+        unuse(): void;
+        reuse(args: any): void;
+    }
+    /**
+     * @en
+     *  `NodePool` is the cache pool designed for node type.<br/>
+     *  It can helps you to improve your game performance for objects which need frequent release and recreate operations<br/>
+     *
+     * It's recommended to create `NodePool` instances by node type, the type corresponds to node type in game design, not the class,
+     * for example, a prefab is a specific node type. <br/>
+     * When you create a node pool, you can pass a Component which contains `unuse`, `reuse` functions to control the content of node.<br/>
+     *
+     * Some common use case is :<br/>
+     *      1. Bullets in game (die very soon, massive creation and recreation, no side effect on other objects)<br/>
+     *      2. Blocks in candy crash (massive creation and recreation)<br/>
+     *      etc...
+     * @zh
+     * `NodePool` 是用于管理节点对象的对象缓存池。<br/>
+     * 它可以帮助您提高游戏性能，适用于优化对象的反复创建和销毁<br/>
+     * 以前 cocos2d-x 中的 pool 和新的节点事件注册系统不兼容，因此请使用 `NodePool` 来代替。
+     *
+     * 新的 NodePool 需要实例化之后才能使用，每种不同的节点对象池需要一个不同的对象池实例，这里的种类对应于游戏中的节点设计，一个 prefab 相当于一个种类的节点。<br/>
+     * 在创建缓冲池时，可以传入一个包含 unuse, reuse 函数的组件类型用于节点的回收和复用逻辑。<br/>
+     *
+     * 一些常见的用例是：<br/>
+     *      1.在游戏中的子弹（死亡很快，频繁创建，对其他对象无副作用）<br/>
+     *      2.糖果粉碎传奇中的木块（频繁创建）。
+     *      等等....
+     */
+    export class NodePool {
+        /**
+         * @en The pool handler component, it could be the class name or the constructor.
+         * @zh 缓冲池处理组件，用于节点的回收和复用逻辑，这个属性可以是组件类名或组件的构造函数。
+         */
+        poolHandlerComp?: Constructor<IPoolHandlerComponent> | string;
+        private _pool;
+        /**
+         * @en
+         * Constructor for creating a pool for a specific node template (usually a prefab).
+         * You can pass a component (type or name) argument for handling event for reusing and recycling node.
+         * @zh
+         * 使用构造函数来创建一个节点专用的对象池，您可以传递一个组件类型或名称，用于处理节点回收和复用时的事件逻辑。
+         * @param poolHandlerComp @en The constructor or the class name of the component to control the unuse/reuse logic. @zh 处理节点回收和复用事件逻辑的组件类型或名称。
+         * @example
+         * import { NodePool, Prefab } from 'cc';
+         *  properties: {
+         *      template: Prefab
+         *     },
+         *     onLoad () {
+         *       // MyTemplateHandler is a component with 'unuse' and 'reuse' to handle events when node is reused or recycled.
+         *       this.myPool = new NodePool('MyTemplateHandler');
+         *     }
+         *  }
+         */
+        constructor(poolHandlerComp?: Constructor<IPoolHandlerComponent> | string);
+        /**
+         * @en The current available size in the pool
+         * @zh 获取当前缓冲池的可用对象数量
+         */
+        size(): number;
+        /**
+         * @en Destroy all cached nodes in the pool
+         * @zh 销毁对象池中缓存的所有节点
+         */
+        clear(): void;
+        /**
+         * @en Put a new Node into the pool.
+         * It will automatically remove the node from its parent without cleanup.
+         * It will also invoke unuse method of the poolHandlerComp if exist.
+         * @zh 向缓冲池中存入一个不再需要的节点对象。
+         * 这个函数会自动将目标节点从父节点上移除，但是不会进行 cleanup 操作。
+         * 这个函数会调用 poolHandlerComp 的 unuse 函数，如果组件和函数都存在的话。
+         * @example
+         * import { instantiate } from 'cc';
+         * const myNode = instantiate(this.template);
+         * this.myPool.put(myNode);
+         */
+        put(obj: Node): void;
+        /**
+         * @en Get a obj from pool, if no available object in pool, null will be returned.
+         * This function will invoke the reuse function of poolHandlerComp if exist.
+         * @zh 获取对象池中的对象，如果对象池没有可用对象，则返回空。
+         * 这个函数会调用 poolHandlerComp 的 reuse 函数，如果组件和函数都存在的话。
+         * @param args - 向 poolHandlerComp 中的 'reuse' 函数传递的参数
+         * @example
+         *   let newNode = this.myPool.get();
+         */
+        get(...args: any[]): Node | null;
+    }
+}
+declare module "cocos/core/primitive/primitive" {
+    import { Mesh } from "cocos/core/assets/mesh";
+    enum PrimitiveType {
+        BOX = 0,
+        SPHERE = 1,
+        CYLINDER = 2,
+        CONE = 3,
+        CAPSULE = 4,
+        TORUS = 5,
+        PLANE = 6,
+        QUAD = 7
+    }
+    /**
+     * @en
+     * Basic primitive mesh, this can be generate some primitive mesh at runtime.
+     * @zh
+     * 基础图形网格，可以在运行时构建一些基础的网格。
+     */
+    export class Primitive extends Mesh {
+        static PrimitiveType: typeof PrimitiveType;
+        /**
+         * @en
+         * The type of the primitive mesh, set it before you call onLoaded.
+         * @zh
+         * 此基础图形网格的类型，请在 onLoaded 调用之前设置。
+         */
+        type: number;
+        /**
+         * @en
+         * The option for build the primitive mesh, set it before you call onLoaded.
+         * @zh
+         * 创建此基础图形网格的可选参数，请在 onLoaded 调用之前设置。
+         */
+        info: Record<string, number>;
+        constructor(type?: PrimitiveType);
+        /**
+         * @en
+         * Construct the primitive mesh with `type` and `info`.
+         * @zh
+         * 根据`type`和`info`构建相应的网格。
+         */
+        onLoaded(): void;
+    }
+    export namespace Primitive {
+        type PrimitiveType = EnumAlias<typeof PrimitiveType>;
+    }
+}
+declare module "exports/base" {
+    /**
+     * @hidden
+     */
+    import { legacyCC } from "cocos/core/global-exports";
+    import "predefine";
+    import "cocos/core/legacy";
+    export * from "cocos/core/index";
+    import * as renderer from "cocos/core/renderer/index";
+    export { renderer };
+    export * from "extensions/ccpool/node-pool";
+    export { legacyCC as cclegacy };
+    import * as primitives from "cocos/core/primitive/index";
+    export { primitives, };
+    export * from "cocos/core/primitive/primitive";
+}
+declare module "cocos/core/pipeline/render-additive-light-queue" {
+    /**
+     * @category pipeline
+     */
+    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { GFXDevice, GFXRenderPass } from "cocos/core/gfx/index";
+    import { ForwardPipeline } from "exports/base";
+    /**
+     * @zh 叠加光照队列。
+     */
+    export class RenderAdditiveLightQueue {
+        private _device;
+        private _validLights;
+        private _lightPasses;
+        private _lightBufferCount;
+        private _lightBufferStride;
+        private _lightBufferElementCount;
+        private _lightBuffer;
+        private _firstlightBufferView;
+        private _lightBufferData;
+        private _isHDR;
+        private _fpScale;
+        private _renderObjects;
+        private _instancedQueue;
+        private _batchedQueue;
+        private _lightMeterScale;
+        constructor(pipeline: ForwardPipeline);
+        gatherLightPasses(view: RenderView): void;
+        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
+        protected _updateUBOs(view: RenderView): void;
+    }
+}
+declare module "cocos/core/pipeline/forward/forward-stage" {
+    import { RenderQueue } from "cocos/core/pipeline/render-queue";
+    import { IRenderStageInfo, RenderStage } from "cocos/core/pipeline/render-stage";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { ForwardFlow } from "cocos/core/pipeline/forward/forward-flow";
+    import { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
+    import { RenderQueueDesc } from "cocos/core/pipeline/pipeline-serialization";
+    /**
+     * @en The forward render stage
+     * @zh 前向渲染阶段。
+     */
+    export class ForwardStage extends RenderStage {
+        static initInfo: IRenderStageInfo;
+        protected renderQueues: RenderQueueDesc[];
+        protected _renderQueues: RenderQueue[];
+        private _renderArea;
+        private _batchedQueue;
+        private _instancedQueue;
+        private _phaseID;
+        private _additiveLightQueue;
+        constructor();
+        initialize(info: IRenderStageInfo): boolean;
+        activate(pipeline: ForwardPipeline, flow: ForwardFlow): void;
+        destroy(): void;
+        render(view: RenderView): void;
+        /**
+         * @en Clear the given render queue
+         * @zh 清空指定的渲染队列
+         * @param rq The render queue
+         */
+        protected renderQueueClearFunc(rq: RenderQueue): void;
+        /**
+         * @en Sort the given render queue
+         * @zh 对指定的渲染队列执行排序
+         * @param rq The render queue
+         */
+        protected renderQueueSortFunc(rq: RenderQueue): void;
+    }
+}
+declare module "cocos/core/pipeline/forward/forward-flow" {
+    import { IRenderFlowInfo, RenderFlow } from "cocos/core/pipeline/render-flow";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
+    /**
+     * @en The forward flow in forward render pipeline
+     * @zh 前向渲染流程。
+     */
+    export class ForwardFlow extends RenderFlow {
+        /**
+         * @en The shared initialization information of forward render flow
+         * @zh 共享的前向渲染流程初始化参数
+         */
+        static initInfo: IRenderFlowInfo;
+        initialize(info: IRenderFlowInfo): boolean;
+        activate(pipeline: RenderPipeline): void;
+        render(view: RenderView): void;
+        destroy(): void;
+    }
+}
+declare module "cocos/core/pipeline/render-shadowMap-batched-queue" {
+    /**
+     * @category pipeline
+     */
+    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
+    import { IRenderObject } from "cocos/core/pipeline/define";
+    import { GFXDevice, GFXRenderPass, GFXBuffer } from "cocos/core/gfx/index";
     /**
      * @zh
-     * 节点事件类。
+     * 阴影渲染队列
      */
-    export class NodeEventProcessor {
-        get node(): BaseNode;
+    export class RenderShadowMapBatchedQueue {
+        private _subModelsArray;
+        private _passArray;
+        private _shaderArray;
+        private _shadowMapBuffer;
+        private _phaseID;
         /**
          * @zh
-         * 节点冒泡事件监听器
+         * clear ligth-Batched-Queue
          */
-        bubblingTargets: CallbacksInvoker | null;
+        clear(shadowMapBuffer: GFXBuffer): void;
+        add(renderObj: IRenderObject, subModelIdx: number, passIdx: number): void;
         /**
          * @zh
-         * 节点捕获事件监听器
+         * record CommandBuffer
          */
-        capturingTargets: CallbacksInvoker | null;
+        recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
+    }
+}
+declare module "cocos/core/pipeline/shadow/shadow-stage" {
+    import { IRenderStageInfo, RenderStage } from "cocos/core/pipeline/render-stage";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { GFXFramebuffer } from "cocos/core/gfx/framebuffer";
+    /**
+     * @zh
+     * 阴影渲染阶段。
+     */
+    export class ShadowStage extends RenderStage {
+        static initInfo: IRenderStageInfo;
+        setShadowFrameBuffer(shadowFrameBuffer: GFXFramebuffer): void;
+        private _additiveShadowQueue;
+        private _shadowFrameBuffer;
+        private _renderArea;
+        /**
+         * 构造函数。
+         * @param flow 渲染阶段。
+         */
+        constructor();
         /**
          * @zh
-         * 触摸监听器
+         * 销毁函数。
          */
-        touchListener: EventListener | null;
-        /**
-         * @zh
-         * 鼠标监听器
-         */
-        mouseListener: EventListener | null;
-        private _node;
-        constructor(node: BaseNode);
-        reattach(): void;
         destroy(): void;
         /**
          * @zh
-         * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的 this 对象。<br/>
-         * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：<br/>
-         * 1. 捕获阶段：派发事件给捕获目标（通过 `getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。<br/>
-         * 2. 目标阶段：派发给目标节点的监听器。<br/>
-         * 3. 冒泡阶段：派发事件给冒泡目标（通过 `getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发直到根节点。<br/>
-         * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。<br/>
-         * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 `eventManager`。<br/>
-         * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器。<br/>
-         * 你可以通过在 emit 方法调用时在 type 之后传递额外的参数作为事件回调的参数列表。<br/>
-         *
-         * @param type - 一个监听事件类型的字符串。参见：[[EventType]]
-         * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
-         * @param callback.event - 事件派发的时候回调的第一个参数。
-         * @param callback.arg2 - 第二个参数。
-         * @param callback.arg3 - 第三个参数。
-         * @param callback.arg4 - 第四个参数。
-         * @param callback.arg5 - 第五个参数。
-         * @param target - 调用回调的目标。可以为空。
-         * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-         * @return - 返回监听回调函数自身。
-         *
-         * @example
-         * ```ts
-         * import { Node } from 'cc';
-         * this.node.on(Node.EventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
-         * this.node.on(Node.EventType.TOUCH_START, callback, this);
-         * this.node.on(Node.EventType.ANCHOR_CHANGED, callback);
-         * ```
+         * 渲染函数。
+         * @param view 渲染视图。
          */
-        on(type: string, callback: Function, target?: Object, useCapture?: Object): Function | undefined;
-        /**
-         * @zh
-         * 注册节点的特定事件类型回调，回调会在第一时间被触发后删除自身。
-         *
-         * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
-         * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
-         * @param callback.event - 事件派发的时候回调的第一个参数。
-         * @param callback.arg2 - 第二个参数。
-         * @param callback.arg3 - 第三个参数。
-         * @param callback.arg4 - 第四个参数。
-         * @param callback.arg5 - 第五个参数。
-         * @param target - 调用回调的目标。可以为空。
-         * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-         *
-         * @example
-         * ```ts
-         * import { Node } from 'cc';
-         * node.once(Node.EventType.ANCHOR_CHANGED, callback);
-         * ```
-         */
-        once(type: string, callback: Function, target?: Object, useCapture?: Object): void;
-        /**
-         * @zh
-         * 删除之前与同类型，回调，目标或 useCapture 注册的回调。
-         *
-         * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
-         * @param callback - 移除指定注册回调。如果没有给，则删除全部同事件类型的监听。
-         * @param target - 调用回调的目标。配合 callback 一起使用。
-         * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
-         *
-         * @example
-         * ```ts
-         * import { Node } from 'cc';
-         * this.node.off(Node.EventType.TOUCH_START, this.memberFunction, this);
-         * node.off(Node.EventType.TOUCH_START, callback, this.node);
-         * node.off(Node.EventType.ANCHOR_CHANGED, callback, this);
-         * ```
-         */
-        off(type: string, callback?: Function, target?: Object, useCapture?: Object): void;
-        /**
-         * @zh
-         * 通过事件名发送自定义事件
-         *
-         * @param type - 一个监听事件类型的字符串。
-         * @param arg0 - 回调第一个参数。
-         * @param arg1 - 回调第二个参数。
-         * @param arg2 - 回调第三个参数。
-         * @param arg3 - 回调第四个参数。
-         * @param arg4 - 回调第五个参数。
-         * @example
-         * ```ts
-         * eventTarget.emit('fire', event);
-         * eventTarget.emit('fire', message, emitter);
-         * ```
-         */
-        emit(type: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
-        /**
-         * @zh
-         * 分发事件到事件流中。
-         *
-         * @param event - 分派到事件流中的事件对象。
-         */
-        dispatchEvent(event: Event): void;
-        /**
-         * @zh
-         * 是否监听过某事件。
-         *
-         * @param type - 一个监听事件类型的字符串。
-         * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
-         * @param target - The callback callee of the event listener
-         * @return - 返回是否当前节点已监听该事件类型。
-         */
-        hasEventListener(type: string, callback?: Function, target?: Object): boolean;
-        /**
-         * @zh
-         * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
-         *
-         * @param target - 要删除的事件键或要删除的目标。
-         */
-        targetOff(target: string | Object): void;
-        /**
-         * @zh
-         * 获得所提供的事件类型在目标捕获阶段监听的所有目标。
-         * 捕获阶段包括从根节点到目标节点的过程。
-         * 结果保存在数组参数中，并且必须从子节点排序到父节点。
-         *
-         * @param type - 一个监听事件类型的字符串。
-         * @param array - 接收目标的数组。
-         */
-        getCapturingTargets(type: string, targets: BaseNode[]): void;
-        /**
-         * @zh
-         * 获得所提供的事件类型在目标冒泡阶段监听的所有目标。
-         * 冒泡阶段目标节点到根节点的过程。
-         * 结果保存在数组参数中，并且必须从子节点排序到父节点。
-         *
-         * @param type - 一个监听事件类型的字符串。
-         * @param array - 接收目标的数组。
-         */
-        getBubblingTargets(type: string, targets: BaseNode[]): void;
-        private _checknSetupSysEvent;
-        private _onDispatch;
-        private _offDispatch;
+        render(view: RenderView): void;
     }
 }
-declare module "cocos/core/scene-graph/private-node" {
-    import { Node } from "cocos/core/scene-graph/node";
+declare module "cocos/core/pipeline/shadow/shadow-flow" {
+    import { IRenderFlowInfo, RenderFlow } from "cocos/core/pipeline/render-flow";
+    import { GFXFramebuffer } from "cocos/core/gfx/index";
+    import { RenderView, ForwardPipeline } from "cocos/core/index";
+    /**
+     * @zh 阴影贴图绘制流程
+     */
+    export class ShadowFlow extends RenderFlow {
+        get shadowFrameBuffer(): GFXFramebuffer | null;
+        static initInfo: IRenderFlowInfo;
+        private _shadowRenderPass;
+        private _shadowRenderTargets;
+        private _shadowFrameBuffer;
+        private _depth;
+        private _width;
+        private _height;
+        initialize(info: IRenderFlowInfo): boolean;
+        activate(pipeline: ForwardPipeline): void;
+        render(view: RenderView): void;
+        private resizeShadowMap;
+    }
+}
+declare module "cocos/core/renderer/scene/fog" {
+    import { Color } from "cocos/core/math/index";
+    /**
+     * @zh
+     * 全局雾类型。
+     * @en
+     * The global fog type
+     * @static
+     * @enum FogInfo.FogType
+     */
+    export const FogType: {
+        /**
+         * @zh
+         * 线性雾。
+         * @en
+         * Linear fog
+         * @readonly
+         */
+        LINEAR: number;
+        /**
+         * @zh
+         * 指数雾。
+         * @en
+         * Exponential fog
+         * @readonly
+         */
+        EXP: number;
+        /**
+         * @zh
+         * 指数平方雾。
+         * @en
+         * Exponential square fog
+         * @readonly
+         */
+        EXP_SQUARED: number;
+        /**
+         * @zh
+         * 层叠雾。
+         * @en
+         * Layered fog
+         * @readonly
+         */
+        LAYERED: number;
+    };
+    export class Fog {
+        /**
+         * @zh 是否启用全局雾效
+         * @en Enable global fog
+         */
+        set enabled(val: boolean);
+        get enabled(): boolean;
+        /**
+         * @zh 全局雾颜色
+         * @en Global fog color
+         */
+        set fogColor(val: Color);
+        get fogColor(): Color;
+        /**
+         * @zh 全局雾类型
+         * @en Global fog type
+         */
+        get type(): number;
+        set type(val: number);
+        /**
+         * @zh 全局雾浓度
+         * @en Global fog density
+         */
+        get fogDensity(): number;
+        set fogDensity(val: number);
+        /**
+         * @zh 雾效起始位置，只适用于线性雾
+         * @en Global fog start position, only for linear fog
+         */
+        get fogStart(): number;
+        set fogStart(val: number);
+        /**
+         * @zh 雾效结束位置，只适用于线性雾
+         * @en Global fog end position, only for linear fog
+         */
+        get fogEnd(): number;
+        set fogEnd(val: number);
+        /**
+         * @zh 雾效衰减
+         * @en Global fog attenuation
+         */
+        get fogAtten(): number;
+        set fogAtten(val: number);
+        /**
+         * @zh 雾效顶部范围，只适用于层级雾
+         * @en Global fog top range, only for layered fog
+         */
+        get fogTop(): number;
+        set fogTop(val: number);
+        /**
+         * @zh 雾效范围，只适用于层级雾
+         * @en Global fog range, only for layered fog
+         */
+        get fogRange(): number;
+        set fogRange(val: number);
+        /**
+         * @zh 当前雾化类型。
+         * @en The current global fog type.
+         * @returns {FogType}
+         * Returns the current global fog type
+         * - 0:Disable global Fog
+         * - 1:Linear fog
+         * - 2:Exponential fog
+         * - 3:Exponential square fog
+         * - 4:Layered fog
+         */
+        get currType(): number;
+        get colorArray(): Float32Array;
+        protected _type: number;
+        protected _fogColor: Color;
+        protected _enabled: boolean;
+        protected _fogDensity: number;
+        protected _fogStart: number;
+        protected _fogEnd: number;
+        protected _fogAtten: number;
+        protected _fogTop: number;
+        protected _fogRange: number;
+        protected _currType: number;
+        protected _colorArray: Float32Array;
+        activate(): void;
+        protected _updatePipeline(): void;
+    }
+}
+declare module "cocos/core/pipeline/forward/forward-pipeline" {
+    import { RenderPipeline, IRenderPipelineInfo } from "cocos/core/pipeline/render-pipeline";
+    import { RenderTextureConfig, MaterialConfig } from "cocos/core/pipeline/pipeline-serialization";
+    import { IRenderObject } from "cocos/core/pipeline/define";
+    import { GFXClearFlag } from "cocos/core/gfx/define";
+    import { GFXRenderPass } from "cocos/core/gfx/index";
+    import { RenderView } from "cocos/core/pipeline/render-view";
+    import { Fog } from "cocos/core/renderer/scene/fog";
+    import { Ambient } from "cocos/core/renderer/scene/ambient";
+    import { Skybox } from "cocos/core/renderer/scene/skybox";
+    import { Shadows } from "cocos/core/renderer/scene/shadows";
+    /**
+     * @en The forward render pipeline
+     * @zh 前向渲染管线。
+     */
+    export class ForwardPipeline extends RenderPipeline {
+        get isHDR(): boolean;
+        set isHDR(val: boolean);
+        get shadingScale(): number;
+        get fpScale(): number;
+        /**
+         * @en Get shadow UBO.
+         * @zh 获取阴影UBO。
+         */
+        get shadowUBO(): Float32Array;
+        protected renderTextures: RenderTextureConfig[];
+        protected materials: MaterialConfig[];
+        fog: Fog;
+        ambient: Ambient;
+        skybox: Skybox;
+        shadows: Shadows;
+        /**
+         * @en The list for render objects, only available after the scene culling of the current frame.
+         * @zh 渲染对象数组，仅在当前帧的场景剔除完成后有效。
+         * @readonly
+         */
+        renderObjects: IRenderObject[];
+        shadowObjects: IRenderObject[];
+        protected _isHDR: boolean;
+        protected _shadingScale: number;
+        protected _fpScale: number;
+        protected _renderPasses: Map<GFXClearFlag, GFXRenderPass>;
+        protected _globalUBO: Float32Array;
+        protected _shadowUBO: Float32Array;
+        initialize(info: IRenderPipelineInfo): boolean;
+        activate(): boolean;
+        getRenderPass(clearFlags: GFXClearFlag): GFXRenderPass;
+        /**
+         * @en Update all UBOs
+         * @zh 更新全部 UBO。
+         */
+        updateUBOs(view: RenderView): void;
+        private _activeRenderer;
+        private _updateUBO;
+        private destroyUBOs;
+        destroy(): boolean;
+    }
+}
+declare module "cocos/core/root" {
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
+    import { IRenderViewInfo, RenderView } from "cocos/core/pipeline/render-view";
+    import { Camera, Light, Model } from "cocos/core/renderer/index";
+    import { DataPoolManager } from "cocos/core/renderer/data-pool-manager";
+    import { IRenderSceneInfo, RenderScene } from "cocos/core/renderer/scene/render-scene";
+    import { UI } from "cocos/core/renderer/ui/ui";
+    import { RenderWindow, IRenderWindowInfo } from "cocos/core/pipeline/render-window";
+    /**
+     * @zh
+     * Root描述信息
+     */
+    export interface IRootInfo {
+        enableHDR?: boolean;
+    }
+    /**
+     * @zh
+     * 场景描述信息
+     */
+    export interface ISceneInfo {
+        name: string;
+    }
+    /**
+     * @zh
+     * Root类
+     */
+    export class Root {
+        /**
+         * @zh
+         * GFX设备
+         */
+        get device(): GFXDevice;
+        /**
+         * @zh
+         * 主窗口
+         */
+        get mainWindow(): RenderWindow | null;
+        /**
+         * @zh
+         * 当前窗口
+         */
+        set curWindow(window: RenderWindow | null);
+        get curWindow(): RenderWindow | null;
+        /**
+         * @zh
+         * 临时窗口（用于数据传输）
+         */
+        set tempWindow(window: RenderWindow | null);
+        get tempWindow(): RenderWindow | null;
+        /**
+         * @zh
+         * 窗口列表
+         */
+        get windows(): RenderWindow[];
+        /**
+         * @zh
+         * 渲染管线
+         */
+        get pipeline(): RenderPipeline;
+        /**
+         * @zh
+         * UI实例
+         */
+        get ui(): UI;
+        /**
+         * @zh
+         * 场景列表
+         */
+        get scenes(): RenderScene[];
+        /**
+         * @zh
+         * 渲染视图列表
+         */
+        get views(): RenderView[];
+        /**
+         * @zh
+         * 累计时间（秒）
+         */
+        get cumulativeTime(): number;
+        /**
+         * @zh
+         * 帧时间（秒）
+         */
+        get frameTime(): number;
+        /**
+         * @zh
+         * 一秒内的累计帧数
+         */
+        get frameCount(): number;
+        /**
+         * @zh
+         * 每秒帧率
+         */
+        get fps(): number;
+        /**
+         * @zh
+         * 每秒固定帧率
+         */
+        set fixedFPS(fps: number);
+        get fixedFPS(): number;
+        get dataPoolManager(): DataPoolManager;
+        _createSceneFun: (root: Root) => RenderScene;
+        _createWindowFun: (root: Root) => RenderWindow;
+        private _device;
+        private _windows;
+        private _mainWindow;
+        private _curWindow;
+        private _tempWindow;
+        private _pipeline;
+        private _ui;
+        private _dataPoolMgr;
+        private _scenes;
+        private _views;
+        private _modelPools;
+        private _cameraPool;
+        private _lightPools;
+        private _time;
+        private _frameTime;
+        private _fpsTime;
+        private _frameCount;
+        private _fps;
+        private _fixedFPS;
+        private _fixedFPSFrameTime;
+        /**
+         * 构造函数
+         * @param device GFX设备
+         */
+        constructor(device: GFXDevice);
+        /**
+         * @zh
+         * 初始化函数
+         * @param info Root描述信息
+         */
+        initialize(info: IRootInfo): boolean;
+        destroy(): void;
+        /**
+         * @zh
+         * 重置大小
+         * @param width 屏幕宽度
+         * @param height 屏幕高度
+         */
+        resize(width: number, height: number): void;
+        setRenderPipeline(rppl: RenderPipeline): boolean;
+        onGlobalPipelineStateChanged(): void;
+        /**
+         * @zh
+         * 激活指定窗口为当前窗口
+         * @param window GFX窗口
+         */
+        activeWindow(window: RenderWindow): void;
+        /**
+         * @zh
+         * 重置累计时间
+         */
+        resetCumulativeTime(): void;
+        /**
+         * @zh
+         * 每帧执行函数
+         * @param deltaTime 间隔时间
+         */
+        frameMove(deltaTime: number): void;
+        /**
+         * @zh
+         * 创建窗口
+         * @param info GFX窗口描述信息
+         */
+        createWindow(info: IRenderWindowInfo): RenderWindow | null;
+        /**
+         * @zh
+         * 销毁指定的窗口
+         * @param window GFX窗口
+         */
+        destroyWindow(window: RenderWindow): void;
+        /**
+         * @zh
+         * 销毁全部窗口
+         */
+        destroyWindows(): void;
+        /**
+         * @zh
+         * 创建渲染场景
+         * @param info 渲染场景描述信息
+         */
+        createScene(info: IRenderSceneInfo): RenderScene;
+        /**
+         * @zh
+         * 销毁指定的渲染场景
+         * @param scene 渲染场景
+         */
+        destroyScene(scene: RenderScene): void;
+        /**
+         * @zh
+         * 销毁全部场景
+         */
+        destroyScenes(): void;
+        /**
+         * @zh
+         * 创建渲染视图
+         * @param info 渲染视图描述信息
+         */
+        createView(info: IRenderViewInfo): RenderView;
+        /**
+         * @zh
+         * 销毁指定的渲染视图
+         * @param view 渲染视图
+         */
+        destroyView(view: RenderView): void;
+        /**
+         * @zh
+         * 销毁全部渲染视图
+         */
+        destroyViews(): void;
+        createModel<T extends Model>(mClass: typeof Model): T;
+        destroyModel(m: Model): void;
+        createCamera(): Camera;
+        destroyCamera(c: Camera): void;
+        createLight<T extends Light>(lClass: new () => T): T;
+        destroyLight(l: Light): void;
+        sortViews(): void;
+    }
+}
+declare module "cocos/core/assets/effect-asset" {
+    import { GFXDynamicStateFlags, GFXPrimitiveMode } from "cocos/core/gfx/define";
+    import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
+    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
+    import { GFXUniformBlock, GFXUniformSampler } from "cocos/core/gfx/shader";
+    import { RenderPassStage } from "cocos/core/pipeline/define";
+    import { MacroRecord } from "cocos/core/renderer/core/pass-utils";
+    import { Asset } from "cocos/core/assets/asset";
+    import { IGFXDescriptorSetLayoutBinding } from "cocos/core/gfx/index";
+    export interface IPropertyInfo {
+        type: number;
+        handleInfo?: [string, number, number];
+        samplerHash?: number;
+        value?: number[] | string;
+    }
+    export interface IPassStates {
+        priority?: number;
+        primitive?: GFXPrimitiveMode;
+        stage?: RenderPassStage;
+        rasterizerState?: GFXRasterizerState;
+        depthStencilState?: GFXDepthStencilState;
+        blendState?: GFXBlendState;
+        dynamicStates?: GFXDynamicStateFlags;
+        phase?: string | number;
+    }
+    export interface IPassInfo extends IPassStates {
+        program: string;
+        embeddedMacros?: MacroRecord;
+        propertyIndex?: number;
+        switch?: string;
+        properties?: Record<string, IPropertyInfo>;
+    }
+    export interface ITechniqueInfo {
+        passes: IPassInfo[];
+        name?: string;
+    }
+    export interface IBlockInfo extends GFXUniformBlock, IGFXDescriptorSetLayoutBinding {
+    }
+    export interface ISamplerInfo extends GFXUniformSampler, IGFXDescriptorSetLayoutBinding {
+    }
+    export interface IAttributeInfo extends IGFXAttribute {
+        defines: string[];
+    }
+    export interface IDefineInfo {
+        name: string;
+        type: string;
+        range?: number[];
+        options?: string[];
+        default?: string;
+    }
+    export interface IBuiltin {
+        name: string;
+        defines: string[];
+    }
+    export interface IBuiltinInfo {
+        blocks: IBuiltin[];
+        samplers: IBuiltin[];
+    }
+    export interface IShaderInfo {
+        name: string;
+        hash: number;
+        glsl4: {
+            vert: string;
+            frag: string;
+        };
+        glsl3: {
+            vert: string;
+            frag: string;
+        };
+        glsl1: {
+            vert: string;
+            frag: string;
+        };
+        builtins: {
+            globals: IBuiltinInfo;
+            locals: IBuiltinInfo;
+        };
+        defines: IDefineInfo[];
+        blocks: IBlockInfo[];
+        samplers: ISamplerInfo[];
+        attributes: IAttributeInfo[];
+    }
+    export interface IPreCompileInfo {
+        [name: string]: boolean[] | number[] | string[];
+    }
+    /**
+     * @zh
+     * Effect 资源，作为材质实例初始化的模板，每个 effect 资源都应是全局唯一的。
+     */
+    export class EffectAsset extends Asset {
+        /**
+         * @zh
+         * 将指定 effect 注册到全局管理器。
+         */
+        static register(asset: EffectAsset): void;
+        /**
+         * @zh
+         * 将指定 effect 从全局管理器移除。
+         */
+        static remove(name: string): void;
+        /**
+         * @zh
+         * 获取指定名字的 effect 资源。
+         */
+        static get(name: string): EffectAsset | null;
+        /**
+         * @zh
+         * 获取所有已注册的 effect 资源。
+         */
+        static getAll(): Record<string, EffectAsset>;
+        protected static _effects: Record<string, EffectAsset>;
+        /**
+         * @zh
+         * 当前 effect 的所有可用 technique。
+         */
+        techniques: ITechniqueInfo[];
+        /**
+         * @zh
+         * 当前 effect 使用的所有 shader。
+         */
+        shaders: IShaderInfo[];
+        /**
+         * @zh
+         * 每个 shader 需要预编译的宏定义组合。
+         */
+        combinations: IPreCompileInfo[];
+        /**
+         * @zh
+         * 通过 Loader 加载完成时的回调，将自动注册 effect 资源。
+         */
+        onLoaded(): void;
+        protected _precompile(): void;
+    }
+}
+declare module "cocos/core/renderer/core/pass" {
+    import { IPassInfo, IPassStates, IPropertyInfo } from "cocos/core/assets/effect-asset";
+    import { GFXDescriptorSet } from "cocos/core/gfx/descriptor-set";
+    import { GFXBuffer } from "cocos/core/gfx/buffer";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
+    import { GFXSampler } from "cocos/core/gfx/sampler";
+    import { GFXTexture } from "cocos/core/gfx/texture";
+    import { RenderPassStage } from "cocos/core/pipeline/define";
+    import { Root } from "cocos/core/root";
+    import { IProgramInfo } from "cocos/core/renderer/core/program-lib";
+    import { PassHandle, ShaderHandle } from "cocos/core/renderer/core/memory-pools";
+    import { getBindingFromHandle, getPropertyTypeFromHandle, getOffsetFromHandle, getTypeFromHandle, MacroRecord, MaterialProperty, PropertyType } from "cocos/core/renderer/core/pass-utils";
+    import { GFXPrimitiveMode, GFXType, GFXDynamicStateFlagBit } from "cocos/core/gfx/define";
+    export interface IPassInfoFull extends IPassInfo {
+        passIndex: number;
+        defines: MacroRecord;
+        stateOverrides?: PassOverrides;
+    }
+    export type PassOverrides = RecursivePartial<IPassStates>;
+    export interface IBlock {
+        view: Float32Array;
+        dirty: boolean;
+    }
+    export interface IMacroPatch {
+        name: string;
+        value: boolean | number | string;
+    }
+    interface IPassDynamics {
+        [type: number]: {
+            dirty: boolean;
+            value: number[];
+        };
+    }
+    export enum BatchingSchemes {
+        INSTANCING = 1,
+        VB_MERGING = 2
+    }
+    export namespace Pass {
+        type getPropertyTypeFromHandle = typeof getPropertyTypeFromHandle;
+        type getTypeFromHandle = typeof getTypeFromHandle;
+        type getBindingFromHandle = typeof getBindingFromHandle;
+        type fillPipelineInfo = typeof Pass.fillPipelineInfo;
+        type getPassHash = typeof Pass.getPassHash;
+        type getOffsetFromHandle = typeof getOffsetFromHandle;
+        type PropertyType = typeof PropertyType;
+    }
+    /**
+     * @zh
+     * 渲染 pass，储存实际描述绘制过程的各项资源。
+     */
+    export class Pass {
+        /**
+         * @zh
+         * 根据 handle 获取 unform 的绑定类型（UBO 或贴图等）。
+         */
+        static PropertyType: typeof PropertyType;
+        static getPropertyTypeFromHandle: (handle: number) => number;
+        /**
+         * @zh
+         * 根据 handle 获取 UBO member 的具体类型。
+         */
+        static getTypeFromHandle: (handle: number) => number;
+        /**
+         * @zh
+         * 根据 handle 获取 binding。
+         */
+        static getBindingFromHandle: (handle: number) => number;
+        static fillPipelineInfo(hPass: PassHandle, info: PassOverrides): void;
+        /**
+         * @en
+         * Get pass hash value by [[Pass]] hash information.
+         * @zh
+         * 根据 [[Pass]] 的哈希信息获取哈希值。
+         *
+         * @param hPass Handle of the pass info used to compute hash value.
+         */
+        static getPassHash(hPass: PassHandle, hShader: ShaderHandle): number;
+        protected static getOffsetFromHandle: (handle: number) => number;
+        protected _buffers: Record<number, GFXBuffer>;
+        protected _samplers: Record<number, GFXSampler>;
+        protected _textures: Record<number, GFXTexture>;
+        protected _descriptorSet: GFXDescriptorSet;
+        protected _passIndex: number;
+        protected _propertyIndex: number;
+        protected _programName: string;
+        protected _dynamics: IPassDynamics;
+        protected _propertyHandleMap: Record<string, number>;
+        protected _blocks: IBlock[];
+        protected _shaderInfo: IProgramInfo;
+        protected _defines: MacroRecord;
+        protected _properties: Record<string, IPropertyInfo>;
+        protected _root: Root;
+        protected _device: GFXDevice;
+        protected _hShaderDefault: ShaderHandle;
+        protected _handle: PassHandle;
+        constructor(root: Root);
+        /**
+         * @zh
+         * 根据指定参数初始化当前 pass，shader 会在这一阶段就尝试编译。
+         */
+        initialize(info: IPassInfoFull): void;
+        /**
+         * @en
+         * Get the handle of a UBO member, or specific channels of it.
+         * @zh
+         * 获取指定 UBO 成员，或其更具体分量的读写句柄。默认以成员自身的类型为目标读写类型（即读写时必须传入与成员类型相同的变量）。
+         * @param name Name of the target UBO member.
+         * @param offset Channel offset into the member.
+         * @param targetType Target type of the handle, i.e. the type of data when read/write to it.
+         * @example
+         * ```
+         * import { Vec3, GFXType } from 'cc';
+         * // say 'pbrParams' is a uniform vec4
+         * const hParams = pass.getHandle('pbrParams'); // get the default handle
+         * pass.setUniform(hAlbedo, new Vec3(1, 0, 0)); // wrong! pbrParams.w is NaN now
+         *
+         * // say 'albedoScale' is a uniform vec4, and we only want to modify the w component in the form of a single float
+         * const hThreshold = pass.getHandle('albedoScale', 3, GFXType.FLOAT);
+         * pass.setUniform(hThreshold, 0.5); // now, albedoScale.w = 0.5
+         * ```
+         */
+        getHandle(name: string, offset?: number, targetType?: GFXType): number | undefined;
+        /**
+         * @zh
+         * 获取指定 uniform 的 binding。
+         * @param name 目标 uniform 名。
+         */
+        getBinding(name: string): number | undefined;
+        /**
+         * @zh
+         * 设置指定普通向量类 uniform 的值，如果需要频繁更新请尽量使用此接口。
+         * @param handle 目标 uniform 的 handle。
+         * @param value 目标值。
+         */
+        setUniform(handle: number, value: MaterialProperty): void;
+        /**
+         * @zh
+         * 获取指定普通向量类 uniform 的值。
+         * @param handle 目标 uniform 的 handle。
+         * @param out 输出向量。
+         */
+        getUniform(handle: number, out: MaterialProperty): any;
+        /**
+         * @zh
+         * 设置指定数组类 uniform 的值，如果需要频繁更新请尽量使用此接口。
+         * @param handle 目标 uniform 的 handle。
+         * @param value 目标值。
+         */
+        setUniformArray(handle: number, value: MaterialProperty[]): void;
+        /**
+         * @zh
+         * 绑定实际 [[GFXBuffer]] 到指定 binding。
+         * @param binding 目标 UBO 的 binding。
+         * @param value 目标 buffer。
+         */
+        bindBuffer(binding: number, value: GFXBuffer): void;
+        /**
+         * @zh
+         * 绑定实际 [[GFXTexture]] 到指定 binding。
+         * @param binding 目标贴图类 uniform 的 binding。
+         * @param value 目标 texture
+         */
+        bindTexture(binding: number, value: GFXTexture): void;
+        /**
+         * @zh
+         * 绑定实际 [[GFXSampler]] 到指定 binding。
+         * @param binding 目标贴图类 uniform 的 binding。
+         * @param value 目标 sampler。
+         */
+        bindSampler(binding: number, value: GFXSampler): void;
+        /**
+         * @zh
+         * 设置运行时 pass 内可动态更新的管线状态属性。
+         * @param state 目标管线状态。
+         * @param value 目标值。
+         */
+        setDynamicState(state: GFXDynamicStateFlagBit, value: any): void;
+        /**
+         * @zh
+         * 重载当前所有管线状态。
+         * @param original 原始管线状态。
+         * @param value 管线状态重载值。
+         */
+        overridePipelineStates(original: IPassInfo, overrides: PassOverrides): void;
+        /**
+         * @zh
+         * 更新当前 Uniform 数据。
+         */
+        update(): void;
+        /**
+         * @zh
+         * 销毁当前 pass。
+         */
+        destroy(): void;
+        /**
+         * @zh
+         * 重置指定（非数组） Uniform 为 Effect 默认值。
+         */
+        resetUniform(name: string): void;
+        /**
+         * @zh
+         * 重置指定贴图为 Effect 默认值。
+         */
+        resetTexture(name: string): void;
+        /**
+         * @zh
+         * 重置所有 UBO 为默认值。
+         */
+        resetUBOs(): void;
+        /**
+         * @zh
+         * 重置所有 texture 和 sampler 为初始默认值。
+         */
+        resetTextures(): void;
+        /**
+         * @zh
+         * 尝试编译 shader 并获取相关资源引用。
+         * @param defineOverrides shader 预处理宏定义重载
+         */
+        tryCompile(): boolean | null;
+        getShaderVariant(patches?: IMacroPatch[] | null): ShaderHandle;
+        beginChangeStatesSilently(): void;
+        endChangeStatesSilently(): void;
+        protected _doInit(info: IPassInfoFull, copyDefines?: boolean): void;
+        protected _syncBatchingScheme(): void;
+        get root(): Root;
+        get device(): GFXDevice;
+        get shaderInfo(): IProgramInfo;
+        get setLayouts(): import("index").GFXDescriptorSetLayout[];
+        get program(): string;
+        get properties(): Record<string, IPropertyInfo>;
+        get defines(): Record<string, string | number | boolean>;
+        get passIndex(): number;
+        get propertyIndex(): number;
+        get dynamics(): IPassDynamics;
+        get blocks(): IBlock[];
+        get handle(): PassHandle;
+        get priority(): number;
+        get primitive(): GFXPrimitiveMode;
+        get stage(): RenderPassStage;
+        get phase(): number;
+        get rasterizerState(): GFXRasterizerState;
+        get depthStencilState(): GFXDepthStencilState;
+        get blendState(): GFXBlendState;
+        get dynamicStates(): GFXDynamicStateFlagBit;
+        get batchingScheme(): BatchingSchemes;
+        get hash(): number;
+    }
+}
+declare module "cocos/core/pipeline/define" {
+    /**
+     * @category pipeline
+     */
+    import { Pass } from "cocos/core/renderer/core/pass";
+    import { Model } from "cocos/core/renderer/scene/model";
+    import { SubModel } from "cocos/core/renderer/scene/submodel";
+    import { GFXBindingMappingInfo, IGFXDescriptorSetLayoutBinding } from "cocos/core/gfx/index";
+    import { IBlockInfo, ISamplerInfo } from "cocos/core/assets/effect-asset";
+    export const PIPELINE_FLOW_FORWARD: string;
+    export const PIPELINE_FLOW_SHADOW: string;
+    export const PIPELINE_FLOW_SMAA: string;
+    export const PIPELINE_FLOW_TONEMAP: string;
+    /**
+     * @en The predefined render pass stage ids
+     * @zh 预设的渲染阶段。
+     */
+    export enum RenderPassStage {
+        DEFAULT = 100,
+        UI = 200
+    }
+    /**
+     * @en The predefined render priorities
+     * @zh 预设的渲染优先级。
+     */
+    export enum RenderPriority {
+        MIN = 0,
+        MAX = 255,
+        DEFAULT = 128
+    }
+    /**
+     * @en Render object interface
+     * @zh 渲染对象接口。
+     */
+    export interface IRenderObject {
+        model: Model;
+        depth: number;
+    }
+    export interface IRenderPass {
+        hash: number;
+        depth: number;
+        shaderId: number;
+        subModel: SubModel;
+        passIdx: number;
+    }
+    /**
+     * @en Render batch interface
+     * @zh 渲染批次接口。
+     */
+    export interface IRenderBatch {
+        pass: Pass;
+    }
+    /**
+     * @en Render queue descriptor
+     * @zh 渲染队列描述。
+     */
+    export interface IRenderQueueDesc {
+        isTransparent: boolean;
+        phases: number;
+        sortFunc: (a: IRenderPass, b: IRenderPass) => number;
+    }
+    export interface IDescriptorSetLayoutInfo {
+        bindings: IGFXDescriptorSetLayoutBinding[];
+        record: Record<string, IBlockInfo | ISamplerInfo>;
+    }
+    export const globalDescriptorSetLayout: IDescriptorSetLayoutInfo;
+    export const localDescriptorSetLayout: IDescriptorSetLayoutInfo;
+    /**
+     * @en The uniform bindings
+     * @zh Uniform 参数绑定。
+     */
+    export enum PipelineGlobalBindings {
+        UBO_GLOBAL = 0,
+        UBO_SHADOW = 1,
+        SAMPLER_ENVIRONMENT = 2,
+        SAMPLER_SHADOWMAP = 3,
+        COUNT = 4
+    }
+    export enum ModelLocalBindings {
+        UBO_LOCAL = 0,
+        UBO_FORWARD_LIGHTS = 1,
+        UBO_SKINNING_ANIMATION = 2,
+        UBO_SKINNING_TEXTURE = 3,
+        UBO_MORPH = 4,
+        SAMPLER_JOINTS = 5,
+        SAMPLER_MORPH_POSITION = 6,
+        SAMPLER_MORPH_NORMAL = 7,
+        SAMPLER_MORPH_TANGENT = 8,
+        SAMPLER_LIGHTING_MAP = 9,
+        SAMPLER_SPRITE = 10,
+        COUNT = 11
+    }
+    /**
+     * @en Check whether the given uniform binding is a builtin binding
+     * @zh 检查指定的 UniformBinding 是否是引擎内置的
+     * @param binding
+     */
+    export const isBuiltinBinding: (set: number) => boolean;
+    export enum SetIndex {
+        GLOBAL = 0,
+        MATERIAL = 1,
+        LOCAL = 2
+    }
+    export const bindingMappingInfo: GFXBindingMappingInfo;
+    /**
+     * @en The global uniform buffer object
+     * @zh 全局 UBO。
+     */
+    export class UBOGlobal {
+        static TIME_OFFSET: number;
+        static SCREEN_SIZE_OFFSET: number;
+        static SCREEN_SCALE_OFFSET: number;
+        static NATIVE_SIZE_OFFSET: number;
+        static MAT_VIEW_OFFSET: number;
+        static MAT_VIEW_INV_OFFSET: number;
+        static MAT_PROJ_OFFSET: number;
+        static MAT_PROJ_INV_OFFSET: number;
+        static MAT_VIEW_PROJ_OFFSET: number;
+        static MAT_VIEW_PROJ_INV_OFFSET: number;
+        static CAMERA_POS_OFFSET: number;
+        static EXPOSURE_OFFSET: number;
+        static MAIN_LIT_DIR_OFFSET: number;
+        static MAIN_LIT_COLOR_OFFSET: number;
+        static AMBIENT_SKY_OFFSET: number;
+        static AMBIENT_GROUND_OFFSET: number;
+        static GLOBAL_FOG_COLOR_OFFSET: number;
+        static GLOBAL_FOG_BASE_OFFSET: number;
+        static GLOBAL_FOG_ADD_OFFSET: number;
+        static COUNT: number;
+        static SIZE: number;
+        static BLOCK: IBlockInfo;
+    }
+    /**
+     * @en The uniform buffer object for shadow
+     * @zh 阴影 UBO。
+     */
+    export class UBOShadow {
+        static MAT_LIGHT_PLANE_PROJ_OFFSET: number;
+        static MAT_LIGHT_VIEW_PROJ_OFFSET: number;
+        static SHADOW_COLOR_OFFSET: number;
+        static COUNT: number;
+        static SIZE: number;
+        static BLOCK: IBlockInfo;
+    }
+    export const UNIFORM_SHADOWMAP: ISamplerInfo;
+    export const UNIFORM_ENVIRONMENT: ISamplerInfo;
+    /**
+     * @en The local uniform buffer object
+     * @zh 本地 UBO。
+     */
+    export class UBOLocal {
+        static MAT_WORLD_OFFSET: number;
+        static MAT_WORLD_IT_OFFSET: number;
+        static LIGHTINGMAP_UVPARAM: number;
+        static COUNT: number;
+        static SIZE: number;
+        static BLOCK: IBlockInfo;
+    }
+    export const INST_MAT_WORLD = "a_matWorld0";
+    export class UBOLocalBatched {
+        static BATCHING_COUNT: number;
+        static MAT_WORLDS_OFFSET: number;
+        static COUNT: number;
+        static SIZE: number;
+        static BLOCK: IBlockInfo;
+    }
+    /**
+     * @en The uniform buffer object for forward lighting
+     * @zh 前向灯光 UBO。
+     */
+    export class UBOForwardLight {
+        static LIGHTS_PER_PASS: number;
+        static LIGHT_POS_OFFSET: number;
+        static LIGHT_COLOR_OFFSET: number;
+        static LIGHT_SIZE_RANGE_ANGLE_OFFSET: number;
+        static LIGHT_DIR_OFFSET: number;
+        static COUNT: number;
+        static SIZE: number;
+        static BLOCK: IBlockInfo;
+    }
+    export const JOINT_UNIFORM_CAPACITY = 30;
+    /**
+     * @en The uniform buffer object for skinning texture
+     * @zh 骨骼贴图 UBO。
+     */
+    export class UBOSkinningTexture {
+        static JOINTS_TEXTURE_INFO_OFFSET: number;
+        static COUNT: number;
+        static SIZE: number;
+        static BLOCK: IBlockInfo;
+    }
+    export class UBOSkinningAnimation {
+        static JOINTS_ANIM_INFO_OFFSET: number;
+        static COUNT: number;
+        static SIZE: number;
+        static BLOCK: IBlockInfo;
+    }
+    export const INST_JOINT_ANIM_INFO = "a_jointAnimInfo";
+    export class UBOSkinning {
+        static JOINTS_OFFSET: number;
+        static COUNT: number;
+        static SIZE: number;
+        static BLOCK: IBlockInfo;
+    }
+    /**
+     * @en The uniform buffer object for morph setting
+     * @zh 形变配置的 UBO
+     */
+    export class UBOMorph {
+        static readonly MAX_MORPH_TARGET_COUNT = 60;
+        static readonly OFFSET_OF_WEIGHTS = 0;
+        static readonly OFFSET_OF_DISPLACEMENT_TEXTURE_WIDTH: number;
+        static readonly OFFSET_OF_DISPLACEMENT_TEXTURE_HEIGHT: number;
+        static readonly COUNT_BASE_4_BYTES: number;
+        static readonly SIZE: number;
+        static readonly BLOCK: IBlockInfo;
+    }
+    /**
+     * @en The sampler for joint texture
+     * @zh 骨骼纹理采样器。
+     */
+    export const UniformJointTexture: ISamplerInfo;
+    /**
+     * @en The sampler for morph texture of position
+     * @zh 位置形变纹理采样器。
+     */
+    export const UniformPositionMorphTexture: Readonly<ISamplerInfo>;
+    /**
+     * @en The sampler for morph texture of normal
+     * @zh 法线形变纹理采样器。
+     */
+    export const UniformNormalMorphTexture: Readonly<ISamplerInfo>;
+    /**
+     * @en The sampler for morph texture of tangent
+     * @zh 切线形变纹理采样器。
+     */
+    export const UniformTangentMorphTexture: Readonly<ISamplerInfo>;
+    /**
+     * @en The sampler for light map texture
+     * @zh 光照图纹理采样器。
+     */
+    export const UniformLightingMapSampler: Readonly<ISamplerInfo>;
+    /**
+     * @en The sampler for UI sprites.
+     * @zh UI 精灵纹理采样器。
+     */
+    export const UniformSpriteSampler: Readonly<ISamplerInfo>;
+    export const CAMERA_DEFAULT_MASK: number;
+    export const CAMERA_EDITOR_MASK: number;
+    export const MODEL_ALWAYS_MASK: number;
+}
+declare module "cocos/core/pipeline/index" {
+    /**
+     * @category pipeline
+     */
+    import * as pipelineDefine from "cocos/core/pipeline/define";
+    export const pipeline: typeof pipelineDefine;
+    export { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
+    export { RenderFlow } from "cocos/core/pipeline/render-flow";
+    export { RenderStage } from "cocos/core/pipeline/render-stage";
+    export { RenderView } from "cocos/core/pipeline/render-view";
+    export { RenderWindow } from "cocos/core/pipeline/render-window";
+    export { ForwardPipeline } from "cocos/core/pipeline/forward/forward-pipeline";
+    export { ForwardFlow } from "cocos/core/pipeline/forward/forward-flow";
+    export { ForwardStage } from "cocos/core/pipeline/forward/forward-stage";
+    export { ShadowFlow } from "cocos/core/pipeline/shadow/shadow-flow";
+    export { ShadowStage } from "cocos/core/pipeline/shadow/shadow-stage";
+    export { UIFlow } from "cocos/core/pipeline/ui/ui-flow";
+    export { UIStage } from "cocos/core/pipeline/ui/ui-stage";
+}
+declare module "cocos/core/assets/render-texture" {
+    import { GFXTexture, GFXSampler, IGFXRenderPassInfo } from "cocos/core/gfx/index";
+    import { RenderWindow } from "cocos/core/pipeline/index";
+    import { Asset } from "cocos/core/assets/asset";
+    export interface IRenderTextureCreateInfo {
+        name?: string;
+        width: number;
+        height: number;
+        passInfo?: IGFXRenderPassInfo;
+    }
+    export class RenderTexture extends Asset {
+        private _width;
+        private _height;
+        private _window;
+        get width(): number;
+        get height(): number;
+        get window(): RenderWindow | null;
+        initialize(info: IRenderTextureCreateInfo): void;
+        reset(info: IRenderTextureCreateInfo): void;
+        destroy(): boolean;
+        resize(width: number, height: number): void;
+        getGFXTexture(): GFXTexture | null;
+        getGFXSampler(): GFXSampler;
+        onLoaded(): void;
+        protected _initWindow(info?: IRenderTextureCreateInfo): void;
+    }
+}
+declare module "cocos/core/assets/sprite-frame" {
+    import { Rect, Size, Vec2 } from "cocos/core/math/index";
+    import { Asset } from "cocos/core/assets/asset";
+    import { RenderTexture } from "cocos/core/assets/render-texture";
+    import { TextureBase } from "cocos/core/assets/texture-base";
+    import { ImageAsset, ImageSource } from "cocos/core/assets/image-asset";
+    export interface IUV {
+        u: number;
+        v: number;
+    }
+    interface IVertices {
+        x: any;
+        y: any;
+        triangles: any;
+        nu: number[];
+        u: number[];
+        nv: number[];
+        v: number[];
+    }
+    interface ISpriteFrameInitInfo {
+        /**
+         * @zh Texture 对象资源。
+         */
+        texture?: TextureBase | RenderTexture;
+        /**
+         * @zh 精灵帧原始尺寸。
+         */
+        originalSize?: Size;
+        /**
+         * @zh 精灵帧裁切矩形。
+         */
+        rect?: Rect;
+        /**
+         * @zh 精灵帧偏移量。
+         */
+        offset?: Vec2;
+        /**
+         * @zh 上边界。
+         */
+        borderTop?: number;
+        /**
+         * @zh 下边界。
+         */
+        borderBottom?: number;
+        /**
+         * @zh 左边界
+         */
+        borderLeft?: number;
+        /**
+         * @zh 右边界
+         */
+        borderRight?: number;
+        /**
+         * @zh 是否旋转。
+         */
+        isRotate?: boolean;
+        /**
+         * @zh 是否转置 UV。
+         */
+        isFlipUv?: boolean;
+    }
     /**
      * @en
-     * Class of private entities in Cocos Creator 3d scenes.<br/>
-     * The PrivateNode is hidden in editor, and completely transparent to users.<br/>
-     * It's normally used as Node's private content created by components in parent node.<br/>
-     * So in theory private nodes are not children, they are part of the parent node.<br/>
-     * Private node have two important characteristics:<br/>
-     * 1. It has the minimum z index and cannot be modified, because they can't be displayed over real children.<br/>
-     * 2. The positioning of private nodes is also special, they will consider the left bottom corner of the parent node's bounding box as the origin of local coordinates.<br/>
-     *    In this way, they can be easily kept inside the bounding box.<br/>
-     * Currently, it's used by RichText component and TileMap component.
-     * @zh
-     * Cocos Creator 3d 场景中的私有节点类。<br/>
-     * 私有节点在编辑器中不可见，对用户透明。<br/>
-     * 通常私有节点是被一些特殊的组件创建出来作为父节点的一部分而存在的，理论上来说，它们不是子节点，而是父节点的组成部分。<br/>
-     * 私有节点有两个非常重要的特性：<br/>
-     * 1. 它有着最小的渲染排序的 Z 轴深度，并且无法被更改，因为它们不能被显示在其他正常子节点之上。<br/>
-     * 2. 它的定位也是特殊的，对于私有节点来说，父节点包围盒的左下角是它的局部坐标系原点，这个原点相当于父节点的位置减去它锚点的偏移。这样私有节点可以比较容易被控制在包围盒之中。<br/>
-     * 目前在引擎中，RichText 和 TileMap 都有可能生成私有节点。
-     */
-    export class PrivateNode extends Node {
-        constructor(name: string);
-    }
-}
-declare module "cocos/core/scene-graph/deprecated" { }
-declare module "cocos/core/scene-graph/index" {
-    /**
-     * @category scene-graph
-     */
-    import "cocos/core/scene-graph/node-event-processor";
-    export { BaseNode } from "cocos/core/scene-graph/base-node";
-    export { Node } from "cocos/core/scene-graph/node";
-    export { Scene } from "cocos/core/scene-graph/scene";
-    export { Layers } from "cocos/core/scene-graph/layers";
-    export { find } from "cocos/core/scene-graph/find";
-    export { PrivateNode } from "cocos/core/scene-graph/private-node";
-    export { default as NodeActivator } from "cocos/core/scene-graph/node-activator";
-    import "cocos/core/scene-graph/deprecated";
-}
-declare module "cocos/core/assets/scene-asset" {
-    import { Scene } from "cocos/core/scene-graph/index";
-    import { Asset } from "cocos/core/assets/asset";
-    /**
-     * @en Class for scene handling.
-     * @zh 场景资源类。
-     * @class SceneAsset
-     * @extends Asset
+     * A `SpriteFrame` has:<br/>
+     *  - texture: A `Texture2D` that will be used by render components<br/>
+     *  - rectangle: A rectangle of the texture
      *
+     * @zh
+     * 精灵帧资源。
+     * 一个 SpriteFrame 包含：<br/>
+     *  - 纹理：会被渲染组件使用的 Texture2D 对象。<br/>
+     *  - 矩形：在纹理中的矩形区域。
+     * 可通过 `SpriteFrame` 获取该组件。
+     *
+     * @example
+     * ```ts
+     * import { loader } from 'cc';
+     * // First way to use a SpriteFrame
+     * const url = "assets/PurpleMonster/icon/spriteFrame";
+     * loader.loadRes(url, (err, spriteFrame) => {
+     *   const node = new Node("New Sprite");
+     *   const sprite = node.addComponent(SpriteComponent);
+     *   sprite.spriteFrame = spriteFrame;
+     *   node.parent = self.node;
+     * });
+     *
+     * // Second way to use a SpriteFrame
+     * const self = this;
+     * const url = "test_assets/PurpleMonster";
+     * loader.loadRes(url, (err, imageAsset) => {
+     *  if(err){
+     *    return;
+     *  }
+     *
+     *  const node = new Node("New Sprite");
+     *  const sprite = node.addComponent(SpriteComponent);
+     *  const spriteFrame = new SpriteFrame();
+     *  const tex = imageAsset._texture;
+     *  spriteFrame.texture = tex;
+     *  sprite.spriteFrame = spriteFrame;
+     *  node.parent = self.node;
+     * });
+     *
+     * // Third way to use a SpriteFrame
+     * const self = this;
+     * const cameraComp = this.getComponent(CameraComponent);
+     * const renderTexture = new RenderTexture();
+     * rendetTex.reset({
+     *   width: 512,
+     *   height: 512,
+     *   depthStencilFormat: RenderTexture.DepthStencilFormat.DEPTH_24_STENCIL_8
+     * });
+     *
+     * cameraComp.targetTexture = renderTexture;
+     * const spriteFrame = new SpriteFrame();
+     * spriteFrame.texture = renderTexture;
+     * ```
      */
-    export default class SceneAsset extends Asset {
+    export class SpriteFrame extends Asset {
         /**
-         * 场景结点。
+         * @en
+         * Create a SpriteFrame object by an image asset or an native image asset
+         * @zh
+         * 通过 Image 资源或者原始 image 资源创建一个 SpriteFrame 对象
+         * @param imageSourceOrImageAsset ImageAsset or ImageSource, ImageSource support HTMLCanvasElement HTMLImageElement IMemoryImageSource
          */
-        scene: Scene | null;
+        static createWithImage(imageSourceOrImageAsset: ImageSource | ImageAsset): SpriteFrame;
         /**
-         * @en Indicates the raw assets of this scene can be load after scene launched.
-         * @zh 指示该场景依赖的资源可否在场景切换后再延迟加载。
-         * @default false
+         * @en
+         * Top border of the sprite.
+         *
+         * @zh
+         * sprite 的顶部边框。
          */
-        asyncLoadAssets: boolean;
+        get insetTop(): number;
+        set insetTop(value: number);
+        /**
+         * @en
+         * Bottom border of the sprite.
+         *
+         * @zh
+         * sprite 的底部边框。
+         */
+        get insetBottom(): number;
+        set insetBottom(value: number);
+        /**
+         * @en
+         * Left border of the sprite.
+         *
+         * @zh
+         * sprite 的左边边框。
+         */
+        get insetLeft(): number;
+        set insetLeft(value: number);
+        /**
+         * @en
+         * Right border of the sprite.
+         *
+         * @zh
+         * sprite 的右边边框。
+         */
+        get insetRight(): number;
+        set insetRight(value: number);
+        /**
+         * @en
+         * Returns the rect of the sprite frame in the texture.
+         * If it's a atlas texture, a transparent pixel area is proposed for the actual mapping of the current texture.
+         *
+         * @zh
+         * 获取 SpriteFrame 的纹理矩形区域。
+         * 如果是一个 atlas 的贴图，则为当前贴图的实际剔除透明像素区域。
+         */
+        get rect(): Rect;
+        set rect(value: Rect);
+        /**
+         * @en
+         * Returns the original size of the trimmed image.
+         *
+         * @zh
+         * 获取修剪前的原始大小。
+         */
+        get originalSize(): Size;
+        set originalSize(value: Size);
+        /**
+         * @en
+         * Returns the offset of the frame in the texture.
+         *
+         * @zh
+         * 获取偏移量。
+         */
+        get offset(): Vec2;
+        set offset(value: Vec2);
+        /**
+         * @en
+         * Returns whether the sprite frame is rotated in the texture.
+         *
+         * @zh
+         * 获取 SpriteFrame 是否旋转。
+         */
+        get rotated(): boolean;
+        set rotated(rotated: boolean);
+        get texture(): TextureBase | RenderTexture;
+        set texture(value: TextureBase | RenderTexture);
+        get atlasUuid(): string;
+        set atlasUuid(value: string);
+        get width(): number;
+        get height(): number;
+        set _textureSource(value: TextureBase);
+        vertices: IVertices | null;
+        /**
+         * @zh
+         * 不带裁切的 UV。
+         */
+        uv: number[];
+        uvHash: number;
+        /**
+         * @zh
+         * 带有裁切的 UV。
+         */
+        uvSliced: IUV[];
+        protected _rect: Rect;
+        protected _offset: Vec2;
+        protected _originalSize: Size;
+        protected _rotated: boolean;
+        protected _capInsets: number[];
+        protected _atlasUuid: string;
+        protected _texture: TextureBase | RenderTexture;
+        protected _flipUv: boolean;
+        constructor();
+        /**
+         * @en
+         * Returns whether the texture have been loaded.
+         *
+         * @zh
+         * 返回是否已加载精灵帧。
+         */
+        textureLoaded(): boolean;
+        /**
+         * @en
+         * Returns whether the sprite frame is rotated in the texture.
+         *
+         * @zh
+         * 获取 SpriteFrame 是否旋转。
+         * @deprecated 即将在 1.2 废除，请使用 `isRotated = rect.rotated`。
+         */
+        isRotated(): boolean;
+        /**
+         * @en
+         * Set whether the sprite frame is rotated in the texture.
+         *
+         * @zh
+         * 设置 SpriteFrame 是否旋转。
+         * @param value
+         * @deprecated 即将在 1.2 废除，请使用 `rect.rotated = true`。
+         */
+        setRotated(rotated: boolean): void;
+        /**
+         * @en
+         * Returns the rect of the sprite frame in the texture.
+         * If it's a atlas texture, a transparent pixel area is proposed for the actual mapping of the current texture.
+         *
+         * @zh
+         * 获取 SpriteFrame 的纹理矩形区域。
+         * 如果是一个 atlas 的贴图，则为当前贴图的实际剔除透明像素区域。
+         * @deprecated 即将在 1.2 废除，请使用 `rect.set(spritFrame.rect)`。
+         */
+        getRect(out?: Rect): Rect;
+        /**
+         * @en
+         * Sets the rect of the sprite frame in the texture.
+         *
+         * @zh
+         * 设置 SpriteFrame 的纹理矩形区域。
+         * @deprecated 即将在 1.2 废除，请使用 `spritFrame.rect = rect`。
+         */
+        setRect(rect: Rect): void;
+        /**
+         * @en
+         * Returns the original size of the trimmed image.
+         *
+         * @zh
+         * 获取修剪前的原始大小。
+         * @deprecated 即将在 1.2 废除，请使用 `size.set(spritFrame.originalSize)`。
+         */
+        getOriginalSize(out?: Size): Size;
+        /**
+         * @en
+         * Sets the original size of the trimmed image.
+         *
+         * @zh
+         * 设置修剪前的原始大小。
+         *
+         * @param size - 设置精灵原始大小。
+         * @deprecated 即将在 1.2 废除，请使用 `spritFrame.originalSize = size`。
+         */
+        setOriginalSize(size: Size): void;
+        /**
+         * @en
+         * Returns the offset of the frame in the texture.
+         *
+         * @zh
+         * 获取偏移量。
+         *
+         * @param out - 可复用的偏移量。
+         * @deprecated 即将在 1.2 废除，请使用 `offset.set(spritFrame.offset)`。
+         */
+        getOffset(out?: Vec2): Vec2;
+        /**
+         * @en
+         * Sets the offset of the frame in the texture.
+         *
+         * @zh
+         * 设置偏移量。
+         *
+         * @param offsets - 偏移量。
+         * @deprecated 即将在 1.2 废除，请使用 `spritFrame.offset = offset`。
+         */
+        setOffset(offset: Vec2): void;
+        getGFXTexture(): import("index").GFXTexture | null;
+        getGFXSampler(): import("index").GFXSampler;
+        /**
+         * 重置 SpriteFrame 数据。
+         * @param info SpriteFrame 初始化数据。
+         */
+        reset(info?: ISpriteFrameInitInfo, clearData?: boolean): void;
+        /**
+         * @zh
+         * 判断精灵计算的矩形区域是否越界。
+         *
+         * @param texture
+         */
+        checkRect(texture: TextureBase | RenderTexture): boolean;
+        onLoaded(): void;
+        destroy(): boolean;
+        _calculateSlicedUV(): void;
+        /**
+         * @zh
+         * 计算 UV。
+         */
+        _calculateUV(): void;
+        _serialize(exporting?: any): any;
+        _deserialize(serializeData: any, handle: any): void;
+        protected _textureLoaded(): void;
+        protected _refreshTexture(texture: TextureBase | RenderTexture): void;
     }
 }
 declare module "cocos/core/assets/text-asset" {
@@ -29470,7 +28698,7 @@ declare module "cocos/core/assets/index" {
     export { textureUtil };
     export { EffectAsset } from "cocos/core/assets/effect-asset";
     export { Material } from "cocos/core/assets/material";
-    export { Mesh } from "cocos/core/assets/mesh";
+    export { Mesh, RenderingSubMesh } from "cocos/core/assets/mesh";
     export { Skeleton } from "cocos/core/assets/skeleton";
     export { RenderTexture } from "cocos/core/assets/render-texture";
     import "cocos/core/assets/deprecation";
@@ -30081,76 +29309,440 @@ declare module "cocos/core/index" {
     import "cocos/core/splash-screen";
     import "cocos/core/deprecated";
 }
-declare module "cocos/core/gfx/descriptor-set" {
+declare module "cocos/core/gfx/pipeline-state" {
     /**
      * @category gfx
      */
-    import { GFXBuffer } from "cocos/core/gfx/buffer";
-    import { GFXDescriptorType, GFXObject } from "cocos/core/gfx/define";
+    import { GFXBlendFactor, GFXBlendOp, GFXColorMask, GFXComparisonFunc, GFXCullMode, GFXDynamicStateFlags, GFXObject, GFXPolygonMode, GFXPrimitiveMode, GFXShadeModel, GFXStencilOp, GFXColor } from "cocos/core/gfx/define";
     import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXSampler } from "cocos/core/gfx/sampler";
-    import { GFXTexture } from "cocos/core/gfx/texture";
-    import { GFXDescriptorSetLayout } from "cocos/core/index";
-    export const DESCRIPTOR_BUFFER_TYPE: number;
-    export const DESCRIPTOR_SAMPLER_TYPE = GFXDescriptorType.SAMPLER;
-    export interface IGFXDescriptorSetInfo {
-        layout: GFXDescriptorSetLayout;
+    import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
+    import { GFXRenderPass } from "cocos/core/gfx/render-pass";
+    import { GFXShader } from "cocos/core/gfx/shader";
+    import { GFXPipelineLayout } from "cocos/core/index";
+    /**
+     * @en GFX rasterizer state.
+     * @zh GFX 光栅化状态。
+     */
+    export class GFXRasterizerState {
+        isDiscard: boolean;
+        polygonMode: GFXPolygonMode;
+        shadeModel: GFXShadeModel;
+        cullMode: GFXCullMode;
+        isFrontFaceCCW: boolean;
+        depthBias: number;
+        depthBiasClamp: number;
+        depthBiasSlop: number;
+        isDepthClip: boolean;
+        isMultisample: boolean;
+        lineWidth: number;
+        compare(state: GFXRasterizerState): boolean;
     }
     /**
-     * @en GFX descriptor sets.
-     * @zh GFX 描述符集组。
+     * @en GFX depth stencil state.
+     * @zh GFX 深度模板状态。
      */
-    export abstract class GFXDescriptorSet extends GFXObject {
-        get layout(): GFXDescriptorSetLayout;
+    export class GFXDepthStencilState {
+        depthTest: boolean;
+        depthWrite: boolean;
+        depthFunc: GFXComparisonFunc;
+        stencilTestFront: boolean;
+        stencilFuncFront: GFXComparisonFunc;
+        stencilReadMaskFront: number;
+        stencilWriteMaskFront: number;
+        stencilFailOpFront: GFXStencilOp;
+        stencilZFailOpFront: GFXStencilOp;
+        stencilPassOpFront: GFXStencilOp;
+        stencilRefFront: number;
+        stencilTestBack: boolean;
+        stencilFuncBack: GFXComparisonFunc;
+        stencilReadMaskBack: number;
+        stencilWriteMaskBack: number;
+        stencilFailOpBack: GFXStencilOp;
+        stencilZFailOpBack: GFXStencilOp;
+        stencilPassOpBack: GFXStencilOp;
+        stencilRefBack: number;
+        compare(state: GFXDepthStencilState): boolean;
+    }
+    /**
+     * @en GFX blend target.
+     * @zh GFX 混合目标。
+     */
+    export class GFXBlendTarget {
+        blend: boolean;
+        blendSrc: GFXBlendFactor;
+        blendDst: GFXBlendFactor;
+        blendEq: GFXBlendOp;
+        blendSrcAlpha: GFXBlendFactor;
+        blendDstAlpha: GFXBlendFactor;
+        blendAlphaEq: GFXBlendOp;
+        blendColorMask: GFXColorMask;
+        compare(target: GFXBlendTarget): boolean;
+    }
+    /**
+     * @en GFX blend state.
+     * @zh GFX混合状态。
+     */
+    export class GFXBlendState {
+        isA2C: boolean;
+        isIndepend: boolean;
+        blendColor: GFXColor;
+        targets: GFXBlendTarget[];
+    }
+    /**
+     * @en GFX input state.
+     * @zh GFX 输入状态。
+     */
+    export class GFXInputState {
+        attributes: IGFXAttribute[];
+    }
+    export interface IGFXPipelineStateInfo {
+        primitive: GFXPrimitiveMode;
+        shader: GFXShader;
+        pipelineLayout: GFXPipelineLayout;
+        inputState: GFXInputState;
+        rasterizerState: GFXRasterizerState;
+        depthStencilState: GFXDepthStencilState;
+        blendState: GFXBlendState;
+        dynamicStates?: GFXDynamicStateFlags;
+        renderPass: GFXRenderPass;
+    }
+    /**
+     * @en GFX pipeline state.
+     * @zh GFX 管线状态。
+     */
+    export abstract class GFXPipelineState extends GFXObject {
+        /**
+         * @en Get current shader.
+         * @zh GFX 着色器。
+         */
+        get shader(): GFXShader;
+        /**
+         * @en Get current pipeline layout.
+         * @zh GFX 管线布局。
+         */
+        get pipelineLayout(): GFXPipelineLayout;
+        /**
+         * @en Get current primitve mode.
+         * @zh GFX 图元模式。
+         */
+        get primitive(): GFXPrimitiveMode;
+        /**
+         * @en Get current rasterizer state.
+         * @zh GFX 光栅化状态。
+         */
+        get rasterizerState(): GFXRasterizerState;
+        /**
+         * @en Get current depth stencil state.
+         * @zh GFX 深度模板状态。
+         */
+        get depthStencilState(): GFXDepthStencilState;
+        /**
+         * @en Get current blend state.
+         * @zh GFX 混合状态。
+         */
+        get blendState(): GFXBlendState;
+        /**
+         * @en Get current input state.
+         * @zh GFX 输入状态。
+         */
+        get inputState(): GFXInputState;
+        /**
+         * @en Get current dynamic states.
+         * @zh GFX 动态状态数组。
+         */
+        get dynamicStates(): GFXDynamicStateFlags;
+        /**
+         * @en Get current render pass.
+         * @zh GFX 渲染过程。
+         */
+        get renderPass(): GFXRenderPass;
         protected _device: GFXDevice;
-        protected _layout: GFXDescriptorSetLayout | null;
-        protected _buffers: GFXBuffer[];
-        protected _textures: GFXTexture[];
-        protected _samplers: GFXSampler[];
-        protected _isDirty: boolean;
+        protected _shader: GFXShader | null;
+        protected _pipelineLayout: GFXPipelineLayout | null;
+        protected _primitive: GFXPrimitiveMode;
+        protected _is: GFXInputState | null;
+        protected _rs: GFXRasterizerState | null;
+        protected _dss: GFXDepthStencilState | null;
+        protected _bs: GFXBlendState | null;
+        protected _dynamicStates: GFXDynamicStateFlags;
+        protected _renderPass: GFXRenderPass | null;
         constructor(device: GFXDevice);
-        abstract initialize(info: IGFXDescriptorSetInfo): boolean;
+        abstract initialize(info: IGFXPipelineStateInfo): boolean;
         abstract destroy(): void;
-        abstract update(): void;
+    }
+}
+declare module "cocos/core/gfx/fence" {
+    /**
+     * @category gfx
+     */
+    import { GFXObject } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    export interface IGFXFenceInfo {
+    }
+    /**
+     * @en GFX Fence.
+     * @zh GFX 同步信号。
+     */
+    export abstract class GFXFence extends GFXObject {
+        protected _device: GFXDevice;
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXFenceInfo): boolean;
+        abstract destroy(): void;
         /**
-         * @en Bind buffer to the specified descriptor.
-         * @zh 在指定的描述符位置上绑定缓冲。
-         * @param binding The target binding.
-         * @param buffer The buffer to be bound.
+         * @en Wait for this fence.
+         * @zh 等待当前 fence 信号。
          */
-        bindBuffer(binding: number, buffer: GFXBuffer): void;
+        abstract wait(): void;
         /**
-         * @en Bind sampler to the specified descriptor.
-         * @zh 在指定的描述符位置上绑定采样器。
-         * @param binding The target binding.
-         * @param sampler The sampler to be bound.
+         * @en Reset this fence to unsignaled state.
+         * @zh 重置当前 fence。
          */
-        bindSampler(binding: number, sampler: GFXSampler): void;
+        abstract reset(): void;
+    }
+}
+declare module "cocos/core/gfx/queue" {
+    /**
+     * @category gfx
+     */
+    import { GFXCommandBuffer } from "cocos/core/gfx/command-buffer";
+    import { GFXObject, GFXQueueType } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXFence } from "cocos/core/gfx/fence";
+    export interface IGFXQueueInfo {
+        type: GFXQueueType;
+    }
+    /**
+     * @en GFX Queue.
+     * @zh GFX 队列。
+     */
+    export abstract class GFXQueue extends GFXObject {
         /**
-         * @en Bind texture to the specified descriptor.
-         * @zh 在指定的描述符位置上绑定纹理。
-         * @param binding The target binding.
-         * @param texture The texture to be bound.
+         * @en Get current type.
+         * @zh 队列类型。
          */
-        bindTexture(binding: number, texture: GFXTexture): void;
+        get type(): number;
+        protected _device: GFXDevice;
+        protected _type: GFXQueueType;
+        protected _isAsync: boolean;
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXQueueInfo): boolean;
+        abstract destroy(): void;
+        isAsync(): boolean;
         /**
-         * @en Get buffer from the specified binding location.
-         * @zh 获取当前指定绑定位置上的缓冲。
-         * @param binding The target binding.
+         * @en Submit command buffers.
+         * @zh 提交命令缓冲数组。
+         * @param cmdBuffs The command buffers to be submitted.
+         * @param fence The syncing fence.
          */
-        getBuffer(binding: number): GFXBuffer;
+        abstract submit(cmdBuffs: GFXCommandBuffer[], fence?: GFXFence): void;
+    }
+}
+declare module "cocos/core/gfx/command-buffer" {
+    /**
+     * @category gfx
+     */
+    import { GFXDescriptorSet } from "cocos/core/gfx/descriptor-set";
+    import { GFXBuffer } from "cocos/core/gfx/buffer";
+    import { GFXBufferTextureCopy, GFXCommandBufferType, GFXObject, GFXStencilFace, GFXColor, GFXRect, GFXViewport } from "cocos/core/gfx/define";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXFramebuffer } from "cocos/core/gfx/framebuffer";
+    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
+    import { GFXPipelineState } from "cocos/core/gfx/pipeline-state";
+    import { GFXTexture } from "cocos/core/gfx/texture";
+    import { GFXRenderPass } from "cocos/core/gfx/render-pass";
+    import { GFXQueue } from "cocos/core/gfx/queue";
+    export interface IGFXCommandBufferInfo {
+        queue: GFXQueue;
+        type: GFXCommandBufferType;
+    }
+    export interface IGFXDepthBias {
+        constantFactor: number;
+        clamp: number;
+        slopeFactor: number;
+    }
+    export interface IGFXDepthBounds {
+        minBounds: number;
+        maxBounds: number;
+    }
+    export interface IGFXStencilWriteMask {
+        face: GFXStencilFace;
+        writeMask: number;
+    }
+    export interface IGFXStencilCompareMask {
+        face: GFXStencilFace;
+        reference: number;
+        compareMask: number;
+    }
+    /**
+     * @en GFX command buffer.
+     * @zh GFX 命令缓冲。
+     */
+    export abstract class GFXCommandBuffer extends GFXObject {
         /**
-         * @en Get sampler from the specified binding location.
-         * @zh 获取当前指定绑定位置上的采样器。
-         * @param binding The target binding.
+         * @en Type of the command buffer.
+         * @zh 命令缓冲类型。
          */
-        getSampler(binding: number): GFXSampler;
+        get type(): GFXCommandBufferType;
         /**
-         * @en Get texture from the specified binding location.
-         * @zh 获取当前指定绑定位置上的贴图。
-         * @param binding The target binding.
+         * @en Type of the command buffer.
+         * @zh 命令缓冲类型。
          */
-        getTexture(binding: number): GFXTexture;
+        get queue(): GFXQueue;
+        /**
+         * @en Number of draw calls currently recorded.
+         * @zh 绘制调用次数。
+         */
+        get numDrawCalls(): number;
+        /**
+         * @en Number of instances currently recorded.
+         * @zh 绘制 Instance 数量。
+         */
+        get numInstances(): number;
+        /**
+         * @en Number of triangles currently recorded.
+         * @zh 绘制三角形数量。
+         */
+        get numTris(): number;
+        protected _device: GFXDevice;
+        protected _queue: GFXQueue | null;
+        protected _type: GFXCommandBufferType;
+        protected _numDrawCalls: number;
+        protected _numInstances: number;
+        protected _numTris: number;
+        constructor(device: GFXDevice);
+        abstract initialize(info: IGFXCommandBufferInfo): boolean;
+        abstract destroy(): void;
+        /**
+         * @en Begin recording commands.
+         * @zh 开始记录命令。
+         * @param renderPass [Secondary Command Buffer Only] The render pass the subsequent commands will be executed in
+         * @param subpass [Secondary Command Buffer Only] The subpass the subsequent commands will be executed in
+         * @param frameBuffer [Secondary Command Buffer Only, Optional] The framebuffer to be used in the subpass
+         */
+        abstract begin(renderPass?: GFXRenderPass, subpass?: number, frameBuffer?: GFXFramebuffer): void;
+        /**
+         * @en End recording commands.
+         * @zh 结束记录命令。
+         */
+        abstract end(): void;
+        /**
+         * @en Begin render pass.
+         * @zh 开始 RenderPass。
+         * @param framebuffer The frame buffer used.
+         * @param renderArea The target render area.
+         * @param clearFlag The clear flags.
+         * @param clearColors The clearing colors.
+         * @param clearDepth The clearing depth.
+         * @param clearStencil The clearing stencil.
+         */
+        abstract beginRenderPass(renderPass: GFXRenderPass, framebuffer: GFXFramebuffer, renderArea: GFXRect, clearColors: GFXColor[], clearDepth: number, clearStencil: number): void;
+        /**
+         * @en End render pass.
+         * @zh 结束 RenderPass。
+         */
+        abstract endRenderPass(): void;
+        /**
+         * @en Bind pipeline state.
+         * @zh 绑定 GFX 管线状态。
+         * @param pipelineState The pipeline state to be bound.
+         */
+        abstract bindPipelineState(pipelineState: GFXPipelineState): void;
+        /**
+         * @en Bind descriptor set.
+         * @zh 绑定 GFX 描述符集。
+         * @param descriptorSet The descriptor set to be bound.
+         */
+        abstract bindDescriptorSet(set: number, descriptorSets: GFXDescriptorSet, dynamicOffsets?: number[]): void;
+        /**
+         * @en Bind input assembler.
+         * @zh 绑定GFX输入汇集器。
+         * @param inputAssembler The input assembler to be bound.
+         */
+        abstract bindInputAssembler(inputAssembler: GFXInputAssembler): void;
+        /**
+         * @en Set viewport.
+         * @zh 设置视口。
+         * @param viewport The new viewport.
+         */
+        abstract setViewport(viewport: GFXViewport): void;
+        /**
+         * @en Set scissor range.
+         * @zh 设置剪裁区域。
+         * @param scissor The new scissor range.
+         */
+        abstract setScissor(scissor: GFXRect): void;
+        /**
+         * @en Set line width.
+         * @zh 设置线宽。
+         * @param lineWidth The new line width.
+         */
+        abstract setLineWidth(lineWidth: number): void;
+        /**
+         * @en Set depth bias.
+         * @zh 设置深度偏移。
+         * @param depthBiasConstantFactor The new depth bias factor.
+         * @param depthBiasClamp The new depth bias clamp threshold.
+         * @param depthBiasSlopeFactor  The new depth bias slope factor.
+         */
+        abstract setDepthBias(depthBiasConstantFactor: number, depthBiasClamp: number, depthBiasSlopeFactor: number): void;
+        /**
+         * @en Set blend constants.
+         * @zh 设置混合因子。
+         * @param blendConstants The new blend constants.
+         */
+        abstract setBlendConstants(blendConstants: number[]): void;
+        /**
+         * @en Set depth bound.
+         * @zh 设置深度边界。
+         * @param minDepthBounds The new minimum depth bound.
+         * @param maxDepthBounds The new maximum depth bound.
+         */
+        abstract setDepthBound(minDepthBounds: number, maxDepthBounds: number): void;
+        /**
+         * @en Set stencil write mask.
+         * @zh 设置模板写掩码。
+         * @param face The effective triangle face.
+         * @param writeMask The new stencil write mask.
+         */
+        abstract setStencilWriteMask(face: GFXStencilFace, writeMask: number): void;
+        /**
+         * @en Set stencil compare mask.
+         * @zh 设置模板比较掩码。
+         * @param face The effective triangle face.
+         * @param reference The new stencil reference constant.
+         * @param compareMask The new stencil read mask.
+         */
+        abstract setStencilCompareMask(face: GFXStencilFace, reference: number, compareMask: number): void;
+        /**
+         * @en Draw the specified primitives.
+         * @zh 绘制。
+         * @param inputAssembler The target input assembler.
+         */
+        abstract draw(inputAssembler: GFXInputAssembler): void;
+        /**
+         * @en Update buffer.
+         * @zh 更新缓冲。
+         * @param buffer The buffer to be updated.
+         * @param data The source data.
+         * @param offset Offset into the buffer.
+         */
+        abstract updateBuffer(buffer: GFXBuffer, data: ArrayBuffer, offset?: number): void;
+        /**
+         * @en Copy buffer to texture.
+         * @zh 拷贝缓冲到纹理。
+         * @param srcBuff The buffer to be copied.
+         * @param dstTex The texture to copy to.
+         * @param dstLayout The target texture layout.
+         * @param regions The region descriptions.
+         */
+        abstract copyBuffersToTexture(buffers: ArrayBufferView[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
+        /**
+         * @en Execute specified command buffers.
+         * @zh 执行一组命令缓冲。
+         * @param cmdBuffs The command buffers to be executed.
+         * @param count The number of command buffers to be executed.
+         */
+        abstract execute(cmdBuffs: GFXCommandBuffer[], count: number): void;
     }
 }
 declare module "cocos/core/gfx/device" {
@@ -30663,7 +30255,7 @@ declare module "cocos/core/gfx/buffer" {
          * @en View of the back-up buffer, if specified.
          * @zh 备份缓冲视图。
          */
-        get bufferView(): Uint8Array | null;
+        get backupBuffer(): Uint8Array | null;
         protected _device: GFXDevice;
         protected _usage: GFXBufferUsage;
         protected _memUsage: GFXMemoryUsage;
@@ -30671,8 +30263,9 @@ declare module "cocos/core/gfx/buffer" {
         protected _stride: number;
         protected _count: number;
         protected _flags: GFXBufferFlags;
-        protected _bufferView: Uint8Array | null;
+        protected _bakcupBuffer: Uint8Array | null;
         protected _indirectBuffer: IGFXIndirectBuffer | null;
+        protected _isBufferView: boolean;
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXBufferInfo | IGFXBufferViewInfo): boolean;
         abstract destroy(): void;
@@ -30690,36 +30283,6 @@ declare module "cocos/core/gfx/buffer" {
          * @param size Size of the data to be updated.
          */
         abstract update(buffer: GFXBufferSource, offset?: number, size?: number): void;
-    }
-}
-declare module "cocos/core/gfx/descriptor-set-layout" {
-    /**
-     * @category gfx
-     */
-    import { GFXDescriptorType, GFXObject, GFXShaderStageFlags } from "cocos/core/gfx/define";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXSampler } from "cocos/core/gfx/sampler";
-    export interface IGFXDescriptorSetLayoutBinding {
-        descriptorType: GFXDescriptorType;
-        count: number;
-        stageFlags: GFXShaderStageFlags;
-        immutableSamplers?: GFXSampler[];
-    }
-    export interface IGFXDescriptorSetLayoutInfo {
-        bindings: IGFXDescriptorSetLayoutBinding[];
-    }
-    export const DESCRIPTOR_DYNAMIC_TYPE: number;
-    /**
-     * @en GFX descriptor sets layout.
-     * @zh GFX 描述符集布局。
-     */
-    export abstract class GFXDescriptorSetLayout extends GFXObject {
-        get bindings(): IGFXDescriptorSetLayoutBinding[];
-        protected _device: GFXDevice;
-        protected _bindings: IGFXDescriptorSetLayoutBinding[];
-        constructor(device: GFXDevice);
-        abstract initialize(info: IGFXDescriptorSetLayoutInfo): boolean;
-        abstract destroy(): void;
     }
 }
 declare module "cocos/core/gfx/pipeline-layout" {
@@ -31610,8 +31173,7 @@ declare module "cocos/core/components/component" {
         /**
          * @en The uuid for editor.
          * @zh 组件的 uuid，用于编辑器。
-         * @type {String}
-         * @editable.readOnly
+         * @readOnly
          * @example
          * ```ts
          * import { log } from 'cc';
@@ -31623,7 +31185,6 @@ declare module "cocos/core/components/component" {
         /**
          * @en indicates whether this component is enabled or not.
          * @zh 表示该组件自身是否启用。
-         * @type {Boolean}
          * @default true
          * @example
          * ```ts
@@ -31637,8 +31198,7 @@ declare module "cocos/core/components/component" {
         /**
          * @en indicates whether this component is enabled and its node is also active in the hierarchy.
          * @zh 表示该组件是否被启用并且所在的节点也处于激活状态。
-         * @type {Boolean}
-         * @editable.readOnly
+         * @readOnly
          * @example
          * ```ts
          * import { log } from 'cc';
@@ -31649,8 +31209,7 @@ declare module "cocos/core/components/component" {
         /**
          * @en Returns a value which used to indicate the onLoad get called or not.
          * @zh 返回一个值用来判断 onLoad 是否被调用过，不等于 0 时调用过，等于 0 时未调用。
-         * @type {Number}
-         * @editable.readOnly
+         * @readOnly
          * @example
          * ```ts
          * import { log } from 'cc';
@@ -31662,7 +31221,6 @@ declare module "cocos/core/components/component" {
         /**
          * @en The node this component is attached to. A component is always attached to a node.
          * @zh 该组件被附加到的节点。组件总会附加到一个节点。
-         * @type {Node}
          * @example
          * ```ts
          * import { log } from 'cc';
@@ -31671,7 +31229,6 @@ declare module "cocos/core/components/component" {
          */
         node: Node;
         /**
-         * @type {Boolean}
          * @private
          */
         _enabled: boolean;
@@ -31982,244 +31539,1141 @@ declare module "cocos/core/components/component" {
     }
     export { Component };
 }
-declare module "cocos/core/data/class-decorator" {
-    import "cocos/core/data/class";
-    import { IExposedAttributes } from "cocos/core/data/utils/attribute-defines";
-    import { CCString, CCInteger, CCFloat, CCBoolean, PrimitiveType } from "cocos/core/data/utils/attribute";
+declare module "cocos/core/scene-graph/base-node-dev" {
+    export function baseNodePolyfill(BaseNode: any): void;
+}
+declare module "cocos/core/scene-graph/scene-globals" {
     /**
-     * @en Declare a standard ES6 or TS Class as a CCClass, please refer to the [document](https://docs.cocos.com/creator3d/manual/zh/scripting/ccclass.html)
-     * @zh 将标准写法的 ES6 或者 TS Class 声明为 CCClass，具体用法请参阅[类型定义](https://docs.cocos.com/creator3d/manual/zh/scripting/ccclass.html)。
-     * @param name - The class name used for serialization.
-     * @example
-     * ```ts
-     * import { _decorator, Component } from 'cc';
-     * const {ccclass} = _decorator;
-     *
-     * // define a CCClass, omit the name
-     *  @ccclass
-     * class NewScript extends Component {
-     *     // ...
-     * }
-     *
-     * // define a CCClass with a name
-     *  @ccclass('LoginData')
-     * class LoginData {
-     *     // ...
-     * }
-     * ```
+     * @category scene-graph
      */
-    export const ccclass: any | ((name?: string) => Function);
-    export type SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
-    export type PropertyType = SimplePropertyType | SimplePropertyType[];
+    import { TextureCube } from "cocos/core/assets/texture-cube";
+    import { Color, Vec3, Vec2 } from "cocos/core/math/index";
+    import { Ambient } from "cocos/core/renderer/scene/ambient";
+    import { Shadows } from "cocos/core/renderer/scene/shadows";
+    import { Skybox } from "cocos/core/renderer/scene/skybox";
+    import { Fog } from "cocos/core/renderer/scene/fog";
+    import { Node } from "cocos/core/scene-graph/node";
     /**
-     * @zh CCClass 属性选项。
-     * @en CCClass property options
+     * @en Environment lighting information in the Scene
+     * @zh 场景的环境光照相关信息
      */
-    export interface IPropertyOptions extends IExposedAttributes {
+    export class AmbientInfo {
+        protected _skyColor: Color;
+        protected _skyIllum: number;
+        protected _groundAlbedo: Color;
+        protected _resource: Ambient | null;
+        /**
+         * @en Sky color
+         * @zh 天空颜色
+         */
+        set skyColor(val: Color);
+        get skyColor(): Color;
+        /**
+         * @en Sky illuminance
+         * @zh 天空亮度
+         */
+        set skyIllum(val: number);
+        get skyIllum(): number;
+        /**
+         * @en Ground color
+         * @zh 地面颜色
+         */
+        set groundAlbedo(val: Color);
+        get groundAlbedo(): Color;
+        activate(resource: Ambient): void;
     }
     /**
-     * @en Declare as a CCClass property with options
-     * @zh 声明属性为 CCClass 属性。
-     * @param options property options
+     * @en Skybox related information
+     * @zh 天空盒相关信息
      */
-    export function property(options?: IPropertyOptions): PropertyDecorator;
+    export class SkyboxInfo {
+        protected _envmap: TextureCube | null;
+        protected _isRGBE: boolean;
+        protected _enabled: boolean;
+        protected _useIBL: boolean;
+        protected _resource: Skybox | null;
+        /**
+         * @en Whether activate skybox in the scene
+         * @zh 是否启用天空盒？
+         */
+        set enabled(val: boolean);
+        get enabled(): boolean;
+        /**
+         * @en Whether use environment lighting
+         * @zh 是否启用环境光照？
+         */
+        set useIBL(val: boolean);
+        get useIBL(): boolean;
+        /**
+         * @en The texture cube used for the skybox
+         * @zh 使用的立方体贴图
+         */
+        set envmap(val: TextureCube | null);
+        get envmap(): TextureCube | null;
+        /**
+         * @en Whether enable RGBE data support in skybox shader
+         * @zh 是否需要开启 shader 内的 RGBE 数据支持？
+         */
+        set isRGBE(val: boolean);
+        get isRGBE(): boolean;
+        activate(resource: Skybox): void;
+    }
     /**
-     * @en Declare as a CCClass property with the property type
-     * @zh 标注属性为 cc 属性。<br/>
-     * 等价于`@property({type})`。
-     * @param type A {{ccclass}} type or a {{ValueType}}
+     * @zh 全局雾相关信息
+     * @en Global fog info
      */
-    export function property(type: PropertyType): PropertyDecorator;
+    export class FogInfo {
+        static FogType: {
+            LINEAR: number;
+            EXP: number;
+            EXP_SQUARED: number;
+            LAYERED: number;
+        };
+        protected _type: number;
+        protected _fogColor: Color;
+        protected _enabled: boolean;
+        protected _fogDensity: number;
+        protected _fogStart: number;
+        protected _fogEnd: number;
+        protected _fogAtten: number;
+        protected _fogTop: number;
+        protected _fogRange: number;
+        protected _resource: Fog | null;
+        /**
+         * @zh 是否启用全局雾效
+         * @en Enable global fog
+         */
+        set enabled(val: boolean);
+        get enabled(): boolean;
+        /**
+         * @zh 全局雾颜色
+         * @en Global fog color
+         */
+        set fogColor(val: Color);
+        get fogColor(): Color;
+        /**
+         * @zh 全局雾类型
+         * @en Global fog type
+         */
+        get type(): number;
+        set type(val: number);
+        /**
+         * @zh 全局雾浓度
+         * @en Global fog density
+         */
+        get fogDensity(): number;
+        set fogDensity(val: number);
+        /**
+         * @zh 雾效起始位置，只适用于线性雾
+         * @en Global fog start position, only for linear fog
+         */
+        get fogStart(): number;
+        set fogStart(val: number);
+        /**
+         * @zh 雾效结束位置，只适用于线性雾
+         * @en Global fog end position, only for linear fog
+         */
+        get fogEnd(): number;
+        set fogEnd(val: number);
+        /**
+         * @zh 雾效衰减
+         * @en Global fog attenuation
+         */
+        get fogAtten(): number;
+        set fogAtten(val: number);
+        /**
+         * @zh 雾效顶部范围，只适用于层级雾
+         * @en Global fog top range, only for layered fog
+         */
+        get fogTop(): number;
+        set fogTop(val: number);
+        /**
+         * @zh 雾效范围，只适用于层级雾
+         * @en Global fog range, only for layered fog
+         */
+        get fogRange(): number;
+        set fogRange(val: number);
+        activate(resource: Fog): void;
+    }
     /**
-     * @en Declare as a CCClass property
-     * @zh 标注属性为 cc 属性。<br/>
-     * 等价于`@property()`。
+     * @en Scene level planar shadow related information
+     * @zh 平面阴影相关信息
      */
-    export function property(target: Object, propertyKey: string | symbol): void;
+    export class ShadowsInfo {
+        protected _type: number;
+        protected _enabled: boolean;
+        protected _normal: Vec3;
+        protected _distance: number;
+        protected _shadowColor: Color;
+        protected _near: number;
+        protected _far: number;
+        protected _aspect: number;
+        protected _orthoSize: number;
+        protected _size: Vec2;
+        protected _resource: Shadows | null;
+        /**
+         * @en Whether activate planar shadow
+         * @zh 是否启用平面阴影？
+         */
+        set enabled(val: boolean);
+        get enabled(): boolean;
+        set type(val: number);
+        get type(): number;
+        /**
+         * @en Shadow color
+         * @zh 阴影颜色
+         */
+        set shadowColor(val: Color);
+        get shadowColor(): Color;
+        /**
+         * @en The normal of the plane which receives shadow
+         * @zh 阴影接收平面的法线
+         */
+        set normal(val: Vec3);
+        get normal(): Vec3;
+        /**
+         * @en The distance from coordinate origin to the receiving plane.
+         * @zh 阴影接收平面与原点的距离
+         */
+        set distance(val: number);
+        get distance(): number;
+        /**
+         * @en get or set shadow camera near
+         * @zh 获取或者设置阴影相机近裁剪面
+         */
+        set near(val: number);
+        get near(): number;
+        /**
+         * @en get or set shadow camera far
+         * @zh 获取或者设置阴影相机远裁剪面
+         */
+        set far(val: number);
+        get far(): number;
+        /**
+         * @en get or set shadow camera orthoSize
+         * @zh 获取或者设置阴影相机正交大小
+         */
+        set orthoSize(val: number);
+        get orthoSize(): number;
+        /**
+         * @en get or set shadow camera orthoSize
+         * @zh 获取或者设置阴影纹理大小
+         */
+        set shadowMapSize(val: Vec2);
+        get shadowMapSize(): Vec2;
+        /**
+         * @en get or set shadow camera orthoSize
+         * @zh 获取或者设置阴影纹理大小
+         */
+        set aspect(val: number);
+        get aspect(): number;
+        /**
+         * @en Set plane which receives shadow with the given node's world transformation
+         * @zh 根据指定节点的世界变换设置阴影接收平面的信息
+         * @param node The node for setting up the plane
+         */
+        setPlaneFromNode(node: Node): void;
+        activate(resource: Shadows): void;
+    }
     /**
-     * @en Makes a CCClass that inherit from component execute in edit mode.<br/>
-     * By default, all components are only executed in play mode,<br/>
-     * which means they will not have their callback functions executed while the Editor is in edit mode.<br/>
-     * @zh 允许继承自 Component 的 CCClass 在编辑器里执行。<br/>
-     * 默认情况下，所有 Component 都只会在运行时才会执行，也就是说它们的生命周期回调不会在编辑器里触发。
-     * @example
-     * ```ts
-     * import { _decorator, Component } from 'cc';
-     * const {ccclass, executeInEditMode} = _decorator;
-     *
-     *  @ccclass
-     *  @editable.executeInEditMode
-     * class NewScript extends Component {
-     *     // ...
-     * }
-     * ```
+     * @en All scene related global parameters, it affects all content in the corresponding scene
+     * @zh 各类场景级别的渲染参数，将影响全场景的所有物体
      */
-    export const executeInEditMode: any;
+    export class SceneGlobals {
+        /**
+         * @en The environment light information
+         * @zh 场景的环境光照相关信息
+         */
+        ambient: AmbientInfo;
+        /**
+         * @en Scene level planar shadow related information
+         * @zh 平面阴影相关信息
+         */
+        shadows: ShadowsInfo;
+        _skybox: SkyboxInfo;
+        fog: FogInfo;
+        /**
+         * @en Skybox related information
+         * @zh 天空盒相关信息
+         */
+        get skybox(): SkyboxInfo;
+        set skybox(value: SkyboxInfo);
+        activate(): void;
+    }
+}
+declare module "cocos/core/scene-graph/scene" {
+    import { Mat4, Quat, Vec3 } from "cocos/core/math/index";
+    import { RenderScene } from "cocos/core/renderer/scene/render-scene";
+    import { BaseNode } from "cocos/core/scene-graph/base-node";
+    import { Component } from "cocos/core/components/component";
+    import { SceneGlobals } from "cocos/core/scene-graph/scene-globals";
     /**
-     * @en Declare that the current component relies on another type of component.
-     * If the required component doesn't exist, the engine will create a new empty instance of the required component and add to the node.
-     * @zh 为声明为 CCClass 的组件添加依赖的其它组件。当组件添加到节点上时，如果依赖的组件不存在，引擎将会自动将依赖组件添加到同一个节点，防止脚本出错。该设置在运行时同样有效。
-     * @param requiredComponent The required component type
-     * @example
-     * ```ts
-     * import {_decorator, SpriteComponent, Component} from cc;
-     * import {ccclass, requireComponent} from _decorator;
-     *
-     * @ccclass
-     * @requireComponent(SpriteComponent)
-     * class SpriteCtrl extends Component {
-     *     // ...
-     * }
-     * ```
+     * @en
+     * Scene is a subclass of [[BaseNode]], composed by nodes, representing the root of a runnable environment in the game.
+     * It's managed by [[Director]] and user can switch from a scene to another using [[Director.loadScene]]
+     * @zh
+     * Scene 是 [[BaseNode]] 的子类，由节点所构成，代表着游戏中可运行的某一个整体环境。
+     * 它由 [[Director]] 管理，用户可以使用 [[Director.loadScene]] 来切换场景
      */
-    export const requireComponent: (requiredComponent: Function) => Function;
+    export class Scene extends BaseNode {
+        /**
+         * @en The renderer scene, normally user don't need to use it
+         * @zh 渲染层场景，一般情况下用户不需要关心它
+         */
+        get renderScene(): RenderScene | null;
+        get globals(): SceneGlobals;
+        /**
+         * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
+         * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
+         */
+        autoReleaseAssets: boolean;
+        /**
+         * @en Per-scene level rendering info
+         * @zh 场景级别的渲染信息
+         */
+        _globals: SceneGlobals;
+        _renderScene: RenderScene | null;
+        dependAssets: null;
+        protected _inited: boolean;
+        protected _prefabSyncedInLiveReload: boolean;
+        protected _pos: Readonly<Vec3>;
+        protected _rot: Readonly<Quat>;
+        protected _scale: Readonly<Vec3>;
+        protected _mat: Readonly<Mat4>;
+        protected _dirtyFlags: number;
+        constructor(name: string);
+        /**
+         * @en Destroy the current scene and all its nodes, this action won't destroy related assets
+         * @zh 销毁当前场景中的所有节点，这个操作不会销毁资源
+         */
+        destroy(): boolean;
+        /**
+         * @en Only for compatibility purpose, user should not add any component to the scene
+         * @zh 仅为兼容性保留，用户不应该在场景上直接添加任何组件
+         */
+        addComponent(typeOrClassName: string | Function): Component;
+        _onHierarchyChanged(): void;
+        _onBatchCreated(): void;
+        _onBatchRestored(): void;
+        /**
+         * Refer to [[Node.getPosition]]
+         */
+        getPosition(out?: Vec3): Vec3;
+        /**
+         * Refer to [[Node.getRotation]]
+         */
+        getRotation(out?: Quat): Quat;
+        /**
+         * Refer to [[Node.getScale]]
+         */
+        getScale(out?: Vec3): Vec3;
+        /**
+         * Refer to [[Node.getWorldPosition]]
+         */
+        getWorldPosition(out?: Vec3): Vec3;
+        /**
+         * Refer to [[Node.getWorldRotation]]
+         */
+        getWorldRotation(out?: Quat): Quat;
+        /**
+         * Refer to [[Node.getWorldScale]]
+         */
+        getWorldScale(out?: Vec3): Vec3;
+        /**
+         * Refer to [[Node.getWorldMatrix]]
+         */
+        getWorldMatrix(out?: Mat4): Mat4;
+        /**
+         * Refer to [[Node.getWorldRS]]
+         */
+        getWorldRS(out?: Mat4): Mat4;
+        /**
+         * Refer to [[Node.getWorldRT]]
+         */
+        getWorldRT(out?: Mat4): Mat4;
+        /**
+         * Refer to [[Node.position]]
+         */
+        get position(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.worldPosition]]
+         */
+        get worldPosition(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.rotation]]
+         */
+        get rotation(): Readonly<Quat>;
+        /**
+         * Refer to [[Node.worldRotation]]
+         */
+        get worldRotation(): Readonly<Quat>;
+        /**
+         * Refer to [[Node.scale]]
+         */
+        get scale(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.worldScale]]
+         */
+        get worldScale(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.eulerAngles]]
+         */
+        get eulerAngles(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.worldMatrix]]
+         */
+        get worldMatrix(): Readonly<Mat4>;
+        /**
+         * Refer to [[Node.updateWorldTransform]]
+         */
+        updateWorldTransform(): void;
+        protected _instantiate(): void;
+        protected _load(): void;
+        protected _activate(active: boolean): void;
+    }
+}
+declare module "cocos/core/scene-graph/base-node" {
     /**
-     * @en Add the current component to the specific menu path in `Add Component` selector of the inspector panel
-     * @zh 将当前组件添加到组件菜单中，方便用户查找。例如 "Rendering/CameraCtrl"。
-     * @param path - The path is the menu represented like a pathname. For example the menu could be "Rendering/CameraCtrl".
-     * @example
-     * ```ts
-     * import { _decorator, Component } from 'cc';
-     * const {ccclass, menu} = _decorator;
-     *
-     * @ccclass
-     * @editable.menu("Rendering/CameraCtrl")
-     * class NewScript extends Component {
-     *     // ...
-     * }
-     * ```
+     * @category scene-graph
      */
-    export const menu: (path: string) => ClassDecorator;
+    import { Component } from "cocos/core/components/component";
+    import { CCObject } from "cocos/core/data/object";
+    import { Event } from "cocos/core/event/index";
+    import { SystemEventType } from "cocos/core/platform/event-manager/event-enum";
+    import { ISchedulable } from "cocos/core/scheduler";
+    import IdGenerator from "cocos/core/utils/id-generator";
+    import { NodeEventProcessor } from "cocos/core/scene-graph/node-event-processor";
+    import { Node } from "cocos/core/scene-graph/node";
+    import { Scene } from "cocos/core/scene-graph/scene";
+    type Constructor<T = {}> = new (...args: any[]) => T;
+    export const TRANSFORM_ON: number;
     /**
-     * @en Set the component priority, it decides at which order the life cycle functions of components will be invoked. Smaller priority get invoked before larger priority.
-     * This will affect `onLoad`, `onEnable`, `start`, `update` and `lateUpdate`, but `onDisable` and `onDestroy` won't be affected.
-     * @zh 设置脚本生命周期方法调用的优先级。优先级小于 0 的组件将会优先执行，优先级大于 0 的组件将会延后执行。优先级仅会影响 onLoad, onEnable, start, update 和 lateUpdate，而 onDisable 和 onDestroy 不受影响。
-     * @param priority - The execution order of life cycle methods for Component. Smaller priority get invoked before larger priority.
-     * @example
-     * ```ts
-     * import { _decorator, Component } from 'cc';
-     * const {ccclass, executionOrder} = _decorator;
-     *
-     * @ccclass
-     * @executionOrder(1)
-     * class CameraCtrl extends Component {
-     *     // ...
-     * }
-     * ```
+     * @en The base class for [[Node]], it:
+     * - maintains scene hierarchy and life cycle logic
+     * - provides EventTarget ability
+     * - emits events if some properties changed, ref: [[SystemEventType]]
+     * - manages components
+     * @zh [[Node]] 的基类，他会负责：
+     * - 维护场景树以及节点生命周期管理
+     * - 提供 EventTarget 的事件管理和注册能力
+     * - 派发节点状态相关的事件，参考：[[SystemEventType]]
+     * - 管理组件
      */
-    export const executionOrder: (priority: number) => ClassDecorator;
+    export class BaseNode extends CCObject implements ISchedulable {
+        /**
+         * @en Gets all components attached to this node.
+         * @zh 获取附加到此节点的所有组件。
+         */
+        get components(): ReadonlyArray<Component>;
+        /**
+         * @en If true, the node is an persist node which won't be destroyed during scene transition.
+         * If false, the node will be destroyed automatically when loading a new scene. Default is false.
+         * @zh 如果为true，则该节点是一个常驻节点，不会在场景转换期间被销毁。
+         * 如果为false，节点将在加载新场景时自动销毁。默认为 false。
+         * @default false
+         * @protected
+         */
+        get _persistNode(): boolean;
+        set _persistNode(value: boolean);
+        /**
+         * @en Name of node.
+         * @zh 该节点名称。
+         */
+        get name(): string;
+        set name(value: string);
+        /**
+         * @en The uuid for editor, will be stripped after building project.
+         * @zh 主要用于编辑器的 uuid，在编辑器下可用于持久化存储，在项目构建之后将变成自增的 id。
+         * @readOnly
+         */
+        get uuid(): string;
+        /**
+         * @en All children nodes.
+         * @zh 节点的所有子节点。
+         * @readOnly
+         */
+        get children(): this[];
+        /**
+         * @en
+         * The local active state of this node.
+         * Note that a Node may be inactive because a parent is not active, even if this returns true.
+         * Use [[activeInHierarchy]]
+         * if you want to check if the Node is actually treated as active in the scene.
+         * @zh
+         * 当前节点的自身激活状态。
+         * 值得注意的是，一个节点的父节点如果不被激活，那么即使它自身设为激活，它仍然无法激活。
+         * 如果你想检查节点在场景中实际的激活状态可以使用 [[activeInHierarchy]]
+         * @default true
+         */
+        get active(): boolean;
+        set active(isActive: boolean);
+        /**
+         * @en Indicates whether this node is active in the scene.
+         * @zh 表示此节点是否在场景中激活。
+         */
+        get activeInHierarchy(): boolean;
+        /**
+         * @en The parent node
+         * @zh 父节点
+         */
+        get parent(): this | null;
+        set parent(value: this | null);
+        /**
+         * @en Which scene this node belongs to.
+         * @zh 此节点属于哪个场景。
+         * @readonly
+         */
+        get scene(): any;
+        /**
+         * @en The event processor of the current node, it provides EventTarget ability.
+         * @zh 当前节点的事件处理器，提供 EventTarget 能力。
+         * @readonly
+         */
+        get eventProcessor(): NodeEventProcessor;
+        static _setScene(node: BaseNode): void;
+        protected static idGenerator: IdGenerator;
+        protected static _stacks: Array<Array<(BaseNode | null)>>;
+        protected static _stackId: number;
+        protected static _findComponent(node: BaseNode, constructor: Function): Component | null;
+        protected static _findComponents(node: BaseNode, constructor: Function, components: Component[]): void;
+        protected static _findChildComponent(children: BaseNode[], constructor: any): any;
+        protected static _findChildComponents(children: BaseNode[], constructor: any, components: any): void;
+        protected _parent: this | null;
+        protected _children: this[];
+        protected _active: boolean;
+        protected _components: Component[];
+        protected _prefab: any;
+        protected _scene: any;
+        protected _activeInHierarchy: boolean;
+        protected _id: string;
+        protected _name: string;
+        protected _eventProcessor: NodeEventProcessor;
+        protected _eventMask: number;
+        protected _siblingIndex: number;
+        protected _registerIfAttached: ((this: BaseNode, register: any) => void) | undefined;
+        constructor(name?: string);
+        /**
+         * @en
+         * Properties configuration function.
+         * All properties in attrs will be set to the node,
+         * when the setter of the node is available,
+         * the property will be set via setter function.
+         * @zh 属性配置函数。在 attrs 的所有属性将被设置为节点属性。
+         * @param attrs - Properties to be set to node
+         * @example
+         * ```
+         * var attrs = { name: 'New Name', active: false };
+         * node.attr(attrs);
+         * ```
+         */
+        attr(attrs: Object): void;
+        /**
+         * @en Get parent of the node.
+         * @zh 获取该节点的父节点。
+         */
+        getParent(): this | null;
+        /**
+         * @en Set parent of the node.
+         * @zh 设置该节点的父节点。
+         */
+        setParent(value: this | Scene | null, keepWorldTransform?: boolean): void;
+        /**
+         * @en Returns a child with the same uuid.
+         * @zh 通过 uuid 获取节点的子节点。
+         * @param uuid - The uuid to find the child node.
+         * @return a Node whose uuid equals to the input parameter
+         */
+        getChildByUuid(uuid: string): this | null;
+        /**
+         * @en Returns a child with the same name.
+         * @zh 通过名称获取节点的子节点。
+         * @param name - A name to find the child node.
+         * @return a CCNode object whose name equals to the input parameter
+         * @example
+         * ```
+         * var child = node.getChildByName("Test Node");
+         * ```
+         */
+        getChildByName(name: string): this | null;
+        /**
+         * @en Returns a child with the given path.
+         * @zh 通过路径获取节点的子节点。
+         * @param path - A path to find the child node.
+         * @return a Node object whose path equals to the input parameter
+         * @example
+         * ```
+         * var child = node.getChildByPath("subNode/Test Node");
+         * ```
+         */
+        getChildByPath(path: string): this | null;
+        /**
+         * @en Add a child to the current node, it will be pushed to the end of [[children]] array.
+         * @zh 添加一个子节点，它会被添加到 [[children]] 数组的末尾。
+         * @param child - the child node to be added
+         */
+        addChild(child: this | Node): void;
+        /**
+         * @en Inserts a child to the node at a specified index.
+         * @zh 插入子节点到指定位置
+         * @param child - the child node to be inserted
+         * @param siblingIndex - the sibling index to place the child in
+         * @example
+         * ```
+         * node.insertChild(child, 2);
+         * ```
+         */
+        insertChild(child: this | Node, siblingIndex: number): void;
+        /**
+         * @en Get the sibling index of the current node in its parent's children array.
+         * @zh 获取当前节点在父节点的 children 数组中的位置。
+         */
+        getSiblingIndex(): number;
+        /**
+         * @en Set the sibling index of the current node in its parent's children array.
+         * @zh 设置当前节点在父节点的 children 数组中的位置。
+         */
+        setSiblingIndex(index: number): void;
+        /**
+         * @en Walk though the sub children tree of the current node.
+         * Each node, including the current node, in the sub tree will be visited two times,
+         * before all children and after all children.
+         * This function call is not recursive, it's based on stack.
+         * Please don't walk any other node inside the walk process.
+         * @zh 遍历该节点的子树里的所有节点并按规则执行回调函数。
+         * 对子树中的所有节点，包含当前节点，会执行两次回调，preFunc 会在访问它的子节点之前调用，postFunc 会在访问所有子节点之后调用。
+         * 这个函数的实现不是基于递归的，而是基于栈展开递归的方式。
+         * 请不要在 walk 过程中对任何其他的节点嵌套执行 walk。
+         * @param preFunc The callback to process node when reach the node for the first time
+         * @param postFunc The callback to process node when re-visit the node after walked all children in its sub tree
+         * @example
+         * ```
+         * node.walk(function (target) {
+         *     console.log('Walked through node ' + target.name + ' for the first time');
+         * }, function (target) {
+         *     console.log('Walked through node ' + target.name + ' after walked all children in its sub tree');
+         * });
+         * ```
+         */
+        walk(preFunc: (target: this) => void, postFunc?: (target: this) => void): void;
+        /**
+         * @en
+         * Remove itself from its parent node.
+         * If the node have no parent, then nothing happens.
+         * @zh
+         * 从父节点中删除该节点。
+         * 如果这个节点是一个孤立节点，那么什么都不会发生。
+         */
+        removeFromParent(): void;
+        /**
+         * @en Removes a child from the container.
+         * @zh 移除节点中指定的子节点。
+         * @param child - The child node which will be removed.
+         */
+        removeChild(child: this | Node): void;
+        /**
+         * @en Removes all children from the container.
+         * @zh 移除节点所有的子节点。
+         */
+        removeAllChildren(): void;
+        /**
+         * @en Is this node a child of the given node?
+         * @zh 是否是指定节点的子节点？
+         * @return True if this node is a child, deep child or identical to the given node.
+         */
+        isChildOf(parent: this | Scene | null): boolean;
+        /**
+         * @en
+         * Returns the component of supplied type if the node has one attached, null if it doesn't.
+         * You can also get component in the node by passing in the name of the script.
+         * @zh
+         * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。
+         * 传入参数也可以是脚本的名称。
+         * @param classConstructor The class of the target component
+         * @example
+         * ```
+         * // get sprite component.
+         * var sprite = node.getComponent(SpriteComponent);
+         * ```
+         */
+        getComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
+        /**
+         * @en
+         * Returns the component of supplied type if the node has one attached, null if it doesn't.
+         * You can also get component in the node by passing in the name of the script.
+         * @zh
+         * 获取节点上指定类型的组件，如果节点有附加指定类型的组件，则返回，如果没有则为空。
+         * 传入参数也可以是脚本的名称。
+         * @param className The class name of the target component
+         * @example
+         * ```
+         * // get custom test class.
+         * var test = node.getComponent("Test");
+         * ```
+         */
+        getComponent(className: string): Component | null;
+        /**
+         * @en Returns all components of given type in the node.
+         * @zh 返回节点上指定类型的所有组件。
+         * @param classConstructor The class of the target component
+         */
+        getComponents<T extends Component>(classConstructor: Constructor<T>): T[];
+        /**
+         * @en Returns all components of given type in the node.
+         * @zh 返回节点上指定类型的所有组件。
+         * @param className The class name of the target component
+         */
+        getComponents(className: string): Component[];
+        /**
+         * @en Returns the component of given type in any of its children using depth first search.
+         * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
+         * @param classConstructor The class of the target component
+         * @example
+         * ```
+         * var sprite = node.getComponentInChildren(SpriteComponent);
+         * ```
+         */
+        getComponentInChildren<T extends Component>(classConstructor: Constructor<T>): T | null;
+        /**
+         * @en Returns the component of given type in any of its children using depth first search.
+         * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
+         * @param className The class name of the target component
+         * @example
+         * ```
+         * var Test = node.getComponentInChildren("Test");
+         * ```
+         */
+        getComponentInChildren(className: string): Component | null;
+        /**
+         * @en Returns all components of given type in self or any of its children.
+         * @zh 递归查找自身或所有子节点中指定类型的组件
+         * @param classConstructor The class of the target component
+         * @example
+         * ```
+         * var sprites = node.getComponentsInChildren(SpriteComponent);
+         * ```
+         */
+        getComponentsInChildren<T extends Component>(classConstructor: Constructor<T>): T[];
+        /**
+         * @en Returns all components of given type in self or any of its children.
+         * @zh 递归查找自身或所有子节点中指定类型的组件
+         * @param className The class name of the target component
+         * @example
+         * ```
+         * var tests = node.getComponentsInChildren("Test");
+         * ```
+         */
+        getComponentsInChildren(className: string): Component[];
+        /**
+         * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
+         * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
+         * @param classConstructor The class of the component to add
+         * @throws `TypeError` if the `classConstructor` does not specify a cc-class constructor extending the `Component`.
+         * @example
+         * ```
+         * var sprite = node.addComponent(SpriteComponent);
+         * ```
+         */
+        addComponent<T extends Component>(classConstructor: Constructor<T>): T;
+        /**
+         * @en Adds a component class to the node. You can also add component to node by passing in the name of the script.
+         * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
+         * @param className The class name of the component to add
+         * @throws `TypeError` if the `className` does not specify a cc-class constructor extending the `Component`.
+         * @example
+         * ```
+         * var test = node.addComponent("Test");
+         * ```
+         */
+        addComponent(className: string): Component;
+        /**
+         * @en
+         * Removes a component identified by the given name or removes the component object given.
+         * You can also use component.destroy() if you already have the reference.
+         * @zh
+         * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
+         * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
+         * @param classConstructor The class of the component to remove
+         * @deprecated please destroy the component to remove it.
+         * @example
+         * ```
+         * node.removeComponent(SpriteComponent);
+         * ```
+         */
+        removeComponent<T extends Component>(classConstructor: Constructor<T>): void;
+        /**
+         * @en
+         * Removes a component identified by the given name or removes the component object given.
+         * You can also use component.destroy() if you already have the reference.
+         * @zh
+         * 删除节点上的指定组件，传入参数可以是一个组件构造函数或组件名，也可以是已经获得的组件引用。
+         * 如果你已经获得组件引用，你也可以直接调用 component.destroy()
+         * @param classNameOrInstance The class name of the component to remove or the component instance to be removed
+         * @deprecated please destroy the component to remove it.
+         * @example
+         * ```
+         * import { SpriteComponent } from 'cc';
+         * const sprite = node.getComponent(SpriteComponent);
+         * if (sprite) {
+         *     node.removeComponent(sprite);
+         * }
+         * node.removeComponent('cc.SpriteComponent');
+         * ```
+         */
+        removeComponent(classNameOrInstance: string | Component): void;
+        /**
+         * @en
+         * Register a callback of a specific event type on Node.
+         * Use this method to register touch or mouse event permit propagation based on scene graph,
+         * These kinds of event are triggered with dispatchEvent, the dispatch process has three steps:
+         * 1. Capturing phase: dispatch in capture targets (`_getCapturingTargets`), e.g. parents in node tree, from root to the real target
+         * 2. At target phase: dispatch to the listeners of the real target
+         * 3. Bubbling phase: dispatch in bubble targets (`_getBubblingTargets`), e.g. parents in node tree, from the real target to root
+         * In any moment of the dispatching process, it can be stopped via `event.stopPropagation()` or `event.stopPropagationImmidiate()`.
+         * It's the recommended way to register touch/mouse event for Node,
+         * please do not use `eventManager` directly for Node.
+         * You can also register custom event and use `emit` to trigger custom event on Node.
+         * For such events, there won't be capturing and bubbling phase, your event will be dispatched directly to its listeners registered on the same node.
+         * You can also pass event callback parameters with `emit` by passing parameters after `type`.
+         * @zh
+         * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的 this 对象。
+         * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：
+         * 1. 捕获阶段：派发事件给捕获目标（通过 `_getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。
+         * 2. 目标阶段：派发给目标节点的监听器。
+         * 3. 冒泡阶段：派发事件给冒泡目标（通过 `_getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发直到根节点。
+         * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。
+         * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 `eventManager`。
+         * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器
+         * 你可以通过在 emit 方法调用时在 type 之后传递额外的参数作为事件回调的参数列表
+         * @param type - A string representing the event type to listen for.<br>See {{#crossLink "Node/EventTyupe/POSITION_CHANGED"}}Node Events{{/crossLink}} for all builtin events.
+         * @param callback - The callback that will be invoked when the event is dispatched. The callback is ignored if it is a duplicate (the callbacks are unique).
+         * @param target - The target (this object) to invoke the callback, can be null
+         * @param useCapture - When set to true, the listener will be triggered at capturing phase which is ahead of the final target emit, otherwise it will be triggered during bubbling phase.
+         * @return - Just returns the incoming callback so you can save the anonymous function easier.
+         * @example
+         * ```ts
+         * this.node.on(SystemEventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
+         * node.on(SystemEventType.TOUCH_START, callback, this);
+         * node.on(SystemEventType.TOUCH_MOVE, callback, this);
+         * node.on(SystemEventType.TOUCH_END, callback, this);
+         * ```
+         */
+        on(type: string | SystemEventType, callback: Function, target?: Object, useCapture?: any): void;
+        /**
+         * @en
+         * Removes the callback previously registered with the same type, callback, target and or useCapture.
+         * This method is merely an alias to removeEventListener.
+         * @zh 删除之前与同类型，回调，目标或 useCapture 注册的回调。
+         * @param type - A string representing the event type being removed.
+         * @param callback - The callback to remove.
+         * @param target - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
+         * @param useCapture - When set to true, the listener will be triggered at capturing phase which is ahead of the final target emit, otherwise it will be triggered during bubbling phase.
+         * @example
+         * ```ts
+         * this.node.off(SystemEventType.TOUCH_START, this.memberFunction, this);
+         * node.off(SystemEventType.TOUCH_START, callback, this.node);
+         * ```
+         */
+        off(type: string, callback?: Function, target?: Object, useCapture?: any): void;
+        /**
+         * @en
+         * Register an callback of a specific event type on the Node,
+         * the callback will remove itself after the first time it is triggered.
+         * @zh
+         * 注册节点的特定事件类型回调，回调会在第一时间被触发后删除自身。
+         *
+         * @param type - A string representing the event type to listen for.
+         * @param callback - The callback that will be invoked when the event is dispatched.
+         *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+         * @param target - The target (this object) to invoke the callback, can be null
+         */
+        once(type: string, callback: Function, target?: Object, useCapture?: any): void;
+        /**
+         * @en
+         * Trigger an event directly with the event name and necessary arguments.
+         * @zh
+         * 通过事件名发送自定义事件
+         * @param type - event type
+         * @param arg1 - First argument in callback
+         * @param arg2 - Second argument in callback
+         * @param arg3 - Third argument in callback
+         * @param arg4 - Fourth argument in callback
+         * @param arg5 - Fifth argument in callback
+         * @example
+         * ```ts
+         * eventTarget.emit('fire', event);
+         * eventTarget.emit('fire', message, emitter);
+         * ```
+         */
+        emit(type: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
+        /**
+         * @en
+         * Dispatches an event into the event flow.
+         * The event target is the EventTarget object upon which the dispatchEvent() method is called.
+         * @zh 分发事件到事件流中。
+         * @param event - The Event object that is dispatched into the event flow
+         */
+        dispatchEvent(event: Event): void;
+        /**
+         * @en Checks whether the EventTarget object has any callback registered for a specific type of event.
+         * @zh 检查事件目标对象是否有为特定类型的事件注册的回调。
+         * @param type - The type of event.
+         * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
+         * @param target - The callback callee of the event listener
+         * @return True if a callback of the specified type is registered; false otherwise.
+         */
+        hasEventListener(type: string, callback?: Function, target?: Object): boolean;
+        /**
+         * @en Removes all callbacks previously registered with the same target.
+         * @zh 移除目标上的所有注册事件。
+         * @param target - The target to be searched for all related callbacks
+         */
+        targetOff(target: string | Object): void;
+        destroy(): boolean;
+        /**
+         * @en
+         * Destroy all children from the node, and release all their own references to other objects.
+         * Actual destruct operation will delayed until before rendering.
+         * @zh
+         * 销毁所有子节点，并释放所有它们对其它对象的引用。
+         * 实际销毁操作会延迟到当前帧渲染前执行。
+         */
+        destroyAllChildren(): void;
+        _removeComponent(component: Component): void;
+        _updateSiblingIndex(): void;
+        protected _onSetParent(oldParent: this | null, keepWorldTransform?: boolean): void;
+        protected _onPostActivated(active: boolean): void;
+        protected _onBatchRestored(): void;
+        protected _onBatchCreated(): void;
+        protected _onPreDestroy(): void;
+        protected _onHierarchyChanged(oldParent: this | null): void;
+        protected _instantiate(cloned: any): any;
+        protected _onHierarchyChangedBase(oldParent: this | null): void;
+        protected _onPreDestroyBase(): boolean;
+        protected _disableChildComps(): void;
+        protected _onSiblingIndexChanged?(siblingIndex: number): void;
+        /**
+         * Ensures that this node has already had the specified component(s). If not, this method throws.
+         * @param constructor Constructor of the component.
+         * @throws If one or more component of same type have been existed in this node.
+         */
+        protected _checkMultipleComp?(constructor: Function): void;
+    }
+}
+declare module "cocos/core/scene-graph/node-event-processor" {
     /**
-     * @en Forbid add multiple instances of the component to the same node.
-     * @zh 防止多个相同类型（或子类型）的组件被添加到同一个节点。
-     * @example
-     * ```ts
-     * import { _decorator, Component } from 'cc';
-     * const {ccclass, disallowMultiple} = _decorator;
-     *
-     * @ccclass
-     * @editable.disallowMultiple
-     * class CameraCtrl extends Component {
-     *     // ...
-     * }
-     * ```
+     * @hidden
      */
-    export const disallowMultiple: any;
+    import Event from "cocos/core/event/event";
+    import { EventListener } from "cocos/core/platform/event-manager/event-listener";
+    import { BaseNode } from "cocos/core/scene-graph/base-node";
+    import { CallbacksInvoker } from "cocos/core/event/callbacks-invoker";
     /**
-     * @en When {{executeInEditMode}} is set, this decorator will decide when a node with the component is on focus whether the editor should running in high FPS mode.
-     * @zh 当指定了 "executeInEditMode" 以后，playOnFocus 可以在选中当前组件所在的节点时，提高编辑器的场景刷新频率到 60 FPS，否则场景就只会在必要的时候进行重绘。
-     * @example
-     * ```ts
-     * import { _decorator, Component } from 'cc';
-     * const {ccclass, playOnFocus, executeInEditMode} = _decorator;
-     *
-     * @ccclass
-     * @editable.executeInEditMode
-     * @playOnFocus
-     * class CameraCtrl extends Component {
-     *     // ...
-     * }
-     * ```
+     * @zh
+     * 节点事件类。
      */
-    export const playOnFocus: any;
+    export class NodeEventProcessor {
+        get node(): BaseNode;
+        /**
+         * @zh
+         * 节点冒泡事件监听器
+         */
+        bubblingTargets: CallbacksInvoker | null;
+        /**
+         * @zh
+         * 节点捕获事件监听器
+         */
+        capturingTargets: CallbacksInvoker | null;
+        /**
+         * @zh
+         * 触摸监听器
+         */
+        touchListener: EventListener | null;
+        /**
+         * @zh
+         * 鼠标监听器
+         */
+        mouseListener: EventListener | null;
+        private _node;
+        constructor(node: BaseNode);
+        reattach(): void;
+        destroy(): void;
+        /**
+         * @zh
+         * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的 this 对象。<br/>
+         * 鼠标或触摸事件会被系统调用 dispatchEvent 方法触发，触发的过程包含三个阶段：<br/>
+         * 1. 捕获阶段：派发事件给捕获目标（通过 `getCapturingTargets` 获取），比如，节点树中注册了捕获阶段的父节点，从根节点开始派发直到目标节点。<br/>
+         * 2. 目标阶段：派发给目标节点的监听器。<br/>
+         * 3. 冒泡阶段：派发事件给冒泡目标（通过 `getBubblingTargets` 获取），比如，节点树中注册了冒泡阶段的父节点，从目标节点开始派发直到根节点。<br/>
+         * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。<br/>
+         * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 `eventManager`。<br/>
+         * 你也可以注册自定义事件到节点上，并通过 emit 方法触发此类事件，对于这类事件，不会发生捕获冒泡阶段，只会直接派发给注册在该节点上的监听器。<br/>
+         * 你可以通过在 emit 方法调用时在 type 之后传递额外的参数作为事件回调的参数列表。<br/>
+         *
+         * @param type - 一个监听事件类型的字符串。参见：[[EventType]]
+         * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
+         * @param callback.event - 事件派发的时候回调的第一个参数。
+         * @param callback.arg2 - 第二个参数。
+         * @param callback.arg3 - 第三个参数。
+         * @param callback.arg4 - 第四个参数。
+         * @param callback.arg5 - 第五个参数。
+         * @param target - 调用回调的目标。可以为空。
+         * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+         * @return - 返回监听回调函数自身。
+         *
+         * @example
+         * ```ts
+         * import { Node } from 'cc';
+         * this.node.on(Node.EventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
+         * this.node.on(Node.EventType.TOUCH_START, callback, this);
+         * this.node.on(Node.EventType.ANCHOR_CHANGED, callback);
+         * ```
+         */
+        on(type: string, callback: Function, target?: Object, useCapture?: Object): Function | undefined;
+        /**
+         * @zh
+         * 注册节点的特定事件类型回调，回调会在第一时间被触发后删除自身。
+         *
+         * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
+         * @param callback - 事件分派时将被调用的回调函数。如果该回调存在则不会重复添加。
+         * @param callback.event - 事件派发的时候回调的第一个参数。
+         * @param callback.arg2 - 第二个参数。
+         * @param callback.arg3 - 第三个参数。
+         * @param callback.arg4 - 第四个参数。
+         * @param callback.arg5 - 第五个参数。
+         * @param target - 调用回调的目标。可以为空。
+         * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+         *
+         * @example
+         * ```ts
+         * import { Node } from 'cc';
+         * node.once(Node.EventType.ANCHOR_CHANGED, callback);
+         * ```
+         */
+        once(type: string, callback: Function, target?: Object, useCapture?: Object): void;
+        /**
+         * @zh
+         * 删除之前与同类型，回调，目标或 useCapture 注册的回调。
+         *
+         * @param type - 一个监听事件类型的字符串。参见：[[EventType]]。
+         * @param callback - 移除指定注册回调。如果没有给，则删除全部同事件类型的监听。
+         * @param target - 调用回调的目标。配合 callback 一起使用。
+         * @param useCapture - 当设置为 true，监听器将在捕获阶段触发，否则将在冒泡阶段触发。默认为 false。
+         *
+         * @example
+         * ```ts
+         * import { Node } from 'cc';
+         * this.node.off(Node.EventType.TOUCH_START, this.memberFunction, this);
+         * node.off(Node.EventType.TOUCH_START, callback, this.node);
+         * node.off(Node.EventType.ANCHOR_CHANGED, callback, this);
+         * ```
+         */
+        off(type: string, callback?: Function, target?: Object, useCapture?: Object): void;
+        /**
+         * @zh
+         * 通过事件名发送自定义事件
+         *
+         * @param type - 一个监听事件类型的字符串。
+         * @param arg0 - 回调第一个参数。
+         * @param arg1 - 回调第二个参数。
+         * @param arg2 - 回调第三个参数。
+         * @param arg3 - 回调第四个参数。
+         * @param arg4 - 回调第五个参数。
+         * @example
+         * ```ts
+         * eventTarget.emit('fire', event);
+         * eventTarget.emit('fire', message, emitter);
+         * ```
+         */
+        emit(type: string, arg0?: any, arg1?: any, arg2?: any, arg3?: any, arg4?: any): void;
+        /**
+         * @zh
+         * 分发事件到事件流中。
+         *
+         * @param event - 分派到事件流中的事件对象。
+         */
+        dispatchEvent(event: Event): void;
+        /**
+         * @zh
+         * 是否监听过某事件。
+         *
+         * @param type - 一个监听事件类型的字符串。
+         * @param callback - The callback function of the event listener, if absent all event listeners for the given type will be removed
+         * @param target - The callback callee of the event listener
+         * @return - 返回是否当前节点已监听该事件类型。
+         */
+        hasEventListener(type: string, callback?: Function, target?: Object): boolean;
+        /**
+         * @zh
+         * 移除在特定事件类型中注册的所有回调或在某个目标中注册的所有回调。
+         *
+         * @param target - 要删除的事件键或要删除的目标。
+         */
+        targetOff(target: string | Object): void;
+        /**
+         * @zh
+         * 获得所提供的事件类型在目标捕获阶段监听的所有目标。
+         * 捕获阶段包括从根节点到目标节点的过程。
+         * 结果保存在数组参数中，并且必须从子节点排序到父节点。
+         *
+         * @param type - 一个监听事件类型的字符串。
+         * @param array - 接收目标的数组。
+         */
+        getCapturingTargets(type: string, targets: BaseNode[]): void;
+        /**
+         * @zh
+         * 获得所提供的事件类型在目标冒泡阶段监听的所有目标。
+         * 冒泡阶段目标节点到根节点的过程。
+         * 结果保存在数组参数中，并且必须从子节点排序到父节点。
+         *
+         * @param type - 一个监听事件类型的字符串。
+         * @param array - 接收目标的数组。
+         */
+        getBubblingTargets(type: string, targets: BaseNode[]): void;
+        private _checknSetupSysEvent;
+        private _onDispatch;
+        private _offDispatch;
+    }
+}
+declare module "cocos/core/scene-graph/private-node" {
+    import { Node } from "cocos/core/scene-graph/node";
     /**
-     * @en Use a customized inspector page in the **inspector**
-     * @zh 自定义当前组件在 **属性检查器** 中渲染时所用的 UI 页面描述。
-     * @param url The url of the page definition in js
-     * @example
-     * ```ts
-     * import { Component } from 'cc';
-     * import { editable } from 'cc._decorators';
-     *
-     * @ccclass
-     * @editable.inspector("packages://inspector/inspectors/comps/camera-ctrl.js")
-     * class NewScript extends Component {
-     *     // ...
-     * }
-     * ```
+     * @en
+     * Class of private entities in Cocos Creator 3d scenes.<br/>
+     * The PrivateNode is hidden in editor, and completely transparent to users.<br/>
+     * It's normally used as Node's private content created by components in parent node.<br/>
+     * So in theory private nodes are not children, they are part of the parent node.<br/>
+     * Private node have two important characteristics:<br/>
+     * 1. It has the minimum z index and cannot be modified, because they can't be displayed over real children.<br/>
+     * 2. The positioning of private nodes is also special, they will consider the left bottom corner of the parent node's bounding box as the origin of local coordinates.<br/>
+     *    In this way, they can be easily kept inside the bounding box.<br/>
+     * Currently, it's used by RichText component and TileMap component.
+     * @zh
+     * Cocos Creator 3d 场景中的私有节点类。<br/>
+     * 私有节点在编辑器中不可见，对用户透明。<br/>
+     * 通常私有节点是被一些特殊的组件创建出来作为父节点的一部分而存在的，理论上来说，它们不是子节点，而是父节点的组成部分。<br/>
+     * 私有节点有两个非常重要的特性：<br/>
+     * 1. 它有着最小的渲染排序的 Z 轴深度，并且无法被更改，因为它们不能被显示在其他正常子节点之上。<br/>
+     * 2. 它的定位也是特殊的，对于私有节点来说，父节点包围盒的左下角是它的局部坐标系原点，这个原点相当于父节点的位置减去它锚点的偏移。这样私有节点可以比较容易被控制在包围盒之中。<br/>
+     * 目前在引擎中，RichText 和 TileMap 都有可能生成私有节点。
      */
-    export const inspector: (url: string) => ClassDecorator;
+    export class PrivateNode extends Node {
+        constructor(name: string);
+    }
+}
+declare module "cocos/core/scene-graph/deprecated" { }
+declare module "cocos/core/scene-graph/index" {
     /**
-     * @en Define the icon of the component.
-     * @zh 自定义当前组件在编辑器中显示的图标 url。
-     * @param url
-     * @private
-     * @example
-     * ```ts
-     * import { Component } from 'cc';
-     * import { editable } from 'cc._decorators';
-     *
-     *  @ccclass
-     *  @editable.icon("xxxx.png")
-     * class NewScript extends Component {
-     *     // ...
-     * }
-     * ```
+     * @category scene-graph
      */
-    export const icon: (url: string) => ClassDecorator;
-    /**
-     * @en Define the help documentation url, if given, the component section in the **inspector** will have a help documentation icon reference to the web page given.
-     * @zh 指定当前组件的帮助文档的 url，设置过后，在 **属性检查器** 中就会出现一个帮助图标，用户点击将打开指定的网页。
-     * @param url The url of the help documentation
-     * @example
-     * ```ts
-     * import { Component } from 'cc';
-     * import { editable } from 'cc._decorators';
-     *
-     * @ccclass
-     * @editable.help("app://docs/html/components/spine.html")
-     * class NewScript extends Component {
-     *     // ...
-     * }
-     * ```
-     */
-    export const help: (url: string) => ClassDecorator;
-    /**
-     * @en Declare the property as integer
-     * @zh 将该属性标记为整数。
-     */
-    export const integer: PropertyDecorator;
-    /**
-     * @en Declare the property as float
-     * @zh 将该属性标记为浮点数。
-     */
-    export const float: PropertyDecorator;
-    /**
-     * @en Declare the property as boolean
-     * @zh 将该属性标记为布尔值。
-     */
-    export const boolean: PropertyDecorator;
-    /**
-     * @en Declare the property as string
-     * @zh 将该属性标记为字符串。
-     */
-    export const string: PropertyDecorator;
-    /**
-     * @en Declare the property as the given type
-     * @zh 标记该属性的类型。
-     * @param type
-     */
-    export function type(type: Function | [Function] | any): PropertyDecorator;
-    export function type<T>(type: PrimitiveType<T> | [PrimitiveType<T>]): PropertyDecorator;
+    import "cocos/core/scene-graph/node-event-processor";
+    export { BaseNode } from "cocos/core/scene-graph/base-node";
+    export { Node } from "cocos/core/scene-graph/node";
+    export { Scene } from "cocos/core/scene-graph/scene";
+    export { Layers } from "cocos/core/scene-graph/layers";
+    export { find } from "cocos/core/scene-graph/find";
+    export { PrivateNode } from "cocos/core/scene-graph/private-node";
+    export { default as NodeActivator } from "cocos/core/scene-graph/node-activator";
+    import "cocos/core/scene-graph/deprecated";
 }
 declare module "cocos/core/assets/asset" {
     import { RawAsset } from "cocos/core/assets/raw-asset";
@@ -32287,7 +32741,7 @@ declare module "cocos/core/assets/asset" {
          * Returns the url of this asset's native object, if none it will returns an empty string.
          * @zh
          * 返回该资源对应的目标平台资源的 URL，如果没有将返回一个空字符串。
-         * @editable.readOnly
+         * @readOnly
          */
         get nativeUrl(): string;
         /**
@@ -32300,7 +32754,6 @@ declare module "cocos/core/assets/asset" {
          * 如果`_native`可用，则此属性将由加载器初始化。
          * @default null
          * @private
-         * @type {any}
          */
         get _nativeAsset(): any;
         set _nativeAsset(obj: any);
@@ -32672,8 +33125,8 @@ declare module "exports/audio" {
     import { AudioSourceComponent } from "cocos/audio/audio-source-component";
     export { AudioSourceComponent };
 }
-declare module "exports/decorator" {
-    export * from "cocos/core/data/_decorators/index";
+declare module "exports/decorators" {
+    export * from "cocos/core/data/decorators/index";
 }
 declare module "cocos/core/gfx/webgl/webgl-command-allocator" {
     import { CachedArray } from "cocos/core/memop/cached-array";
@@ -32835,6 +33288,8 @@ declare module "cocos/core/gfx/webgl/webgl-gpu-objects" {
     }
     export interface IWebGLGPUPipelineLayout {
         gpuSetLayouts: IWebGLGPUDescriptorSetLayout[];
+        dynamicOffsetCount: number;
+        dynamicOffsetOffsets: number[];
         dynamicOffsetIndices: number[][];
     }
     export interface IWebGLGPUPipelineState {
@@ -32996,9 +33451,9 @@ declare module "cocos/core/gfx/webgl/webgl-command-buffer" {
         protected _webGLAllocator: WebGLCommandAllocator | null;
         protected _isInRenderPass: boolean;
         protected _curGPUPipelineState: IWebGLGPUPipelineState | null;
+        protected _curGPUInputAssembler: IWebGLGPUInputAssembler | null;
         protected _curGPUDescriptorSets: IWebGLGPUDescriptorSet[];
         protected _curDynamicOffsets: number[][];
-        protected _curGPUInputAssembler: IWebGLGPUInputAssembler | null;
         protected _curViewport: GFXViewport | null;
         protected _curScissor: GFXRect | null;
         protected _curLineWidth: number | null;
@@ -33327,7 +33782,7 @@ declare module "cocos/core/gfx/webgl/webgl-device" {
         get useVAO(): boolean;
         get destroyShadersImmediately(): boolean;
         get noCompressedTexSubImage2D(): boolean;
-        get bindingMappingInfo(): GFXBindingMappingInfo | null;
+        get bindingMappingInfo(): GFXBindingMappingInfo;
         get EXT_texture_filter_anisotropic(): EXT_texture_filter_anisotropic | null;
         get EXT_frag_depth(): EXT_frag_depth | null;
         get EXT_shader_texture_lod(): EXT_shader_texture_lod | null;
@@ -33587,6 +34042,8 @@ declare module "cocos/core/gfx/webgl2/webgl2-gpu-objects" {
     }
     export interface IWebGL2GPUPipelineLayout {
         gpuSetLayouts: IWebGL2GPUDescriptorSetLayout[];
+        dynamicOffsetCount: number;
+        dynamicOffsetOffsets: number[];
         dynamicOffsetIndices: number[][];
     }
     export interface IWebGL2GPUPipelineState {
@@ -33895,7 +34352,6 @@ declare module "cocos/core/gfx/webgl2/webgl2-buffer" {
     export class WebGL2Buffer extends GFXBuffer {
         get gpuBuffer(): IWebGL2GPUBuffer;
         private _gpuBuffer;
-        private _isBufferView;
         initialize(info: IGFXBufferInfo | IGFXBufferViewInfo): boolean;
         destroy(): void;
         resize(size: number): void;
@@ -34019,7 +34475,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-device" {
         get isAntialias(): boolean;
         get isPremultipliedAlpha(): boolean;
         get useVAO(): boolean;
-        get bindingMappingInfo(): GFXBindingMappingInfo | null;
+        get bindingMappingInfo(): GFXBindingMappingInfo;
         get EXT_texture_filter_anisotropic(): EXT_texture_filter_anisotropic | null;
         get OES_texture_float_linear(): OES_texture_float_linear | null;
         get EXT_color_buffer_float(): EXT_color_buffer_float | null;
@@ -39163,7 +39619,7 @@ declare module "cocos/terrain/height-field" {
     }
 }
 declare module "cocos/terrain/terrain" {
-    import { Texture2D } from "cocos/core/assets/index";
+    import { EffectAsset, Texture2D } from "cocos/core/assets/index";
     import { Material } from "cocos/core/assets/material";
     import { Component } from "cocos/core/components/index";
     import { GFXBuffer } from "cocos/core/gfx/buffer";
@@ -39322,6 +39778,7 @@ declare module "cocos/terrain/terrain" {
      */
     export class Terrain extends Component {
         protected __asset: TerrainAsset | null;
+        protected _effectAsset: EffectAsset | null;
         protected _layers: (TerrainLayer | null)[];
         protected _blockInfos: TerrainBlockInfo[];
         protected _lightmapInfos: TerrainBlockLightmapInfo[];
@@ -39337,6 +39794,12 @@ declare module "cocos/terrain/terrain" {
         constructor();
         set _asset(value: TerrainAsset | null);
         get _asset(): TerrainAsset | null;
+        /**
+         * @en Terrain effect asset
+         * @zh 地形特效资源
+         */
+        set effectAsset(value: EffectAsset | null);
+        get effectAsset(): EffectAsset | null;
         /**
          * @en get terrain size
          * @zh 获得地形大小
@@ -39413,6 +39876,7 @@ declare module "cocos/terrain/terrain" {
          */
         exportHeightField(hf: HeightField, heightScale: number): void;
         exportAsset(): TerrainAsset;
+        getEffectAsset(): any;
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
@@ -39560,7 +40024,6 @@ declare module "cocos/tween/actions/action" {
          * !#zh 默认动作标签。
          * @constant
          * @static
-         * @type {Number}
          * @default -1
          */
         static TAG_INVALID: number;
@@ -39761,9 +40224,8 @@ declare module "cocos/tween/actions/action-manager" {
          * 属于该目标的所有的动作将被删除。
          * @method removeAllActionsFromTarget
          * @param {Node} target
-         * @param {Boolean} forceDelete
          */
-        removeAllActionsFromTarget(target: Node, forceDelete: boolean): void;
+        removeAllActionsFromTarget(target: Node): void;
         /**
          * !#en Removes an action given an action reference.
          * !#zh 移除指定的动作。
@@ -39771,6 +40233,7 @@ declare module "cocos/tween/actions/action-manager" {
          * @param {Action} action
          */
         removeAction(action: Action): void;
+        _removeActionByTag(tag: number, element: any, target?: Node): void;
         /**
          * !#en Removes an action given its tag and the target.
          * !#zh 删除指定对象下特定标签的一个动作，将删除首个匹配到的动作。
@@ -39778,7 +40241,7 @@ declare module "cocos/tween/actions/action-manager" {
          * @param {Number} tag
          * @param {Node} target
          */
-        removeActionByTag(tag: number, target: Node): void;
+        removeActionByTag(tag: number, target?: Node): void;
         /**
          * !#en Gets an action given its tag an a target.
          * !#zh 通过目标对象和标签获取一个动作。
@@ -40396,7 +40859,13 @@ declare module "cocos/tween/tween" {
         private _actions;
         private _finalAction;
         private _target;
+        private _tag;
         constructor(target?: object | null);
+        /**
+         * @en Sets tween tag
+         * @zh 设置缓动的标签
+         */
+        tag(tag: number): this;
         /**
          * @en
          * Insert an action or tween to this sequence.
@@ -40595,6 +41064,27 @@ declare module "cocos/tween/tween" {
          * @return {Tween}
          */
         removeSelf(): Tween;
+        /**
+         * @en
+         * Stop all tweens
+         * @zh
+         * 停止所有缓动
+         */
+        static stopAll(): void;
+        /**
+         * @en
+         * Stop all tweens by tag
+         * @zh
+         * 停止所有指定标签的缓动
+         */
+        static stopAllByTag(tag: number, target?: object): void;
+        /**
+         * @en
+         * Stop all tweens by target
+         * @zh
+         * 停止所有指定对象的缓动
+         */
+        static stopAllByTarget(target: any): void;
         private _union;
         private _destroy;
         private static readonly _tmp_args;
