@@ -1070,7 +1070,7 @@ declare module "cc" {
             protected _updatePipeline(): void;
             updateSphereLight(light: SphereLight): void;
             updateDirLight(light: DirectionalLight): void;
-            updateShadowList(scene: RenderScene, frstm: geometry.frustum, stamp: number, shadowVisible?: boolean): void;
+            updateShadowList(scene: RenderScene, frstm: geometry.frustum, shadowVisible?: boolean): void;
             recordCommandBuffer(device: GFXDevice, renderPass: GFXRenderPass, cmdBuff: GFXCommandBuffer): void;
             createShadowData(model: Model): IShadowRenderData;
             destroyShadowData(model: Model): void;
@@ -1102,6 +1102,7 @@ declare module "cc" {
             static registerCreateFunc(root: __private.cocos_core_root_Root): void;
             constructor(root: __private.cocos_core_root_Root);
             initialize(info: IRenderSceneInfo): boolean;
+            update(stamp: number): void;
             destroy(): void;
             addCamera(cam: Camera): void;
             removeCamera(camera: Camera): void;
@@ -13129,7 +13130,7 @@ declare module "cc" {
          * @zh 渲染函数，对指定的渲染视图按顺序执行所有渲染流程。
          * @param view Render view。
          */
-        render(view: RenderView): void;
+        render(views: RenderView[]): void;
         /**
          * @en Internal destroy function
          * @zh 内部销毁函数。
@@ -13246,7 +13247,7 @@ declare module "cc" {
          * @zh 构造函数。
          * @param camera
          */
-        constructor(camera: renderer.Camera);
+        constructor();
         /**
          * @en Initialization function with a render view information descriptor
          * @zh 使用一个渲染视图描述信息来初始化。
@@ -13334,6 +13335,7 @@ declare module "cc" {
         protected _shadowUBO: Float32Array;
         initialize(info: __private.cocos_core_pipeline_render_pipeline_IRenderPipelineInfo): boolean;
         activate(): boolean;
+        render(views: RenderView[]): void;
         getRenderPass(clearFlags: GFXClearFlag): GFXRenderPass;
         /**
          * @en Update all UBOs
@@ -21209,7 +21211,7 @@ declare module "cc" {
         protected onEnable(): void;
         protected start(): void;
         protected update(dt: any): void;
-        protected _convertToScrollViewSpace(contentTrans: UITransformComponent): math.Vec3;
+        protected _convertToScrollViewSpace(content: Node): math.Vec3;
         protected _setOpacity(opacity: number): void;
         protected _updateHandlerPosition(position: math.Vec3): void;
         protected _fixupHandlerPosition(): math.Vec3;
@@ -21262,8 +21264,8 @@ declare module "cc" {
          * 是否开启滚动惯性。
          */
         inertia: boolean;
-        get content(): UITransformComponent | null;
-        set content(value: UITransformComponent | null);
+        get content(): Node | null;
+        set content(value: Node | null);
         /**
          * @en
          * Enable horizontal scroll.
@@ -21305,7 +21307,7 @@ declare module "cc" {
         get view(): UITransformComponent | null;
         protected _autoScrolling: boolean;
         protected _scrolling: boolean;
-        protected _content: UITransformComponent | null;
+        protected _content: Node | null;
         protected _horizontalScrollBar: ScrollBarComponent | null;
         protected _verticalScrollBar: ScrollBarComponent | null;
         protected _topBoundary: number;
@@ -22754,7 +22756,6 @@ declare module "cc" {
     export import CubicSplineVec4Value = animation.CubicSplineVec4Value;
     export import CubicSplineQuatValue = animation.CubicSplineQuatValue;
     export import CubicSplineNumberValue = animation.CubicSplineNumberValue;
-    import { requireComponent, executionOrder, disallowMultiple, executeInEditMode, menu, playOnFocus, inspector, icon, help, type, integer, float, boolean, string } from "cc.decorators";
     export namespace __private {
         export interface cocos_audio_assets_player_IAudioInfo {
             clip: any;
@@ -23011,7 +23012,6 @@ declare module "cc" {
             get pipeline(): RenderPipeline;
             get ui(): cocos_core_renderer_ui_ui_UI;
             get scenes(): renderer.RenderScene[];
-            get views(): RenderView[];
             get cumulativeTime(): number;
             get frameTime(): number;
             get frameCount(): number;
@@ -23101,15 +23101,21 @@ declare module "cc" {
             createView(info: cocos_core_pipeline_render_view_IRenderViewInfo): RenderView;
             /**
              * @zh
-             * 销毁指定的渲染视图
-             * @param view 渲染视图
+             * 添加渲染相机
+             * @param camera 渲染相机
              */
-            destroyView(view: RenderView): void;
+            attachCamera(camera: renderer.Camera): void;
             /**
              * @zh
-             * 销毁全部渲染视图
+             * 移除渲染相机
+             * @param camera 相机
              */
-            destroyViews(): void;
+            detachCamera(camera: renderer.Camera): void;
+            /**
+             * @zh
+             * 销毁全部渲染相机
+             */
+            clearCameras(): void;
             createModel<T extends renderer.Model>(mClass: typeof renderer.Model): T;
             destroyModel(m: renderer.Model): void;
             createCamera(): renderer.Camera;
@@ -28262,9 +28268,10 @@ declare module "cc" {
             getLetterDefinitionForChar(char: string): cocos_ui_assembler_label_bmfontUtils_FontLetterDefinition;
         }
     }
+    import { requireComponent, executionOrder, disallowMultiple, executeInEditMode, menu, playOnFocus, inspector, icon, help, type, integer, float, boolean, string } from "cc.decorator";
     import { PrimitiveType as _PrimitiveType, EAxisDirection as _EAxisDirection, ERigidBodyType as _ERigidBodyType } from "cc";
 }
-declare module "cc.decorators" {
+declare module "cc.decorator" {
     /**
      * @en Declare that the current component relies on another type of component.
      * If the required component doesn't exist, the engine will create a new empty instance of the required component and add to the node.
@@ -28574,6 +28581,5 @@ declare module "cc.decorators" {
      */
     export const disallowAnimation: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
     export import ccclass = _decorator.ccclass;
-    import { _decorator } from "cc";
-    import { __private as ___private } from "cc";
+    import { __private as ___private, _decorator } from "cc";
 }
