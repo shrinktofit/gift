@@ -31,7 +31,7 @@ export class NameResolver {
 
 export namespace NameResolver {
     export interface ResolveResult {
-        module?: string;
+        module?: rConcepts.Entity;
         namespaces?: string[];
         name: string;
     }
@@ -66,6 +66,8 @@ export function resolveRelativePath(from: rConcepts.NamespaceTraits, to: rConcep
     // However the 'A' may also has a (nested) namespace named "a.b....".
     // So the conflict occurs.
     // In such case, we have to prefer the longest path to avoid conflict.
+    // Known issue: when resolve "A B ..." from "A C ..."
+    // And C has member named B, the result is wrong.
     let iNoConflict = iUnmatchedNamespace;
     if (iNoConflict < toFullPath.length) {
         while (iNoConflict > 0) {
@@ -80,7 +82,7 @@ export function resolveRelativePath(from: rConcepts.NamespaceTraits, to: rConcep
 
     if (iNoConflict === 0) {
         // Module mismatch
-        result.module = toFullPath[0].name;
+        result.module = toFullPath[0];
         ++iNoConflict;
     }
 

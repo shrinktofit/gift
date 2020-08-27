@@ -1,4 +1,119 @@
 declare module "cc" {
+    /**
+     * @en
+     * The audio clip asset. <br>
+     * 'started' event is emitted once the audio began to play. <br>
+     * 'ended' event is emitted once the audio stopped. <br>
+     * Low-level platform-specific details are handled independently inside each clip.
+     * @zh
+     * 音频片段资源。<br>
+     * 每当音频片段实际开始播放时，会发出 'started' 事件；<br>
+     * 每当音频片段自然结束播放时，会发出 'ended' 事件。<br>
+     * 每个片段独立处理自己依赖的平台相关的底层细节。
+     */
+    export class AudioClip extends Asset {
+        static PlayingState: {
+            INITIALIZING: number;
+            PLAYING: number;
+            STOPPED: number;
+        };
+        static AudioType: {
+            WEB_AUDIO: number;
+            DOM_AUDIO: number;
+            JSB_AUDIO: number;
+            UNKNOWN_AUDIO: number;
+        };
+        static preventDeferredLoadDependents: boolean;
+        protected _duration: number;
+        protected _loadMode: number;
+        protected _audio: any;
+        protected _player: __private.cocos_audio_assets_player_AudioPlayer | null;
+        constructor();
+        destroy(): boolean;
+        set _nativeAsset(clip: any);
+        get _nativeAsset(): any;
+        get loadMode(): number;
+        get state(): number;
+        play(): void;
+        pause(): void;
+        stop(): void;
+        playOneShot(volume: number): void;
+        setCurrentTime(val: number): void;
+        getCurrentTime(): number;
+        getDuration(): number;
+        setVolume(val: number, immediate?: boolean): void;
+        getVolume(): number;
+        setLoop(val: boolean): void;
+        getLoop(): boolean;
+    }
+    /**
+     * @en
+     * A representation of a single audio source, <br>
+     * contains basic functionalities like play, pause and stop.
+     * @zh
+     * 音频组件，代表单个音源，提供播放、暂停、停止等基本功能。
+     */
+    export class AudioSourceComponent extends Component {
+        protected _clip: AudioClip | null;
+        protected _loop: boolean;
+        protected _playOnAwake: boolean;
+        protected _volume: number;
+        set clip(val: AudioClip | null);
+        get clip(): AudioClip | null;
+        set loop(val: boolean);
+        get loop(): boolean;
+        set playOnAwake(val: boolean);
+        get playOnAwake(): boolean;
+        set volume(val: number);
+        get volume(): number;
+        onLoad(): void;
+        onDisable(): void;
+        onDestroy(): void;
+        /**
+         * @en
+         * Play the clip.<br>
+         * Restart if already playing.<br>
+         * Resume if paused.
+         * @zh
+         * 开始播放。<br>
+         * 如果音频处于正在播放状态，将会重新开始播放音频。<br>
+         * 如果音频处于暂停状态，则会继续播放音频。
+         */
+        play(): void;
+        /**
+         * @en
+         * Pause the clip.
+         * @zh
+         * 暂停播放。
+         */
+        pause(): void;
+        /**
+         * @en
+         * Stop the clip.
+         * @zh
+         * 停止播放。
+         */
+        stop(): void;
+        /**
+         * @en
+         * Plays an AudioClip, and scales volume by volumeScale.<br>
+         * Note: for multiple playback on the same clip, the actual behavior is platform-specific.<br>
+         * Re-start style fallback will be used if the underlying platform doesn't support it.
+         * @zh
+         * 以指定音量播放一个音频一次。<br>
+         * 注意，对同一个音频片段，不同平台多重播放效果存在差异。<br>
+         * 对不支持的平台，如前一次尚未播完，则会立即重新播放。
+         * @param clip The audio clip to be played.
+         * @param volumeScale volume scaling factor wrt. current value.
+         */
+        playOneShot(clip: AudioClip, volumeScale?: number): void;
+        protected _syncStates(): void;
+        set currentTime(num: number);
+        get currentTime(): number;
+        get duration(): number;
+        get state(): number;
+        get playing(): boolean;
+    }
     export namespace renderer {
         export function createIA(device: any, data: any): any;
         export const addStage: (name: any) => void;
@@ -286,7 +401,7 @@ declare module "cc" {
             export type getPropertyTypeFromHandle = typeof renderer.getPropertyTypeFromHandle;
             export type getTypeFromHandle = typeof renderer.getTypeFromHandle;
             export type getBindingFromHandle = typeof renderer.getBindingFromHandle;
-            export type fillinPipelineInfo = typeof Pass.fillPipelineInfo;
+            export type fillPipelineInfo = typeof Pass.fillPipelineInfo;
             export type getPassHash = typeof Pass.getPassHash;
             export type getOffsetFromHandle = typeof renderer.getOffsetFromHandle;
             export type PropertyType = typeof renderer.PropertyType;
@@ -534,7 +649,7 @@ declare module "cc" {
             bindSkeleton(skeleton?: Skeleton | null, skinningRoot?: Node | null, mesh?: Mesh | null): void;
             updateTransform(stamp: number): void;
             updateUBOs(stamp: number): boolean;
-            initSubModel(idx: number, subMeshData: __private.cocos_core_assets_mesh_RenderingSubMesh, mat: Material): void;
+            initSubModel(idx: number, subMeshData: RenderingSubMesh, mat: Material): void;
             getMacroPatches(subModelIndex: number): any;
             _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
         }
@@ -578,7 +693,6 @@ declare module "cc" {
             protected _albedoArray: Float32Array;
             protected _colorArray: Float32Array;
             activate(): void;
-            update(): void;
         }
         export enum CameraFOVAxis {
             VERTICAL = 0,
@@ -860,8 +974,8 @@ declare module "cc" {
              * @param maxPos the max position of the model
              */
             createBoundingShape(minPos?: math.Vec3, maxPos?: math.Vec3): void;
-            initSubModel(idx: number, subMeshData: __private.cocos_core_assets_mesh_RenderingSubMesh, mat: Material): void;
-            setSubModelMesh(idx: number, subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh): void;
+            initSubModel(idx: number, subMeshData: RenderingSubMesh, mat: Material): void;
+            setSubModelMesh(idx: number, subMesh: RenderingSubMesh): void;
             setSubModelMaterial(idx: number, mat: Material): void;
             onGlobalPipelineStateChanged(): void;
             updateLightingmap(texture: Texture2D | null, uvParam: math.Vec4): void;
@@ -872,12 +986,34 @@ declare module "cc" {
             protected _initLocalDescriptors(subModelIndex: number): void;
             protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
         }
+        /**
+         * @zh 阴影类型。
+         * @en The shadow type
+         * @static
+         * @enum Shadows.ShadowType
+         */
+        export const ShadowType: {
+            /**
+             * @zh 平面阴影。
+             * @en Planar shadow
+             * @property Planar
+             * @readonly
+             */
+            Planar: number;
+            /**
+             * @zh 阴影贴图。
+             * @en Shadow type
+             * @property ShadowMap
+             * @readonly
+             */
+            ShadowMap: number;
+        };
         export interface IShadowRenderData {
             model: Model;
             shaders: GFXShader[];
             instancedBuffer: __private.cocos_core_pipeline_instanced_buffer_InstancedBuffer | null;
         }
-        export class PlanarShadows {
+        export class Shadows {
             get enabled(): boolean;
             set enabled(val: boolean);
             get normal(): math.Vec3;
@@ -886,9 +1022,12 @@ declare module "cc" {
             set distance(val: number);
             get shadowColor(): math.Color;
             set shadowColor(color: math.Color);
+            get type(): number;
+            set type(val: number);
             get matLight(): math.Mat4;
             get data(): Float32Array;
             protected _enabled: boolean;
+            protected _type: number;
             protected _normal: math.Vec3;
             protected _distance: number;
             protected _shadowColor: math.Color;
@@ -901,7 +1040,34 @@ declare module "cc" {
             protected _device: GFXDevice | null;
             protected _globalDescriptorSet: GFXDescriptorSet | null;
             protected _dirty: boolean;
+            /**
+             * @en get or set shadow camera near
+             * @zh 获取或者设置阴影相机近裁剪面
+             */
+            near: number;
+            /**
+             * @en get or set shadow camera far
+             * @zh 获取或者设置阴影相机远裁剪面
+             */
+            far: number;
+            /**
+             * @en get or set shadow camera aspect
+             * @zh 获取或者设置阴影相机的宽高比
+             */
+            aspect: number;
+            /**
+             * @en get or set shadow camera orthoSize
+             * @zh 获取或者设置阴影相机正交大小
+             */
+            orthoSize: number;
+            /**
+             * @en get or set shadow camera orthoSize
+             * @zh 获取或者设置阴影纹理大小
+             */
+            size: math.Vec2;
             activate(): void;
+            protected _updatePlanarInfo(): void;
+            protected _updatePipeline(): void;
             updateSphereLight(light: SphereLight): void;
             updateDirLight(light: DirectionalLight): void;
             updateShadowList(scene: RenderScene, frstm: geometry.frustum, stamp: number, shadowVisible?: boolean): void;
@@ -1042,7 +1208,6 @@ declare module "cc" {
             protected _model: Model | null;
             protected _default: TextureCube | null;
             activate(): void;
-            onGlobalPipelineStateChanged(): void;
             protected _updatePipeline(): void;
             protected _updateGlobalBinding(): void;
         }
@@ -1093,7 +1258,7 @@ declare module "cc" {
         export class SubModel {
             protected _device: GFXDevice | null;
             protected _passes: Pass[] | null;
-            protected _subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh | null;
+            protected _subMesh: RenderingSubMesh | null;
             protected _patches: IMacroPatch[] | null;
             protected _handle: __private.cocos_core_renderer_core_memory_pools_SubModelHandle;
             protected _priority: __private.cocos_core_pipeline_define_RenderPriority;
@@ -1101,14 +1266,14 @@ declare module "cc" {
             protected _descriptorSet: GFXDescriptorSet | null;
             set passes(passes: Pass[]);
             get passes(): Pass[];
-            set subMesh(subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh);
-            get subMesh(): __private.cocos_core_assets_mesh_RenderingSubMesh;
+            set subMesh(subMesh: RenderingSubMesh);
+            get subMesh(): RenderingSubMesh;
             set priority(val: __private.cocos_core_pipeline_define_RenderPriority);
             get priority(): __private.cocos_core_pipeline_define_RenderPriority;
             get handle(): __private.cocos_core_renderer_core_memory_pools_SubModelHandle;
             get inputAssembler(): GFXInputAssembler;
             get descriptorSet(): GFXDescriptorSet;
-            initialize(subMesh: __private.cocos_core_assets_mesh_RenderingSubMesh, passes: Pass[], patches?: IMacroPatch[] | null): void;
+            initialize(subMesh: RenderingSubMesh, passes: Pass[], patches?: IMacroPatch[] | null): void;
             destroy(): void;
             update(): void;
             onPipelineStateChanged(): void;
@@ -4411,7 +4576,7 @@ declare module "cc" {
             ray_plane: (ray: ray, plane: plane) => number;
             ray_triangle: (ray: ray, triangle: triangle, doubleSided?: boolean | undefined) => number;
             ray_capsule: (ray: ray, capsule: capsule) => number;
-            ray_subMesh: (ray: ray, submesh: __private.cocos_core_assets_mesh_RenderingSubMesh, options?: IRaySubMeshOptions | undefined) => number;
+            ray_subMesh: (ray: ray, submesh: RenderingSubMesh, options?: IRaySubMeshOptions | undefined) => number;
             ray_mesh: (ray: ray, mesh: Mesh, options?: IRayMeshOptions | undefined) => number;
             ray_model: (r: ray, model: renderer.Model, options?: IRayModelOptions | undefined) => number;
             line_sphere: typeof __private.cocos_core_geometry_intersect_line_sphere;
@@ -5649,10 +5814,27 @@ declare module "cc" {
      */
     export function Enum<T>(obj: T): T;
     export namespace Enum {
-        export var isEnum: (enumType: any) => any;
-        export var getList: (enumDef: any) => any;
+        export var isEnum: <EnumT extends {}>(enumType: EnumT) => boolean;
+        export var getList: <EnumT extends {}>(enumType: EnumT) => readonly Enum.Enumerator<EnumT>[];
+        export interface Enumerator<EnumT> {
+            /**
+             * The name of the enumerator.
+             */
+            name: keyof EnumT;
+            /**
+             * The value of the numerator.
+             */
+            value: EnumT[typeof name];
+        }
     }
-    export function ccenum(enumx: any): void;
+    /**
+     * Make the enum type `enumType` as enumeration so that Creator may identify, operate on it.
+     * Formally, as a result of invocation on this function with enum type `enumType`:
+     * - `Enum.isEnum(enumType)` returns `true`;
+     * - `Enum.getList(enumType)` returns the enumerators of `enumType`.
+     * @param enumType An enum type, eg, a kind of type with similar semantic defined by TypeScript.
+     */
+    export function ccenum<EnumT extends {}>(enumType: EnumT): void;
     /**
      * 所有值类型的基类。
      */
@@ -6244,210 +6426,27 @@ declare module "cc" {
          * }
          * ```
          */
-        export const ccclass: any | ((name?: string) => Function);
+        export const ccclass: ((name?: string) => ClassDecorator) & ClassDecorator;
         /**
          * @en Declare as a CCClass property with options
          * @zh 声明属性为 CCClass 属性。
          * @param options property options
          */
-        export function property(options?: __private.cocos_core_data_class_decorator_IPropertyOptions): PropertyDecorator;
+        export function property(options?: __private.cocos_core_data_decorators_property_IPropertyOptions): __private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
         /**
          * @en Declare as a CCClass property with the property type
          * @zh 标注属性为 cc 属性。<br/>
          * 等价于`@property({type})`。
          * @param type A {{ccclass}} type or a {{ValueType}}
          */
-        export function property(type: __private.cocos_core_data_class_decorator_PropertyType): PropertyDecorator;
+        export function property(type: __private.cocos_core_data_decorators_property_PropertyType): __private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
         /**
          * @en Declare as a CCClass property
          * @zh 标注属性为 cc 属性。<br/>
          * 等价于`@property()`。
          */
-        export function property(target: Object, propertyKey: string | symbol): void;
-        /**
-         * @en Makes a CCClass that inherit from component execute in edit mode.<br/>
-         * By default, all components are only executed in play mode,<br/>
-         * which means they will not have their callback functions executed while the Editor is in edit mode.<br/>
-         * @zh 允许继承自 Component 的 CCClass 在编辑器里执行。<br/>
-         * 默认情况下，所有 Component 都只会在运行时才会执行，也就是说它们的生命周期回调不会在编辑器里触发。
-         * @example
-         * ```ts
-         * import { _decorator, Component } from 'cc';
-         * const {ccclass, executeInEditMode} = _decorator;
-         *
-         *  @ccclass
-         *  @editable.executeInEditMode
-         * class NewScript extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const executeInEditMode: any;
-        /**
-         * @en Declare that the current component relies on another type of component.
-         * If the required component doesn't exist, the engine will create a new empty instance of the required component and add to the node.
-         * @zh 为声明为 CCClass 的组件添加依赖的其它组件。当组件添加到节点上时，如果依赖的组件不存在，引擎将会自动将依赖组件添加到同一个节点，防止脚本出错。该设置在运行时同样有效。
-         * @param requiredComponent The required component type
-         * @example
-         * ```ts
-         * import {_decorator, SpriteComponent, Component} from cc;
-         * import {ccclass, requireComponent} from _decorator;
-         *
-         * @ccclass
-         * @requireComponent(SpriteComponent)
-         * class SpriteCtrl extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const requireComponent: (requiredComponent: Function) => Function;
-        /**
-         * @en Add the current component to the specific menu path in `Add Component` selector of the inspector panel
-         * @zh 将当前组件添加到组件菜单中，方便用户查找。例如 "Rendering/CameraCtrl"。
-         * @param path - The path is the menu represented like a pathname. For example the menu could be "Rendering/CameraCtrl".
-         * @example
-         * ```ts
-         * import { _decorator, Component } from 'cc';
-         * const {ccclass, menu} = _decorator;
-         *
-         * @ccclass
-         * @editable.menu("Rendering/CameraCtrl")
-         * class NewScript extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const menu: (path: string) => ClassDecorator;
-        /**
-         * @en Set the component priority, it decides at which order the life cycle functions of components will be invoked. Smaller priority get invoked before larger priority.
-         * This will affect `onLoad`, `onEnable`, `start`, `update` and `lateUpdate`, but `onDisable` and `onDestroy` won't be affected.
-         * @zh 设置脚本生命周期方法调用的优先级。优先级小于 0 的组件将会优先执行，优先级大于 0 的组件将会延后执行。优先级仅会影响 onLoad, onEnable, start, update 和 lateUpdate，而 onDisable 和 onDestroy 不受影响。
-         * @param priority - The execution order of life cycle methods for Component. Smaller priority get invoked before larger priority.
-         * @example
-         * ```ts
-         * import { _decorator, Component } from 'cc';
-         * const {ccclass, executionOrder} = _decorator;
-         *
-         * @ccclass
-         * @executionOrder(1)
-         * class CameraCtrl extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const executionOrder: (priority: number) => ClassDecorator;
-        /**
-         * @en Forbid add multiple instances of the component to the same node.
-         * @zh 防止多个相同类型（或子类型）的组件被添加到同一个节点。
-         * @example
-         * ```ts
-         * import { _decorator, Component } from 'cc';
-         * const {ccclass, disallowMultiple} = _decorator;
-         *
-         * @ccclass
-         * @editable.disallowMultiple
-         * class CameraCtrl extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const disallowMultiple: any;
-        /**
-         * @en When {{executeInEditMode}} is set, this decorator will decide when a node with the component is on focus whether the editor should running in high FPS mode.
-         * @zh 当指定了 "executeInEditMode" 以后，playOnFocus 可以在选中当前组件所在的节点时，提高编辑器的场景刷新频率到 60 FPS，否则场景就只会在必要的时候进行重绘。
-         * @example
-         * ```ts
-         * import { _decorator, Component } from 'cc';
-         * const {ccclass, playOnFocus, executeInEditMode} = _decorator;
-         *
-         * @ccclass
-         * @editable.executeInEditMode
-         * @playOnFocus
-         * class CameraCtrl extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const playOnFocus: any;
-        /**
-         * @en Use a customized inspector page in the **inspector**
-         * @zh 自定义当前组件在 **属性检查器** 中渲染时所用的 UI 页面描述。
-         * @param url The url of the page definition in js
-         * @example
-         * ```ts
-         * import { Component } from 'cc';
-         * import { editable } from 'cc._decorators';
-         *
-         * @ccclass
-         * @editable.inspector("packages://inspector/inspectors/comps/camera-ctrl.js")
-         * class NewScript extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const inspector: (url: string) => ClassDecorator;
-        /**
-         * @en Define the icon of the component.
-         * @zh 自定义当前组件在编辑器中显示的图标 url。
-         * @param url
-         * @private
-         * @example
-         * ```ts
-         * import { Component } from 'cc';
-         * import { editable } from 'cc._decorators';
-         *
-         *  @ccclass
-         *  @editable.icon("xxxx.png")
-         * class NewScript extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const icon: (url: string) => ClassDecorator;
-        /**
-         * @en Define the help documentation url, if given, the component section in the **inspector** will have a help documentation icon reference to the web page given.
-         * @zh 指定当前组件的帮助文档的 url，设置过后，在 **属性检查器** 中就会出现一个帮助图标，用户点击将打开指定的网页。
-         * @param url The url of the help documentation
-         * @example
-         * ```ts
-         * import { Component } from 'cc';
-         * import { editable } from 'cc._decorators';
-         *
-         * @ccclass
-         * @editable.help("app://docs/html/components/spine.html")
-         * class NewScript extends Component {
-         *     // ...
-         * }
-         * ```
-         */
-        export const help: (url: string) => ClassDecorator;
-        /**
-         * @en Declare the property as string
-         * @zh 将该属性标记为字符串。
-         */
-        export const string: PropertyDecorator;
-        /**
-         * @en Declare the property as integer
-         * @zh 将该属性标记为整数。
-         */
-        export const integer: PropertyDecorator;
-        /**
-         * @en Declare the property as float
-         * @zh 将该属性标记为浮点数。
-         */
-        export const float: PropertyDecorator;
-        /**
-         * @en Declare the property as boolean
-         * @zh 将该属性标记为布尔值。
-         */
-        export const boolean: PropertyDecorator;
-        /**
-         * @en Declare the property as the given type
-         * @zh 标记该属性的类型。
-         * @param type
-         */
-        export function type(type: Function | [Function] | any): PropertyDecorator;
-        export function type<T>(type: __private.cocos_core_data_utils_attribute_PrimitiveType<T> | [__private.cocos_core_data_utils_attribute_PrimitiveType<T>]): PropertyDecorator;
+        export function property(...args: Parameters<__private.cocos_core_data_decorators_utils_LegacyPropertyDecorator>): void;
+        export { requireComponent, executionOrder, disallowMultiple, executeInEditMode, menu, playOnFocus, inspector, icon, help, type, integer, float, boolean, string };
     }
     function CCClass(options: any): any;
     export namespace CCClass {
@@ -7135,7 +7134,7 @@ declare module "cc" {
          *
          * @returns - 精灵贴图。
          */
-        getTexture(): RenderTexture | import("cocos/core/assets/texture-base").TextureBase | null;
+        getTexture(): import("cocos/core/assets/texture-base").TextureBase | RenderTexture | null;
         /**
          * @zh
          * 根据键值获取精灵。
@@ -7383,7 +7382,7 @@ declare module "cc" {
             type: GFXTextureType;
             width: number;
             height: number;
-        } & Pick<IGFXTextureInfo, "usage" | "format" | "flags" | "levelCount">;
+        } & Pick<IGFXTextureInfo, "usage" | "flags" | "format" | "levelCount">;
         protected _checkTextureLoaded(): void;
     }
     /**
@@ -7663,7 +7662,7 @@ declare module "cc" {
          * @param name The property or uniform name.
          * @param passIdx The target pass index. If not specified, return the first found value in all passes.
          */
-        getProperty(name: string, passIdx?: number): number | math.Vec3 | math.Mat4 | math.Quat | math.Mat3 | math.Vec2 | math.Vec4 | math.Color | GFXTexture | RenderTexture | __private.cocos_core_assets_texture_base_TextureBase | SpriteFrame | __private.cocos_core_assets_material_MaterialPropertyFull[] | null;
+        getProperty(name: string, passIdx?: number): number | math.Vec3 | math.Mat4 | math.Quat | math.Mat3 | math.Vec2 | math.Vec4 | math.Color | GFXTexture | __private.cocos_core_assets_texture_base_TextureBase | SpriteFrame | RenderTexture | __private.cocos_core_assets_material_MaterialPropertyFull[] | null;
         /**
          * @en Copy the target material.
          * @zh 复制目标材质到当前实例。
@@ -7711,7 +7710,7 @@ declare module "cc" {
          * @param info 网格重置选项。
          */
         reset(info: Mesh.ICreateInfo): void;
-        get renderingSubMeshes(): __private.cocos_core_assets_mesh_RenderingSubMesh[];
+        get renderingSubMeshes(): RenderingSubMesh[];
         getBoneSpaceBounds(skeleton: Skeleton): (geometry.aabb | null)[];
         /**
          * 合并指定的网格到此网格中。
@@ -7854,6 +7853,46 @@ declare module "cc" {
              */
             data: Uint8Array;
         }
+    }
+    /**
+     * 渲染子网格。
+     */
+    export class RenderingSubMesh implements IGFXInputAssemblerInfo {
+        /**
+         * 使用的所有顶点缓冲区。
+         */
+        vertexBuffers: GFXBuffer[];
+        /**
+         * 所有顶点属性。
+         */
+        attributes: IGFXAttribute[];
+        /**
+         * 图元类型。
+         */
+        primitiveMode: GFXPrimitiveMode;
+        /**
+         * 使用的索引缓冲区，若未使用则无需指定。
+         */
+        indexBuffer?: GFXBuffer;
+        /**
+         * 间接绘制缓冲区。
+         */
+        indirectBuffer?: GFXBuffer;
+        get geometricInfo(): __private.cocos_core_assets_mesh_IGeometricInfo;
+        get flatBuffers(): __private.cocos_core_assets_mesh_IFlatBuffer[];
+        get jointMappedBuffers(): GFXBuffer[];
+        mesh?: Mesh;
+        subMeshIdx?: number;
+        constructor(vertexBuffers: GFXBuffer[], attributes: IGFXAttribute[], primitiveMode: GFXPrimitiveMode);
+        destroy(): void;
+        /**
+         * Adds a vertex attribute input called 'a_vertexId' into this sub-mesh.
+         * This is useful if you want to simulate `gl_VertexId` in WebGL context prior to 2.0.
+         * Once you call this function, the vertex attribute is permanently added.
+         * Subsequent calls to this function take no effect.
+         * @param device Device used to create related rendering resources.
+         */
+        enableVertexIdChannel(device: GFXDevice): void;
     }
     /**
      * 骨骼资源。
@@ -8036,8 +8075,8 @@ declare module "cc" {
         set offset(value: math.Vec2);
         get rotated(): boolean;
         set rotated(rotated: boolean);
-        get texture(): RenderTexture | __private.cocos_core_assets_texture_base_TextureBase;
-        set texture(value: RenderTexture | __private.cocos_core_assets_texture_base_TextureBase);
+        get texture(): __private.cocos_core_assets_texture_base_TextureBase | RenderTexture;
+        set texture(value: __private.cocos_core_assets_texture_base_TextureBase | RenderTexture);
         get atlasUuid(): string;
         set atlasUuid(value: string);
         get width(): number;
@@ -9949,7 +9988,7 @@ declare module "cc" {
          * @param bubbles - Indicate whether the event bubbles up through the hierarchy or not.
          * @param eventCode - The type code of the touch event
          */
-        constructor(touches?: Touch[], bubbles?: boolean, eventCode?: number);
+        constructor(changedTouches?: Touch[], bubbles?: boolean, eventCode?: number, touches?: Touch[]);
         /**
          * @en Returns event type code.
          * @zh 获取触摸事件类型。
@@ -9957,9 +9996,17 @@ declare module "cc" {
         getEventCode(): number;
         /**
          * @en Returns touches of event.
-         * @zh 获取触摸点的列表。
+         * @zh 获取有变动的触摸点的列表。
+         * 注意：第一根手指按下不动，接着按第二根手指，这时候触点信息就只有变动的这根手指（第二根手指）的信息。
+         * 如果需要获取全部手指的信息，请使用 `getAllTouches`。
          */
         getTouches(): Touch[];
+        /**
+         * @en Returns touches of event.
+         * @zh 获取所有触摸点的列表。
+         * 注意：如果手指行为是 touch end，这个时候列表是没有该手指信息的。如需知道该手指信息，可通过 `getTouches` 获取识别。
+         */
+        getAllTouches(): Touch[];
         /**
          * @en Sets touch location.
          * @zh 设置当前触点位置
@@ -11458,7 +11505,7 @@ declare module "cc" {
         get stride(): number;
         get count(): number;
         get flags(): GFXBufferFlags;
-        get bufferView(): Uint8Array | null;
+        get backupBuffer(): Uint8Array | null;
         protected _device: GFXDevice;
         protected _usage: GFXBufferUsage;
         protected _memUsage: GFXMemoryUsage;
@@ -11466,8 +11513,9 @@ declare module "cc" {
         protected _stride: number;
         protected _count: number;
         protected _flags: GFXBufferFlags;
-        protected _bufferView: Uint8Array | null;
+        protected _bakcupBuffer: Uint8Array | null;
         protected _indirectBuffer: IGFXIndirectBuffer | null;
+        protected _isBufferView: boolean;
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXBufferInfo | IGFXBufferViewInfo): boolean;
         abstract destroy(): void;
@@ -11696,20 +11744,19 @@ declare module "cc" {
         UNKNOWN = 0,
         BUFFER = 1,
         TEXTURE = 2,
-        TEXTURE_VIEW = 3,
-        RENDER_PASS = 4,
-        FRAMEBUFFER = 5,
-        SAMPLER = 6,
-        SHADER = 7,
-        DESCRIPTOR_SET_LAYOUT = 8,
-        PIPELINE_LAYOUT = 9,
-        PIPELINE_STATE = 10,
-        DESCRIPTOR_SET = 11,
-        INPUT_ASSEMBLER = 12,
-        COMMAND_BUFFER = 13,
-        FENCE = 14,
-        QUEUE = 15,
-        WINDOW = 16
+        RENDER_PASS = 3,
+        FRAMEBUFFER = 4,
+        SAMPLER = 5,
+        SHADER = 6,
+        DESCRIPTOR_SET_LAYOUT = 7,
+        PIPELINE_LAYOUT = 8,
+        PIPELINE_STATE = 9,
+        DESCRIPTOR_SET = 10,
+        INPUT_ASSEMBLER = 11,
+        COMMAND_BUFFER = 12,
+        FENCE = 13,
+        QUEUE = 14,
+        WINDOW = 15
     }
     /**
      * @en GFX base object.
@@ -13271,8 +13318,7 @@ declare module "cc" {
         fog: __private.cocos_core_renderer_scene_fog_Fog;
         ambient: renderer.Ambient;
         skybox: renderer.Skybox;
-        planarShadows: renderer.PlanarShadows;
-        shadowMap: __private.cocos_core_renderer_scene_shadow_Shadow;
+        shadows: renderer.Shadows;
         /**
          * @en The list for render objects, only available after the scene culling of the current frame.
          * @zh 渲染对象数组，仅在当前帧的场景剔除完成后有效。
@@ -13372,6 +13418,29 @@ declare module "cc" {
         render(view: RenderView): void;
     }
     /**
+     * @en The UI render flow
+     * @zh UI渲染流程。
+     */
+    export class UIFlow extends RenderFlow {
+        static initInfo: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo;
+        initialize(info: __private.cocos_core_pipeline_render_flow_IRenderFlowInfo): boolean;
+        destroy(): void;
+        render(view: RenderView): void;
+    }
+    /**
+     * @en The UI render stage
+     * @zh UI渲阶段。
+     */
+    export class UIStage extends RenderStage {
+        static initInfo: __private.cocos_core_pipeline_render_stage_IRenderStageInfo;
+        protected renderQueues: __private.cocos_core_pipeline_pipeline_serialization_RenderQueueDesc[];
+        protected _renderQueues: __private.cocos_core_pipeline_render_queue_RenderQueue[];
+        initialize(info: __private.cocos_core_pipeline_render_stage_IRenderStageInfo): boolean;
+        activate(pipeline: ForwardPipeline, flow: UIFlow): void;
+        destroy(): void;
+        render(view: RenderView): void;
+    }
+    /**
      * @class url
      * @static
      */
@@ -13379,7 +13448,7 @@ declare module "cc" {
         /**
          * The base url of raw assets.
          * @private
-         * @editable.readOnly
+         * @readOnly
          */
         _rawAssets: string;
         normalize: (url: any) => any;
@@ -14701,11 +14770,17 @@ declare module "cc" {
      */
     export class Scene extends BaseNode {
         get renderScene(): renderer.RenderScene | null;
+        get globals(): __private.cocos_core_scene_graph_scene_globals_SceneGlobals;
         /**
          * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
          * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
          */
         autoReleaseAssets: boolean;
+        /**
+         * @en Per-scene level rendering info
+         * @zh 场景级别的渲染信息
+         */
+        _globals: __private.cocos_core_scene_graph_scene_globals_SceneGlobals;
         _renderScene: renderer.RenderScene | null;
         dependAssets: null;
         protected _inited: boolean;
@@ -14952,7 +15027,6 @@ declare module "cc" {
         /**
          * @en The node this component is attached to. A component is always attached to a node.
          * @zh 该组件被附加到的节点。组件总会附加到一个节点。
-         * @type {Node}
          * @example
          * ```ts
          * import { log } from 'cc';
@@ -14961,7 +15035,6 @@ declare module "cc" {
          */
         node: Node;
         /**
-         * @type {Boolean}
          * @private
          */
         _enabled: boolean;
@@ -15485,7 +15558,7 @@ declare module "cc" {
         set color(value: Readonly<math.Color>);
         protected _uiMaterial: Material | null;
         protected _uiMaterialIns: renderer.MaterialInstance | null;
-        protected getUIRenderMaterial(): Material | renderer.MaterialInstance | null;
+        protected getUIRenderMaterial(): renderer.MaterialInstance | Material | null;
         getUIMaterialInstance(): renderer.MaterialInstance;
         protected _uiMaterialDirty: boolean;
         protected _uiMatInsDirty: boolean;
@@ -15555,7 +15628,7 @@ declare module "cc" {
         protected _canRender(): boolean;
         protected _postCanRender(): void;
         protected _updateColor(): void;
-        _updateBlendFunc(): Material | renderer.MaterialInstance | null;
+        _updateBlendFunc(): renderer.MaterialInstance | Material | null;
         protected _nodeStateChange(type: __private.cocos_core_scene_graph_node_enum_TransformBit): void;
         _updateBuiltinMaterial(): Material;
         protected _flushAssembler?(): void;
@@ -15748,8 +15821,73 @@ declare module "cc" {
         export function readBuffer(target: DataView, format?: GFXFormat, offset?: number, length?: number, stride?: number, out?: number[]): number[];
         export function writeBuffer(target: DataView, data: number[], format?: GFXFormat, offset?: number, stride?: number): void;
         export function mapBuffer(target: DataView, callback: (cur: number, idx: number, view: DataView) => number, format?: GFXFormat, offset?: number, length?: number, stride?: number, out?: DataView): DataView;
+        export { find };
     }
     export const effects: ({
+        name: string;
+        _uuid: string;
+        techniques: {
+            passes: {
+                blendState: {
+                    targets: {
+                        blend: boolean;
+                        blendSrc: number;
+                        blendDst: number;
+                        blendSrcAlpha: number;
+                        blendDstAlpha: number;
+                    }[];
+                };
+                rasterizerState: {
+                    cullMode: number;
+                };
+                program: string;
+            }[];
+        }[];
+        shaders: {
+            name: string;
+            hash: number;
+            glsl3: {
+                vert: string;
+                frag: string;
+            };
+            glsl1: {
+                vert: string;
+                frag: string;
+            };
+            glsl4: {
+                vert: string;
+                frag: string;
+            };
+            builtins: {
+                globals: {
+                    blocks: {
+                        name: string;
+                        defines: never[];
+                    }[];
+                    samplers: never[];
+                };
+                locals: {
+                    blocks: {
+                        name: string;
+                        defines: never[];
+                    }[];
+                    samplers: never[];
+                };
+            };
+            defines: never[];
+            blocks: never[];
+            samplers: never[];
+            attributes: {
+                name: string;
+                type: number;
+                count: number;
+                defines: never[];
+                stageFlags: number;
+                format: number;
+                location: number;
+            }[];
+        }[];
+    } | {
         name: string;
         _uuid: string;
         techniques: {
@@ -17355,7 +17493,7 @@ declare module "cc" {
         /**
          * @en The iteration duration of this animation in seconds. (length)
          * @zh 单次动画的持续时间，秒。（动画长度）
-         * @editable.readOnly
+         * @readOnly
          */
         duration: number;
         /**
@@ -18314,7 +18452,7 @@ declare module "cc" {
         get useVAO(): boolean;
         get destroyShadersImmediately(): boolean;
         get noCompressedTexSubImage2D(): boolean;
-        get bindingMappingInfo(): GFXBindingMappingInfo | null;
+        get bindingMappingInfo(): GFXBindingMappingInfo;
         get EXT_texture_filter_anisotropic(): EXT_texture_filter_anisotropic | null;
         get EXT_frag_depth(): EXT_frag_depth | null;
         get EXT_shader_texture_lod(): EXT_shader_texture_lod | null;
@@ -18370,7 +18508,7 @@ declare module "cc" {
         get isAntialias(): boolean;
         get isPremultipliedAlpha(): boolean;
         get useVAO(): boolean;
-        get bindingMappingInfo(): GFXBindingMappingInfo | null;
+        get bindingMappingInfo(): GFXBindingMappingInfo;
         get EXT_texture_filter_anisotropic(): EXT_texture_filter_anisotropic | null;
         get OES_texture_float_linear(): OES_texture_float_linear | null;
         get EXT_color_buffer_float(): __private.EXT_color_buffer_float | null;
@@ -18410,121 +18548,6 @@ declare module "cc" {
         copyTexImagesToTexture(texImages: TexImageSource[], texture: GFXTexture, regions: GFXBufferTextureCopy[]): void;
         copyFramebufferToBuffer(srcFramebuffer: GFXFramebuffer, dstBuffer: ArrayBuffer, regions: GFXBufferTextureCopy[]): void;
         blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: GFXRect, dstRect: GFXRect, filter: GFXFilter): void;
-    }
-    /**
-     * @en
-     * The audio clip asset. <br>
-     * 'started' event is emitted once the audio began to play. <br>
-     * 'ended' event is emitted once the audio stopped. <br>
-     * Low-level platform-specific details are handled independently inside each clip.
-     * @zh
-     * 音频片段资源。<br>
-     * 每当音频片段实际开始播放时，会发出 'started' 事件；<br>
-     * 每当音频片段自然结束播放时，会发出 'ended' 事件。<br>
-     * 每个片段独立处理自己依赖的平台相关的底层细节。
-     */
-    export class AudioClip extends Asset {
-        static PlayingState: {
-            INITIALIZING: number;
-            PLAYING: number;
-            STOPPED: number;
-        };
-        static AudioType: {
-            WEB_AUDIO: number;
-            DOM_AUDIO: number;
-            JSB_AUDIO: number;
-            UNKNOWN_AUDIO: number;
-        };
-        static preventDeferredLoadDependents: boolean;
-        protected _duration: number;
-        protected _loadMode: number;
-        protected _audio: any;
-        protected _player: __private.cocos_audio_assets_player_AudioPlayer | null;
-        constructor();
-        destroy(): boolean;
-        set _nativeAsset(clip: any);
-        get _nativeAsset(): any;
-        get loadMode(): number;
-        get state(): number;
-        play(): void;
-        pause(): void;
-        stop(): void;
-        playOneShot(volume: number): void;
-        setCurrentTime(val: number): void;
-        getCurrentTime(): number;
-        getDuration(): number;
-        setVolume(val: number, immediate?: boolean): void;
-        getVolume(): number;
-        setLoop(val: boolean): void;
-        getLoop(): boolean;
-    }
-    /**
-     * @en
-     * A representation of a single audio source, <br>
-     * contains basic functionalities like play, pause and stop.
-     * @zh
-     * 音频组件，代表单个音源，提供播放、暂停、停止等基本功能。
-     */
-    export class AudioSourceComponent extends Component {
-        protected _clip: AudioClip | null;
-        protected _loop: boolean;
-        protected _playOnAwake: boolean;
-        protected _volume: number;
-        set clip(val: AudioClip | null);
-        get clip(): AudioClip | null;
-        set loop(val: boolean);
-        get loop(): boolean;
-        set playOnAwake(val: boolean);
-        get playOnAwake(): boolean;
-        set volume(val: number);
-        get volume(): number;
-        onLoad(): void;
-        onDisable(): void;
-        onDestroy(): void;
-        /**
-         * @en
-         * Play the clip.<br>
-         * Restart if already playing.<br>
-         * Resume if paused.
-         * @zh
-         * 开始播放。<br>
-         * 如果音频处于正在播放状态，将会重新开始播放音频。<br>
-         * 如果音频处于暂停状态，则会继续播放音频。
-         */
-        play(): void;
-        /**
-         * @en
-         * Pause the clip.
-         * @zh
-         * 暂停播放。
-         */
-        pause(): void;
-        /**
-         * @en
-         * Stop the clip.
-         * @zh
-         * 停止播放。
-         */
-        stop(): void;
-        /**
-         * @en
-         * Plays an AudioClip, and scales volume by volumeScale.<br>
-         * Note: for multiple playback on the same clip, the actual behavior is platform-specific.<br>
-         * Re-start style fallback will be used if the underlying platform doesn't support it.
-         * @zh
-         * 以指定音量播放一个音频一次。<br>
-         * 注意，对同一个音频片段，不同平台多重播放效果存在差异。<br>
-         * 对不支持的平台，如前一次尚未播完，则会立即重新播放。
-         * @param clip The audio clip to be played.
-         * @param volumeScale volume scaling factor wrt. current value.
-         */
-        playOneShot(clip: AudioClip, volumeScale?: number): void;
-        protected _syncStates(): void;
-        set currentTime(num: number);
-        get currentTime(): number;
-        get duration(): number;
-        get state(): number;
-        get playing(): boolean;
     }
     export class BillboardComponent extends Component {
         get texture(): null;
@@ -18772,6 +18795,986 @@ declare module "cc" {
         getMax(): number;
         _onBeforeSerialize(props: any): any;
     }
+    /**
+     * @en
+     * The definition of the triggering event.
+     * @zh
+     * 触发事件。
+     */
+    export interface ITriggerEvent {
+        /**
+         * @en
+         * The type of trigger event.
+         * @zh
+         * 触发的事件类型。
+         */
+        type: TriggerEventType;
+        /**
+         * @en
+         * The collider component instance of the event owner.
+         * @zh
+         * 触发事件中的自己的碰撞器
+         */
+        selfCollider: ColliderComponent;
+        /**
+         * @en
+         * Trigger another collider in event.
+         * @zh
+         * 触发事件中的另一个碰撞器
+         */
+        otherCollider: ColliderComponent;
+        /**
+         * @en
+         * Gets the lowLevel object, through which all the exposed properties can be accessed.
+         * @zh
+         * 获取实现对象，通过它可以访问到底层暴露的所有属性。
+         */
+        impl: any;
+    }
+    /**
+     * @en
+     * The value type definition of the trigger event.
+     * @zh
+     * 触发事件的值类型定义。
+     */
+    export type TriggerEventType = "onTriggerEnter" | "onTriggerStay" | "onTriggerExit";
+    /**
+     * @en
+     * Signature definition of the callback function that triggers the event.
+     * @zh
+     * 触发事件的回调函数签名定义。
+     */
+    export type TriggerCallback = (event?: ITriggerEvent) => void;
+    /**
+     * @en
+     * Collision information for collision events.
+     * @zh
+     * 碰撞事件的碰撞信息。
+     */
+    export interface IContactEquation {
+        /**
+         * @en
+         * Gets the lowLevel object, through which all the exposed properties can be accessed.
+         * @zh
+         * 获取实现对象，通过它可以访问到底层暴露的所有属性。
+         */
+        impl: any;
+        /**
+         * @en
+         * Gets whether the rigid body bound to the selfCollider is A.
+         * @zh
+         * 获取`selfCollider`所绑定的刚体是否为 A 。
+         */
+        isBodyA: boolean;
+        /**
+         * @en
+         * Gets the contact point relative to the rigid body A in the local coordinate system.
+         * @zh
+         * 获取本地坐标系中相对于刚体 A 的碰撞点。
+         * @param out used to storage the output.
+         */
+        getLocalPointOnA(out: math.IVec3Like): void;
+        /**
+         * @en
+         * Gets the contact point relative to the rigid body B in the local coordinate system.
+         * @zh
+         * 获取本地坐标系中相对于刚体 B 的碰撞点。
+         * @param out used to storage the output.
+         */
+        getLocalPointOnB(out: math.IVec3Like): void;
+        /**
+         * @en
+         * Gets the contact point relative to the rigid body A in the world coordinate system.
+         * @zh
+         * 获取世界坐标系中相对于刚体 A 的碰撞点。
+         * @param out used to storage the output.
+         */
+        getWorldPointOnA(out: math.IVec3Like): void;
+        /**
+         * @en
+         * Gets the contact point relative to the rigid body B in the world coordinate system.
+         * @zh
+         * 获取世界坐标系中相对于刚体 B 的碰撞点。
+         * @param out used to storage the output.
+         */
+        getWorldPointOnB(out: math.IVec3Like): void;
+        /**
+         * @en
+         * Gets the contact normal relative to the rigid body B in the local coordinate system.
+         * @zh
+         * 获取本地坐标系中相对于刚体 B 的碰撞法线。
+         * @param out used to storage the output.
+         */
+        getLocalNormalOnB(out: math.IVec3Like): void;
+        /**
+         * @en
+         * Gets the contact normal relative to the rigid body B in the world coordinate system.
+         * @zh
+         * 获取世界坐标系中相对于刚体 B 的碰撞法线。
+         * @param out used to storage the output.
+         */
+        getWorldNormalOnB(out: math.IVec3Like): void;
+    }
+    /**
+     * @en
+     * The definition of the collision event.
+     * @zh
+     * 碰撞事件。
+     */
+    export interface ICollisionEvent {
+        /**
+         * @en
+         * The type of collision event.
+         * @zh
+         * 碰撞的事件类型。
+         */
+        type: CollisionEventType;
+        /**
+         * @en
+         * The collider component instance of the event owner.
+         * @zh
+         * 碰撞中的自己的碰撞器。
+         */
+        selfCollider: ColliderComponent;
+        /**
+         * @en
+         * Another collider in collision.
+         * @zh
+         * 碰撞中的另一个碰撞器。
+         */
+        otherCollider: ColliderComponent;
+        /**
+         * @en
+         * Information about all points of impact in a collision event.
+         * @zh
+         * 碰撞中的所有碰撞点的信息。
+         */
+        contacts: IContactEquation[];
+        /**
+         * @en
+         * Gets the lowLevel object, through which all the exposed properties can be accessed.
+         * @zh
+         * 获取实现对象，通过它可以访问到底层暴露的所有属性。
+         */
+        impl: any;
+    }
+    /**
+     * @en
+     * Value type definitions for collision events.
+     * @zh
+     * 碰撞事件的值类型定义。
+     */
+    export type CollisionEventType = "onCollisionEnter" | "onCollisionStay" | "onCollisionExit";
+    /**
+     * @en
+     * Callback function signature definition for collision events.
+     * @zh
+     * 碰撞事件的回调函数签名定义。
+     */
+    export type CollisionCallback = (event?: ICollisionEvent) => void;
+    /**
+     * @en
+     * Physics system.
+     * @zh
+     * 物理系统。
+     */
+    export class PhysicsSystem extends System {
+        get enable(): boolean;
+        set enable(value: boolean);
+        get allowSleep(): boolean;
+        set allowSleep(v: boolean);
+        get maxSubSteps(): number;
+        set maxSubSteps(value: number);
+        get fixedTimeStep(): number;
+        set fixedTimeStep(value: number);
+        get gravity(): math.Vec3;
+        set gravity(gravity: math.Vec3);
+        get sleepThreshold(): number;
+        set sleepThreshold(v: number);
+        get autoSimulation(): boolean;
+        set autoSimulation(value: boolean);
+        get defaultMaterial(): PhysicMaterial;
+        /**
+         * @en
+         * Gets the wrappered object of the physical world through which you can access the actual underlying object.
+         * @zh
+         * 获取物理世界的封装对象，通过它你可以访问到实际的底层对象。
+         */
+        readonly physicsWorld: __private.cocos_physics_spec_i_physics_world_IPhysicsWorld;
+        /**
+         * @en
+         * Gets the raycastClosest test result.
+         * @zh
+         * 获取 raycastClosest 的检测结果。
+         */
+        readonly raycastClosestResult: PhysicsRayResult;
+        /**
+         * @en
+         * Gets the raycast test results.
+         * @zh
+         * 获取 raycast 的检测结果。
+         */
+        readonly raycastResults: PhysicsRayResult[];
+        /**
+         * @en
+         * Gets the collision matrix。
+         * @zh
+         * 获取碰撞矩阵。
+         */
+        readonly collisionMatrix: __private.cocos_physics_framework_physics_config_ICollisionMatrix;
+        /**
+         * @en
+         * Gets or sets whether to use a collision matrix.
+         * @zh
+         * 获取或设置是否开启碰撞矩阵。
+         */
+        readonly useCollisionMatrix: boolean;
+        readonly useNodeChains: boolean;
+        static get PHYSICS_NONE(): boolean;
+        static get PHYSICS_BUILTIN(): boolean;
+        static get PHYSICS_CANNON(): boolean;
+        static get PHYSICS_AMMO(): boolean;
+        /**
+         * @en
+         * Gets the ID of the system.
+         * @zh
+         * 获取此系统的ID。
+         */
+        static readonly ID = "PHYSICS";
+        static get instance(): PhysicsSystem;
+        /**
+         * @en
+         * The lifecycle function is automatically executed after all components `update` and `lateUpadte` are executed.
+         * @zh
+         * 生命周期函数，在所有组件的`update`和`lateUpadte`执行完成后自动执行。
+         * @param deltaTime the time since last frame.
+         */
+        postUpdate(deltaTime: number): void;
+        /**
+         * @en
+         * Reset the accumulator of time to given value.
+         * @zh
+         * 重置时间累积总量为给定值。
+         */
+        resetAccumulator(time?: number): void;
+        /**
+         * @en
+         * Perform simulation steps for the physics world.
+         * @zh
+         * 执行物理世界的模拟步进。
+         * @param fixedTimeStep
+         */
+        step(fixedTimeStep: number, deltaTime?: number, maxSubSteps?: number): void;
+        /**
+         * @en
+         * Sync the scene world transform changes to the physics world.
+         * @zh
+         * 同步场景世界的变化信息到物理世界中。
+         */
+        syncSceneToPhysics(): void;
+        /**
+         * @en
+         * Emit trigger and collision events.
+         * @zh
+         * 触发`trigger`和`collision`事件。
+         */
+        emitEvents(): void;
+        /**
+         * @en
+         * Updates the mask corresponding to the collision matrix for the lowLevel rigid-body instance.
+         * Automatic execution during automatic simulation.
+         * @zh
+         * 更新底层实例对应于碰撞矩阵的掩码，自动模拟时会自动更新。
+         */
+        updateCollisionMatrix(): void;
+        /**
+         * @en
+         * Reset the mask corresponding to all groups of the collision matrix to the given value, the default given value is' 0xffffffff '.
+         * @zh
+         * 重置碰撞矩阵所有分组对应掩码为给定值，默认给定值为`0xffffffff`。
+         */
+        resetCollisionMatrix(mask?: number): void;
+        /**
+         * @en
+         * Are collisions between `group1` and `group2`?
+         * @zh
+         * 两分组是否会产生碰撞？
+         */
+        isCollisionGroup(group1: number, group2: number): number | false;
+        /**
+         * @en
+         * Sets whether collisions occur between `group1` and `group2`.
+         * @zh
+         * 设置两分组间是否产生碰撞。
+         * @param collision is collision occurs?
+         */
+        setCollisionGroup(group1: number, group2: number, collision?: boolean): void;
+        /**
+         * @en
+         * Collision detect all collider, and record all the detected results, through PhysicsSystem.Instance.RaycastResults access to the results.
+         * @zh
+         * 检测所有的碰撞盒，并记录所有被检测到的结果，通过 PhysicsSystem.instance.raycastResults 访问结果。
+         * @param worldRay 世界空间下的一条射线
+         * @param mask 掩码，默认为 0xffffffff
+         * @param maxDistance 最大检测距离，默认为 10000000，目前请勿传入 Infinity 或 Number.MAX_VALUE
+         * @param queryTrigger 是否检测触发器
+         * @return boolean 表示是否有检测到碰撞盒
+         */
+        raycast(worldRay: geometry.ray, mask?: number, maxDistance?: number, queryTrigger?: boolean): boolean;
+        /**
+         * @en
+         * Collision detect all collider, and record and ray test results with the shortest distance by PhysicsSystem.Instance.RaycastClosestResult access to the results.
+         * @zh
+         * 检测所有的碰撞盒，并记录与射线距离最短的检测结果，通过 PhysicsSystem.instance.raycastClosestResult 访问结果。
+         * @param worldRay 世界空间下的一条射线
+         * @param mask 掩码，默认为 0xffffffff
+         * @param maxDistance 最大检测距离，默认为 10000000，目前请勿传入 Infinity 或 Number.MAX_VALUE
+         * @param queryTrigger 是否检测触发器
+         * @return boolean 表示是否有检测到碰撞盒
+         */
+        raycastClosest(worldRay: geometry.ray, mask?: number, maxDistance?: number, queryTrigger?: boolean): boolean;
+    }
+    /**
+     * @en
+     * Used to store physics ray test results.
+     * @zh
+     * 用于保存物理射线检测结果。
+     */
+    export class PhysicsRayResult {
+        get hitPoint(): math.Vec3;
+        get distance(): number;
+        get collider(): ColliderComponent;
+        get hitNormal(): math.Vec3;
+        /**
+         * @en
+         * internal methods.
+         * @zh
+         * 设置射线，此方法由引擎内部使用，请勿在外部脚本调用。
+         */
+        _assign(hitPoint: math.IVec3Like, distance: number, collider: ColliderComponent, hitNormal: math.IVec3Like): void;
+        /**
+         * @en
+         * clone.
+         * @zh
+         * 克隆。
+         */
+        clone(): PhysicsRayResult;
+    }
+    /**
+     * @en
+     * Base class of collider.
+     * @zh
+     * 碰撞器的基类。
+     */
+    export class ColliderComponent extends __private.cocos_physics_framework_components_colliders_collider_component_ColliderComponent_base {
+        static readonly EColliderType: typeof __private.cocos_physics_framework_physics_enum_EColliderType;
+        static readonly EAxisDirection: typeof EAxisDirection;
+        get attachedRigidBody(): RigidBodyComponent | null;
+        get sharedMaterial(): PhysicMaterial | null;
+        set sharedMaterial(value: PhysicMaterial | null);
+        get material(): PhysicMaterial | null;
+        set material(value: PhysicMaterial | null);
+        get isTrigger(): boolean;
+        set isTrigger(value: boolean);
+        get center(): math.Vec3;
+        set center(value: math.Vec3);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_IBaseShape | null;
+        get worldBounds(): Readonly<geometry.aabb>;
+        get boundingSphere(): Readonly<geometry.sphere>;
+        get needTriggerEvent(): boolean;
+        get needCollisionEvent(): boolean;
+        readonly TYPE: __private.cocos_physics_framework_physics_enum_EColliderType;
+        protected _shape: __private.cocos_physics_spec_i_physics_shape_IBaseShape | null;
+        protected _aabb: geometry.aabb | null;
+        protected _boundingSphere: geometry.sphere | null;
+        protected _isSharedMaterial: boolean;
+        protected _needTriggerEvent: boolean;
+        protected _needCollisionEvent: boolean;
+        protected _material: PhysicMaterial | null;
+        protected _isTrigger: boolean;
+        protected readonly _center: math.Vec3;
+        protected get _assertOnLoadCalled(): boolean;
+        protected get _assertUseCollisionMatrix(): boolean;
+        constructor(type: __private.cocos_physics_framework_physics_enum_EColliderType);
+        /**
+         * @en
+         * Registers callbacks associated with triggered or collision events.
+         * @zh
+         * 注册触发或碰撞事件相关的回调。
+         * @param type - The event type, onTriggerEnter|onTriggerStay|onTriggerExit|onCollisionEnter|onCollisionStay|onCollisionExit;
+         * @param callback - The event callback, signature:`(event?:ICollisionEvent|ITriggerEvent)=>void`.
+         * @param target - The event callback target.
+         */
+        on(type: TriggerEventType | CollisionEventType, callback: Function, target?: Object, once?: boolean): any;
+        /**
+         * @en
+         * Unregisters callbacks associated with trigger or collision events that have been registered.
+         * @zh
+         * 取消已经注册的触发或碰撞事件相关的回调。
+         * @param type - The event type, onTriggerEnter|onTriggerStay|onTriggerExit|onCollisionEnter|onCollisionStay|onCollisionExit;
+         * @param callback - The event callback, signature:`(event?:ICollisionEvent|ITriggerEvent)=>void`.
+         * @param target - The event callback target.
+         */
+        off(type: TriggerEventType | CollisionEventType, callback?: Function, target?: Object): void;
+        /**
+         * @en
+         * Registers a callback associated with a trigger or collision event, which is automatically unregistered once executed.
+         * @zh
+         * 注册触发或碰撞事件相关的回调，执行一次后会自动取消注册。
+         * @param type - The event type, onTriggerEnter|onTriggerStay|onTriggerExit|onCollisionEnter|onCollisionStay|onCollisionExit;
+         * @param callback - The event callback, signature:`(event?:ICollisionEvent|ITriggerEvent)=>void`.
+         * @param target - The event callback target.
+         */
+        once(type: TriggerEventType | CollisionEventType, callback: Function, target?: Object): any;
+        /**
+         * @en
+         * Removes all registered events of the specified target or type.
+         * @zh
+         * 移除所有指定目标或类型的注册事件。
+         * @param typeOrTarget - The event type or target.
+         */
+        removeAll(typeOrTarget: TriggerEventType | CollisionEventType | {}): void;
+        /**
+         * @en
+         * Gets the group value.
+         * @zh
+         * 获取分组值。
+         * @returns 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        getGroup(): number;
+        /**
+         * @en
+         * Sets the group value.
+         * @zh
+         * 设置分组值。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        setGroup(v: number): void;
+        /**
+         * @en
+         * Add a grouping value to fill in the group you want to join.
+         * @zh
+         * 添加分组值，可填要加入的 group。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        addGroup(v: number): void;
+        /**
+         * @en
+         * Subtract the grouping value to fill in the group to be removed.
+         * @zh
+         * 减去分组值，可填要移除的 group。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        removeGroup(v: number): void;
+        /**
+         * @en
+         * Gets the mask value.
+         * @zh
+         * 获取掩码值。
+         * @returns 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        getMask(): number;
+        /**
+         * @en
+         * Sets the mask value.
+         * @zh
+         * 设置掩码值。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        setMask(v: number): void;
+        /**
+         * @en
+         * Add mask values to fill in groups that need to be checked.
+         * @zh
+         * 添加掩码值，可填入需要检查的 group。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        addMask(v: number): void;
+        /**
+         * @en
+         * Subtract the mask value to fill in the group that does not need to be checked.
+         * @zh
+         * 减去掩码值，可填入不需要检查的 group。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        removeMask(v: number): void;
+        protected onLoad(): void;
+        protected onEnable(): void;
+        protected onDisable(): void;
+        protected onDestroy(): void;
+    }
+    export namespace ColliderComponent {
+        export type EColliderType = __private.EnumAlias<typeof __private.cocos_physics_framework_physics_enum_EColliderType>;
+        export type EAxisDirection = __private.EnumAlias<typeof _EAxisDirection>;
+    }
+    /**
+     * @en
+     * Box collider component.
+     * @zh
+     * 盒子碰撞器。
+     */
+    export class BoxColliderComponent extends ColliderComponent {
+        get size(): math.Vec3;
+        set size(value: math.Vec3);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_IBoxShape;
+        constructor();
+    }
+    /**
+     * @en
+     * Sphere collider component.
+     * @zh
+     * 球碰撞器。
+     */
+    export class SphereColliderComponent extends ColliderComponent {
+        get radius(): number;
+        set radius(value: number);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_ISphereShape;
+        constructor();
+    }
+    /**
+     * @en
+     * Capsule collider component.
+     * @zh
+     * 胶囊体碰撞器。
+     */
+    export class CapsuleColliderComponent extends ColliderComponent {
+        get radius(): number;
+        set radius(value: number);
+        get cylinderHeight(): number;
+        set cylinderHeight(value: number);
+        get direction(): EAxisDirection;
+        set direction(value: EAxisDirection);
+        get height(): number;
+        set height(value: number);
+        get worldHeight(): number;
+        get shape(): __private.cocos_physics_spec_i_physics_shape_ICapsuleShape;
+        constructor();
+    }
+    /**
+     * @en
+     * Triangle mesh collider component.
+     * @zh
+     * 三角网格碰撞器。
+     */
+    export class MeshColliderComponent extends ColliderComponent {
+        get mesh(): Mesh | null;
+        set mesh(value: Mesh | null);
+        get convex(): boolean;
+        set convex(value: boolean);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_ITrimeshShape;
+        constructor();
+    }
+    /**
+     * @en
+     * Cylinder collider component.
+     * @zh
+     * 圆柱体碰撞器。
+     */
+    export class CylinderColliderComponent extends ColliderComponent {
+        get radius(): number;
+        set radius(value: number);
+        get height(): number;
+        set height(value: number);
+        get direction(): EAxisDirection;
+        set direction(value: EAxisDirection);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_ICylinderShape;
+        constructor();
+    }
+    /**
+     * @en
+     * Cone collider component.
+     * @zh
+     * 圆锥体碰撞器。
+     */
+    export class ConeColliderComponent extends ColliderComponent {
+        get radius(): number;
+        set radius(value: number);
+        get height(): number;
+        set height(value: number);
+        get direction(): EAxisDirection;
+        set direction(value: EAxisDirection);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_IConeShape;
+        constructor();
+    }
+    /**
+     * @en
+     * Terrain collider component.
+     * @zh
+     * 地形碰撞器。
+     */
+    export class TerrainColliderComponent extends ColliderComponent {
+        get terrain(): __private.cocos_physics_spec_i_external_ITerrainAsset | null;
+        set terrain(value: __private.cocos_physics_spec_i_external_ITerrainAsset | null);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_ITerrainShape;
+        constructor();
+    }
+    /**
+     * @en
+     * Simplex collider, support point, line, triangle, tetrahedron.
+     * @zh
+     * 单纯形碰撞器，支持点、线、三角形、四面体。
+     */
+    export class SimplexColliderComponent extends ColliderComponent {
+        static readonly ESimplexType: typeof __private.cocos_physics_framework_physics_enum_ESimplexType;
+        get shapeType(): __private.cocos_physics_framework_physics_enum_ESimplexType;
+        set shapeType(v: __private.cocos_physics_framework_physics_enum_ESimplexType);
+        get vertex0(): math.IVec3Like;
+        set vertex0(v: math.IVec3Like);
+        get vertex1(): math.IVec3Like;
+        set vertex1(v: math.IVec3Like);
+        get vertex2(): math.IVec3Like;
+        set vertex2(v: math.IVec3Like);
+        get vertex3(): math.IVec3Like;
+        set vertex3(v: math.IVec3Like);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_ISimplexShape;
+        get vertices(): math.IVec3Like[];
+        constructor();
+        updateVertices(): void;
+    }
+    export namespace SimplexColliderComponent {
+        export type ESimplexType = __private.EnumAlias<typeof __private.cocos_physics_framework_physics_enum_ESimplexType>;
+    }
+    /**
+     * @en
+     * Plane collider component.
+     * @zh
+     * 静态平面碰撞器。
+     */
+    export class PlaneColliderComponent extends ColliderComponent {
+        get normal(): math.Vec3;
+        set normal(value: math.Vec3);
+        get constant(): number;
+        set constant(v: number);
+        get shape(): __private.cocos_physics_spec_i_physics_shape_IPlaneShape;
+        constructor();
+    }
+    export class ConstraintComponent extends __private.cocos_physics_framework_components_constraints_constraint_component_ConstraintComponent_base {
+        static readonly EConstraintType: typeof __private.cocos_physics_framework_physics_enum_EConstraintType;
+        get attachedBody(): RigidBodyComponent | null;
+        get connectedBody(): RigidBodyComponent | null;
+        set connectedBody(v: RigidBodyComponent | null);
+        get enableCollision(): boolean;
+        set enableCollision(v: boolean);
+        readonly TYPE: __private.cocos_physics_framework_physics_enum_EConstraintType;
+        protected _enableCollision: boolean;
+        protected _connectedBody: RigidBodyComponent | null;
+        protected _constraint: __private.cocos_physics_spec_i_physics_constraint_IBaseConstraint | null;
+        constructor(type: __private.cocos_physics_framework_physics_enum_EConstraintType);
+        protected onLoad(): void;
+        protected onEnable(): void;
+        protected onDisable(): void;
+        protected onDestroy(): void;
+    }
+    export namespace ConstraintComponent {
+        export type EConstraintType = __private.EnumAlias<typeof __private.cocos_physics_framework_physics_enum_EConstraintType>;
+    }
+    export class HingeConstraintComponent extends ConstraintComponent {
+        axisA: math.IVec3Like;
+        axisB: math.IVec3Like;
+        pivotA: math.IVec3Like;
+        pivotB: math.IVec3Like;
+        constructor();
+    }
+    export class PointToPointConstraintComponent extends ConstraintComponent {
+        get pivotA(): math.IVec3Like;
+        set pivotA(v: math.IVec3Like);
+        get pivotB(): math.IVec3Like;
+        set pivotB(v: math.IVec3Like);
+        get constraint(): __private.cocos_physics_spec_i_physics_constraint_IPointToPointConstraint;
+        constructor();
+    }
+    /**
+     * @en
+     * Rigid body component.
+     * @zh
+     * 刚体组件。
+     */
+    export class RigidBodyComponent extends Component {
+        static readonly ERigidBodyType: typeof ERigidBodyType;
+        get group(): number;
+        set group(v: number);
+        get mass(): number;
+        set mass(value: number);
+        get allowSleep(): boolean;
+        set allowSleep(v: boolean);
+        get linearDamping(): number;
+        set linearDamping(value: number);
+        get angularDamping(): number;
+        set angularDamping(value: number);
+        get isKinematic(): boolean;
+        set isKinematic(value: boolean);
+        get useGravity(): boolean;
+        set useGravity(value: boolean);
+        get fixedRotation(): boolean;
+        set fixedRotation(value: boolean);
+        get linearFactor(): math.Vec3;
+        set linearFactor(value: math.Vec3);
+        get angularFactor(): math.Vec3;
+        set angularFactor(value: math.Vec3);
+        get sleepThreshold(): number;
+        set sleepThreshold(v: number);
+        get isAwake(): boolean;
+        get isSleepy(): boolean;
+        get isSleeping(): boolean;
+        get body(): __private.cocos_physics_spec_i_rigid_body_IRigidBody | null;
+        protected get _assertOnLoadCalled(): boolean;
+        protected get _assertUseCollisionMatrix(): boolean;
+        protected onLoad(): void;
+        protected onEnable(): void;
+        protected onDisable(): void;
+        protected onDestroy(): void;
+        /**
+         * @en
+         * Apply force to a world point. This could, for example, be a point on the Body surface.
+         * @zh
+         * 在世界空间中，相对于刚体的质心的某点上对刚体施加作用力。
+         * @param force - 作用力
+         * @param relativePoint - 作用点，相对于刚体的质心
+         */
+        applyForce(force: math.Vec3, relativePoint?: math.Vec3): void;
+        /**
+         * @en
+         * Apply force to a local point. This could, for example, be a point on the Body surface.
+         * @zh
+         * 在本地空间中，相对于刚体的质心的某点上对刚体施加作用力。
+         * @param force - 作用力
+         * @param localPoint - 作用点
+         */
+        applyLocalForce(force: math.Vec3, localPoint?: math.Vec3): void;
+        /**
+         * @en
+         * In world space, impulse is applied to the rigid body at some point relative to the center of mass of the rigid body.
+         * @zh
+         * 在世界空间中，相对于刚体的质心的某点上对刚体施加冲量。
+         * @param impulse - 冲量
+         * @param relativePoint - 作用点，相对于刚体的中心点
+         */
+        applyImpulse(impulse: math.Vec3, relativePoint?: math.Vec3): void;
+        /**
+         * @en
+         * In local space, impulse is applied to the rigid body at some point relative to the center of mass of the rigid body.
+         * @zh
+         * 在本地空间中，相对于刚体的质心的某点上对刚体施加冲量。
+         * @param impulse - 冲量
+         * @param localPoint - 作用点
+         */
+        applyLocalImpulse(impulse: math.Vec3, localPoint?: math.Vec3): void;
+        /**
+         * @en
+         * In world space, torque is applied to the rigid body.
+         * @zh
+         * 在世界空间中，对刚体施加扭矩。
+         * @param torque - 扭矩
+         */
+        applyTorque(torque: math.Vec3): void;
+        /**
+         * @zh
+         * 在本地空间中，对刚体施加扭矩。
+         * @param torque - 扭矩
+         */
+        applyLocalTorque(torque: math.Vec3): void;
+        /**
+         * @en
+         * Wake up the rigid body.
+         * @zh
+         * 唤醒刚体。
+         */
+        wakeUp(): void;
+        /**
+         * @en
+         * Dormancy of rigid body.
+         * @zh
+         * 休眠刚体。
+         */
+        sleep(): void;
+        /**
+         * @en
+         * Clear the forces and velocity of the rigid body.
+         * @zh
+         * 清除刚体受到的力和速度。
+         */
+        clearState(): void;
+        /**
+         * @en
+         * Clear the forces of the rigid body.
+         * @zh
+         * 清除刚体受到的力。
+         */
+        clearForces(): void;
+        /**
+         * @en
+         * Clear velocity of the rigid body.
+         * @zh
+         * 清除刚体的速度。
+         */
+        clearVelocity(): void;
+        /**
+         * @en
+         * Gets the linear velocity.
+         * @zh
+         * 获取线性速度。
+         * @param out 速度 Vec3
+         */
+        getLinearVelocity(out: math.Vec3): void;
+        /**
+         * @en
+         * Sets the linear velocity.
+         * @zh
+         * 设置线性速度。
+         * @param value 速度 Vec3
+         */
+        setLinearVelocity(value: math.Vec3): void;
+        /**
+         * @en
+         * Gets the angular velocity.
+         * @zh
+         * 获取旋转速度。
+         * @param out 速度 Vec3
+         */
+        getAngularVelocity(out: math.Vec3): void;
+        /**
+         * @en
+         * Sets the angular velocity.
+         * @zh
+         * 设置旋转速度。
+         * @param value 速度 Vec3
+         */
+        setAngularVelocity(value: math.Vec3): void;
+        /**
+         * @en
+         * Gets the group value.
+         * @zh
+         * 获取分组值。
+         * @returns 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        getGroup(): number;
+        /**
+         * @en
+         * Sets the group value.
+         * @zh
+         * 设置分组值。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        setGroup(v: number): void;
+        /**
+         * @en
+         * Add a grouping value to fill in the group you want to join.
+         * @zh
+         * 添加分组值，可填要加入的 group。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        addGroup(v: number): void;
+        /**
+         * @en
+         * Subtract the grouping value to fill in the group to be removed.
+         * @zh
+         * 减去分组值，可填要移除的 group。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        removeGroup(v: number): void;
+        /**
+         * @en
+         * Gets the mask value.
+         * @zh
+         * 获取掩码值。
+         * @returns 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        getMask(): number;
+        /**
+         * @en
+         * Sets the mask value.
+         * @zh
+         * 设置掩码值。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        setMask(v: number): void;
+        /**
+         * @en
+         * Add mask values to fill in groups that need to be checked.
+         * @zh
+         * 添加掩码值，可填入需要检查的 group。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        addMask(v: number): void;
+        /**
+         * @en
+         * Subtract the mask value to fill in the group that does not need to be checked.
+         * @zh
+         * 减去掩码值，可填入不需要检查的 group。
+         * @param v - 整数，范围为 2 的 0 次方 到 2 的 31 次方
+         */
+        removeMask(v: number): void;
+    }
+    export namespace RigidBodyComponent {
+        export type ERigidBodyType = __private.EnumAlias<typeof _ERigidBodyType>;
+    }
+    /**
+     * @en
+     * Physics materials.
+     * @zh
+     * 物理材质。
+     */
+    export class PhysicMaterial extends Asset {
+        /**
+         * @en
+         * Gets all physics material instances.
+         * @zh
+         * 获取所有的物理材质实例。
+         */
+        static allMaterials: PhysicMaterial[];
+        get friction(): number;
+        set friction(value: number);
+        get rollingFriction(): number;
+        set rollingFriction(value: number);
+        get spinningFriction(): number;
+        set spinningFriction(value: number);
+        get restitution(): number;
+        set restitution(value: number);
+        constructor();
+        /**
+         * @en
+         * clone.
+         * @zh
+         * 克隆。
+         */
+        clone(): PhysicMaterial;
+        /**
+         * @en
+         * destroy.
+         * @zh
+         * 销毁。
+         * @return 是否成功
+         */
+        destroy(): boolean;
+    }
+    /**
+     * @en
+     * A tool component to help apply force to the rigid body at each frame.
+     * @zh
+     * 在每帧对一个刚体施加持续的力，依赖 RigidBodyComponent 组件。
+     */
+    export class ConstantForce extends Component {
+        get force(): math.Vec3;
+        set force(value: math.Vec3);
+        get localForce(): math.Vec3;
+        set localForce(value: math.Vec3);
+        get torque(): math.Vec3;
+        set torque(value: math.Vec3);
+        get localTorque(): math.Vec3;
+        set localTorque(value: math.Vec3);
+        onLoad(): void;
+        lateUpdate(dt: number): void;
+    }
+    export enum EAxisDirection {
+        X_AXIS = 0,
+        Y_AXIS = 1,
+        Z_AXIS = 2
+    }
+    export enum ERigidBodyType {
+        DYNAMIC = 1,
+        STATIC = 2,
+        KINEMATIC = 4
+    }
     export class HeightField {
         data: Uint16Array;
         w: number;
@@ -18902,6 +19905,7 @@ declare module "cc" {
      */
     export class Terrain extends Component {
         protected __asset: TerrainAsset | null;
+        protected _effectAsset: EffectAsset | null;
         protected _layers: (TerrainLayer | null)[];
         protected _blockInfos: TerrainBlockInfo[];
         protected _lightmapInfos: TerrainBlockLightmapInfo[];
@@ -18917,6 +19921,8 @@ declare module "cc" {
         constructor();
         set _asset(value: TerrainAsset | null);
         get _asset(): TerrainAsset | null;
+        set effectAsset(value: EffectAsset | null);
+        get effectAsset(): EffectAsset | null;
         get size(): math.Size;
         get tileSize(): number;
         get tileCount(): number[];
@@ -18949,6 +19955,7 @@ declare module "cc" {
          */
         exportHeightField(hf: HeightField, heightScale: number): void;
         exportAsset(): TerrainAsset;
+        getEffectAsset(): any;
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
@@ -19212,6 +20219,11 @@ declare module "cc" {
     export class Tween {
         constructor(target?: object | null);
         /**
+         * @en Sets tween tag
+         * @zh 设置缓动的标签
+         */
+        tag(tag: number): this;
+        /**
          * @en
          * Insert an action or tween to this sequence.
          * @zh
@@ -19409,6 +20421,27 @@ declare module "cc" {
          * @return {Tween}
          */
         removeSelf(): Tween;
+        /**
+         * @en
+         * Stop all tweens
+         * @zh
+         * 停止所有缓动
+         */
+        static stopAll(): void;
+        /**
+         * @en
+         * Stop all tweens by tag
+         * @zh
+         * 停止所有指定标签的缓动
+         */
+        static stopAllByTag(tag: number, target?: object): void;
+        /**
+         * @en
+         * Stop all tweens by target
+         * @zh
+         * 停止所有指定对象的缓动
+         */
+        static stopAllByTarget(target: any): void;
     }
     /**
      * @category tween
@@ -20269,7 +21302,7 @@ declare module "cc" {
          * 滚动视图的事件回调函数。
          */
         scrollEvents: EventHandler[];
-        get view(): Node | null;
+        get view(): UITransformComponent | null;
         protected _autoScrolling: boolean;
         protected _scrolling: boolean;
         protected _content: UITransformComponent | null;
@@ -21663,7 +22696,94 @@ declare module "cc" {
         protected _flushAssembler(): void;
         protected _applyFontTexture(): void;
     }
+    export import bits = math.bits;
+    export import Vec2 = math.Vec2;
+    export import v2 = math.v2;
+    export import Vec3 = math.Vec3;
+    export import v3 = math.v3;
+    export import Vec4 = math.Vec4;
+    export import v4 = math.v4;
+    export import Quat = math.Quat;
+    export import quat = math.quat;
+    export import Mat3 = math.Mat3;
+    export import Mat4 = math.Mat4;
+    export import mat4 = math.mat4;
+    export import AffineTransform = math.AffineTransform;
+    export import Size = math.Size;
+    export import size = math.size;
+    export import Rect = math.Rect;
+    export import rect = math.rect;
+    export import Color = math.Color;
+    export import color = math.color;
+    export import equals = math.equals;
+    export import approx = math.approx;
+    export import clamp = math.clamp;
+    export import clamp01 = math.clamp01;
+    export import lerp = math.lerp;
+    export import toRadian = math.toRadian;
+    export import toDegree = math.toDegree;
+    export import randomRange = math.randomRange;
+    export import randomRangeInt = math.randomRangeInt;
+    export import pseudoRandom = math.pseudoRandom;
+    export import pseudoRandomRange = math.pseudoRandomRange;
+    export import pseudoRandomRangeInt = math.pseudoRandomRangeInt;
+    export import nextPow2 = math.nextPow2;
+    export import repeat = math.repeat;
+    export import pingPong = math.pingPong;
+    export import inverseLerp = math.inverseLerp;
+    export import absMaxComponent = math.absMaxComponent;
+    export import absMax = math.absMax;
+    export import EPSILON = math.EPSILON;
+    export import random = math.random;
+    export import IColorLike = math.IColorLike;
+    export import IMat3Like = math.IMat3Like;
+    export import IMat4Like = math.IMat4Like;
+    export import IQuatLike = math.IQuatLike;
+    export import IRectLike = math.IRectLike;
+    export import ISizeLike = math.ISizeLike;
+    export import IVec2Like = math.IVec2Like;
+    export import IVec3Like = math.IVec3Like;
+    export import IVec4Like = math.IVec4Like;
+    export import Pool = memop.Pool;
+    export import RecyclePool = memop.RecyclePool;
+    export import CachedArray = memop.CachedArray;
+    export import ICubicSplineValue = animation.ICubicSplineValue;
+    export import CubicSplineValueConstructor = animation.CubicSplineValueConstructor;
+    export import CubicSplineVec2Value = animation.CubicSplineVec2Value;
+    export import CubicSplineVec3Value = animation.CubicSplineVec3Value;
+    export import CubicSplineVec4Value = animation.CubicSplineVec4Value;
+    export import CubicSplineQuatValue = animation.CubicSplineQuatValue;
+    export import CubicSplineNumberValue = animation.CubicSplineNumberValue;
+    import { requireComponent, executionOrder, disallowMultiple, executeInEditMode, menu, playOnFocus, inspector, icon, help, type, integer, float, boolean, string } from "cc.decorators";
     export namespace __private {
+        export interface cocos_audio_assets_player_IAudioInfo {
+            clip: any;
+            duration: number;
+            eventTarget: any;
+        }
+        export abstract class cocos_audio_assets_player_AudioPlayer {
+            protected _state: number;
+            protected _duration: number;
+            protected _eventTarget: any;
+            protected _onHide: Function;
+            protected _onShow: Function;
+            protected _interrupted: boolean;
+            protected _blocking: boolean;
+            constructor(info: cocos_audio_assets_player_IAudioInfo);
+            abstract play(): void;
+            abstract pause(): void;
+            abstract stop(): void;
+            abstract playOneShot(volume: number): void;
+            abstract setCurrentTime(val: number): void;
+            abstract getCurrentTime(): number;
+            abstract setVolume(val: number, immediate: boolean): void;
+            abstract getVolume(): number;
+            abstract setLoop(val: boolean): void;
+            abstract getLoop(): boolean;
+            getState(): number;
+            getDuration(): number;
+            destroy(): void;
+        }
         /**
          * @en The predefined render pass stage ids
          * @zh 预设的渲染阶段。
@@ -21709,12 +22829,12 @@ declare module "cc" {
             PASS = 7,
             SUB_MODEL = 8
         }
-        export class cocos_core_renderer_core_memory_pools_Handle<T extends cocos_core_renderer_core_memory_pools_PoolType> extends Number {
-            m: T;
+        export interface cocos_core_renderer_core_memory_pools_IHandle<T extends cocos_core_renderer_core_memory_pools_PoolType> extends Number {
+            _: T;
         }
-        export type cocos_core_renderer_core_memory_pools_PassHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.PASS>;
-        export type cocos_core_renderer_core_memory_pools_ShaderHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.SHADER>;
-        export type cocos_core_renderer_core_memory_pools_DescriptorSetHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.DESCRIPTOR_SETS>;
+        export type cocos_core_renderer_core_memory_pools_PassHandle = cocos_core_renderer_core_memory_pools_IHandle<cocos_core_renderer_core_memory_pools_PoolType.PASS>;
+        export type cocos_core_renderer_core_memory_pools_ShaderHandle = cocos_core_renderer_core_memory_pools_IHandle<cocos_core_renderer_core_memory_pools_PoolType.SHADER>;
+        export type cocos_core_renderer_core_memory_pools_DescriptorSetHandle = cocos_core_renderer_core_memory_pools_IHandle<cocos_core_renderer_core_memory_pools_PoolType.DESCRIPTOR_SETS>;
         export interface cocos_core_renderer_ui_ui_material_IUIMaterialInfo {
             material: Material;
         }
@@ -21921,6 +23041,7 @@ declare module "cc" {
              */
             resize(width: number, height: number): void;
             setRenderPipeline(rppl: RenderPipeline): boolean;
+            onGlobalPipelineStateChanged(): void;
             /**
              * @zh
              * 激活指定窗口为当前窗口
@@ -22043,80 +23164,7 @@ declare module "cc" {
             samplers: cocos_core_assets_effect_asset_ISamplerInfo[];
             attributes: cocos_core_assets_effect_asset_IAttributeInfo[];
         }
-        export type cocos_core_renderer_core_memory_pools_PipelineLayoutHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.PIPELINE_LAYOUT>;
-        /**
-         * 允许存储索引的数组视图。
-         */
-        export type cocos_core_assets_mesh_IBArray = Uint8Array | Uint16Array | Uint32Array;
-        /**
-         * 几何信息。
-         */
-        export interface cocos_core_assets_mesh_IGeometricInfo {
-            /**
-             * 顶点位置。
-             */
-            positions: Float32Array;
-            /**
-             * 索引数据。
-             */
-            indices?: cocos_core_assets_mesh_IBArray;
-            /**
-             * 是否将图元按双面对待。
-             */
-            doubleSided?: boolean;
-            /**
-             * 此几何体的轴对齐包围盒。
-             */
-            boundingBox: {
-                max: math.Vec3;
-                min: math.Vec3;
-            };
-        }
-        export interface cocos_core_assets_mesh_IFlatBuffer {
-            stride: number;
-            count: number;
-            buffer: Uint8Array;
-        }
-        /**
-         * 渲染子网格。
-         */
-        export class cocos_core_assets_mesh_RenderingSubMesh implements IGFXInputAssemblerInfo {
-            /**
-             * 使用的所有顶点缓冲区。
-             */
-            vertexBuffers: GFXBuffer[];
-            /**
-             * 所有顶点属性。
-             */
-            attributes: IGFXAttribute[];
-            /**
-             * 图元类型。
-             */
-            primitiveMode: GFXPrimitiveMode;
-            /**
-             * 使用的索引缓冲区，若未使用则无需指定。
-             */
-            indexBuffer?: GFXBuffer;
-            /**
-             * 间接绘制缓冲区。
-             */
-            indirectBuffer?: GFXBuffer;
-            get geometricInfo(): cocos_core_assets_mesh_IGeometricInfo;
-            get flatBuffers(): cocos_core_assets_mesh_IFlatBuffer[];
-            get jointMappedBuffers(): GFXBuffer[];
-            mesh?: Mesh;
-            subMeshIdx?: number;
-            constructor(vertexBuffers: GFXBuffer[], attributes: IGFXAttribute[], primitiveMode: GFXPrimitiveMode);
-            destroy(): void;
-            /**
-             * Adds a vertex attribute input called 'a_vertexId' into this sub-mesh.
-             * This is useful if you want to simulate `gl_VertexId` in WebGL context prior to 2.0.
-             * Once you call this function, the vertex attribute is permanently added.
-             * Subsequent calls to this function take no effect.
-             * @param device Device used to create related rendering resources.
-             */
-            enableVertexIdChannel(device: GFXDevice): void;
-        }
+        export type cocos_core_renderer_core_memory_pools_PipelineLayoutHandle = cocos_core_renderer_core_memory_pools_IHandle<cocos_core_renderer_core_memory_pools_PoolType.PIPELINE_LAYOUT>;
         /**
          * This rendering instance of a morph resource.
          */
@@ -22141,7 +23189,7 @@ declare module "cc" {
         }
         export class cocos_core_renderer_models_morph_model_MorphModel extends renderer.Model {
             getMacroPatches(subModelIndex: number): any;
-            initSubModel(subModelIndex: number, subMeshData: cocos_core_assets_mesh_RenderingSubMesh, material: Material): void;
+            initSubModel(subModelIndex: number, subMeshData: RenderingSubMesh, material: Material): void;
             setSubModelMaterial(subModelIndex: number, material: Material): void;
             protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
             setMorphRendering(morphRendering: cocos_core_assets_morph_MorphRenderingInstance): void;
@@ -22169,7 +23217,7 @@ declare module "cc" {
             uploadBuffers(): void;
             clear(): void;
         }
-        export type cocos_core_renderer_core_memory_pools_SubModelHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.SUB_MODEL>;
+        export type cocos_core_renderer_core_memory_pools_SubModelHandle = cocos_core_renderer_core_memory_pools_IHandle<cocos_core_renderer_core_memory_pools_PoolType.SUB_MODEL>;
         /**
          * @en The predefined render priorities
          * @zh 预设的渲染优先级。
@@ -22441,15 +23489,35 @@ declare module "cc" {
              * 转换为弧度
              */
             radian?: boolean;
+            /**
+             * 注意：这是一个内部选项。
+             * 此选项是为了在 `@property` 的基础上精确实现 `@serializable`、`@editable`以及所有新增的独立装饰器的行为。
+             *
+             * 当此字段为 `true` 时。以下规则将不再生效：
+             * - 只要 `@property` 未显式指定选项 `.serializable === false`，就开启序列化；
+             * - 只要 `@property` 未显式指定选项 `.visible === false` 且目标属性的名称不以下划线开头，就开启编辑器交互。
+             * 反之，由以下规则取代：
+             * - 当且仅当 `@property` 显式指定了 `.serializable === true` 时才开启序列化；
+             * - 当且仅当 `@property` 显式指定了 `.visible === true` 时才开启编辑器交互。
+             */
+            __noImplicit?: boolean;
         }
         /**
          * @zh CCClass 属性选项。
          * @en CCClass property options
          */
-        export interface cocos_core_data_class_decorator_IPropertyOptions extends cocos_core_data_utils_attribute_defines_IExposedAttributes {
+        export interface cocos_core_data_decorators_property_IPropertyOptions extends cocos_core_data_utils_attribute_defines_IExposedAttributes {
         }
-        export type cocos_core_data_class_decorator_SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
-        export type cocos_core_data_class_decorator_PropertyType = cocos_core_data_class_decorator_SimplePropertyType | cocos_core_data_class_decorator_SimplePropertyType[];
+        export type cocos_core_data_decorators_utils_BabelPropertyDecoratorDescriptor = PropertyDescriptor & {
+            initializer?: any;
+        };
+        /**
+         * The signature compatible with both TypeScript legacy decorator and Babel legacy decorator.
+         * The `descriptor` argument will only appear in Babel case.
+         */
+        export type cocos_core_data_decorators_utils_LegacyPropertyDecorator = (target: Object, propertyKey: string | symbol, descriptor?: cocos_core_data_decorators_utils_BabelPropertyDecoratorDescriptor) => void;
+        export type cocos_core_data_decorators_property_SimplePropertyType = Function | string | typeof CCString | typeof CCInteger | typeof CCFloat | typeof CCBoolean;
+        export type cocos_core_data_decorators_property_PropertyType = cocos_core_data_decorators_property_SimplePropertyType | cocos_core_data_decorators_property_SimplePropertyType[];
         export class cocos_core_data_utils_attribute_PrimitiveType<T> {
             name: string;
             default: T;
@@ -22457,6 +23525,7 @@ declare module "cc" {
             toString(): string;
         }
         export namespace cocos_core_data_utils_attribute {
+            export const DELIMETER = "$_$";
             export function createAttrsSingle(owner: Object, ownerConstructor: Function, superAttrs?: any): any;
             export function createAttrs(subclass: any): any;
             export function attr(constructor: any, propertyName: string): {
@@ -22472,6 +23541,10 @@ declare module "cc" {
                 constructor(name: string, defaultValue: T);
                 toString(): string;
             }
+            export const CCInteger: cocos_core_data_utils_attribute_PrimitiveType<number>;
+            export const CCFloat: cocos_core_data_utils_attribute_PrimitiveType<number>;
+            export const CCBoolean: cocos_core_data_utils_attribute_PrimitiveType<boolean>;
+            export const CCString: cocos_core_data_utils_attribute_PrimitiveType<string>;
             export function getTypeChecker(type: string, attributeName: string): (constructor: Function, mainPropertyName: string) => void;
             export function getObjTypeChecker(typeCtor: any): (classCtor: any, mainPropName: any) => void;
         }
@@ -22997,6 +24070,39 @@ declare module "cc" {
              */
             weights?: number[];
         }
+        /**
+         * 允许存储索引的数组视图。
+         */
+        export type cocos_core_assets_mesh_IBArray = Uint8Array | Uint16Array | Uint32Array;
+        /**
+         * 几何信息。
+         */
+        export interface cocos_core_assets_mesh_IGeometricInfo {
+            /**
+             * 顶点位置。
+             */
+            positions: Float32Array;
+            /**
+             * 索引数据。
+             */
+            indices?: cocos_core_assets_mesh_IBArray;
+            /**
+             * 是否将图元按双面对待。
+             */
+            doubleSided?: boolean;
+            /**
+             * 此几何体的轴对齐包围盒。
+             */
+            boundingBox: {
+                max: math.Vec3;
+                min: math.Vec3;
+            };
+        }
+        export interface cocos_core_assets_mesh_IFlatBuffer {
+            stride: number;
+            count: number;
+            buffer: Uint8Array;
+        }
         export interface cocos_core_assets_render_texture_IRenderTextureCreateInfo {
             name?: string;
             width: number;
@@ -23490,7 +24596,15 @@ declare module "cc" {
             subModel: renderer.SubModel;
             passIdx: number;
         }
+        export interface cocos_core_pipeline_define_IDescriptorSetLayoutInfo {
+            bindings: IGFXDescriptorSetLayoutBinding[];
+            record: Record<string, cocos_core_assets_effect_asset_IBlockInfo | cocos_core_assets_effect_asset_ISamplerInfo>;
+        }
         export namespace cocos_core_pipeline_define {
+            export const PIPELINE_FLOW_FORWARD: string;
+            export const PIPELINE_FLOW_SHADOW: string;
+            export const PIPELINE_FLOW_SMAA: string;
+            export const PIPELINE_FLOW_TONEMAP: string;
             export enum RenderPassStage {
                 DEFAULT = 100,
                 UI = 200
@@ -23523,6 +24637,8 @@ declare module "cc" {
                 bindings: IGFXDescriptorSetLayoutBinding[];
                 record: Record<string, cocos_core_assets_effect_asset_IBlockInfo | cocos_core_assets_effect_asset_ISamplerInfo>;
             }
+            export const globalDescriptorSetLayout: cocos_core_pipeline_define_IDescriptorSetLayoutInfo;
+            export const localDescriptorSetLayout: cocos_core_pipeline_define_IDescriptorSetLayoutInfo;
             export enum PipelineGlobalBindings {
                 UBO_GLOBAL = 0,
                 UBO_SHADOW = 1,
@@ -23544,11 +24660,13 @@ declare module "cc" {
                 SAMPLER_SPRITE = 10,
                 COUNT = 11
             }
+            export const isBuiltinBinding: (set: number) => boolean;
             export enum SetIndex {
                 GLOBAL = 0,
                 MATERIAL = 1,
                 LOCAL = 2
             }
+            export const bindingMappingInfo: GFXBindingMappingInfo;
             export class UBOGlobal {
                 static TIME_OFFSET: number;
                 static SCREEN_SIZE_OFFSET: number;
@@ -23581,6 +24699,8 @@ declare module "cc" {
                 static SIZE: number;
                 static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
             }
+            export const UNIFORM_SHADOWMAP: cocos_core_assets_effect_asset_ISamplerInfo;
+            export const UNIFORM_ENVIRONMENT: cocos_core_assets_effect_asset_ISamplerInfo;
             export class UBOLocal {
                 static MAT_WORLD_OFFSET: number;
                 static MAT_WORLD_IT_OFFSET: number;
@@ -23589,6 +24709,7 @@ declare module "cc" {
                 static SIZE: number;
                 static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
             }
+            export const INST_MAT_WORLD = "a_matWorld0";
             export class UBOLocalBatched {
                 static BATCHING_COUNT: number;
                 static MAT_WORLDS_OFFSET: number;
@@ -23606,6 +24727,7 @@ declare module "cc" {
                 static SIZE: number;
                 static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
             }
+            export const JOINT_UNIFORM_CAPACITY = 30;
             export class UBOSkinningTexture {
                 static JOINTS_TEXTURE_INFO_OFFSET: number;
                 static COUNT: number;
@@ -23618,6 +24740,7 @@ declare module "cc" {
                 static SIZE: number;
                 static BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
             }
+            export const INST_JOINT_ANIM_INFO = "a_jointAnimInfo";
             export class UBOSkinning {
                 static JOINTS_OFFSET: number;
                 static COUNT: number;
@@ -23633,10 +24756,15 @@ declare module "cc" {
                 static readonly SIZE: number;
                 static readonly BLOCK: cocos_core_assets_effect_asset_IBlockInfo;
             }
-        }
-        export interface cocos_core_pipeline_define_IDescriptorSetLayoutInfo {
-            bindings: IGFXDescriptorSetLayoutBinding[];
-            record: Record<string, cocos_core_assets_effect_asset_IBlockInfo | cocos_core_assets_effect_asset_ISamplerInfo>;
+            export const UniformJointTexture: cocos_core_assets_effect_asset_ISamplerInfo;
+            export const UniformPositionMorphTexture: Readonly<cocos_core_assets_effect_asset_ISamplerInfo>;
+            export const UniformNormalMorphTexture: Readonly<cocos_core_assets_effect_asset_ISamplerInfo>;
+            export const UniformTangentMorphTexture: Readonly<cocos_core_assets_effect_asset_ISamplerInfo>;
+            export const UniformLightingMapSampler: Readonly<cocos_core_assets_effect_asset_ISamplerInfo>;
+            export const UniformSpriteSampler: Readonly<cocos_core_assets_effect_asset_ISamplerInfo>;
+            export const CAMERA_DEFAULT_MASK: number;
+            export const CAMERA_EDITOR_MASK: number;
+            export const MODEL_ALWAYS_MASK: number;
         }
         /**
          * @en Render pipeline information descriptor
@@ -23704,42 +24832,6 @@ declare module "cc" {
             protected _fogRange: number;
             protected _currType: number;
             protected _colorArray: Float32Array;
-            activate(): void;
-            protected _updatePipeline(): void;
-        }
-        /**
-         * @en Scene level shadow related information
-         * @zh 常规阴影相关信息
-         */
-        export class cocos_core_renderer_scene_shadow_Shadow {
-            get enabled(): boolean;
-            set enabled(val: boolean);
-            protected _enabled: boolean;
-            /**
-             * @en get or set shadow camera near
-             * @zh 获取或者设置阴影相机近裁剪面
-             */
-            near: number;
-            /**
-             * @en get or set shadow camera far
-             * @zh 获取或者设置阴影相机远裁剪面
-             */
-            far: number;
-            /**
-             * @en get or set shadow camera aspect
-             * @zh 获取或者设置阴影相机的宽高比
-             */
-            aspect: number;
-            /**
-             * @en get or set shadow camera orthoSize
-             * @zh 获取或者设置阴影相机正交大小
-             */
-            orthoSize: number;
-            /**
-             * @en get or set shadow camera orthoSize
-             * @zh 获取或者设置阴影纹理大小
-             */
-            size: math.Vec2;
             activate(): void;
             protected _updatePipeline(): void;
         }
@@ -24585,6 +25677,149 @@ declare module "cc" {
             constructor(node: any);
         }
         /**
+         * @en Environment lighting information in the Scene
+         * @zh 场景的环境光照相关信息
+         */
+        export class cocos_core_scene_graph_scene_globals_AmbientInfo {
+            protected _skyColor: math.Color;
+            protected _skyIllum: number;
+            protected _groundAlbedo: math.Color;
+            protected _resource: renderer.Ambient | null;
+            set skyColor(val: math.Color);
+            get skyColor(): math.Color;
+            set skyIllum(val: number);
+            get skyIllum(): number;
+            set groundAlbedo(val: math.Color);
+            get groundAlbedo(): math.Color;
+            activate(resource: renderer.Ambient): void;
+        }
+        /**
+         * @en Scene level planar shadow related information
+         * @zh 平面阴影相关信息
+         */
+        export class cocos_core_scene_graph_scene_globals_ShadowsInfo {
+            protected _type: number;
+            protected _enabled: boolean;
+            protected _normal: math.Vec3;
+            protected _distance: number;
+            protected _shadowColor: math.Color;
+            protected _near: number;
+            protected _far: number;
+            protected _aspect: number;
+            protected _orthoSize: number;
+            protected _size: math.Vec2;
+            protected _resource: renderer.Shadows | null;
+            set enabled(val: boolean);
+            get enabled(): boolean;
+            set type(val: number);
+            get type(): number;
+            set shadowColor(val: math.Color);
+            get shadowColor(): math.Color;
+            set normal(val: math.Vec3);
+            get normal(): math.Vec3;
+            set distance(val: number);
+            get distance(): number;
+            set near(val: number);
+            get near(): number;
+            set far(val: number);
+            get far(): number;
+            set orthoSize(val: number);
+            get orthoSize(): number;
+            set shadowMapSize(val: math.Vec2);
+            get shadowMapSize(): math.Vec2;
+            set aspect(val: number);
+            get aspect(): number;
+            /**
+             * @en Set plane which receives shadow with the given node's world transformation
+             * @zh 根据指定节点的世界变换设置阴影接收平面的信息
+             * @param node The node for setting up the plane
+             */
+            setPlaneFromNode(node: Node): void;
+            activate(resource: renderer.Shadows): void;
+        }
+        /**
+         * @en Skybox related information
+         * @zh 天空盒相关信息
+         */
+        export class cocos_core_scene_graph_scene_globals_SkyboxInfo {
+            protected _envmap: TextureCube | null;
+            protected _isRGBE: boolean;
+            protected _enabled: boolean;
+            protected _useIBL: boolean;
+            protected _resource: renderer.Skybox | null;
+            set enabled(val: boolean);
+            get enabled(): boolean;
+            set useIBL(val: boolean);
+            get useIBL(): boolean;
+            set envmap(val: TextureCube | null);
+            get envmap(): TextureCube | null;
+            set isRGBE(val: boolean);
+            get isRGBE(): boolean;
+            activate(resource: renderer.Skybox): void;
+        }
+        /**
+         * @zh 全局雾相关信息
+         * @en Global fog info
+         */
+        export class cocos_core_scene_graph_scene_globals_FogInfo {
+            static FogType: {
+                LINEAR: number;
+                EXP: number;
+                EXP_SQUARED: number;
+                LAYERED: number;
+            };
+            protected _type: number;
+            protected _fogColor: math.Color;
+            protected _enabled: boolean;
+            protected _fogDensity: number;
+            protected _fogStart: number;
+            protected _fogEnd: number;
+            protected _fogAtten: number;
+            protected _fogTop: number;
+            protected _fogRange: number;
+            protected _resource: cocos_core_renderer_scene_fog_Fog | null;
+            set enabled(val: boolean);
+            get enabled(): boolean;
+            set fogColor(val: math.Color);
+            get fogColor(): math.Color;
+            get type(): number;
+            set type(val: number);
+            get fogDensity(): number;
+            set fogDensity(val: number);
+            get fogStart(): number;
+            set fogStart(val: number);
+            get fogEnd(): number;
+            set fogEnd(val: number);
+            get fogAtten(): number;
+            set fogAtten(val: number);
+            get fogTop(): number;
+            set fogTop(val: number);
+            get fogRange(): number;
+            set fogRange(val: number);
+            activate(resource: cocos_core_renderer_scene_fog_Fog): void;
+        }
+        /**
+         * @en All scene related global parameters, it affects all content in the corresponding scene
+         * @zh 各类场景级别的渲染参数，将影响全场景的所有物体
+         */
+        export class cocos_core_scene_graph_scene_globals_SceneGlobals {
+            /**
+             * @en The environment light information
+             * @zh 场景的环境光照相关信息
+             */
+            ambient: cocos_core_scene_graph_scene_globals_AmbientInfo;
+            /**
+             * @en Scene level planar shadow related information
+             * @zh 平面阴影相关信息
+             */
+            shadows: cocos_core_scene_graph_scene_globals_ShadowsInfo;
+            _skybox: cocos_core_scene_graph_scene_globals_SkyboxInfo;
+            fog: cocos_core_scene_graph_scene_globals_FogInfo;
+            get skybox(): cocos_core_scene_graph_scene_globals_SkyboxInfo;
+            set skybox(value: cocos_core_scene_graph_scene_globals_SkyboxInfo);
+            activate(): void;
+        }
+        /**
          * @en
          * A temp fallback to contain the original serialized data which can not be loaded.
          * @zh
@@ -25081,6 +26316,8 @@ declare module "cc" {
         }
         export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUPipelineLayout {
             gpuSetLayouts: cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUDescriptorSetLayout[];
+            dynamicOffsetCount: number;
+            dynamicOffsetOffsets: number[];
             dynamicOffsetIndices: number[][];
         }
         export interface cocos_core_gfx_webgl_webgl_gpu_objects_IWebGLGPUPipelineState {
@@ -25406,6 +26643,8 @@ declare module "cc" {
         }
         export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUPipelineLayout {
             gpuSetLayouts: cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUDescriptorSetLayout[];
+            dynamicOffsetCount: number;
+            dynamicOffsetOffsets: number[];
             dynamicOffsetIndices: number[][];
         }
         export interface cocos_core_gfx_webgl2_webgl2_gpu_objects_IWebGL2GPUPipelineState {
@@ -25553,34 +26792,6 @@ declare module "cc" {
             initialize(info: IGFXTextureInfo | IGFXTextureViewInfo): boolean;
             destroy(): void;
             resize(width: number, height: number): void;
-        }
-        export interface cocos_audio_assets_player_IAudioInfo {
-            clip: any;
-            duration: number;
-            eventTarget: any;
-        }
-        export abstract class cocos_audio_assets_player_AudioPlayer {
-            protected _state: number;
-            protected _duration: number;
-            protected _eventTarget: any;
-            protected _onHide: Function;
-            protected _onShow: Function;
-            protected _interrupted: boolean;
-            protected _blocking: boolean;
-            constructor(info: cocos_audio_assets_player_IAudioInfo);
-            abstract play(): void;
-            abstract pause(): void;
-            abstract stop(): void;
-            abstract playOneShot(volume: number): void;
-            abstract setCurrentTime(val: number): void;
-            abstract getCurrentTime(): number;
-            abstract setVolume(val: number, immediate: boolean): void;
-            abstract getVolume(): number;
-            abstract setLoop(val: boolean): void;
-            abstract getLoop(): boolean;
-            getState(): number;
-            getDuration(): number;
-            destroy(): void;
         }
         export class cocos_particle_animator_gradient_ColorKey {
             color: math.Color;
@@ -26061,6 +27272,293 @@ declare module "cc" {
             set useGPU(val: boolean);
             onInit(ps: any): void;
         }
+        export interface cocos_physics_spec_i_physics_world_IRaycastOptions {
+            mask: number;
+            group: number;
+            queryTrigger: boolean;
+            maxDistance: number;
+        }
+        export interface cocos_physics_spec_i_physics_world_IPhysicsWorld {
+            impl: any;
+            setGravity: (v: math.IVec3Like) => void;
+            setAllowSleep: (v: boolean) => void;
+            setDefaultMaterial: (v: PhysicMaterial) => void;
+            step(fixedTimeStep: number, timeSinceLastCalled?: number, maxSubSteps?: number): void;
+            raycast(worldRay: geometry.ray, options: cocos_physics_spec_i_physics_world_IRaycastOptions, pool: memop.RecyclePool<PhysicsRayResult>, results: PhysicsRayResult[]): boolean;
+            raycastClosest(worldRay: geometry.ray, options: cocos_physics_spec_i_physics_world_IRaycastOptions, out: PhysicsRayResult): boolean;
+            emitEvents(): void;
+            syncSceneToPhysics(): void;
+            updateCollisionMatrix(group: number, mask: number): void;
+        }
+        export enum cocos_physics_framework_physics_enum_EColliderType {
+            BOX = 0,
+            SPHERE = 1,
+            CAPSULE = 2,
+            CYLINDER = 3,
+            CONE = 4,
+            MESH = 5,
+            PLANE = 6,
+            SIMPLEX = 7,
+            TERRAIN = 8
+        }
+        /**
+         * @hidden
+         */
+        export interface cocos_physics_spec_i_lifecycle_ILifecycle {
+            /**
+             * @en Update is called every frame, if the Component is enabled.<br/>
+             * This is a lifecycle method. It may not be implemented in the super class.<br/>
+             * You can only call its super class method inside it. It should not be called manually elsewhere.
+             * @zh 如果该组件启用，则每帧调用 update。<br/>
+             * 该方法为生命周期方法，父类未必会有实现。并且你只能在该方法内部调用父类的实现，不可在其它地方直接调用该方法。
+             * @param dt - the delta time in seconds it took to complete the last frame
+             */
+            update?(dt: number): void;
+            /**
+             * @en LateUpdate is called every frame, if the Component is enabled.<br/>
+             * This is a lifecycle method. It may not be implemented in the super class.<br/>
+             * You can only call its super class method inside it. It should not be called manually elsewhere.
+             * @zh 如果该组件启用，则每帧调用 LateUpdate。<br/>
+             * 该方法为生命周期方法，父类未必会有实现。并且你只能在该方法内部调用父类的实现，不可在其它地方直接调用该方法。
+             * @param dt - the delta time in seconds it took to complete the last frame
+             */
+            lateUpdate?(dt: number): void;
+            /**
+             * @en `__preload` is called before every onLoad.<br/>
+             * It is used to initialize the builtin components internally,<br/>
+             * to avoid checking whether onLoad is called before every public method calls.<br/>
+             * This method should be removed if script priority is supported.
+             * @zh `__preload` 在每次onLoad之前调用。<br/>
+             * 它用于在内部初始化内置组件，<br/>
+             * 以避免在每次公有方法调用之前检查是否调用了onLoad。<br/>
+             * 如果支持脚本优先级，则应删除此方法。
+             * @private
+             */
+            __preload?(component: any): void;
+            /**
+             * @en
+             * When attaching to an active node or its node first activated.<br/>
+             * onLoad is always called before any start functions, this allows you to order initialization of scripts.<br/>
+             * This is a lifecycle method. It may not be implemented in the super class.<br/>
+             * You can only call its super class method inside it. It should not be called manually elsewhere.
+             * @zh
+             * 当附加到一个激活的节点上或者其节点第一次激活时候调用。onLoad 总是会在任何 start 方法调用前执行，这能用于安排脚本的初始化顺序。<br/>
+             * 该方法为生命周期方法，父类未必会有实现。并且你只能在该方法内部调用父类的实现，不可在其它地方直接调用该方法。
+             */
+            onLoad?(): void;
+            /**
+             * @en
+             * Called before all scripts' update if the Component is enabled the first time.<br/>
+             * Usually used to initialize some logic which need to be called after all components' `onload` methods called.<br/>
+             * This is a lifecycle method. It may not be implemented in the super class.<br/>
+             * You can only call its super class method inside it. It should not be called manually elsewhere.
+             * @zh
+             * 如果该组件第一次启用，则在所有组件的 update 之前调用。通常用于需要在所有组件的 onLoad 初始化完毕后执行的逻辑。<br/>
+             * 该方法为生命周期方法，父类未必会有实现。并且你只能在该方法内部调用父类的实现，不可在其它地方直接调用该方法。
+             */
+            start?(): void;
+            /**
+             * @en Called when this component becomes enabled and its node is active.<br/>
+             * This is a lifecycle method. It may not be implemented in the super class.
+             * You can only call its super class method inside it. It should not be called manually elsewhere.
+             * @zh 当该组件被启用，并且它的节点也激活时。<br/>
+             * 该方法为生命周期方法，父类未必会有实现。并且你只能在该方法内部调用父类的实现，不可在其它地方直接调用该方法。
+             */
+            onEnable?(): void;
+            /**
+             * @en Called when this component becomes disabled or its node becomes inactive.<br/>
+             * This is a lifecycle method. It may not be implemented in the super class.
+             * You can only call its super class method inside it. It should not be called manually elsewhere.
+             * @zh 当该组件被禁用或节点变为无效时调用。<br/>
+             * 该方法为生命周期方法，父类未必会有实现。并且你只能在该方法内部调用父类的实现，不可在其它地方直接调用该方法。
+             */
+            onDisable?(): void;
+            /**
+             * @en Called when this component will be destroyed.<br/>
+             * This is a lifecycle method. It may not be implemented in the super class.<br/>
+             * You can only call its super class method inside it. It should not be called manually elsewhere.
+             * @zh 当该组件被销毁时调用<br/>
+             * 该方法为生命周期方法，父类未必会有实现。并且你只能在该方法内部调用父类的实现，不可在其它地方直接调用该方法。
+             */
+            onDestroy?(): void;
+            onFocusInEditor?(): void;
+            onLostFocusInEditor?(): void;
+            /**
+             * @en Called to initialize the component or node’s properties when adding the component the first time or when the Reset command is used.
+             * This function is only called in editor.<br/>
+             * @zh 用来初始化组件或节点的一些属性，当该组件被第一次添加到节点上或用户点击了它的 Reset 菜单时调用。这个回调只会在编辑器下调用。
+             */
+            resetInEditor?(): void;
+            /**
+             * @en
+             * onRestore is called after the user clicks the Reset item in the Inspector's context menu or performs
+             * an undo operation on this component.<br/>
+             * <br/>
+             * If the component contains the "internal state", short for "temporary member variables which not included<br/>
+             * in its CCClass properties", then you may need to implement this function.<br/>
+             * <br/>
+             * The editor will call the getset accessors of your component to record/restore the component's state<br/>
+             * for undo/redo operation. However, in extreme cases, it may not works well. Then you should implement<br/>
+             * this function to manually synchronize your component's "internal states" with its public properties.<br/>
+             * Once you implement this function, all the getset accessors of your component will not be called when<br/>
+             * the user performs an undo/redo operation. Which means that only the properties with default value<br/>
+             * will be recorded or restored by editor.<br/>
+             * <br/>
+             * Similarly, the editor may failed to reset your component correctly in extreme cases. Then if you need<br/>
+             * to support the reset menu, you should manually synchronize your component's "internal states" with its<br/>
+             * properties in this function. Once you implement this function, all the getset accessors of your component<br/>
+             * will not be called during reset operation. Which means that only the properties with default value<br/>
+             * will be reset by editor.
+             *
+             * This function is only called in editor mode.
+             * @zh
+             * onRestore 是用户在检查器菜单点击 Reset 时，对此组件执行撤消操作后调用的。<br/>
+             * <br/>
+             * 如果组件包含了“内部状态”（不在 CCClass 属性中定义的临时成员变量），那么你可能需要实现该方法。<br/>
+             * <br/>
+             * 编辑器执行撤销/重做操作时，将调用组件的 get set 来录制和还原组件的状态。
+             * 然而，在极端的情况下，它可能无法良好运作。<br/>
+             * 那么你就应该实现这个方法，手动根据组件的属性同步“内部状态”。
+             * 一旦你实现这个方法，当用户撤销或重做时，组件的所有 get set 都不会再被调用。
+             * 这意味着仅仅指定了默认值的属性将被编辑器记录和还原。<br/>
+             * <br/>
+             * 同样的，编辑可能无法在极端情况下正确地重置您的组件。<br/>
+             * 于是如果你需要支持组件重置菜单，你需要在该方法中手工同步组件属性到“内部状态”。<br/>
+             * 一旦你实现这个方法，组件的所有 get set 都不会在重置操作时被调用。
+             * 这意味着仅仅指定了默认值的属性将被编辑器重置。
+             * <br/>
+             * 此方法仅在编辑器下会被调用。
+             */
+            onRestore?(): void;
+        }
+        /**
+         * @hidden
+         */
+        export interface cocos_physics_spec_i_group_mask_IGroupMask {
+            setGroup(v: number): void;
+            getGroup(): number;
+            addGroup(v: number): void;
+            removeGroup(v: number): void;
+            setMask(v: number): void;
+            getMask(): number;
+            addMask(v: number): void;
+            removeMask(v: number): void;
+        }
+        export interface cocos_physics_spec_i_physics_shape_IBaseShape extends cocos_physics_spec_i_lifecycle_ILifecycle, cocos_physics_spec_i_group_mask_IGroupMask {
+            impl: any;
+            collider: ColliderComponent;
+            attachedRigidBody: RigidBodyComponent | null;
+            initialize(v: ColliderComponent): void;
+            setMaterial: (v: PhysicMaterial | null) => void;
+            setAsTrigger: (v: boolean) => void;
+            setCenter: (v: math.IVec3Like) => void;
+            getAABB: (v: geometry.aabb) => void;
+            getBoundingSphere: (v: geometry.sphere) => void;
+        }
+        export const cocos_physics_framework_components_colliders_collider_component_ColliderComponent_base: new (...args: any[]) => Component & cocos_core_event_eventify_IEventified;
+        export interface cocos_physics_spec_i_physics_shape_IBoxShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setSize: (v: math.IVec3Like) => void;
+        }
+        export interface cocos_physics_spec_i_physics_shape_ISphereShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setRadius: (v: number) => void;
+        }
+        export interface cocos_physics_spec_i_physics_shape_ICapsuleShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setRadius: (v: number) => void;
+            setCylinderHeight: (v: number) => void;
+            setDirection: (v: number) => void;
+        }
+        export interface cocos_physics_spec_i_physics_shape_ITrimeshShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setMesh: (v: Mesh | null) => void;
+        }
+        export interface cocos_physics_spec_i_physics_shape_ICylinderShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setRadius: (v: number) => void;
+            setHeight: (v: number) => void;
+            setDirection: (v: number) => void;
+        }
+        export interface cocos_physics_spec_i_physics_shape_IConeShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setRadius: (v: number) => void;
+            setHeight: (v: number) => void;
+            setDirection: (v: number) => void;
+        }
+        export interface cocos_physics_spec_i_physics_shape_IConeShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setRadius: (v: number) => void;
+            setHeight: (v: number) => void;
+            setDirection: (v: number) => void;
+        }
+        export interface cocos_physics_spec_i_external_ITerrainAsset {
+            _uuid: string;
+            tileSize: number;
+            getVertexCountI: () => number;
+            getVertexCountJ: () => number;
+            getHeight: (i: number, j: number) => number;
+        }
+        export interface cocos_physics_spec_i_physics_shape_ITerrainShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setTerrain: (v: cocos_physics_spec_i_external_ITerrainAsset | null) => void;
+        }
+        export enum cocos_physics_framework_physics_enum_ESimplexType {
+            VERTEX = 1,
+            LINE = 2,
+            TRIANGLE = 3,
+            TETRAHEDRON = 4
+        }
+        export interface cocos_physics_spec_i_physics_shape_ISimplexShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setShapeType: (v: SimplexColliderComponent.ESimplexType) => void;
+            setVertices: (v: math.IVec3Like[]) => void;
+        }
+        export interface cocos_physics_spec_i_physics_shape_IPlaneShape extends cocos_physics_spec_i_physics_shape_IBaseShape {
+            setNormal: (v: math.IVec3Like) => void;
+            setConstant: (v: number) => void;
+        }
+        export enum cocos_physics_framework_physics_enum_EConstraintType {
+            POINT_TO_POINT = 0,
+            HINGE = 1,
+            CONE_TWIST = 2
+        }
+        export interface cocos_physics_spec_i_physics_constraint_IBaseConstraint extends cocos_physics_spec_i_lifecycle_ILifecycle {
+            impl: any;
+            initialize(v: ConstraintComponent): void;
+            setConnectedBody(v: RigidBodyComponent | null): void;
+            setEnableCollision(v: boolean): void;
+        }
+        export const cocos_physics_framework_components_constraints_constraint_component_ConstraintComponent_base: new (...args: any[]) => Component & cocos_core_event_eventify_IEventified;
+        export interface cocos_physics_spec_i_physics_constraint_IPointToPointConstraint extends cocos_physics_spec_i_physics_constraint_IBaseConstraint {
+            setPivotA(v: math.IVec3Like): void;
+            setPivotB(v: math.IVec3Like): void;
+        }
+        export interface cocos_physics_spec_i_rigid_body_IRigidBody extends cocos_physics_spec_i_lifecycle_ILifecycle, cocos_physics_spec_i_group_mask_IGroupMask {
+            impl: any;
+            rigidBody: RigidBodyComponent;
+            isAwake: boolean;
+            isSleepy: boolean;
+            isSleeping: boolean;
+            initialize(v: RigidBodyComponent): void;
+            setMass: (v: number) => void;
+            setLinearDamping: (v: number) => void;
+            setAngularDamping: (v: number) => void;
+            setIsKinematic: (v: boolean) => void;
+            useGravity: (v: boolean) => void;
+            fixRotation: (v: boolean) => void;
+            setLinearFactor: (v: math.IVec3Like) => void;
+            setAngularFactor: (v: math.IVec3Like) => void;
+            setAllowSleep: (v: boolean) => void;
+            wakeUp(): void;
+            sleep(): void;
+            clearState(): void;
+            clearForces(): void;
+            clearVelocity(): void;
+            setSleepThreshold(v: number): void;
+            getSleepThreshold(): number;
+            getLinearVelocity(out: math.IVec3Like): void;
+            setLinearVelocity(value: math.IVec3Like): void;
+            getAngularVelocity(out: math.IVec3Like): void;
+            setAngularVelocity(value: math.IVec3Like): void;
+            applyForce(force: math.IVec3Like, relativePoint?: math.IVec3Like): void;
+            applyLocalForce(force: math.IVec3Like, relativePoint?: math.IVec3Like): void;
+            applyImpulse(force: math.IVec3Like, relativePoint?: math.IVec3Like): void;
+            applyLocalImpulse(force: math.IVec3Like, relativePoint?: math.IVec3Like): void;
+            applyTorque(torque: math.IVec3Like): void;
+            applyLocalTorque(torque: math.IVec3Like): void;
+        }
         /**
          * !#en Base classAction for action classes.
          * !#zh Action 类是所有动作类型的基类。
@@ -26072,7 +27570,6 @@ declare module "cc" {
              * !#zh 默认动作标签。
              * @constant
              * @static
-             * @type {Number}
              * @default -1
              */
             static TAG_INVALID: number;
@@ -26204,9 +27701,8 @@ declare module "cc" {
              * 属于该目标的所有的动作将被删除。
              * @method removeAllActionsFromTarget
              * @param {Node} target
-             * @param {Boolean} forceDelete
              */
-            removeAllActionsFromTarget(target: Node, forceDelete: boolean): void;
+            removeAllActionsFromTarget(target: Node): void;
             /**
              * !#en Removes an action given an action reference.
              * !#zh 移除指定的动作。
@@ -26214,6 +27710,7 @@ declare module "cc" {
              * @param {Action} action
              */
             removeAction(action: cocos_tween_actions_action_Action): void;
+            _removeActionByTag(tag: number, element: any, target?: Node): void;
             /**
              * !#en Removes an action given its tag and the target.
              * !#zh 删除指定对象下特定标签的一个动作，将删除首个匹配到的动作。
@@ -26221,7 +27718,7 @@ declare module "cc" {
              * @param {Number} tag
              * @param {Node} target
              */
-            removeActionByTag(tag: number, target: Node): void;
+            removeActionByTag(tag: number, target?: Node): void;
             /**
              * !#en Gets an action given its tag an a target.
              * !#zh 通过目标对象和标签获取一个动作。
@@ -26703,11 +28200,11 @@ declare module "cc" {
             HORIZONTAL = 0,
             VERTICAL = 1
         }
-        export type cocos_core_renderer_core_memory_pools_IAHandle = cocos_core_renderer_core_memory_pools_Handle<cocos_core_renderer_core_memory_pools_PoolType.INPUT_ASSEMBLER>;
+        export type cocos_core_renderer_core_memory_pools_InputAssemblerHandle = cocos_core_renderer_core_memory_pools_IHandle<cocos_core_renderer_core_memory_pools_PoolType.INPUT_ASSEMBLER>;
         export class cocos_core_renderer_ui_ui_draw_batch_UIDrawBatch {
             camera: renderer.Camera | null;
             ia: GFXInputAssembler | null;
-            hIA: cocos_core_renderer_core_memory_pools_IAHandle;
+            hIA: cocos_core_renderer_core_memory_pools_InputAssemblerHandle;
             model: renderer.Model | null;
             material: Material | null;
             texture: GFXTexture | null;
@@ -26765,185 +28262,318 @@ declare module "cc" {
             getLetterDefinitionForChar(char: string): cocos_ui_assembler_label_bmfontUtils_FontLetterDefinition;
         }
     }
-    export import bits = math.bits;
-    export import Vec2 = math.Vec2;
-    export import v2 = math.v2;
-    export import Vec3 = math.Vec3;
-    export import v3 = math.v3;
-    export import Vec4 = math.Vec4;
-    export import v4 = math.v4;
-    export import Quat = math.Quat;
-    export import quat = math.quat;
-    export import Mat3 = math.Mat3;
-    export import Mat4 = math.Mat4;
-    export import mat4 = math.mat4;
-    export import AffineTransform = math.AffineTransform;
-    export import Size = math.Size;
-    export import size = math.size;
-    export import Rect = math.Rect;
-    export import rect = math.rect;
-    export import Color = math.Color;
-    export import color = math.color;
-    export import equals = math.equals;
-    export import approx = math.approx;
-    export import clamp = math.clamp;
-    export import clamp01 = math.clamp01;
-    export import lerp = math.lerp;
-    export import toRadian = math.toRadian;
-    export import toDegree = math.toDegree;
-    export import randomRange = math.randomRange;
-    export import randomRangeInt = math.randomRangeInt;
-    export import pseudoRandom = math.pseudoRandom;
-    export import pseudoRandomRange = math.pseudoRandomRange;
-    export import pseudoRandomRangeInt = math.pseudoRandomRangeInt;
-    export import nextPow2 = math.nextPow2;
-    export import repeat = math.repeat;
-    export import pingPong = math.pingPong;
-    export import inverseLerp = math.inverseLerp;
-    export import absMaxComponent = math.absMaxComponent;
-    export import absMax = math.absMax;
-    export import EPSILON = math.EPSILON;
-    export import random = math.random;
-    export import IColorLike = math.IColorLike;
-    export import IMat3Like = math.IMat3Like;
-    export import IMat4Like = math.IMat4Like;
-    export import IQuatLike = math.IQuatLike;
-    export import IRectLike = math.IRectLike;
-    export import ISizeLike = math.ISizeLike;
-    export import IVec2Like = math.IVec2Like;
-    export import IVec3Like = math.IVec3Like;
-    export import IVec4Like = math.IVec4Like;
-    export import Pool = memop.Pool;
-    export import RecyclePool = memop.RecyclePool;
-    export import CachedArray = memop.CachedArray;
-    export import ICubicSplineValue = animation.ICubicSplineValue;
-    export import CubicSplineValueConstructor = animation.CubicSplineValueConstructor;
-    export import CubicSplineVec2Value = animation.CubicSplineVec2Value;
-    export import CubicSplineVec3Value = animation.CubicSplineVec3Value;
-    export import CubicSplineVec4Value = animation.CubicSplineVec4Value;
-    export import CubicSplineQuatValue = animation.CubicSplineQuatValue;
-    export import CubicSplineNumberValue = animation.CubicSplineNumberValue;
-    import { PrimitiveType as _PrimitiveType } from "cc";
+    import { PrimitiveType as _PrimitiveType, EAxisDirection as _EAxisDirection, ERigidBodyType as _ERigidBodyType } from "cc";
 }
-declare module "cc.decorator" {
-    export namespace serializable {
-        export function formerlySerializedAs(name: string): PropertyDecorator;
-        export const field: PropertyDecorator;
-        /**
-         * @en
-         * Marks the property as editor only.
-         * @zh
-         * 设置该属性仅在编辑器中生效。
-         */
-        export const editorOnly: PropertyDecorator;
-    }
-    export namespace editable {
-        export const field: PropertyDecorator;
-        /**
-         * @en
-         * Sets the condition to show the property.
-         * @zh
-         * 设置在编辑器展示该属性的条件。
-         * @param condition 展示条件，当返回 `true` 时展示；否则不展示。
-         */
-        export const visible: (condition: boolean | (() => boolean)) => PropertyDecorator;
-        export const readOnly: PropertyDecorator;
-        /**
-         * @en
-         * Sets the display name of the property in editor.
-         * @zh
-         * 设置该属性在编辑器中的显示名称。
-         * @param text 显示名称。
-         */
-        export const displayName: (text: string) => PropertyDecorator;
-        /**
-         * @en
-         * Sets the tooltip content of the property in editor.
-         * @zh
-         * 设置该属性在编辑器中的工具提示内容。
-         * @param text 工具提示。
-         */
-        export const tooltip: (text: string) => PropertyDecorator;
-        /**
-         * @en
-         * Sets the allowed range of the property in editor.
-         * @zh
-         * 设置该属性在编辑器中允许设置的范围。
-         * @param values 范围。
-         */
-        export const range: (values: [number, number, number] | [number, number]) => PropertyDecorator;
-        /**
-         * @en
-         * Sets the allowed min value of the property in editor.
-         * @zh
-         * 设置该属性在编辑器中允许的最小值。
-         * @param value 最小值。
-         */
-        export const rangeMin: (value: number) => PropertyDecorator;
-        /**
-         * @en
-         * Sets the allowed max value of the property in editor.
-         * @zh
-         * 设置该属性在编辑器中允许的最大值。
-         * @param value 最大值。
-         */
-        export const rangeMax: (value: number) => PropertyDecorator;
-        /**
-         * @en
-         * Sets the step of the property in editor.
-         * @zh
-         * 设置该属性在编辑器中的步进值。
-         * @param value 步进值。
-         */
-        export const rangeStep: (value: number) => PropertyDecorator;
-        /**
-         * @en
-         * Enable a slider be given to coordinate the property in editor.
-         * @zh
-         * 允许在编辑器中提供滑动条来调节值
-         */
-        export const slide: PropertyDecorator;
-        /**
-         * @en
-         * Sets the display order of the property in editor.
-         * @zh
-         * 设置该属性在编辑器中的显示顺序。
-         * @param order 显示顺序。
-         */
-        export const displayOrder: (order: number) => PropertyDecorator;
-        /**
-         * @en
-         * Sets the unit of the property in editor.
-         * @zh
-         * 设置该属性在编辑器中的计量单位。
-         * @param name 计量单位的名称。
-         */
-        export const unit: (name: "lm" | "lx" | "cd/m\u00B2") => PropertyDecorator;
-        /**
-         * @en
-         * Sets to convert the value into radian before feed it to the property in editor.
-         * @zh
-         * 设置在编辑器中赋值该属性前将值先转换为弧度制。
-         */
-        export const radian: PropertyDecorator;
-        /**
-         * @en
-         * Enable multi-line display of the property in editor.
-         * @zh
-         * 允许在编辑器中对该属性进行多行显示。
-         */
-        export const multiline: PropertyDecorator;
-    }
-    export const override: PropertyDecorator;
+declare module "cc.decorators" {
     /**
+     * @en Declare that the current component relies on another type of component.
+     * If the required component doesn't exist, the engine will create a new empty instance of the required component and add to the node.
+     * @zh 为声明为 CCClass 的组件添加依赖的其它组件。当组件添加到节点上时，如果依赖的组件不存在，引擎将会自动将依赖组件添加到同一个节点，防止脚本出错。该设置在运行时同样有效。
+     * @param requiredComponent The required component type
+     * @example
+     * ```ts
+     * import {_decorator, SpriteComponent, Component} from cc;
+     * import {ccclass, requireComponent} from _decorator;
      *
-     * @param value
+     * @ccclass
+     * @requireComponent(SpriteComponent)
+     * class SpriteCtrl extends Component {
+     *     // ...
+     * }
+     * ```
      */
-    export function animatable(value: boolean): PropertyDecorator;
-    export import string = _decorator.string;
-    export import integer = _decorator.integer;
-    export import float = _decorator.float;
-    export import boolean = _decorator.boolean;
-    export import type = _decorator.type;
+    export const requireComponent: (requiredComponent: Function) => ClassDecorator;
+    /**
+     * @en Set the component priority, it decides at which order the life cycle functions of components will be invoked. Smaller priority get invoked before larger priority.
+     * This will affect `onLoad`, `onEnable`, `start`, `update` and `lateUpdate`, but `onDisable` and `onDestroy` won't be affected.
+     * @zh 设置脚本生命周期方法调用的优先级。优先级小于 0 的组件将会优先执行，优先级大于 0 的组件将会延后执行。优先级仅会影响 onLoad, onEnable, start, update 和 lateUpdate，而 onDisable 和 onDestroy 不受影响。
+     * @param priority - The execution order of life cycle methods for Component. Smaller priority get invoked before larger priority.
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, executionOrder} = _decorator;
+     *
+     * @ccclass
+     * @executionOrder(1)
+     * class CameraCtrl extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const executionOrder: (priority: number) => ClassDecorator;
+    /**
+     * @en Forbid add multiple instances of the component to the same node.
+     * @zh 防止多个相同类型（或子类型）的组件被添加到同一个节点。
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, disallowMultiple} = _decorator;
+     *
+     * @ccclass
+     * @disallowMultiple
+     * class CameraCtrl extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const disallowMultiple: ClassDecorator & ((yes?: boolean) => ClassDecorator);
+    /**
+     * @en Makes a CCClass that inherit from component execute in edit mode.<br/>
+     * By default, all components are only executed in play mode,<br/>
+     * which means they will not have their callback functions executed while the Editor is in edit mode.<br/>
+     * @zh 允许继承自 Component 的 CCClass 在编辑器里执行。<br/>
+     * 默认情况下，所有 Component 都只会在运行时才会执行，也就是说它们的生命周期回调不会在编辑器里触发。
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, executeInEditMode} = _decorator;
+     *
+     *  @ccclass
+     *  @executeInEditMode
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const executeInEditMode: ClassDecorator & ((yes?: boolean) => ClassDecorator);
+    /**
+     * @en Add the current component to the specific menu path in `Add Component` selector of the inspector panel
+     * @zh 将当前组件添加到组件菜单中，方便用户查找。例如 "Rendering/CameraCtrl"。
+     * @param path - The path is the menu represented like a pathname. For example the menu could be "Rendering/CameraCtrl".
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, menu} = _decorator;
+     *
+     * @ccclass
+     * @menu("Rendering/CameraCtrl")
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const menu: (path: string) => ClassDecorator;
+    /**
+     * @en When {{executeInEditMode}} is set, this decorator will decide when a node with the component is on focus whether the editor should running in high FPS mode.
+     * @zh 当指定了 "executeInEditMode" 以后，playOnFocus 可以在选中当前组件所在的节点时，提高编辑器的场景刷新频率到 60 FPS，否则场景就只会在必要的时候进行重绘。
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, playOnFocus, executeInEditMode} = _decorator;
+     *
+     * @ccclass
+     * @executeInEditMode
+     * @playOnFocus
+     * class CameraCtrl extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const playOnFocus: ClassDecorator & ((yes?: boolean) => ClassDecorator);
+    /**
+     * @en Use a customized inspector page in the **inspector**
+     * @zh 自定义当前组件在 **属性检查器** 中渲染时所用的 UI 页面描述。
+     * @param url The url of the page definition in js
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, inspector} = _decorator;
+     *
+     * @ccclass
+     * @inspector("packages://inspector/inspectors/comps/camera-ctrl.js")
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const inspector: (url: string) => ClassDecorator;
+    /**
+     * @en Define the icon of the component.
+     * @zh 自定义当前组件在编辑器中显示的图标 url。
+     * @param url
+     * @private
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, icon} = _decorator;
+     *
+     *  @ccclass
+     *  @icon("xxxx.png")
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const icon: (url: string) => ClassDecorator;
+    /**
+     * @en Define the help documentation url, if given, the component section in the **inspector** will have a help documentation icon reference to the web page given.
+     * @zh 指定当前组件的帮助文档的 url，设置过后，在 **属性检查器** 中就会出现一个帮助图标，用户点击将打开指定的网页。
+     * @param url The url of the help documentation
+     * @example
+     * ```ts
+     * import { _decorator, Component } from 'cc';
+     * const {ccclass, help} = _decorator;
+     *
+     * @ccclass
+     * @help("app://docs/html/components/spine.html")
+     * class NewScript extends Component {
+     *     // ...
+     * }
+     * ```
+     */
+    export const help: (url: string) => ClassDecorator;
+    /**
+     * @en Declare the property as the given type
+     * @zh 标记该属性的类型。
+     * @param type
+     */
+    export function type(type: Function | [Function] | any): PropertyDecorator;
+    export function type<T>(type: ___private.cocos_core_data_utils_attribute_PrimitiveType<T> | [___private.cocos_core_data_utils_attribute_PrimitiveType<T>]): PropertyDecorator;
+    /**
+     * @en Declare the property as integer
+     * @zh 将该属性标记为整数。
+     */
+    export const integer: PropertyDecorator;
+    /**
+     * @en Declare the property as float
+     * @zh 将该属性标记为浮点数。
+     */
+    export const float: PropertyDecorator;
+    /**
+     * @en Declare the property as boolean
+     * @zh 将该属性标记为布尔值。
+     */
+    export const boolean: PropertyDecorator;
+    /**
+     * @en Declare the property as string
+     * @zh 将该属性标记为字符串。
+     */
+    export const string: PropertyDecorator;
+    export const override: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    export function formerlySerializedAs(name: string): ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    export const serializable: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Marks the property as editor only.
+     * @zh
+     * 设置该属性仅在编辑器中生效。
+     */
+    export const editorOnly: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Enables the editor interoperability of the property.
+     * @zh
+     * 允许该属性与编辑器交互。
+     */
+    export const editable: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the condition to show the property.
+     * @zh
+     * 设置在编辑器展示该属性的条件。
+     * @param condition 展示条件，当返回 `true` 时展示；否则不展示。
+     */
+    export const visible: (condition: boolean | (() => boolean)) => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the property to be read only in editor.
+     * @zh
+     * 设置该属性在编辑器中仅是可读的。
+     */
+    export const readOnly: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the display name of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的显示名称。
+     * @param text 显示名称。
+     */
+    export const displayName: (text: string) => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the tooltip content of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的工具提示内容。
+     * @param text 工具提示。
+     */
+    export const tooltip: (text: string) => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the allowed range of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中允许设置的范围。
+     * @param values 范围。
+     */
+    export const range: (values: [number, number, number] | [number, number]) => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the allowed min value of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中允许的最小值。
+     * @param value 最小值。
+     */
+    export const rangeMin: (value: number) => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the allowed max value of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中允许的最大值。
+     * @param value 最大值。
+     */
+    export const rangeMax: (value: number) => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the step of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的步进值。
+     * @param value 步进值。
+     */
+    export const rangeStep: (value: number) => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Enable a slider be given to coordinate the property in editor.
+     * @zh
+     * 允许在编辑器中提供滑动条来调节值
+     */
+    export const slide: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the display order of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的显示顺序。
+     * @param order 显示顺序。
+     */
+    export const displayOrder: (order: number) => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the unit of the property in editor.
+     * @zh
+     * 设置该属性在编辑器中的计量单位。
+     * @param name 计量单位的名称。
+     */
+    export const unit: (name: "lm" | "lx" | "cd/m\u00B2") => ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets to convert the value into radian before feed it to the property in editor.
+     * @zh
+     * 设置在编辑器中赋值该属性前将值先转换为弧度制。
+     */
+    export const radian: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Enable multi-line display of the property in editor.
+     * @zh
+     * 允许在编辑器中对该属性进行多行显示。
+     */
+    export const multiline: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    /**
+     * @en
+     * Sets the property so that it does not interop with the animation parts in editor.
+     * @zh
+     * 设置该属性不参与编辑器中动画相关的交互。
+     */
+    export const disallowAnimation: ___private.cocos_core_data_decorators_utils_LegacyPropertyDecorator;
+    export import ccclass = _decorator.ccclass;
     import { _decorator } from "cc";
+    import { __private as ___private } from "cc";
 }

@@ -1,6 +1,6 @@
 {
     "entries": {
         "cc": "cc",
-        "cc.decorator": "exports/decorator"
+        "cc.decorators": "exports/decorators"
     }
 }

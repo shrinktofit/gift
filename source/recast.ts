@@ -24,8 +24,8 @@ export function recastTopLevelModule({
         addStatements: (statements: ts.Statement[]) => void;
     },
 }) {
-    const nonExportedSymbolStatementStack: ts.Statement[][] = [];
-
+    const topLevelModuleModuleInteropRecord = new ModuleInteropRecord(rModule.entity);
+    const moduleInteropRecordStack: ModuleInteropRecord[] = [];
     const moduleDeclaration = recastRModule(rModule);
     return [moduleDeclaration];
 
@@ -48,10 +48,7 @@ export function recastTopLevelModule({
     }
 
     function recastRModule(rModule: rConcepts.ModuleTraits) {
-        const statements = recastNamespaceTraits(rModule.entity.namespaceTraits!);
-        nameResolver.enter(rModule.entity.namespaceTraits!);
-        statements.push(...recastAliasExports(rModule.entity.namespaceTraits!));
-        nameResolver.leave();
+        const statements = recastNamespaceTraits(rModule.entity.namespaceTraits!, topLevelModuleModuleInteropRecord);
 
         Object.entries(rModule.imports).map(([specifier, detail]) => {
             const importSymbols = Object.entries(detail.namedImports);
@@ -108,7 +105,10 @@ export function recastTopLevelModule({
         }
 
         if (namespaceTraits) {
-            const childrenEntityStatements = recastNamespaceTraits(namespaceTraits);
+            const moduleInteropRecord = new ModuleInteropRecord(rEntity);
+            moduleInteropRecordStack.push(moduleInteropRecord);
+            const childrenEntityStatements = recastNamespaceTraits(namespaceTraits, moduleInteropRecord);
+            moduleInteropRecordStack.pop();
             const namespaceDeclaration = ts.createModuleDeclaration(
                 undefined, // decorators
                 [ts.createModifier(ts.SyntaxKind.ExportKeyword)], // TODO: recastModifiers(moduleDeclaration.modifiers),
@@ -121,7 +121,7 @@ export function recastTopLevelModule({
         return statements;
     }
 
-    function recastNamespaceTraits(namespaceTraits: rConcepts.NamespaceTraits) {
+    function recastNamespaceTraits(namespaceTraits: rConcepts.NamespaceTraits, interopRecord: ModuleInteropRecord) {
         const statements: ts.Statement[] = [];
         nameResolver.enter(namespaceTraits);
         for (const childEntity of namespaceTraits.children) {
@@ -130,6 +130,7 @@ export function recastTopLevelModule({
                 recastREntity(childEntity),
             );
         }
+        statements.push(...recastAliasExports(namespaceTraits, interopRecord));
         nameResolver.leave();
         if (namespaceTraits.neNamespace) {
             const neNsDeclaration = ts.createModuleDeclaration(
@@ -145,16 +146,14 @@ export function recastTopLevelModule({
     }
 
     function recastAliasExports(
-        exporting: rConcepts.NamespaceTraits) {
+        exporting: rConcepts.NamespaceTraits,
+        moduleInteropRecord: ModuleInteropRecord,
+    ) {
         const statements: ts.Statement[] = [];
         const isExportingInternal = !exporting.entity.isModule;
-        const exportingExternalModule = isExportingInternal ?
-            (exporting as rConcepts.NamespaceTraits).entity.ownerModule.entity.moduleTraits!:
-            exporting.entity.moduleTraits!;
-        const moduleInteropRecord = new ModuleInteropRecord(exportingExternalModule.entity.name);
 
         const addModuleReference = (from: string, importName: string, exportName: string) => {
-            moduleInteropRecord.addNamedImport(from, importName, exportName);
+            topLevelModuleModuleInteropRecord.addNamedImport(from, importName, exportName);
         };
 
         const addDirectExport = (from: string, importName: string, exportName: string) => {
@@ -163,13 +162,18 @@ export function recastTopLevelModule({
 
         const addNamespaceReference = (to: rConcepts.NamespaceTraits, importName: string, exportName: string): ts.EntityName => {
             const resolved = resolveRelativePath(exporting, to.entity);
-            if (resolved.module) {
+            const ids: string[] = [];
+            if (!resolved.module) {
+                ids.push(...(resolved.namespaces?.slice() ?? []), resolved.name);
+            } else {
                 const namespaces = resolved.namespaces;
                 const leftmost = namespaces ? namespaces[0] : resolved.name;
-                moduleInteropRecord.addNamedImport(resolved.module, leftmost, leftmost);
+                const leftMostImportName = moduleInteropRecord.addNamedImport(resolved.module.name, leftmost);
+                ids.push(leftMostImportName);
+                if (namespaces) {
+                    ids.push(...namespaces.slice(1), resolved.name);
+                }
             }
-            const ids = resolved.namespaces?.slice() ?? [];
-            ids.push(resolved.name);
             return tsUtils.createEntityName(ids);
         };
 
@@ -185,8 +189,8 @@ export function recastTopLevelModule({
                 case !isExportingInternal && !isImportingInternal:
                     addDirectExport(
                         importingModule.entity.moduleTraits!.entity.name,
-                        exportName,
                         importName,
+                        exportName,
                     );
                     break;
                 case isImportingInternal:
@@ -211,11 +215,13 @@ export function recastTopLevelModule({
                 case isExportingInternal && !isImportingInternal:
                     // import from module, export into namespace
                     {
-                        addModuleReference(
-                            importingModule.entity.moduleTraits!.entity.name,
-                            importName,
-                            exportName,
-                        );
+                        if (importingModule.entity !== rModule.entity) {
+                            addModuleReference(
+                                importingModule.entity.moduleTraits!.entity.name,
+                                importName,
+                                exportName,
+                            );
+                        }
                         moduleInteropRecord.addNamedExport(exportName, exportName);
                     }
                     break;
@@ -226,7 +232,9 @@ export function recastTopLevelModule({
             statements.push(ts.createExportDeclaration(
                 undefined, // decorators
                 undefined, // modifiers
-                ts.createNamedExports(moduleInteropRecord.selfExports),
+                ts.createNamedExports(moduleInteropRecord.selfExports.map(({ importName, asName }) => asName === importName ?
+                    ts.createExportSpecifier(undefined, ts.createIdentifier(importName)):
+                    ts.createExportSpecifier(ts.createIdentifier(importName), ts.createIdentifier(asName)))),
                 undefined,
             ));
         }
@@ -235,7 +243,9 @@ export function recastTopLevelModule({
                 statements.push(ts.createExportDeclaration(
                     undefined, // decorators
                     undefined, // modifiers
-                    ts.createNamedExports(interop.exports),
+                    ts.createNamedExports(interop.exports.map(({ importName, asName }) => asName === importName ?
+                        ts.createExportSpecifier(undefined, ts.createIdentifier(importName)):
+                        ts.createExportSpecifier(ts.createIdentifier(importName), ts.createIdentifier(asName)))),
                     ts.createStringLiteral(interop.specifier),
                 ));
             }
@@ -245,7 +255,9 @@ export function recastTopLevelModule({
                     undefined, // modifiers
                     ts.createImportClause(
                         undefined, // default import name
-                        ts.createNamedImports(interop.imports), // namespace import or named imports, or no
+                        ts.createNamedImports(interop.imports.map(({ importName, asName }) => asName === importName ?
+                            ts.createImportSpecifier(undefined, ts.createIdentifier(importName)):
+                            ts.createImportSpecifier(ts.createIdentifier(importName), ts.createIdentifier(asName)))), // namespace import or named imports, or no
                     ),
                     ts.createStringLiteral(interop.specifier),
                 ));
@@ -270,9 +282,15 @@ export function recastTopLevelModule({
             return !statement.name ? null : recastEnumDeclaration(statement, statement.name.text, false);
         } else if (ts.isTypeAliasDeclaration(statement)) {
             return !statement.name ? null : recastTypeAliasDeclaration(statement, statement.name.text, false);
-        } else if (ts.isVariableDeclaration(statement)) {
-            return !(statement.name && ts.isIdentifier(statement.name)) ? null :
-                recastVariableDeclaration(statement, statement.name.text, false);
+        } else if (ts.isVariableStatement(statement)) {
+            return ts.createVariableStatement(
+                recastDeclarationModifiers(statement, false),
+                ts.createVariableDeclarationList(
+                    statement.declarationList.declarations.map((declaration) =>
+                        recastVariableDeclaration(declaration, declaration.name.getText(), false)),
+                    statement.declarationList.flags,
+                ),
+            );
         } else if (ts.isImportDeclaration(statement)) {
             return recastImportDeclaration(statement);
         } else {
@@ -293,7 +311,7 @@ export function recastTopLevelModule({
         return result;
     }
 
-    function recastDeclaration(declaration: ts.Declaration, newName: string, forceExport: boolean) {
+    function recastDeclaration(declaration: ts.Declaration, newName: string, forceExport: boolean): ts.Statement | null {
         const result = recastDeclarationNoComment(declaration, newName, forceExport);
         if (result) {
             copyComments(declaration, result);
@@ -333,7 +351,7 @@ export function recastTopLevelModule({
         return dst;
     }
 
-    function recastDeclarationNoComment(declaration: ts.Declaration, newName: string, forceExport: boolean) {
+    function recastDeclarationNoComment(declaration: ts.Declaration, newName: string, forceExport: boolean): ts.Statement | null {
         if (ts.isClassDeclaration(declaration)) {
             return recastClassDeclaration(declaration, newName, forceExport);
         } else if (ts.isFunctionDeclaration(declaration)) {
@@ -345,7 +363,13 @@ export function recastTopLevelModule({
         } else if (ts.isTypeAliasDeclaration(declaration)) {
             return recastTypeAliasDeclaration(declaration, newName, forceExport);
         } else if (ts.isVariableDeclaration(declaration)) {
-            return recastVariableDeclaration(declaration, newName, forceExport);
+            return ts.createVariableStatement(
+                recastDeclarationModifiers(declaration, forceExport),
+                ts.createVariableDeclarationList(
+                    [recastVariableDeclaration(declaration, newName, forceExport)],
+                    declaration.parent.flags,
+                ),
+            );
         } else if (ts.isModuleDeclaration(declaration)) {
             // return recastModuleDeclaration(declaration, newName);
         }
@@ -388,16 +412,10 @@ export function recastTopLevelModule({
     }
 
     function recastVariableDeclaration(variableDeclaration: ts.VariableDeclaration, newName: string, forceExport: boolean) {
-        return ts.createVariableStatement(
-            recastDeclarationModifiers(variableDeclaration, forceExport),
-            ts.createVariableDeclarationList(
-                [ts.createVariableDeclaration(
-                    newName,
-                    recastTypeNode(variableDeclaration.type),
-                    recastExpression(variableDeclaration.initializer),
-                )],
-                variableDeclaration.parent.flags,
-            ),
+        return ts.createVariableDeclaration(
+            newName,
+            recastTypeNode(variableDeclaration.type),
+            recastExpression(variableDeclaration.initializer),
         );
     }
 
@@ -738,7 +756,7 @@ export function recastTopLevelModule({
         return result;
     }
 
-    function recastDeclarationModifiers(declaration: ts.Declaration, forceExport: boolean): ts.Modifier[] | undefined {
+    function recastDeclarationModifiers(declaration: ts.Declaration | ts.VariableStatement, forceExport: boolean): ts.Modifier[] | undefined {
         let modifiers = recastModifiers(declaration.modifiers)?.filter((m) => m.kind !== ts.SyntaxKind.DeclareKeyword);
         
         if (forceExport) {
@@ -960,6 +978,8 @@ export function recastTopLevelModule({
             return ts.createStringLiteral(propertyName.text);
         } else if (ts.isNumericLiteral(propertyName)) {
             return ts.createNumericLiteral(propertyName.text);
+        } else if (ts.isPrivateIdentifier(propertyName)) {
+            return ts.createPrivateIdentifier(propertyName.text);
         } else {
             return ts.createComputedPropertyName(recastExpression(propertyName.expression));
         }
@@ -1051,7 +1071,7 @@ export function recastTopLevelModule({
             tsUtils.createEntityName(rightmost || [], ts.createIdentifier(resolveResult.name));
             if (resolveResult.module) {
                 return ts.createImportTypeNode(
-                    ts.createLiteralTypeNode(ts.createStringLiteral(resolveResult.module)), // arguments(module specifier)
+                    ts.createLiteralTypeNode(ts.createStringLiteral(resolveResult.module.name)), // arguments(module specifier)
                     typeName,
                     typeArguments,
                     isTypeOf,
@@ -1090,8 +1110,10 @@ export function recastTopLevelModule({
         if (!resolveResult.module) {
             return ids;
         } else {
+            const importName = moduleInteropRecordStack[moduleInteropRecordStack.length - 1].addNamedImport(
+                resolveResult.module.name, ids[0]);
             return [
-                ...addImport(resolveResult.module, ids[0]),
+                importName,
                 ...ids.slice(1),
             ];
         }
