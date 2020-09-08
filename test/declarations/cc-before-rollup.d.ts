@@ -18153,12 +18153,12 @@ declare module "cocos/core/3d/framework/index" {
     import { CameraComponent } from "cocos/core/3d/framework/camera-component";
     import { DirectionalLightComponent } from "cocos/core/3d/framework/directional-light-component";
     import { LightComponent } from "cocos/core/3d/framework/light-component";
-    import { ModelComponent } from "cocos/core/3d/framework/model-component";
+    import { ModelComponent, MeshRenderer } from "cocos/core/3d/framework/model-component";
     import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
     import { SkinningModelComponent } from "cocos/core/3d/framework/skinning-model-component";
     import { SphereLightComponent } from "cocos/core/3d/framework/sphere-light-component";
     import { SpotLightComponent } from "cocos/core/3d/framework/spot-light-component";
-    export { CameraComponent, LightComponent, ModelComponent, SkinningModelComponent, BatchedSkinningModelComponent, SkinningModelUnit, RenderableComponent, DirectionalLightComponent, SphereLightComponent, SpotLightComponent, };
+    export { CameraComponent, LightComponent, ModelComponent, MeshRenderer, SkinningModelComponent, BatchedSkinningModelComponent, SkinningModelUnit, RenderableComponent, DirectionalLightComponent, SphereLightComponent, SpotLightComponent, };
     /** deprecated */
     import "cocos/core/3d/framework/deprecated";
 }
@@ -28874,6 +28874,8 @@ declare module "cocos/core/3d/framework/model-component" {
         type ShadowCastingMode = EnumAlias<typeof ModelShadowCastingMode>;
         type ShadowReceivingMode = EnumAlias<typeof ModelShadowReceivingMode>;
     }
+
+    export { ModelComponent as MeshRenderer };
 }
 declare module "cocos/core/utils/batch-utils" {
     import { Node } from "cocos/core/scene-graph/node";
