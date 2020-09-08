@@ -28269,6 +28269,7 @@ declare module "cc" {
         }
     }
     import { requireComponent, executionOrder, disallowMultiple, executeInEditMode, menu, playOnFocus, inspector, icon, help, type, integer, float, boolean, string } from "cc.decorator";
+    export { ModelComponent as MeshRenderer } from "cc";
     import { PrimitiveType as _PrimitiveType, EAxisDirection as _EAxisDirection, ERigidBodyType as _ERigidBodyType } from "cc";
 }
 declare module "cc.decorator" {
