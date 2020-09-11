@@ -418,6 +418,18 @@ declare module "cocos/core/utils/js-typed" {
      */
     export function setClassName(className: any, constructor: any): void;
     /**
+     * @en
+     * @zh
+     * 为类设置别名。
+     * 当 `setClassAlias(target, alias)` 后，
+     * `alias` 将作为类 `target`的“单向 ID” 和“单向名称”。
+     * 因此，`_getClassById(alias)` 和 `getClassByName(alias)` 都会得到 `target`。
+     * 这种映射是单向的，意味着 `getClassName(target)` 和 `_getClassId(target)` 将不会是 `alias`。
+     * @param target Constructor of target class.
+     * @param alias Alias to set. The name shall not have been set as class name or alias of another class.
+     */
+    export function setClassAlias(target: Function, alias: string): void;
+    /**
      * Unregister a class from fireball.
      *
      * If you dont need a registered class anymore, you should unregister the class so that Fireball will not keep its reference anymore.
@@ -564,7 +576,7 @@ declare module "cocos/core/utils/pool" {
 declare module "cocos/core/utils/js" {
     import * as jsarray from "cocos/core/utils/array";
     import IDGenerator from "cocos/core/utils/id-generator";
-    import { _getClassById, _getClassId, _setClassId, addon, clear, createMap, extend, formatStr, getClassByName, getClassName, getPropertyDescriptor, getSuper, isChildClassOf, isNumber, isString, mixin, obsolete, obsoletes, setClassName, shiftArguments, unregisterClass } from "cocos/core/utils/js-typed";
+    import { _getClassById, _getClassId, _setClassId, addon, clear, createMap, extend, formatStr, getClassByName, getClassName, getPropertyDescriptor, getSuper, isChildClassOf, isNumber, isString, mixin, obsolete, obsoletes, setClassName, setClassAlias, shiftArguments, unregisterClass } from "cocos/core/utils/js-typed";
     import Pool from "cocos/core/utils/pool";
     export * from "cocos/core/utils/js-typed";
     export { default as IDGenerator } from "cocos/core/utils/id-generator";
@@ -590,6 +602,7 @@ declare module "cocos/core/utils/js" {
         unregisterClass: typeof unregisterClass;
         getClassName: typeof getClassName;
         setClassName: typeof setClassName;
+        setClassAlias: typeof setClassAlias;
         getClassByName: typeof getClassByName;
         _getClassId: typeof _getClassId;
         _setClassId: typeof _setClassId;
@@ -675,6 +688,7 @@ declare module "cocos/core/value-types/enum" {
      * @return the defined enum type
      */
     export namespace Enum {
+        var update: <T>(obj: T) => T;
         var isEnum: <EnumT extends {}>(enumType: EnumT) => boolean;
         var getList: <EnumT extends {}>(enumType: EnumT) => readonly Enum.Enumerator<EnumT>[];
     }
@@ -970,8 +984,8 @@ declare module "cocos/core/data/utils/requiring-frame" {
 }
 declare module "cocos/core/data/class" {
     import * as attributeUtils from "cocos/core/data/utils/attribute";
-    function CCClass(options: any): any;
-    namespace CCClass {
+    export function CCClass(options: any): any;
+    export namespace CCClass {
         var _isCCClass: (constructor: any) => any;
         var fastDefine: (className: any, constructor: any, serializableFields: any) => void;
         var Attr: typeof attributeUtils;
@@ -983,29 +997,82 @@ declare module "cocos/core/data/class" {
         var IDENTIFIER_RE: RegExp;
         var getNewValueTypeCode: (value: any) => string;
     }
-    export default CCClass;
 }
 declare module "cocos/core/data/decorators/utils" {
     export type BabelPropertyDecoratorDescriptor = PropertyDescriptor & {
         initializer?: any;
     };
     /**
+     * @en
      * The signature compatible with both TypeScript legacy decorator and Babel legacy decorator.
      * The `descriptor` argument will only appear in Babel case.
+     * @zh
+     * 该签名同时兼容 TypeScript legacy 装饰器以及 Babel legacy 装饰器。
+     * `descriptor` 参数只会在 Babel 情况下出现。
      */
     export type LegacyPropertyDecorator = (target: Object, propertyKey: string | symbol, descriptor?: BabelPropertyDecoratorDescriptor) => void;
     /**
-     * A class decorator which does nothing.
+     * @en
+     * A class(or property) decorator which does nothing.
+     * @zh
+     * 一个什么也不做的类（或属性）装饰器。
      */
-    export const emptyClassDecorator: ClassDecorator & LegacyPropertyDecorator;
+    export const emptyDecorator: ClassDecorator & LegacyPropertyDecorator;
     /**
-     * Ignoring all arguments and return the `emptyClassDecorator`.
+     * @en
+     * A function which ignore all arguments and return the `emptyDecorator`.
+     * @zh
+     * 一个忽略所有参数并且返回 `emptyDecorator` 的函数。
      */
-    export const ignoringArgsClassDecorator: () => ClassDecorator & LegacyPropertyDecorator;
-    export const ignoringArgsPropertyDecorator: () => LegacyPropertyDecorator;
-    export function normalizeClassDecorator<TArg>(decorate: <TFunction extends Function>(constructor: TFunction, arg?: TArg) => ReturnType<ClassDecorator>): ClassDecorator & ((arg?: TArg) => ClassDecorator);
-    export function createClassDecoratorEP<TValue>(propertyName: string): (value: TValue) => ClassDecorator;
-    export function createClassDecoratorEPOptional<TValue>(propertyName: string, defaultValue?: TValue): ClassDecorator & ((arg?: TValue | undefined) => ClassDecorator);
+    export const emptyDecoratorFn: () => ClassDecorator & LegacyPropertyDecorator;
+    /**
+     * @en
+     * Acts like `emptyDecorator` if called in form of `@x`;
+     * acts like `emptyDecoratorFn` if called in form of `@x(...args)`.
+     * @zh
+     * 当以 `@x` 形式调用时表现如同 `emptyDecorator`，当以 `@x(...args)` 形式调用时表现如同 `emptyDecoratorFn`。
+     */
+    export const emptySmartClassDecorator: ClassDecorator & ((arg?: unknown) => ClassDecorator);
+    /**
+     * @en
+     * Make a smart class decorator which can properly handle the following form decorator syntax:
+     * - `@x`
+     * - `@x(arg0)`
+     *
+     * and forward both the decorated class and the `arg0` (in first form, `arg0` is forward as `undefined`) to
+     * `decorate`.
+     * @zh
+     * 创建一个智能类装饰器，它能正确地处理以下形式的装饰器语法：
+     * - `@x`
+     * - `@x(arg0)`
+     *
+     * 并且，将被装饰的类和 `arg0`（若是第一种形式，`arg0` 就是 `undefined`）一起转发给 `decorate`。
+     * @param decorate
+     */
+    export function makeSmartClassDecorator<TArg>(decorate: <TFunction extends Function>(constructor: TFunction, arg?: TArg) => ReturnType<ClassDecorator>): ClassDecorator & ((arg?: TArg) => ClassDecorator);
+    /**
+     * @en
+     * Make a function which accept an argument value and return a class decorator.
+     * The decorator sets the editor property `propertyName`, on the decorated class, into that argument value.
+     * @zh
+     * 创建一个函数，该函数接受一个参数值并返回一个类装饰器。
+     * 该装饰器将被装饰类的编辑器属性 `propertyName` 设置为该参数的值。
+     * @param propertyName The editor property.
+     */
+    export function makeEditorClassDecoratorFn<TValue>(propertyName: string): (value: TValue) => ClassDecorator;
+    /**
+     * Make a smart class decorator.
+     * The smart decorator sets the editor property `propertyName`, on the decorated class, into:
+     * - `defaultValue` if the decorator is called with `@x` form, or
+     * - the argument if the decorator is called with an argument, eg, the `@x(arg0)` form.
+     * @zh
+     * 创建一个智能类装饰器。
+     * 该智能类装饰器将根据以下情况来设置被装饰类的编辑器属性 `propertyName`：
+     * - 如果该装饰器是以 `@x` 形式调用的，该属性将被设置为 `defaultValue`。
+     * - 如果该装饰器是以一个参数的形式，即 `@x(arg0)` 的形式调用的，该属性将被设置为传入的参数值。
+     * @param propertyName The editor property.
+     */
+    export function makeSmartEditorClassDecorator<TValue>(propertyName: string, defaultValue?: TValue): ClassDecorator & ((arg?: TValue | undefined) => ClassDecorator);
     export const CACHE_KEY = "__ccclassCache__";
     export function getClassCache(ctor: any, decoratorName?: any): any;
     export function getSubDict(obj: any, key: any): any;
@@ -1043,11 +1110,11 @@ declare module "cocos/core/data/decorators/component" {
      * @param requiredComponent The required component type
      * @example
      * ```ts
-     * import {_decorator, SpriteComponent, Component} from cc;
+     * import {_decorator, Sprite, Component} from cc;
      * import {ccclass, requireComponent} from _decorator;
      *
      * @ccclass
-     * @requireComponent(SpriteComponent)
+     * @requireComponent(Sprite)
      * class SpriteCtrl extends Component {
      *     // ...
      * }
@@ -1090,6 +1157,9 @@ declare module "cocos/core/data/decorators/component" {
     export const disallowMultiple: ClassDecorator & ((yes?: boolean) => ClassDecorator);
 }
 declare module "cocos/core/data/decorators/property" {
+    /**
+     * @category decorator
+     */
     import { CCString, CCInteger, CCFloat, CCBoolean } from "cocos/core/data/utils/attribute";
     import { IExposedAttributes } from "cocos/core/data/utils/attribute-defines";
     import { LegacyPropertyDecorator } from "cocos/core/data/decorators/utils";
@@ -1122,6 +1192,9 @@ declare module "cocos/core/data/decorators/property" {
     export function property(...args: Parameters<LegacyPropertyDecorator>): void;
 }
 declare module "cocos/core/data/decorators/serializable" {
+    /**
+     * @category decorator
+     */
     import { LegacyPropertyDecorator } from "cocos/core/data/decorators/utils";
     export const serializable: LegacyPropertyDecorator;
     export function formerlySerializedAs(name: string): LegacyPropertyDecorator;
@@ -1386,6 +1459,9 @@ declare module "cocos/core/data/decorators/type" {
     export function type<T>(type: PrimitiveType<T> | [PrimitiveType<T>]): PropertyDecorator;
 }
 declare module "cocos/core/data/decorators/override" {
+    /**
+     * @category decorator
+     */
     import { LegacyPropertyDecorator } from "cocos/core/data/decorators/utils";
     export const override: LegacyPropertyDecorator;
 }
@@ -8809,6 +8885,7 @@ declare module "cocos/core/geometry/sphere" {
      * @category geometry
      */
     import { Mat4, Quat, Vec3 } from "cocos/core/math/index";
+    import aabb from "cocos/core/geometry/aabb";
     /**
      * @en
      * Basic Geometry: sphere.
@@ -8872,6 +8949,16 @@ declare module "cocos/core/geometry/sphere" {
          * @function
          */
         static set(out: sphere, cx: number, cy: number, cz: number, r: number): sphere;
+        /**
+         * @zh
+         * 球跟点合并
+         */
+        static mergePoint(out: sphere, s: sphere, point: Vec3): sphere;
+        /**
+         * @zh
+         * 球跟立方体合并
+         */
+        static mergeAABB(out: sphere, s: sphere, a: aabb): sphere;
         /**
          * @en
          * The center of this sphere.
@@ -9288,8 +9375,10 @@ declare module "cocos/core/gfx/descriptor-set-layout" {
      */
     export abstract class GFXDescriptorSetLayout extends GFXObject {
         get bindings(): IGFXDescriptorSetLayoutBinding[];
+        get descriptorIndices(): number[];
         protected _device: GFXDevice;
         protected _bindings: IGFXDescriptorSetLayoutBinding[];
+        protected _descriptorIndices: number[];
         constructor(device: GFXDevice);
         abstract initialize(info: IGFXDescriptorSetLayoutInfo): boolean;
         abstract destroy(): void;
@@ -9332,39 +9421,39 @@ declare module "cocos/core/gfx/descriptor-set" {
          * @param binding The target binding.
          * @param buffer The buffer to be bound.
          */
-        bindBuffer(binding: number, buffer: GFXBuffer): void;
+        bindBuffer(binding: number, buffer: GFXBuffer, index?: number): void;
         /**
          * @en Bind sampler to the specified descriptor.
          * @zh 在指定的描述符位置上绑定采样器。
          * @param binding The target binding.
          * @param sampler The sampler to be bound.
          */
-        bindSampler(binding: number, sampler: GFXSampler): void;
+        bindSampler(binding: number, sampler: GFXSampler, index?: number): void;
         /**
          * @en Bind texture to the specified descriptor.
          * @zh 在指定的描述符位置上绑定纹理。
          * @param binding The target binding.
          * @param texture The texture to be bound.
          */
-        bindTexture(binding: number, texture: GFXTexture): void;
+        bindTexture(binding: number, texture: GFXTexture, index?: number): void;
         /**
          * @en Get buffer from the specified binding location.
          * @zh 获取当前指定绑定位置上的缓冲。
          * @param binding The target binding.
          */
-        getBuffer(binding: number): GFXBuffer;
+        getBuffer(binding: number, index?: number): GFXBuffer;
         /**
          * @en Get sampler from the specified binding location.
          * @zh 获取当前指定绑定位置上的采样器。
          * @param binding The target binding.
          */
-        getSampler(binding: number): GFXSampler;
+        getSampler(binding: number, index?: number): GFXSampler;
         /**
          * @en Get texture from the specified binding location.
          * @zh 获取当前指定绑定位置上的贴图。
          * @param binding The target binding.
          */
-        getTexture(binding: number): GFXTexture;
+        getTexture(binding: number, index?: number): GFXTexture;
     }
 }
 declare module "cocos/core/utils/murmurhash2_gc" {
@@ -9568,11 +9657,6 @@ declare module "cocos/core/gfx/input-assembler" {
         get firstInstance(): number;
         set firstInstance(first: number);
         /**
-         * @en Is the assembler an indirect command?
-         * @zh 是否间接绘制。
-         */
-        get isIndirect(): boolean;
-        /**
          * @en Get the indirect buffer, if present.
          * @zh 间接绘制缓冲。
          */
@@ -9588,7 +9672,6 @@ declare module "cocos/core/gfx/input-assembler" {
         protected _vertexOffset: number;
         protected _instanceCount: number;
         protected _firstInstance: number;
-        protected _isIndirect: boolean;
         protected _attributesHash: number;
         protected _indirectBuffer: GFXBuffer | null;
         constructor(device: GFXDevice);
@@ -10115,7 +10198,7 @@ declare module "cocos/core/assets/image-asset" {
         /**
          * 此图像资源的图像数据。
          */
-        get data(): ArrayBufferView | HTMLCanvasElement | HTMLImageElement;
+        get data(): ArrayBufferView | HTMLCanvasElement | HTMLImageElement | null;
         /**
          * 此图像资源的像素宽度。
          */
@@ -11175,12 +11258,12 @@ declare module "cocos/core/3d/builtin/effects" {
                 rasterizerState?: undefined;
             } | {
                 phase: string;
+                propertyIndex: number;
                 rasterizerState: {
                     cullMode: number;
                 };
                 program: string;
                 properties?: undefined;
-                propertyIndex?: undefined;
                 embeddedMacros?: undefined;
                 blendState?: undefined;
                 depthStencilState?: undefined;
@@ -12023,6 +12106,35 @@ declare module "cocos/core/components/missing-script" {
     }
 }
 declare module "cocos/core/data/deserialize" {
+    import * as js from "cocos/core/utils/js";
+    /**
+     * @en Contains information collected during deserialization
+     * @zh 包含反序列化时的一些信息。
+     * @class Details
+     *
+     */
+    export class Details {
+        static pool: js.Pool<{}>;
+        assignAssetsBy: Function;
+        uuidList: string[];
+        uuidObjList: object[];
+        uuidPropList: string[];
+        private _stillUseUrl;
+        constructor();
+        /**
+         * @zh
+         * 重置。
+         * @method reset
+         */
+        reset(): void;
+        /**
+         * @method push
+         * @param {Object} obj
+         * @param {String} propName
+         * @param {String} uuid
+         */
+        push(obj: Object, propName: string, uuid: string, _stillUseUrl: any): void;
+    }
     /**
      * @module cc
      */
@@ -12039,11 +12151,27 @@ declare module "cocos/core/data/deserialize" {
      * @param {Object} [options]
      * @return {object} the main data(asset)
      */
-    function deserialize(data: any, details: any, options: any): any;
-    namespace deserialize {
+    export function deserialize(data: any, details: any, options: any): any;
+    /**
+     * @module cc
+     */
+    /**
+     * @en Deserialize json to `Asset`.
+     * @zh 将 JSON 反序列化为对象实例。
+     *
+     * 当指定了 target 选项时，如果 target 引用的其它 asset 的 uuid 不变，则不会改变 target 对 asset 的引用，
+     * 也不会将 uuid 保存到 result 对象中。
+     *
+     * @method deserialize
+     * @param {String|Object} data - the serialized `Asset` json string or json object.
+     * @param {Details} [details] - additional loading result
+     * @param {Object} [options]
+     * @return {object} the main data(asset)
+     */
+    export namespace deserialize {
+        var Details: typeof import("cocos/core/data/deserialize").Details;
         var reportMissingClass: (id: any) => void;
     }
-    export default deserialize;
 }
 declare module "cocos/core/scene-graph/layers" {
     /**
@@ -12232,7 +12360,7 @@ declare module "cocos/core/renderer/core/native-pools" {
     }
 }
 declare module "cocos/core/renderer/core/memory-pools" {
-    import { GFXRasterizerState, GFXDepthStencilState, GFXBlendState, GFXDescriptorSet, GFXShader, GFXInputAssembler, GFXPipelineLayout, GFXPrimitiveMode, GFXDynamicStateFlags } from "cocos/core/gfx/index";
+    import { GFXRasterizerState, GFXDepthStencilState, GFXBlendState, IGFXDescriptorSetInfo, GFXDevice, GFXDescriptorSet, GFXShaderInfo, GFXShader, IGFXInputAssemblerInfo, GFXInputAssembler, IGFXPipelineLayoutInfo, GFXPipelineLayout, GFXPrimitiveMode, GFXDynamicStateFlags } from "cocos/core/gfx/index";
     import { RenderPassStage } from "cocos/core/pipeline/define";
     import { BatchingSchemes } from "cocos/core/renderer/core/pass";
     interface ITypedArrayConstructor<T> {
@@ -12283,7 +12411,7 @@ declare module "cocos/core/renderer/core/memory-pools" {
         set<V extends E[keyof E]>(handle: IHandle<P>, element: V, value: H[V]): void;
         free(handle: IHandle<P>): void;
     }
-    class ObjectPool<T, P extends PoolType> {
+    class ObjectPool<T, P extends PoolType, A extends any[]> {
         private _ctor;
         private _dtor?;
         private _indexMask;
@@ -12291,8 +12419,8 @@ declare module "cocos/core/renderer/core/memory-pools" {
         private _array;
         private _freelist;
         private _nativePool;
-        constructor(dataType: P, ctor: (args: any, obj?: T) => T, dtor?: (obj: T) => void);
-        alloc(...args: any[]): IHandle<P>;
+        constructor(dataType: P, ctor: (args: A, obj?: T) => T, dtor?: (obj: T) => void);
+        alloc(...args: A): IHandle<P>;
         get(handle: IHandle<P>): T;
         free(handle: IHandle<P>): void;
     }
@@ -12320,13 +12448,13 @@ declare module "cocos/core/renderer/core/memory-pools" {
     export type PipelineLayoutHandle = IHandle<PoolType.PIPELINE_LAYOUT>;
     export type PassHandle = IHandle<PoolType.PASS>;
     export type SubModelHandle = IHandle<PoolType.SUB_MODEL>;
-    export const RasterizerStatePool: ObjectPool<GFXRasterizerState, PoolType.RASTERIZER_STATE>;
-    export const DepthStencilStatePool: ObjectPool<GFXDepthStencilState, PoolType.DEPTH_STENCIL_STATE>;
-    export const BlendStatePool: ObjectPool<GFXBlendState, PoolType.BLEND_STATE>;
-    export const ShaderPool: ObjectPool<GFXShader, PoolType.SHADER>;
-    export const DSPool: ObjectPool<GFXDescriptorSet, PoolType.DESCRIPTOR_SETS>;
-    export const IAPool: ObjectPool<GFXInputAssembler, PoolType.INPUT_ASSEMBLER>;
-    export const PipelineLayoutPool: ObjectPool<GFXPipelineLayout, PoolType.PIPELINE_LAYOUT>;
+    export const RasterizerStatePool: ObjectPool<GFXRasterizerState, PoolType.RASTERIZER_STATE, any[]>;
+    export const DepthStencilStatePool: ObjectPool<GFXDepthStencilState, PoolType.DEPTH_STENCIL_STATE, any[]>;
+    export const BlendStatePool: ObjectPool<GFXBlendState, PoolType.BLEND_STATE, any[]>;
+    export const ShaderPool: ObjectPool<GFXShader, PoolType.SHADER, [GFXDevice, GFXShaderInfo]>;
+    export const DSPool: ObjectPool<GFXDescriptorSet, PoolType.DESCRIPTOR_SETS, [GFXDevice, IGFXDescriptorSetInfo]>;
+    export const IAPool: ObjectPool<GFXInputAssembler, PoolType.INPUT_ASSEMBLER, [GFXDevice, IGFXInputAssemblerInfo]>;
+    export const PipelineLayoutPool: ObjectPool<GFXPipelineLayout, PoolType.PIPELINE_LAYOUT, [GFXDevice, IGFXPipelineLayoutInfo]>;
     export enum PassView {
         PRIORITY = 0,
         STAGE = 1,
@@ -12443,39 +12571,6 @@ declare module "cocos/core/renderer/core/material-instance" {
         destroy(): boolean;
         onPassStateChange(dontNotify: boolean): void;
         protected _createPasses(): PassInstance[];
-    }
-}
-declare module "cocos/core/renderer/scene/submodel" {
-    import { RenderingSubMesh } from "cocos/core/assets/mesh";
-    import { GFXDevice } from "cocos/core/gfx/device";
-    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
-    import { RenderPriority } from "cocos/core/pipeline/define";
-    import { IMacroPatch, Pass } from "cocos/core/renderer/core/pass";
-    import { SubModelHandle } from "cocos/core/renderer/core/memory-pools";
-    import { GFXDescriptorSet } from "cocos/core/gfx/index";
-    export class SubModel {
-        protected _device: GFXDevice | null;
-        protected _passes: Pass[] | null;
-        protected _subMesh: RenderingSubMesh | null;
-        protected _patches: IMacroPatch[] | null;
-        protected _handle: SubModelHandle;
-        protected _priority: RenderPriority;
-        protected _inputAssembler: GFXInputAssembler | null;
-        protected _descriptorSet: GFXDescriptorSet | null;
-        set passes(passes: Pass[]);
-        get passes(): Pass[];
-        set subMesh(subMesh: RenderingSubMesh);
-        get subMesh(): RenderingSubMesh;
-        set priority(val: RenderPriority);
-        get priority(): RenderPriority;
-        get handle(): SubModelHandle;
-        get inputAssembler(): GFXInputAssembler;
-        get descriptorSet(): GFXDescriptorSet;
-        initialize(subMesh: RenderingSubMesh, passes: Pass[], patches?: IMacroPatch[] | null): void;
-        destroy(): void;
-        update(): void;
-        onPipelineStateChanged(): void;
-        protected _flushPassInfo(): void;
     }
 }
 declare module "cocos/core/renderer/utils" {
@@ -13244,8 +13339,8 @@ declare module "cocos/core/assets/skeleton" {
     import { Mat4 } from "cocos/core/math/index";
     import { Asset } from "cocos/core/assets/asset";
     /**
-     * 骨骼资源。
-     * 骨骼资源记录了每个关节（相对于`SkinningModelComponent.skinningRoot`）的路径以及它的绑定姿势矩阵。
+     * @zh 骨骼资源。
+     * 骨骼资源记录了每个关节（相对于 [[SkinnedMeshRenderer.skinningRoot]]）的路径以及它的绑定姿势矩阵。
      */
     export class Skeleton extends Asset {
         private _joints;
@@ -13353,191 +13448,38 @@ declare module "cocos/core/renderer/models/skeletal-animation-utils" {
         clear(): void;
     }
 }
-declare module "cocos/core/assets/morph-rendering" {
-    /**
-     * @hidden
-     */
-    import { GFXDevice } from "cocos/core/gfx/index";
-    import { Mesh } from "cocos/core/assets/mesh";
-    import { MorphRendering, MorphRenderingInstance } from "cocos/core/assets/morph";
-    /**
-     * Standard morph rendering.
-     * The standard morph rendering renders each of sub-mesh morph separately.
-     * Sub-mesh morph rendering may select different technique according sub-mesh morph itself.
-     */
-    export class StdMorphRendering implements MorphRendering {
-        private _mesh;
-        private _subMeshRenderings;
-        constructor(mesh: Mesh, gfxDevice: GFXDevice);
-        createInstance(): MorphRenderingInstance;
-    }
-}
-declare module "cocos/core/assets/morph" {
-    /**
-     * @hidden
-     */
-    import { GFXAttributeName, GFXDevice, GFXDescriptorSet } from "cocos/core/gfx/index";
-    import { Mesh } from "cocos/core/assets/mesh";
-    import { IMacroPatch } from "cocos/core/renderer/index";
-    export interface Morph {
-        /**
-         * Morph data of each sub-mesh.
-         */
-        subMeshMorphs: (SubMeshMorph | null)[];
-        /**
-         * Common initial weights of each sub-mesh.
-         */
-        weights?: number[];
-    }
-    export interface MorphTarget {
-        /**
-         * Displacement of each target attribute.
-         */
-        displacements: Mesh.IBufferView[];
-    }
-    export interface SubMeshMorph {
-        /**
-         * Attributes to morph.
-         */
-        attributes: GFXAttributeName[];
-        /**
-         * Targets.
-         */
-        targets: MorphTarget[];
-        /**
-         * Initial weights of each target.
-         */
-        weights?: number[];
-    }
-    export function createMorphRendering(mesh: Mesh, gfxDevice: GFXDevice): MorphRendering | null;
-    /**
-     * Class which control rendering of a morph resource.
-     */
-    export interface MorphRendering {
-        createInstance(): MorphRenderingInstance;
-    }
-    /**
-     * This rendering instance of a morph resource.
-     */
-    export interface MorphRenderingInstance {
-        /**
-         * Sets weights of targets of specified sub mesh.
-         * @param subMeshIndex
-         * @param weights
-         */
-        setWeights(subMeshIndex: number, weights: number[]): void;
-        /**
-         * Adapts pipeline state to do the rendering.
-         * @param subMeshIndex
-         * @param pipelineState
-         */
-        adaptPipelineState(subMeshIndex: number, descriptorSet: GFXDescriptorSet): void;
-        requiredPatches(subMeshIndex: number): IMacroPatch[] | undefined;
-        /**
-         * Destroy the rendering instance.
-         */
-        destroy(): void;
-    }
-}
-declare module "cocos/core/renderer/models/morph-model" {
-    import { Model } from "cocos/core/renderer/scene/model";
-    import { MorphRenderingInstance } from "cocos/core/assets/morph";
-    import { Material } from "cocos/core/assets/material";
+declare module "cocos/core/renderer/scene/submodel" {
     import { RenderingSubMesh } from "cocos/core/assets/mesh";
+    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
+    import { RenderPriority } from "cocos/core/pipeline/define";
+    import { IMacroPatch, Pass } from "cocos/core/renderer/core/pass";
+    import { SubModelHandle } from "cocos/core/renderer/core/memory-pools";
     import { GFXDescriptorSet } from "cocos/core/gfx/index";
-    export class MorphModel extends Model {
-        private _morphRenderingInstance;
-        private _usedMaterials;
-        getMacroPatches(subModelIndex: number): any;
-        initSubModel(subModelIndex: number, subMeshData: RenderingSubMesh, material: Material): void;
-        setSubModelMaterial(subModelIndex: number, material: Material): void;
-        protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
-        private _launderMaterial;
-        setMorphRendering(morphRendering: MorphRenderingInstance): void;
-    }
-}
-declare module "cocos/core/renderer/models/skinning-model" {
-    /**
-     * @hidden
-     */
-    import { Material } from "cocos/core/assets/material";
-    import { Mesh, RenderingSubMesh } from "cocos/core/assets/mesh";
-    import { Skeleton } from "cocos/core/assets/skeleton";
-    import { Mat4 } from "cocos/core/math/index";
-    import { Node } from "cocos/core/scene-graph/node";
-    import { MorphModel } from "cocos/core/renderer/models/morph-model";
-    import { GFXDescriptorSet } from "cocos/core/gfx/index";
-    export interface IJointTransform {
-        node: Node;
-        local: Mat4;
-        world: Mat4;
-        stamp: number;
-        parent: IJointTransform | null;
-    }
-    export function getWorldMatrix(transform: IJointTransform | null, stamp: number): Readonly<Mat4>;
-    export function getTransform(node: Node, root: Node): IJointTransform | null;
-    export function deleteTransform(node: Node): void;
-    /**
-     * @en
-     * The skinning model that is using real-time pose calculation.
-     * @zh
-     * 实时计算动画的蒙皮模型。
-     */
-    export class SkinningModel extends MorphModel {
-        uploadAnimation: null;
-        private _buffers;
-        private _dataArray;
-        private _joints;
-        private _bufferIndices;
-        constructor();
+    export class SubModel {
+        protected _device: GFXDevice | null;
+        protected _passes: Pass[] | null;
+        protected _subMesh: RenderingSubMesh | null;
+        protected _patches: IMacroPatch[] | null;
+        protected _handle: SubModelHandle;
+        protected _priority: RenderPriority;
+        protected _inputAssembler: GFXInputAssembler | null;
+        protected _descriptorSet: GFXDescriptorSet | null;
+        set passes(passes: Pass[]);
+        get passes(): Pass[];
+        set subMesh(subMesh: RenderingSubMesh);
+        get subMesh(): RenderingSubMesh;
+        set priority(val: RenderPriority);
+        get priority(): RenderPriority;
+        get handle(): SubModelHandle;
+        get inputAssembler(): GFXInputAssembler;
+        get descriptorSet(): GFXDescriptorSet;
+        initialize(subMesh: RenderingSubMesh, passes: Pass[], patches?: IMacroPatch[] | null): void;
         destroy(): void;
-        bindSkeleton(skeleton?: Skeleton | null, skinningRoot?: Node | null, mesh?: Mesh | null): void;
-        updateTransform(stamp: number): void;
-        updateUBOs(stamp: number): boolean;
-        initSubModel(idx: number, subMeshData: RenderingSubMesh, mat: Material): void;
-        getMacroPatches(subModelIndex: number): any;
-        _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
-        private _ensureEnoughBuffers;
-    }
-}
-declare module "cocos/core/renderer/models/baked-skinning-model" {
-    /**
-     * @hidden
-     */
-    import { AnimationClip } from "cocos/core/animation/animation-clip";
-    import { Mesh } from "cocos/core/assets/mesh";
-    import { Skeleton } from "cocos/core/assets/skeleton";
-    import { Vec3 } from "cocos/core/math/index";
-    import { Node } from "cocos/core/scene-graph/index";
-    import { Pass } from "cocos/core/renderer/core/pass";
-    import { IJointTextureHandle } from "cocos/core/renderer/models/skeletal-animation-utils";
-    import { MorphModel } from "cocos/core/renderer/models/morph-model";
-    import { IGFXAttribute, GFXDescriptorSet } from "cocos/core/gfx/index";
-    /**
-     * @en
-     * The skinning model that is using baked animation.
-     * @zh
-     * 预烘焙动画的蒙皮模型。
-     */
-    export class BakedSkinningModel extends MorphModel {
-        uploadedAnim: AnimationClip | null | undefined;
-        private _jointsMedium;
-        private _skeleton;
-        private _mesh;
-        private _dataPoolManager;
-        private _instAnimInfoIdx;
-        constructor();
-        destroy(): void;
-        bindSkeleton(skeleton?: Skeleton | null, skinningRoot?: Node | null, mesh?: Mesh | null): void;
-        updateTransform(stamp: number): void;
-        updateUBOs(stamp: number): boolean;
-        createBoundingShape(minPos?: Vec3, maxPos?: Vec3): void;
-        uploadAnimation(anim: AnimationClip | null): void;
-        protected _applyJointTexture(texture?: IJointTextureHandle | null): void;
-        getMacroPatches(subModelIndex: number): any;
-        protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
-        protected _updateInstancedAttributes(attributes: IGFXAttribute[], pass: Pass): void;
-        private updateInstancedJointTextureInfo;
+        update(): void;
+        onPipelineStateChanged(): void;
+        onMacroPatchesStateChanged(patches: any): void;
+        protected _flushPassInfo(): void;
     }
 }
 declare module "cocos/core/renderer/scene/ambient" {
@@ -13689,12 +13631,8 @@ declare module "cocos/core/pipeline/pipeline-state-manager" {
     /**
      * @hidden
      */
-    import { GFXPipelineState } from "cocos/core/gfx/pipeline-state";
-    import { GFXRenderPass } from "cocos/core/gfx/render-pass";
-    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
-    import { GFXDevice } from "cocos/core/gfx/device";
+    import { GFXShader, GFXRenderPass, GFXInputAssembler, GFXDevice, GFXPipelineState } from "cocos/core/gfx/index";
     import { PassHandle } from "cocos/core/renderer/core/memory-pools";
-    import { GFXShader } from "cocos/core/gfx/index";
     export class PipelineStateManager {
         private static _PSOHashMap;
         static getOrCreatePipelineState(device: GFXDevice, hPass: PassHandle, shader: GFXShader, renderPass: GFXRenderPass, ia: GFXInputAssembler): GFXPipelineState;
@@ -13702,14 +13640,15 @@ declare module "cocos/core/pipeline/pipeline-state-manager" {
 }
 declare module "cocos/core/renderer/scene/shadows" {
     import { Material } from "cocos/core/assets/material";
-    import { frustum } from "cocos/core/geometry/index";
-    import { Color, Mat4, Vec3, Vec2 } from "cocos/core/math/index";
+    import { frustum, sphere } from "cocos/core/geometry/index";
+    import { Color, Mat4, Quat, Vec3, Vec2 } from "cocos/core/math/index";
     import { DirectionalLight } from "cocos/core/renderer/scene/directional-light";
     import { Model } from "cocos/core/renderer/scene/model";
     import { SphereLight } from "cocos/core/renderer/scene/sphere-light";
-    import { GFXCommandBuffer, GFXDevice, GFXRenderPass, GFXDescriptorSet, GFXShader } from "cocos/core/gfx/index";
+    import { GFXCommandBuffer, GFXDevice, GFXRenderPass, GFXDescriptorSet } from "cocos/core/gfx/index";
     import { InstancedBuffer } from "cocos/core/pipeline/instanced-buffer";
     import { RenderScene } from "cocos/core/renderer/scene/render-scene";
+    import { ShaderHandle } from "cocos/core/renderer/core/memory-pools";
     /**
      * @zh 阴影类型。
      * @en The shadow type
@@ -13732,9 +13671,41 @@ declare module "cocos/core/renderer/scene/shadows" {
          */
         ShadowMap: number;
     };
+    /**
+     * @zh pcf阴影等级。
+     * @en The pcf type
+     * @static
+     * @enum Shadows.ShadowType
+     */
+    export const PCFType: {
+        /**
+         * @zh x1 次采样
+         * @en x1 times
+         * @readonly
+         */
+        HARD: number;
+        /**
+         * @zh x5 次采样
+         * @en x5 times
+         * @readonly
+         */
+        FILTER_X5: number;
+        /**
+         * @zh x9 次采样
+         * @en x9 times
+         * @readonly
+         */
+        FILTER_X9: number;
+        /**
+         * @zh x25 次采样
+         * @en x25 times
+         * @readonly
+         */
+        FILTER_X25: number;
+    };
     interface IShadowRenderData {
         model: Model;
-        shaders: GFXShader[];
+        hShaders: ShaderHandle[];
         instancedBuffer: InstancedBuffer | null;
     }
     export class Shadows {
@@ -13770,6 +13741,7 @@ declare module "cocos/core/renderer/scene/shadows" {
         set type(val: number);
         get matLight(): Mat4;
         get data(): Float32Array;
+        get sphere(): sphere;
         protected _enabled: boolean;
         protected _type: number;
         protected _normal: Vec3;
@@ -13784,6 +13756,11 @@ declare module "cocos/core/renderer/scene/shadows" {
         protected _device: GFXDevice | null;
         protected _globalDescriptorSet: GFXDescriptorSet | null;
         protected _dirty: boolean;
+        /**
+         * @zh
+         * 场景包围球
+         */
+        protected _sphere: sphere;
         /**
          * @en get or set shadow camera near
          * @zh 获取或者设置阴影相机近裁剪面
@@ -13809,7 +13786,13 @@ declare module "cocos/core/renderer/scene/shadows" {
          * @zh 获取或者设置阴影纹理大小
          */
         size: Vec2;
+        /**
+         * @en get or set shadow pcf
+         * @zh 获取或者设置阴影pcf等级
+         */
+        pcf: number;
         activate(): void;
+        getWorldMatrix(rotation: Quat, dir: Vec3): Mat4;
         protected _updatePlanarInfo(): void;
         protected _updatePipeline(): void;
         updateSphereLight(light: SphereLight): void;
@@ -14415,21 +14398,7 @@ declare module "cocos/core/renderer/scene/spot-light" {
         update(): void;
     }
 }
-declare module "cocos/core/renderer/index" {
-    export { createIA } from "cocos/core/renderer/utils";
-    const addStage: (name: any) => void;
-    export { addStage };
-    export * from "cocos/core/renderer/core/constants";
-    export * from "cocos/core/renderer/core/pass-utils";
-    export * from "cocos/core/renderer/core/pass";
-    export * from "cocos/core/renderer/core/program-lib";
-    export * from "cocos/core/renderer/core/sampler-lib";
-    export * from "cocos/core/renderer/core/texture-buffer-pool";
-    export * from "cocos/core/renderer/core/material-instance";
-    export * from "cocos/core/renderer/core/pass-instance";
-    export * from "cocos/core/renderer/models/skeletal-animation-utils";
-    export * from "cocos/core/renderer/models/skinning-model";
-    export * from "cocos/core/renderer/models/baked-skinning-model";
+declare module "cocos/core/renderer/scene/index" {
     export * from "cocos/core/renderer/scene/ambient";
     export * from "cocos/core/renderer/scene/camera";
     export * from "cocos/core/renderer/scene/deprecated";
@@ -14442,8 +14411,6 @@ declare module "cocos/core/renderer/index" {
     export * from "cocos/core/renderer/scene/sphere-light";
     export * from "cocos/core/renderer/scene/spot-light";
     export * from "cocos/core/renderer/scene/submodel";
-    import "cocos/core/renderer/scene/deprecated";
-    import "cocos/core/renderer/ui/render-data";
 }
 declare module "cocos/core/pipeline/instanced-buffer" {
     /**
@@ -14452,8 +14419,8 @@ declare module "cocos/core/pipeline/instanced-buffer" {
     import { GFXTexture } from "cocos/core/gfx/index";
     import { GFXBuffer } from "cocos/core/gfx/buffer";
     import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
-    import { IInstancedAttributeBlock, Pass } from "cocos/core/renderer/index";
-    import { SubModel } from "cocos/core/renderer/scene/submodel";
+    import { Pass } from "cocos/core/renderer/index";
+    import { IInstancedAttributeBlock, SubModel } from "cocos/core/renderer/scene/index";
     import { ShaderHandle, DescriptorSetHandle, PassHandle } from "cocos/core/renderer/core/memory-pools";
     export interface IInstancedItem {
         count: number;
@@ -14476,7 +14443,7 @@ declare module "cocos/core/pipeline/instanced-buffer" {
         private _device;
         constructor(pass: Pass);
         destroy(): void;
-        merge(subModel: SubModel, attrs: IInstancedAttributeBlock, passIdx: number): void;
+        merge(subModel: SubModel, attrs: IInstancedAttributeBlock, passIdx: number, hShaderImplant?: ShaderHandle | null): void;
         uploadBuffers(): void;
         clear(): void;
     }
@@ -14524,6 +14491,8 @@ declare module "cocos/core/renderer/scene/model" {
         get localBuffer(): GFXBuffer | null;
         get updateStamp(): number;
         get isInstancingEnabled(): boolean;
+        get receiveShadow(): boolean;
+        set receiveShadow(val: boolean);
         type: ModelType;
         scene: RenderScene | null;
         node: Node;
@@ -14531,7 +14500,6 @@ declare module "cocos/core/renderer/scene/model" {
         enabled: boolean;
         visFlags: number;
         castShadow: boolean;
-        receiveShadow: boolean;
         isDynamicBatching: boolean;
         instancedAttributes: IInstancedAttributeBlock;
         protected _worldBounds: aabb | null;
@@ -14547,6 +14515,7 @@ declare module "cocos/core/renderer/scene/model" {
         private _instMatWorldIdx;
         private _lightmap;
         private _lightmapUVParam;
+        private _receiveShadow;
         /**
          * Setup a default empty model
          */
@@ -14567,6 +14536,7 @@ declare module "cocos/core/renderer/scene/model" {
         setSubModelMesh(idx: number, subMesh: RenderingSubMesh): void;
         setSubModelMaterial(idx: number, mat: Material): void;
         onGlobalPipelineStateChanged(): void;
+        onMacroPatchesStateChanged(): void;
         updateLightingmap(texture: Texture2D | null, uvParam: Vec4): void;
         getMacroPatches(subModelIndex: number): IMacroPatch[] | null;
         protected _updateAttributesAndBinding(subModelIndex: number): void;
@@ -14576,11 +14546,227 @@ declare module "cocos/core/renderer/scene/model" {
         protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
     }
 }
+declare module "cocos/core/assets/morph-rendering" {
+    /**
+     * @hidden
+     */
+    import { GFXDevice } from "cocos/core/gfx/index";
+    import { Mesh } from "cocos/core/assets/mesh";
+    import { MorphRendering, MorphRenderingInstance } from "cocos/core/assets/morph";
+    /**
+     * Standard morph rendering.
+     * The standard morph rendering renders each of sub-mesh morph separately.
+     * Sub-mesh morph rendering may select different technique according sub-mesh morph itself.
+     */
+    export class StdMorphRendering implements MorphRendering {
+        private _mesh;
+        private _subMeshRenderings;
+        constructor(mesh: Mesh, gfxDevice: GFXDevice);
+        createInstance(): MorphRenderingInstance;
+    }
+}
+declare module "cocos/core/assets/morph" {
+    /**
+     * @hidden
+     */
+    import { GFXAttributeName, GFXDevice, GFXDescriptorSet } from "cocos/core/gfx/index";
+    import { Mesh } from "cocos/core/assets/mesh";
+    import { IMacroPatch } from "cocos/core/renderer/index";
+    export interface Morph {
+        /**
+         * Morph data of each sub-mesh.
+         */
+        subMeshMorphs: (SubMeshMorph | null)[];
+        /**
+         * Common initial weights of each sub-mesh.
+         */
+        weights?: number[];
+        /**
+         * Name of each target of each sub-mesh morph.
+         * This field is only meaningful if every sub-mesh has the same number of targets.
+         */
+        targetNames?: string[];
+    }
+    export interface MorphTarget {
+        /**
+         * Displacement of each target attribute.
+         */
+        displacements: Mesh.IBufferView[];
+    }
+    export interface SubMeshMorph {
+        /**
+         * Attributes to morph.
+         */
+        attributes: GFXAttributeName[];
+        /**
+         * Targets.
+         */
+        targets: MorphTarget[];
+        /**
+         * Initial weights of each target.
+         */
+        weights?: number[];
+    }
+    export function createMorphRendering(mesh: Mesh, gfxDevice: GFXDevice): MorphRendering | null;
+    /**
+     * Class which control rendering of a morph resource.
+     */
+    export interface MorphRendering {
+        createInstance(): MorphRenderingInstance;
+    }
+    /**
+     * This rendering instance of a morph resource.
+     */
+    export interface MorphRenderingInstance {
+        /**
+         * Sets weights of targets of specified sub mesh.
+         * @param subMeshIndex
+         * @param weights
+         */
+        setWeights(subMeshIndex: number, weights: number[]): void;
+        /**
+         * Adapts pipeline state to do the rendering.
+         * @param subMeshIndex
+         * @param pipelineState
+         */
+        adaptPipelineState(subMeshIndex: number, descriptorSet: GFXDescriptorSet): void;
+        requiredPatches(subMeshIndex: number): IMacroPatch[] | undefined;
+        /**
+         * Destroy the rendering instance.
+         */
+        destroy(): void;
+    }
+}
+declare module "cocos/core/renderer/models/morph-model" {
+    import { Model } from "cocos/core/renderer/scene/model";
+    import { MorphRenderingInstance } from "cocos/core/assets/morph";
+    import { Material } from "cocos/core/assets/material";
+    import { RenderingSubMesh } from "cocos/core/assets/mesh";
+    import { GFXDescriptorSet } from "cocos/core/gfx/index";
+    export class MorphModel extends Model {
+        private _morphRenderingInstance;
+        private _usedMaterials;
+        getMacroPatches(subModelIndex: number): any;
+        initSubModel(subModelIndex: number, subMeshData: RenderingSubMesh, material: Material): void;
+        setSubModelMaterial(subModelIndex: number, material: Material): void;
+        protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
+        private _launderMaterial;
+        setMorphRendering(morphRendering: MorphRenderingInstance): void;
+    }
+}
+declare module "cocos/core/renderer/models/skinning-model" {
+    /**
+     * @hidden
+     */
+    import { Material } from "cocos/core/assets/material";
+    import { Mesh, RenderingSubMesh } from "cocos/core/assets/mesh";
+    import { Skeleton } from "cocos/core/assets/skeleton";
+    import { Mat4 } from "cocos/core/math/index";
+    import { Node } from "cocos/core/scene-graph/node";
+    import { MorphModel } from "cocos/core/renderer/models/morph-model";
+    import { GFXDescriptorSet } from "cocos/core/gfx/index";
+    export interface IJointTransform {
+        node: Node;
+        local: Mat4;
+        world: Mat4;
+        stamp: number;
+        parent: IJointTransform | null;
+    }
+    export function getWorldMatrix(transform: IJointTransform | null, stamp: number): Readonly<Mat4>;
+    export function getTransform(node: Node, root: Node): IJointTransform | null;
+    export function deleteTransform(node: Node): void;
+    /**
+     * @en
+     * The skinning model that is using real-time pose calculation.
+     * @zh
+     * 实时计算动画的蒙皮模型。
+     */
+    export class SkinningModel extends MorphModel {
+        uploadAnimation: null;
+        private _buffers;
+        private _dataArray;
+        private _joints;
+        private _bufferIndices;
+        constructor();
+        destroy(): void;
+        bindSkeleton(skeleton?: Skeleton | null, skinningRoot?: Node | null, mesh?: Mesh | null): void;
+        updateTransform(stamp: number): void;
+        updateUBOs(stamp: number): boolean;
+        initSubModel(idx: number, subMeshData: RenderingSubMesh, mat: Material): void;
+        getMacroPatches(subModelIndex: number): any;
+        _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
+        private _ensureEnoughBuffers;
+    }
+}
+declare module "cocos/core/renderer/models/baked-skinning-model" {
+    /**
+     * @hidden
+     */
+    import { AnimationClip } from "cocos/core/animation/animation-clip";
+    import { Mesh } from "cocos/core/assets/mesh";
+    import { Skeleton } from "cocos/core/assets/skeleton";
+    import { Vec3 } from "cocos/core/math/index";
+    import { Node } from "cocos/core/scene-graph/index";
+    import { Pass } from "cocos/core/renderer/core/pass";
+    import { IJointTextureHandle } from "cocos/core/renderer/models/skeletal-animation-utils";
+    import { MorphModel } from "cocos/core/renderer/models/morph-model";
+    import { IGFXAttribute, GFXDescriptorSet } from "cocos/core/gfx/index";
+    /**
+     * @en
+     * The skinning model that is using baked animation.
+     * @zh
+     * 预烘焙动画的蒙皮模型。
+     */
+    export class BakedSkinningModel extends MorphModel {
+        uploadedAnim: AnimationClip | null | undefined;
+        private _jointsMedium;
+        private _skeleton;
+        private _mesh;
+        private _dataPoolManager;
+        private _instAnimInfoIdx;
+        constructor();
+        destroy(): void;
+        bindSkeleton(skeleton?: Skeleton | null, skinningRoot?: Node | null, mesh?: Mesh | null): void;
+        updateTransform(stamp: number): void;
+        updateUBOs(stamp: number): boolean;
+        createBoundingShape(minPos?: Vec3, maxPos?: Vec3): void;
+        uploadAnimation(anim: AnimationClip | null): void;
+        protected _applyJointTexture(texture?: IJointTextureHandle | null): void;
+        getMacroPatches(subModelIndex: number): any;
+        protected _updateLocalDescriptors(submodelIdx: number, descriptorSet: GFXDescriptorSet): void;
+        protected _updateInstancedAttributes(attributes: IGFXAttribute[], pass: Pass): void;
+        private updateInstancedJointTextureInfo;
+    }
+}
+declare module "cocos/core/renderer/models/index" {
+    export * from "cocos/core/renderer/models/skeletal-animation-utils";
+    export * from "cocos/core/renderer/models/skinning-model";
+    export * from "cocos/core/renderer/models/baked-skinning-model";
+    export * from "cocos/core/renderer/models/morph-model";
+}
+declare module "cocos/core/renderer/index" {
+    export { createIA } from "cocos/core/renderer/utils";
+    const addStage: (name: any) => void;
+    export { addStage };
+    export * from "cocos/core/renderer/core/constants";
+    export * from "cocos/core/renderer/core/pass-utils";
+    export * from "cocos/core/renderer/core/pass";
+    export * from "cocos/core/renderer/core/program-lib";
+    export * from "cocos/core/renderer/core/sampler-lib";
+    export * from "cocos/core/renderer/core/texture-buffer-pool";
+    export * from "cocos/core/renderer/core/material-instance";
+    export * from "cocos/core/renderer/core/pass-instance";
+    import * as models from "cocos/core/renderer/models/index";
+    import * as scene from "cocos/core/renderer/scene/index";
+    export { scene, models };
+    import "cocos/core/renderer/scene/deprecated";
+    import "cocos/core/renderer/ui/render-data";
+}
 declare module "cocos/core/3d/framework/renderable-component" {
     import { Material } from "cocos/core/assets/material";
     import { Component } from "cocos/core/components/component";
     import { MaterialInstance } from "cocos/core/renderer/core/material-instance";
-    import { Model } from "cocos/core/renderer/scene/model";
+    import { scene } from "cocos/core/renderer/index";
     export class RenderableComponent extends Component {
         protected _materials: (Material | null)[];
         protected _visFlags: number;
@@ -14595,7 +14781,7 @@ declare module "cocos/core/3d/framework/renderable-component" {
         get materials(): (MaterialInstance | null)[];
         set materials(val: (MaterialInstance | null)[]);
         protected _materialInstances: (MaterialInstance | null)[];
-        protected _models: Model[];
+        protected _models: scene.Model[];
         get sharedMaterial(): Material | null;
         /**
          * @en Get the shared material asset of the specified sub-model.
@@ -14626,7 +14812,7 @@ declare module "cocos/core/3d/framework/renderable-component" {
          * @zh 获取指定位置可供渲染的材质，如果有材质实例则使用材质实例，如果没有则使用材质资源
          */
         getRenderMaterial(index: number): Material | null;
-        _collectModels(): Model[];
+        _collectModels(): scene.Model[];
         protected _attachToScene(): void;
         protected _detachFromScene(): void;
         protected _onMaterialModified(index: number, material: Material | null): void;
@@ -14810,6 +14996,7 @@ declare module "cocos/core/assets/material" {
         protected _createPasses(): Pass[];
         protected _update(keepProps?: boolean): void;
         protected _uploadProperty(pass: Pass, name: string, val: MaterialPropertyFull | MaterialPropertyFull[]): boolean;
+        protected _bindTexture(pass: Pass, binding: number, val: MaterialPropertyFull, index?: number): false | undefined;
         protected _doDestroy(): void;
     }
 }
@@ -14879,996 +15066,43 @@ declare module "cocos/core/renderer/ui/base" {
      * ui 相关模块
      * @category ui
      */
-    import { UIRenderComponent } from "cocos/core/components/ui-base/ui-render-component";
+    import { UIRenderable } from "cocos/core/components/ui-base/ui-renderable";
     export interface IAssembler {
         [key: string]: any;
     }
     export interface IAssemblerManager {
-        getAssembler(component: UIRenderComponent): IAssembler;
+        getAssembler(component: UIRenderable): IAssembler;
     }
 }
-declare module "cocos/core/components/component-event-handler" {
-    import { Node } from "cocos/core/scene-graph/index";
+declare module "cocos/core/components/ui-base/deprecated" {
+    import { UITransform } from "cocos/core/components/ui-base/ui-transform";
+    import { UIRenderable } from "cocos/core/components/ui-base/ui-renderable";
+    import { Canvas } from "cocos/core/components/ui-base/canvas";
     /**
-     * @zh
-     * “EventHandler” 类用来设置场景中的事件回调，该类允许用户设置回调目标节点，目标组件名，组件方法名，并可通过 emit 方法调用目标函数。
-     *
-     * @example
-     * ```ts
-     * import { Component } from 'cc';
-     * const eventHandler = new Component.EventHandler();
-     * eventHandler.target = newTarget;
-     * eventHandler.component = "MainMenu";
-     * eventHandler.handler = "OnClick";
-     * eventHandler.customEventData = "my data";
-     * ```
+     * Alias of [[UITransform]]
+     * @deprecated Since v1.2
      */
-    export class EventHandler {
-        get _componentName(): any;
-        set _componentName(value: any);
-        /**
-         * @zh
-         * 组件事件派发。
-         *
-         * @param events - 需要派发的组件事件列表。
-         * @param args - 派发参数数组。
-         */
-        static emitEvents(events: EventHandler[], ...args: any[]): void;
-        /**
-         * @zh
-         * 目标节点。
-         */
-        target: Node | null;
-        /**
-         * @zh
-         * 目标组件名。
-         */
-        component: string;
-        _componentId: string;
-        /**
-         * @zh
-         * 响应事件函数名。
-         */
-        handler: string;
-        /**
-         * @zh
-         * 自定义事件数据。
-         */
-        customEventData: string;
-        /**
-         * @zh
-         * 触发目标组件上的指定 handler 函数，该参数是回调函数的参数值（可不填）。
-         *
-         * @param params - 派发参数数组。
-         * @example
-         * ```ts
-         * import { Component } from 'cc';
-         * const eventHandler = new Component.EventHandler();
-         * eventHandler.target = newTarget;
-         * eventHandler.component = "MainMenu";
-         * eventHandler.handler = "OnClick"
-         * eventHandler.emit(["param1", "param2", ....]);
-         * ```
-         */
-        emit(params: any[]): void;
-        private _compName2Id;
-        private _compId2Name;
-        private _genCompIdIfNeeded;
-    }
-}
-declare module "cocos/core/components/block-input-events-component" {
-    import { Component } from "cocos/core/components/component";
-    export class BlockInputEventsComponent extends Component {
-        onEnable(): void;
-        onDisable(): void;
-    }
-}
-declare module "cocos/core/scheduler" {
-    import System from "cocos/core/components/system";
-    export interface ISchedulable {
-        id?: string;
-        uuid?: string;
-    }
+    export { UITransform as UITransformComponent };
     /**
-     * @en
-     * Scheduler is responsible of triggering the scheduled callbacks.<br>
-     * You should not use NSTimer. Instead use this class.<br>
-     * <br>
-     * There are 2 different types of callbacks (selectors):<br>
-     *     - update callback: the 'update' callback will be called every frame. You can customize the priority.<br>
-     *     - custom callback: A custom callback will be called every frame, or with a custom interval of time<br>
-     * <br>
-     * The 'custom selectors' should be avoided when possible. It is faster,<br>
-     * and consumes less memory to use the 'update callback'. *
-     * @zh
-     * Scheduler 是负责触发回调函数的类。<br>
-     * 通常情况下，建议使用 `director.getScheduler()` 来获取系统定时器。<br>
-     * 有两种不同类型的定时器：<br>
-     *     - update 定时器：每一帧都会触发。您可以自定义优先级。<br>
-     *     - 自定义定时器：自定义定时器可以每一帧或者自定义的时间间隔触发。<br>
-     * 如果希望每帧都触发，应该使用 update 定时器，使用 update 定时器更快，而且消耗更少的内存。
-     *
-     * @class Scheduler
+     * Alias of [[UIRenderable]]
+     * @deprecated Since v1.2
      */
-    export class Scheduler extends System {
-        /**
-         * @en Priority level reserved for system services.
-         * @zh 系统服务的优先级。
-         */
-        static PRIORITY_SYSTEM: number;
-        /**
-         * @en Minimum priority level for user scheduling.
-         * @zh 用户调度最低优先级。
-         */
-        static PRIORITY_NON_SYSTEM: number;
-        static ID: string;
-        private _timeScale;
-        private _updatesNegList;
-        private _updates0List;
-        private _updatesPosList;
-        private _hashForUpdates;
-        private _hashForTimers;
-        private _currentTarget;
-        private _currentTargetSalvaged;
-        private _updateHashLocked;
-        private _arrayForTimers;
-        /**
-         * @en This method should be called for any target which needs to schedule tasks, and this method should be called before any scheduler API usage.<bg>
-         * This method will add a `id` property if it doesn't exist.
-         * @zh 任何需要用 Scheduler 管理任务的对象主体都应该调用这个方法，并且应该在调用任何 Scheduler API 之前调用这个方法。<bg>
-         * 这个方法会给对象添加一个 `id` 属性，如果这个属性不存在的话。
-         * @param {Object} target
-         */
-        static enableForTarget(target: ISchedulable): void;
-        constructor();
-        /**
-         * @en
-         * Modifies the time of all scheduled callbacks.<br>
-         * You can use this property to create a 'slow motion' or 'fast forward' effect.<br>
-         * Default is 1.0. To create a 'slow motion' effect, use values below 1.0.<br>
-         * To create a 'fast forward' effect, use values higher than 1.0.<br>
-         * Note：It will affect EVERY scheduled selector / action.
-         * @zh
-         * 设置时间间隔的缩放比例。<br>
-         * 您可以使用这个方法来创建一个 “slow motion（慢动作）” 或 “fast forward（快进）” 的效果。<br>
-         * 默认是 1.0。要创建一个 “slow motion（慢动作）” 效果,使用值低于 1.0。<br>
-         * 要使用 “fast forward（快进）” 效果，使用值大于 1.0。<br>
-         * 注意：它影响该 Scheduler 下管理的所有定时器。
-         * @param {Number} timeScale
-         */
-        setTimeScale(timeScale: any): void;
-        /**
-         * @en Returns time scale of scheduler.
-         * @zh 获取时间间隔的缩放比例。
-         * @return {Number}
-         */
-        getTimeScale(): number;
-        /**
-         * @en 'update' the scheduler. (You should NEVER call this method, unless you know what you are doing.)
-         * @zh update 调度函数。(不应该直接调用这个方法，除非完全了解这么做的结果)
-         * @param {Number} dt delta time
-         */
-        update(dt: any): void;
-        /**
-         * @en
-         * <p>
-         *   The scheduled method will be called every 'interval' seconds.<br/>
-         *   If paused is YES, then it won't be called until it is resumed.<br/>
-         *   If 'interval' is 0, it will be called every frame, but if so, it recommended to use 'scheduleUpdateForTarget:' instead.<br/>
-         *   If the callback function is already scheduled, then only the interval parameter will be updated without re-scheduling it again.<br/>
-         *   repeat let the action be repeated repeat + 1 times, use `macro.REPEAT_FOREVER` to let the action run continuously<br/>
-         *   delay is the amount of time the action will wait before it'll start<br/>
-         * </p>
-         * @zh
-         * 指定回调函数，调用对象等信息来添加一个新的定时器。<br/>
-         * 如果 paused 值为 true，那么直到 resume 被调用才开始计时。<br/>
-         * 当时间间隔达到指定值时，设置的回调函数将会被调用。<br/>
-         * 如果 interval 值为 0，那么回调函数每一帧都会被调用，但如果是这样，
-         * 建议使用 scheduleUpdateForTarget 代替。<br/>
-         * 如果回调函数已经被定时器使用，那么只会更新之前定时器的时间间隔参数，不会设置新的定时器。<br/>
-         * repeat 值可以让定时器触发 repeat + 1 次，使用 `macro.REPEAT_FOREVER`
-         * 可以让定时器一直循环触发。<br/>
-         * delay 值指定延迟时间，定时器会在延迟指定的时间之后开始计时。
-         * @param {Function} callback
-         * @param {Object} target
-         * @param {Number} interval
-         * @param {Number} [repeat]
-         * @param {Number} [delay=0]
-         * @param {Boolean} [paused=fasle]
-         */
-        schedule(callback: Function, target: ISchedulable, interval: number, repeat?: number, delay?: number, paused?: boolean): void;
-        /**
-         * @en
-         * Schedules the update callback for a given target,
-         * During every frame after schedule started, the "update" function of target will be invoked.
-         * @zh
-         * 使用指定的优先级为指定的对象设置 update 定时器。<br>
-         * update 定时器每一帧都会被触发，触发时自动调用指定对象的 "update" 函数。<br>
-         * 优先级的值越低，定时器被触发的越早。
-         * @param {Object} target
-         * @param {Number} priority
-         * @param {Boolean} paused
-         */
-        scheduleUpdate(target: ISchedulable, priority: Number, paused: Boolean): void;
-        /**
-         * @en
-         * Unschedules a callback for a callback and a given target.<br>
-         * If you want to unschedule the "update", use `unscheduleUpdate()`
-         * @zh
-         * 根据指定的回调函数和调用对象。<br>
-         * 如果需要取消 update 定时器，请使用 unscheduleUpdate()。
-         * @param {Function} callback The callback to be unscheduled
-         * @param {Object} target The target bound to the callback.
-         */
-        unschedule(callback: any, target: ISchedulable): void;
-        /**
-         * @en Unschedules the update callback for a given target.
-         * @zh 取消指定对象的 update 定时器。
-         * @param {Object} target The target to be unscheduled.
-         */
-        unscheduleUpdate(target: ISchedulable): void;
-        /**
-         * @en
-         * Unschedules all scheduled callbacks for a given target.
-         * This also includes the "update" callback.
-         * @zh 取消指定对象的所有定时器，包括 update 定时器。
-         * @param {Object} target The target to be unscheduled.
-         */
-        unscheduleAllForTarget(target: any): void;
-        /**
-         * @en
-         * Unschedules all scheduled callbacks from all targets including the system callbacks.<br/>
-         * You should NEVER call this method, unless you know what you are doing.
-         * @zh
-         * 取消所有对象的所有定时器，包括系统定时器。<br/>
-         * 不用调用此函数，除非你确定你在做什么。
-         */
-        unscheduleAll(): void;
-        /**
-         * @en
-         * Unschedules all callbacks from all targets with a minimum priority.<br/>
-         * You should only call this with `PRIORITY_NON_SYSTEM_MIN` or higher.
-         * @zh
-         * 取消所有优先级的值大于指定优先级的定时器。<br/>
-         * 你应该只取消优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
-         * @param {Number} minPriority The minimum priority of selector to be unscheduled. Which means, all selectors which
-         *        priority is higher than minPriority will be unscheduled.
-         */
-        unscheduleAllWithMinPriority(minPriority: number): void;
-        /**
-         * @en Checks whether a callback for a given target is scheduled.
-         * @zh 检查指定的回调函数和回调对象组合是否存在定时器。
-         * @param {Function} callback The callback to check.
-         * @param {Object} target The target of the callback.
-         * @return {Boolean} True if the specified callback is invoked, false if not.
-         */
-        isScheduled(callback: any, target: ISchedulable): boolean | undefined;
-        /**
-         * @en
-         * Pause all selectors from all targets.<br/>
-         * You should NEVER call this method, unless you know what you are doing.
-         * @zh
-         * 暂停所有对象的所有定时器。<br/>
-         * 不要调用这个方法，除非你知道你正在做什么。
-         */
-        pauseAllTargets(): any;
-        /**
-         * @en
-         * Pause all selectors from all targets with a minimum priority. <br/>
-         * You should only call this with kCCPriorityNonSystemMin or higher.
-         * @zh
-         * 暂停所有优先级的值大于指定优先级的定时器。<br/>
-         * 你应该只暂停优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
-         * @param {Number} minPriority
-         */
-        pauseAllTargetsWithMinPriority(minPriority: number): any;
-        /**
-         * @en
-         * Resume selectors on a set of targets.<br/>
-         * This can be useful for undoing a call to pauseAllCallbacks.
-         * @zh
-         * 恢复指定数组中所有对象的定时器。<br/>
-         * 这个函数是 pauseAllCallbacks 的逆操作。
-         * @param {Array} targetsToResume
-         */
-        resumeTargets(targetsToResume: any): void;
-        /**
-         * @en
-         * Pauses the target.<br/>
-         * All scheduled selectors/update for a given target won't be 'ticked' until the target is resumed.<br/>
-         * If the target is not present, nothing happens.
-         * @zh
-         * 暂停指定对象的定时器。<br/>
-         * 指定对象的所有定时器都会被暂停。<br/>
-         * 如果指定的对象没有定时器，什么也不会发生。
-         * @param {Object} target
-         */
-        pauseTarget(target: ISchedulable): void;
-        /**
-         * @en
-         * Resumes the target.<br/>
-         * The 'target' will be unpaused, so all schedule selectors/update will be 'ticked' again.<br/>
-         * If the target is not present, nothing happens.
-         * @zh
-         * 恢复指定对象的所有定时器。<br/>
-         * 指定对象的所有定时器将继续工作。<br/>
-         * 如果指定的对象没有定时器，什么也不会发生。
-         * @param {Object} target
-         */
-        resumeTarget(target: ISchedulable): void;
-        /**
-         * @en Returns whether or not the target is paused.
-         * @zh 返回指定对象的定时器是否处于暂停状态。
-         * @param {Object} target
-         * @return {Boolean}
-         */
-        isTargetPaused(target: ISchedulable): any;
-        private _removeHashElement;
-        private _removeUpdateFromHash;
-        private _priorityIn;
-        private _appendIn;
-    }
-}
-declare module "cocos/core/components/system" {
+    export { UIRenderable as RenderComponent };
     /**
-     * @hidden
+     * Alias of [[Canvas]]
+     * @deprecated Since v1.2
      */
-    import { ISchedulable } from "cocos/core/scheduler";
-    export default class System implements ISchedulable {
-        protected _id: string;
-        protected _priority: number;
-        protected _executeInEditMode: boolean;
-        set priority(value: number);
-        get priority(): number;
-        set id(id: string);
-        get id(): string;
-        static sortByPriority(a: System, b: System): 1 | 0 | -1;
-        init(): void;
-        update(dt: number): void;
-        postUpdate(dt: number): void;
-    }
+    export { Canvas as CanvasComponent };
 }
-declare module "cocos/core/components/ui-base/deprecated" { }
 declare module "cocos/core/components/ui-base/index" {
     /**
      * @hidden
      */
-    export * from "cocos/core/components/ui-base/canvas-component";
+    export * from "cocos/core/components/ui-base/canvas";
     export * from "cocos/core/components/ui-base/ui-component";
-    export * from "cocos/core/components/ui-base/ui-render-component";
-    export * from "cocos/core/components/ui-base/ui-transform-component";
-    import "cocos/core/components/ui-base/deprecated";
-}
-declare module "cocos/core/animation/bound-target" {
-    import { IValueProxyFactory } from "cocos/core/animation/value-proxy";
-    import { TargetPath } from "cocos/core/animation/target-path";
-    export interface IBoundTarget {
-        setValue(value: any): void;
-        getValue(): any;
-    }
-    export interface IBufferedTarget extends IBoundTarget {
-        peek(): any;
-        pull(): void;
-        push(): void;
-    }
-    export function createBoundTarget(target: any, modifiers: TargetPath[], valueAdapter?: IValueProxyFactory): null | IBoundTarget;
-    export function createBufferedTarget(target: any, modifiers: TargetPath[], valueAdapter?: IValueProxyFactory): null | IBufferedTarget;
-}
-declare module "cocos/core/animation/playable" {
-    export class Playable {
-        /**
-         * @en Whether if this `Playable` is in playing.
-         * @zh 该 `Playable` 是否正在播放状态。
-         * @default false
-         */
-        get isPlaying(): boolean;
-        /**
-         * @en Whether if this `Playable` has been paused. This can be true even if in edit mode(isPlaying == false).
-         * @zh 该 `Playable` 是否已被暂停。
-         * @default false
-         */
-        get isPaused(): boolean;
-        /**
-         * @en Whether if this `Playable` has been paused or stopped.
-         * @zh 该 `Playable` 是否已被暂停或停止。
-         */
-        get isMotionless(): boolean;
-        private _isPlaying;
-        private _isPaused;
-        private _stepOnce;
-        /**
-         * @en Play this animation.
-         * @zh 播放动画。
-         */
-        play(): void;
-        /**
-         * @en Stop this animation.
-         * @zh 停止动画播放。
-         */
-        stop(): void;
-        /**
-         * @en Pause this animation.
-         * @zh 暂停动画。
-         */
-        pause(): void;
-        /**
-         * @en Resume this animation.
-         * @zh 重新播放动画。
-         */
-        resume(): void;
-        /**
-         * @en Perform a single frame step.
-         * @zh 执行一帧动画。
-         */
-        step(): void;
-        update(deltaTime: number): void;
-        protected onPlay(): void;
-        protected onPause(): void;
-        protected onResume(): void;
-        protected onStop(): void;
-        protected onError(message: string): void;
-    }
-}
-declare module "cocos/core/animation/skeletal-animation-blending" {
-    /**
-     * @hidden
-     */
-    import { Vec3, Quat } from "cocos/core/math/index";
-    import { Node } from "cocos/core/scene-graph/index";
-    import { IValueProxyFactory } from "cocos/core/animation/value-proxy";
-    export class BlendStateBuffer {
-        private _nodeBlendStates;
-        ref(node: Node, property: BlendingProperty): PropertyBlendState<Vec3> | PropertyBlendState<Quat>;
-        deRef(node: Node, property: BlendingProperty): void;
-        apply(): void;
-    }
-    export type IBlendStateWriter = IValueProxyFactory & {
-        destroy: () => void;
-    };
-    export function createBlendStateWriter<P extends BlendingProperty>(blendState: BlendStateBuffer, node: Node, property: P, weightProxy: {
-        weight: number;
-    }, // Effectively equals to AnimationState
-    /**
-     * True if this writer will write constant value each time.
-     */
-    constants: boolean): IBlendStateWriter;
-    type BlendingProperty = keyof NodeBlendState['properties'];
-    class PropertyBlendState<T> {
-        weight: number;
-        value: T;
-        /**
-         * How many writer reference this property.
-         */
-        refCount: number;
-        private _node;
-        constructor(node: NodeBlendState, value: T);
-        markAsDirty(): void;
-    }
-    interface NodeBlendState {
-        dirty: boolean;
-        properties: {
-            position?: PropertyBlendState<Vec3>;
-            rotation?: PropertyBlendState<Quat>;
-            eulerAngles?: PropertyBlendState<Vec3>;
-            scale?: PropertyBlendState<Vec3>;
-        };
-    }
-}
-declare module "cocos/core/animation/animation-state" {
-    /**
-     * @category animation
-     */
-    import { Node } from "cocos/core/scene-graph/node";
-    import { AnimationClip, IRuntimeCurve } from "cocos/core/animation/animation-clip";
-    import { RatioSampler } from "cocos/core/animation/animation-curve";
-    import { IBufferedTarget, IBoundTarget } from "cocos/core/animation/bound-target";
-    import { Playable } from "cocos/core/animation/playable";
-    import { WrapMode, WrappedInfo } from "cocos/core/animation/types";
-    /**
-     * @en The event type supported by Animation
-     * @zh Animation 支持的事件类型。
-     */
-    export enum EventType {
-        /**
-         * @en Emit when begin playing animation
-         * @zh 开始播放时触发。
-         */
-        PLAY = "play",
-        /**
-         * @en Emit when stop playing animation
-         * @zh 停止播放时触发。
-         */
-        STOP = "stop",
-        /**
-         * @en Emit when pause animation
-         * @zh 暂停播放时触发。
-         */
-        PAUSE = "pause",
-        /**
-         * @en Emit when resume animation
-         * @zh 恢复播放时触发。
-         */
-        RESUME = "resume",
-        /**
-         * @en If animation repeat count is larger than 1, emit when animation play to the last frame.
-         * @zh 假如动画循环次数大于 1，当动画播放到最后一帧时触发。
-         */
-        LASTFRAME = "lastframe",
-        /**
-         * @en Triggered when finish playing animation.
-         * @zh 动画完成播放时触发。
-         */
-        FINISHED = "finished"
-    }
-    export class ICurveInstance {
-        commonTargetIndex?: number;
-        private _curve;
-        private _boundTarget;
-        private _rootTargetProperty?;
-        private _curveDetail;
-        constructor(runtimeCurve: Omit<IRuntimeCurve, 'sampler'>, target: any, boundTarget: IBoundTarget);
-        applySample(ratio: number, index: number, lerpRequired: boolean, samplerResultCache: any, weight: number): void;
-        private _setValue;
-        get propertyName(): string;
-        get curveDetail(): Pick<IRuntimeCurve, "modifiers" | "valueAdapter" | "commonTarget" | "curve">;
-    }
-    /**
-     * The curves in ISamplerSharedGroup share a same keys.
-     */
-    interface ISamplerSharedGroup {
-        sampler: RatioSampler | null;
-        curves: ICurveInstance[];
-        samplerResultCache: {
-            from: number;
-            fromRatio: number;
-            to: number;
-            toRatio: number;
-        };
-    }
-    /**
-     * @en
-     * The AnimationState gives full control over animation playback process.
-     * In most cases the Animation Component is sufficient and easier to use. Use the AnimationState if you need full control.
-     * @zh
-     * AnimationState 完全控制动画播放过程。<br/>
-     * 大多数情况下 动画组件 是足够和易于使用的。如果您需要更多的动画控制接口，请使用 AnimationState。
-     *
-     */
-    export class AnimationState extends Playable {
-        /**
-         * @en The clip that is being played by this animation state.
-         * @zh 此动画状态正在播放的剪辑。
-         */
-        get clip(): AnimationClip;
-        /**
-         * @en The name of the playing animation.
-         * @zh 动画的名字。
-         */
-        get name(): string;
-        get length(): number;
-        /**
-         * @en
-         * Wrapping mode of the playing animation.
-         * Notice : dynamic change wrapMode will reset time and repeatCount property
-         * @zh
-         * 动画循环方式。
-         * 需要注意的是，动态修改 wrapMode 时，会重置 time 以及 repeatCount。
-         * @default: WrapMode.Normal
-         */
-        get wrapMode(): WrapMode;
-        set wrapMode(value: WrapMode);
-        /**
-         * @en The animation's iteration count property.
-         *
-         * A real number greater than or equal to zero (including positive infinity) representing the number of times
-         * to repeat the animation node.
-         *
-         * Values less than zero and NaN values are treated as the value 1.0 for the purpose of timing model
-         * calculations.
-         *
-         * @zh 迭代次数，指动画播放多少次后结束, normalize time。 如 2.5（2次半）。
-         *
-         * @default 1
-         */
-        get repeatCount(): number;
-        set repeatCount(value: number);
-        /**
-         * @en The start delay which represents the number of seconds from an animation's start time to the start of
-         * the active interval.
-         * @zh 延迟多少秒播放。
-         * @default 0
-         */
-        get delay(): number;
-        set delay(value: number);
-        /**
-         * @en The iteration duration of this animation in seconds. (length)
-         * @zh 单次动画的持续时间，秒。（动画长度）
-         * @readOnly
-         */
-        duration: number;
-        /**
-         * @en The animation's playback speed. 1 is normal playback speed.
-         * @zh 播放速率。
-         * @default: 1.0
-         */
-        speed: number;
-        /**
-         * @en The current time of this animation in seconds.
-         * @zh 动画当前的时间，秒。
-         * @default 0
-         */
-        time: number;
-        /**
-         * The weight.
-         */
-        weight: number;
-        frameRate: number;
-        protected _wrapMode: WrapMode;
-        protected _repeatCount: number;
-        /**
-         * Mark whether the current frame is played.
-         * When set new time to animation state, we should ensure the frame at the specified time being played at next update.
-         */
-        protected _currentFramePlayed: boolean;
-        protected _delay: number;
-        protected _delayTime: number;
-        protected _wrappedInfo: WrappedInfo;
-        protected _lastWrapInfo: WrappedInfo | null;
-        protected _lastWrapInfoEvent: WrappedInfo | null;
-        protected _process: () => void;
-        protected _target: Node | null;
-        protected _targetNode: Node | null;
-        protected _clip: AnimationClip;
-        protected _name: string;
-        protected _lastIterations?: number;
-        protected _samplerSharedGroups: ISamplerSharedGroup[];
-        /**
-         * May be `null` due to failed to initialize.
-         */
-        protected _commonTargetStatuses: (null | {
-            target: IBufferedTarget;
-            changed: boolean;
-        })[];
-        protected _curveLoaded: boolean;
-        protected _ignoreIndex: number;
-        private _blendStateBuffer;
-        private _blendStateWriters;
-        private _allowLastFrame;
-        constructor(clip: AnimationClip, name?: string);
-        get curveLoaded(): boolean;
-        initialize(root: Node, propertyCurves?: readonly IRuntimeCurve[]): void;
-        destroy(): void;
-        /**
-         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
-         * To process animation events, use `AnimationComponent` instead.
-         */
-        emit(...args: any[]): void;
-        /**
-         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
-         * To process animation events, use `AnimationComponent` instead.
-         */
-        on(type: string, callback: Function, target?: any): void | null;
-        /**
-         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
-         * To process animation events, use `AnimationComponent` instead.
-         */
-        once(type: string, callback: Function, target?: any): void | null;
-        /**
-         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
-         * To process animation events, use `AnimationComponent` instead.
-         */
-        off(type: string, callback: Function, target?: any): void;
-        /**
-         * @zh
-         * 是否允许触发 `LastFrame` 事件。
-         * @en
-         * Whether `LastFrame` should be triggered.
-         * @param allowed True if the last frame events may be triggered.
-         */
-        allowLastFrameEvent(allowed: boolean): void;
-        _setEventTarget(target: any): void;
-        setTime(time: number): void;
-        update(delta: number): void;
-        _needReverse(currentIterations: number): boolean;
-        getWrappedInfo(time: number, info?: WrappedInfo): WrappedInfo;
-        sample(): WrappedInfo;
-        process(): void;
-        simpleProcess(): void;
-        cache(frames: number): void;
-        protected onPlay(): void;
-        protected onStop(): void;
-        protected onResume(): void;
-        protected onPause(): void;
-        protected _sampleCurves(ratio: number): void;
-        private _sampleEvents;
-        private _emit;
-        private _fireEvent;
-        private _onReplayOrResume;
-        private _onPauseOrStop;
-        private _destroyBlendStateWriters;
-    }
-}
-declare module "cocos/core/animation/cross-fade" {
-    import { AnimationState } from "cocos/core/animation/animation-state";
-    import { Playable } from "cocos/core/animation/playable";
-    export class CrossFade extends Playable {
-        private readonly _managedStates;
-        private readonly _fadings;
-        constructor();
-        update(deltaTime: number): void;
-        /**
-         * 在指定时间内将从当前动画状态切换到指定的动画状态。
-         * @param state 指定的动画状态。
-         * @param duration 切换时间。
-         */
-        crossFade(state: AnimationState | null, duration: number): void;
-        clear(): void;
-        protected onPlay(): void;
-        /**
-         * 停止我们淡入淡出的所有动画状态并停止淡入淡出。
-         */
-        protected onPause(): void;
-        /**
-         * 恢复我们淡入淡出的所有动画状态并继续淡入淡出。
-         */
-        protected onResume(): void;
-        /**
-         * 停止所有淡入淡出的动画状态。
-         */
-        protected onStop(): void;
-    }
-}
-declare module "cocos/core/animation/animation-component" {
-    /**
-     * @category animation
-     */
-    import { Component } from "cocos/core/components/component";
-    import { AnimationClip } from "cocos/core/animation/animation-clip";
-    import { AnimationState, EventType } from "cocos/core/animation/animation-state";
-    import { CrossFade } from "cocos/core/animation/cross-fade";
-    const AnimationComponent_base: new (...args: any[]) => Component & import("cocos/core/event/eventify").IEventified;
-    /**
-     * @en
-     * Animation component governs a group of animation states to control playback of the states.
-     * For convenient, it stores a group of animation clips.
-     * Each of those clips would have an associated animation state uniquely created.
-     * Animation component is eventful, it dispatch a serials playback status events.
-     * See [[EventType]].
-     * @zh
-     * 动画组件管理一组动画状态，控制它们的播放。
-     * 为了方便，动画组件还存储了一组动画剪辑。
-     * 每个剪辑都会独自创建一个关联的动画状态对象。
-     * 动画组件具有事件特性，它会派发一系列播放状态相关的事件。
-     * 参考 [[EventType]]
-     */
-    export class AnimationComponent extends AnimationComponent_base {
-        /**
-         * @en
-         * Gets or sets clips this component governs.
-         * When set, associated animation state of each existing clip will be stopped.
-         * If the existing default clip is not in the set of new clips, default clip will be reset to null.
-         * @zh
-         * 获取或设置此组件管理的剪辑。
-         * 设置时，已有剪辑关联的动画状态将被停止；若默认剪辑不在新的动画剪辑中，将被重置为空。
-         */
-        get clips(): (AnimationClip | null)[];
-        set clips(value: (AnimationClip | null)[]);
-        /**
-         * @en
-         * Gets or sets the default clip.
-         * @en
-         * 获取或设置默认剪辑。
-         * 设置时，若指定的剪辑不在 `this.clips` 中则会被自动添加至 `this.clips`。
-         * @see [[playOnLoad]]
-         */
-        get defaultClip(): AnimationClip | null;
-        set defaultClip(value: AnimationClip | null);
-        static EventType: typeof EventType;
-        /**
-         * @en
-         * Whether the default clip should get into playing when this components starts.
-         * Note, this field takes no effect if `crossFade()` or `play()` has been called before this component starts.
-         * @zh
-         * 是否在组件开始运行时自动播放默认剪辑。
-         * 注意，若在组件开始运行前调用了 `crossFade` 或 `play()`，此字段将不会生效。
-         */
-        playOnLoad: boolean;
-        protected _crossFade: CrossFade;
-        protected _nameToState: Record<string, AnimationState>;
-        protected _clips: (AnimationClip | null)[];
-        protected _defaultClip: AnimationClip | null;
-        /**
-         * Whether if `crossFade()` or `play()` has been called before this component starts.
-         */
-        private _hasBeenPlayed;
-        onLoad(): void;
-        start(): void;
-        onEnable(): void;
-        onDisable(): void;
-        onDestroy(): void;
-        /**
-         * @en
-         * Switch to play specified animation state, without fading.
-         * @zh
-         * 立即切换到指定动画状态。
-         * @param name The name of the animation to be played, if absent, the default clip will be played
-         */
-        play(name?: string): void;
-        /**
-         * @en
-         * Smoothly switch to play specified animation state.
-         * @zn
-         * 平滑地切换到指定动画状态。
-         * @param name The name of the animation to switch to
-         * @param duration The duration of the cross fade, default value is 0.3s
-         */
-        crossFade(name: string, duration?: number): void;
-        /**
-         * @en
-         * Pause all animation states and all switching.
-         * @zh
-         * 暂停所有动画状态，并暂停所有切换。
-         */
-        pause(): void;
-        /**
-         * @en
-         * Resume all animation states and all switching.
-         * @zh
-         * 恢复所有动画状态，并恢复所有切换。
-         */
-        resume(): void;
-        /**
-         * @en
-         * Stop all animation states and all switching.
-         * @zh
-         * 停止所有动画状态，并停止所有切换。
-         */
-        stop(): void;
-        /**
-         * @en
-         * Get specified animation state.
-         * @zh
-         * 获取指定的动画状态。
-         * @deprecated please use [[getState]]
-         */
-        getAnimationState(name: string): AnimationState;
-        /**
-         * @en
-         * Get specified animation state.
-         * @zh
-         * 获取指定的动画状态。
-         * @param name The name of the animation
-         * @returns If no animation found, return null, otherwise the correspond animation state is returned
-         */
-        getState(name: string): AnimationState;
-        /**
-         * @en
-         * Creates a state for specified clip.
-         * If there is already a clip with same name, the existing animation state will be stopped and overridden.
-         * @zh
-         * 使用指定的动画剪辑创建一个动画状态。
-         * 若指定名称的动画状态已存在，已存在的动画状态将先被设为停止并被覆盖。
-         * @param clip The animation clip
-         * @param name The animation state name, if absent, the default clip's name will be used
-         * @returns The animation state created
-         */
-        createState(clip: AnimationClip, name?: string): AnimationState;
-        /**
-         * @en
-         * Stops and removes specified clip.
-         * @zh
-         * 停止并移除指定的动画状态。
-         * @param name The name of the animation state
-         */
-        removeState(name: string): void;
-        /**
-         * 添加一个动画剪辑到 `this.clips`中并以此剪辑创建动画状态。
-         * @deprecated please use [[createState]]
-         * @param clip The animation clip
-         * @param name The animation state name, if absent, the default clip's name will be used
-         * @returns The created animation state
-         */
-        addClip(clip: AnimationClip, name?: string): AnimationState;
-        /**
-         * @en
-         * Remove clip from the animation list. This will remove the clip and any animation states based on it.<br>
-         * If there are animation states depend on the clip are playing or clip is defaultClip, it will not delete the clip.<br>
-         * But if force is true, then will always remove the clip and any animation states based on it. If clip is defaultClip, defaultClip will be reset to null
-         * @zh
-         * 从动画列表中移除指定的动画剪辑，<br/>
-         * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。<br/>
-         * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。<br/>
-         * @deprecated please use [[removeState]]
-         * @param force - If force is true, then will always remove the clip and any animation states based on it.
-         */
-        removeClip(clip: AnimationClip, force?: boolean): void;
-        /**
-         * @en
-         * Register animation event callback.<bg>
-         * The event arguments will provide the AnimationState which emit the event.<bg>
-         * When play an animation, will auto register the event callback to the AnimationState,<bg>
-         * and unregister the event callback from the AnimationState when animation stopped.
-         * @zh
-         * 注册动画事件回调。<bg>
-         * 回调的事件里将会附上发送事件的 AnimationState。<bg>
-         * 当播放一个动画时，会自动将事件注册到对应的 AnimationState 上，停止播放时会将事件从这个 AnimationState 上取消注册。
-         * @param type The event type to listen to
-         * @param callback The callback when event triggered
-         * @param target The callee when invoke the callback, could be absent
-         * @return The registered callback
-         * @example
-         * ```ts
-         * onPlay: function (type, state) {
-         *     // callback
-         * }
-         *
-         * // register event to all animation
-         * animation.on('play', this.onPlay, this);
-         * ```
-         */
-        on<TFunction extends Function>(type: EventType, callback: TFunction, thisArg?: any, once?: boolean): TFunction;
-        once<TFunction extends Function>(type: EventType, callback: TFunction, thisArg?: any): TFunction;
-        /**
-         * @en
-         * Unregister animation event callback.
-         * @zh
-         * 取消注册动画事件回调。
-         * @param {String} type The event type to unregister
-         * @param {Function} callback The callback to unregister
-         * @param {Object} target The callee of the callback, could be absent
-         * @example
-         * ```ts
-         * // unregister event to all animation
-         * animation.off('play', this.onPlay, this);
-         * ```
-         */
-        off(type: EventType, callback?: Function, thisArg?: any): void;
-        protected _createState(clip: AnimationClip, name?: string): AnimationState;
-        protected _doCreateState(clip: AnimationClip, name: string): AnimationState;
-        private _getStateByNameOrDefaultClip;
-        private _removeStateOfAutomaticClip;
-        private _syncAllowLastFrameEvent;
-        private _syncDisallowLastFrameEvent;
-    }
-    export namespace AnimationComponent {
-        type EventType = EnumAlias<typeof EventType>;
-    }
-}
-declare module "cocos/core/animation/skeletal-animation-state" {
-    /**
-     * @category animation
-     */
-    import { SkinningModelComponent } from "cocos/core/3d/framework/skinning-model-component";
-    import { Quat, Vec3 } from "cocos/core/math/index";
-    import { IAnimInfo, JointAnimationInfo } from "cocos/core/renderer/models/skeletal-animation-utils";
-    import { Node } from "cocos/core/scene-graph/node";
-    import { AnimationClip } from "cocos/core/animation/animation-clip";
-    import { AnimationState } from "cocos/core/animation/animation-state";
-    import { SkeletalAnimationComponent, Socket } from "cocos/core/animation/skeletal-animation-component";
-    interface ITransform {
-        pos: Vec3;
-        rot: Quat;
-        scale: Vec3;
-    }
-    interface ISocketData {
-        target: Node;
-        frames: ITransform[];
-    }
-    export class SkeletalAnimationState extends AnimationState {
-        protected _frames: number;
-        protected _bakedDuration: number;
-        protected _animInfo: IAnimInfo | null;
-        protected _sockets: ISocketData[];
-        protected _animInfoMgr: JointAnimationInfo;
-        protected _comps: SkinningModelComponent[];
-        protected _parent: SkeletalAnimationComponent | null;
-        protected _curvesInited: boolean;
-        constructor(clip: AnimationClip, name?: string);
-        initialize(root: Node): void;
-        onPlay(): void;
-        rebuildSocketCurves(sockets: Socket[]): null | undefined;
-        private _sampleCurvesBaked;
-    }
+    export * from "cocos/core/components/ui-base/ui-renderable";
+    export * from "cocos/core/components/ui-base/ui-transform";
+    export * from "cocos/core/components/ui-base/deprecated";
 }
 declare module "cocos/core/utils/decode-uuid" {
     /**
@@ -16641,10 +15875,75 @@ declare module "cocos/physics/framework/physics-config" {
         physicsEngine: 'builtin' | 'cannon.js' | 'ammo.js' | string;
     }
 }
+declare module "cocos/core/splash-screen" {
+    import { Root } from "cocos/core/root";
+    import { GFXColor } from "cocos/core/gfx/define";
+    export type SplashEffectType = 'NONE' | 'FADE-INOUT';
+    export interface ISplashSetting {
+        readonly totalTime: number;
+        readonly base64src: string;
+        readonly effect: SplashEffectType;
+        readonly clearColor: GFXColor;
+        readonly displayRatio: number;
+        readonly displayWatermark: boolean;
+    }
+    export class SplashScreen {
+        private set splashFinish(value);
+        set loadFinish(v: boolean);
+        private handle;
+        private callBack;
+        private cancelAnimate;
+        private startTime;
+        private setting;
+        private image;
+        private root;
+        private device;
+        private sampler;
+        private cmdBuff;
+        private assmebler;
+        private vertexBuffers;
+        private indicesBuffers;
+        private shader;
+        private framebuffer;
+        private renderArea;
+        private region;
+        private material;
+        private texture;
+        private clearColors;
+        private _splashFinish;
+        private _loadFinish;
+        private _directCall;
+        /** text */
+        private textImg;
+        private textRegion;
+        private textTexture;
+        private textVB;
+        private textIB;
+        private textAssmebler;
+        private textMaterial;
+        private textShader;
+        private screenWidth;
+        private screenHeight;
+        main(root: Root): void;
+        setOnFinish(cb: Function): any;
+        private _tryToStart;
+        private init;
+        private hide;
+        private frame;
+        private initText;
+        private initCMD;
+        private initIA;
+        private initPSO;
+        private destroy;
+        private static _ins;
+        static get instance(): SplashScreen;
+        private constructor();
+    }
+}
 declare module "cocos/core/game" {
     import { EventTarget } from "cocos/core/event/event-target";
     import { GFXDevice } from "cocos/core/gfx/index";
-    import { ICustomJointTextureLayout } from "cocos/core/renderer/index";
+    import { ICustomJointTextureLayout } from "cocos/core/renderer/models/index";
     import { IPhysicsConfig } from "cocos/physics/framework/physics-config";
     /**
      * @zh
@@ -17081,6 +16380,1536 @@ declare module "cocos/core/game" {
         private _safeEmit;
     }
     export const game: Game;
+}
+declare module "cocos/core/platform/visible-rect" {
+    /**
+     * @hidden
+     */
+    import { Rect } from "cocos/core/math/index";
+    /**
+     * `visibleRect` is a singleton object which defines the actual visible rect of the current view,
+     * it should represent the same rect as `view.getViewportRect()`
+     */
+    const visibleRect: {
+        /**
+         * Top left coordinate of the screen related to the game scene.
+         */
+        topLeft: any;
+        /**
+         * Top right coordinate of the screen related to the game scene.
+         */
+        topRight: any;
+        /**
+         * Top center coordinate of the screen related to the game scene.
+         */
+        top: any;
+        /**
+         * Bottom left coordinate of the screen related to the game scene.
+         */
+        bottomLeft: any;
+        /**
+         * Bottom right coordinate of the screen related to the game scene.
+         */
+        bottomRight: any;
+        /**
+         * Bottom center coordinate of the screen related to the game scene.
+         */
+        bottom: any;
+        /**
+         * Center coordinate of the screen related to the game scene.
+         */
+        center: any;
+        /**
+         * Left center coordinate of the screen related to the game scene.
+         */
+        left: any;
+        /**
+         * Right center coordinate of the screen related to the game scene.
+         */
+        right: any;
+        /**
+         * Width of the screen.
+         */
+        width: number;
+        /**
+         * Height of the screen.
+         */
+        height: number;
+        /**
+         * initialize
+         */
+        init(visibleRect_: Rect): void;
+    };
+    export default visibleRect;
+}
+declare module "cocos/core/platform/view" {
+    /**
+     * @category core
+     */
+    import "cocos/core/data/class";
+    import { EventTarget } from "cocos/core/event/event-target";
+    import "cocos/core/game";
+    import { Rect, Size, Vec2 } from "cocos/core/math/index";
+    /**
+     * @en View represents the game window.<br/>
+     * It's main task include: <br/>
+     *  - Apply the design resolution policy to the UI Canvas<br/>
+     *  - Provide interaction with the window, like resize event on web, retina display support, etc...<br/>
+     *  - Manage the scale and translation of canvas related to the frame on Web<br/>
+     * <br/>
+     * With {{view}} as its singleton initialized by the engine, you don't need to call any constructor or create functions,<br/>
+     * the standard way to use it is by calling:<br/>
+     *  - view.methodName(); <br/>
+     * @zh View 代表游戏窗口视图，它的核心功能包括：
+     *  - 对所有 UI Canvas 进行设计分辨率适配。
+     *  - 提供窗口视图的交互，比如监听 resize 事件，控制 retina 屏幕适配，等等。
+     *  - 控制 Canvas 节点相对于外层 DOM 节点的缩放和偏移。
+     * 引擎会自动初始化它的单例对象 {{view}}，所以你不需要实例化任何 View，只需要直接使用 `view.methodName();`
+     */
+    export class View extends EventTarget {
+        static instance: View;
+        _resizeWithBrowserSize: boolean;
+        _designResolutionSize: Size;
+        _originalDesignResolutionSize: Size;
+        private _frameSize;
+        private _scaleX;
+        private _scaleY;
+        private _viewportRect;
+        private _visibleRect;
+        private _autoFullScreen;
+        private _devicePixelRatio;
+        private _maxPixelRatio;
+        private _retinaEnabled;
+        private _resizeCallback;
+        private _resizing;
+        private _orientationChanging;
+        private _isRotated;
+        private _orientation;
+        private _isAdjustViewport;
+        private _antiAliasEnabled;
+        private _resolutionPolicy;
+        private _rpExactFit;
+        private _rpShowAll;
+        private _rpNoBorder;
+        private _rpFixedHeight;
+        private _rpFixedWidth;
+        constructor();
+        init(): void;
+        /**
+         * @en
+         * Sets whether resize canvas automatically when browser's size changed.<br/>
+         * Useful only on web.
+         * @zh 设置当发现浏览器的尺寸改变时，是否自动调整 canvas 尺寸大小。
+         * 仅在 Web 模式下有效。
+         * @param enabled - Whether enable automatic resize with browser's resize event
+         */
+        resizeWithBrowserSize(enabled: boolean): void;
+        /**
+         * @en
+         * Sets the callback function for `view`'s resize action,<br/>
+         * this callback will be invoked before applying resolution policy, <br/>
+         * so you can do any additional modifications within the callback.<br/>
+         * Useful only on web.
+         * @zh 设置 `view` 调整视窗尺寸行为的回调函数，
+         * 这个回调函数会在应用适配模式之前被调用，
+         * 因此你可以在这个回调函数内添加任意附加改变，
+         * 仅在 Web 平台下有效。
+         * @param callback - The callback function
+         */
+        setResizeCallback(callback: Function | null): void;
+        /**
+         * @en
+         * Sets the orientation of the game, it can be landscape, portrait or auto.
+         * When set it to landscape or portrait, and screen w/h ratio doesn't fit,
+         * `view` will automatically rotate the game canvas using CSS.
+         * Note that this function doesn't have any effect in native,
+         * in native, you need to set the application orientation in native project settings
+         * @zh 设置游戏屏幕朝向，它能够是横版，竖版或自动。
+         * 当设置为横版或竖版，并且屏幕的宽高比例不匹配时，
+         * `view` 会自动用 CSS 旋转游戏场景的 canvas，
+         * 这个方法不会对 native 部分产生任何影响，对于 native 而言，你需要在应用设置中的设置排版。
+         * @param orientation - Possible values: macro.ORIENTATION_LANDSCAPE | macro.ORIENTATION_PORTRAIT | macro.ORIENTATION_AUTO
+         */
+        setOrientation(orientation: number): void;
+        /**
+         * @en
+         * Sets whether the engine modify the "viewport" meta in your web page.<br/>
+         * It's enabled by default, we strongly suggest you not to disable it.<br/>
+         * And even when it's enabled, you can still set your own "viewport" meta, it won't be overridden<br/>
+         * Only useful on web
+         * @zh 设置引擎是否调整 viewport meta 来配合屏幕适配。
+         * 默认设置为启动，我们强烈建议你不要将它设置为关闭。
+         * 即使当它启动时，你仍然能够设置你的 viewport meta，它不会被覆盖。
+         * 仅在 Web 模式下有效
+         * @param enabled - Enable automatic modification to "viewport" meta
+         */
+        adjustViewportMeta(enabled: boolean): void;
+        /**
+         * @en
+         * Retina support is enabled by default for Apple device but disabled for other devices,<br/>
+         * it takes effect only when you called setDesignResolutionPolicy<br/>
+         * Only useful on web
+         * @zh 对于 Apple 这种支持 Retina 显示的设备上默认进行优化而其他类型设备默认不进行优化，
+         * 它仅会在你调用 setDesignResolutionPolicy 方法时有影响。
+         * 仅在 Web 模式下有效。
+         * @param enabled - Enable or disable retina display
+         */
+        enableRetina(enabled: boolean): void;
+        /**
+         * @en
+         * Check whether retina display is enabled.<br/>
+         * Only useful on web
+         * @zh 检查是否对 Retina 显示设备进行优化。
+         * 仅在 Web 模式下有效。
+         */
+        isRetinaEnabled(): boolean;
+        /**
+         * @en Whether to Enable on anti-alias
+         * @zh 控制抗锯齿是否开启
+         * @param enabled - Enable or not anti-alias
+         */
+        enableAntiAlias(enabled: boolean): void;
+        /**
+         * @en Returns whether the current enable on anti-alias
+         * @zh 返回当前是否抗锯齿
+         */
+        isAntiAliasEnabled(): boolean;
+        /**
+         * @en
+         * If enabled, the application will try automatically to enter full screen mode on mobile devices<br/>
+         * You can pass true as parameter to enable it and disable it by passing false.<br/>
+         * Only useful on web
+         * @zh 启动时，移动端游戏会在移动端自动尝试进入全屏模式。
+         * 你能够传入 true 为参数去启动它，用 false 参数来关闭它。
+         * @param enabled - Enable or disable auto full screen on mobile devices
+         */
+        enableAutoFullScreen(enabled: boolean): void;
+        /**
+         * @en
+         * Check whether auto full screen is enabled.<br/>
+         * Only useful on web
+         * @zh 检查自动进入全屏模式是否启动。
+         * 仅在 Web 模式下有效。
+         * @return Auto full screen enabled or not
+         */
+        isAutoFullScreenEnabled(): boolean;
+        setCanvasSize(width: number, height: number): void;
+        /**
+         * @en
+         * Returns the canvas size of the view.<br/>
+         * On native platforms, it returns the screen size since the view is a fullscreen view.<br/>
+         * On web, it returns the size of the canvas element.
+         * @zh 返回视图中 canvas 的尺寸。
+         * 在 native 平台下，它返回全屏视图下屏幕的尺寸。
+         * 在 Web 平台下，它返回 canvas 元素尺寸。
+         */
+        getCanvasSize(): Size;
+        /**
+         * @en
+         * Returns the frame size of the view.<br/>
+         * On native platforms, it returns the screen size since the view is a fullscreen view.<br/>
+         * On web, it returns the size of the canvas's outer DOM element.
+         * @zh 返回视图中边框尺寸。
+         * 在 native 平台下，它返回全屏视图下屏幕的尺寸。
+         * 在 web 平台下，它返回 canvas 元素的外层 DOM 元素尺寸。
+         */
+        getFrameSize(): Size;
+        /**
+         * @en On native, it sets the frame size of view.<br/>
+         * On web, it sets the size of the canvas's outer DOM element.
+         * @zh 在 native 平台下，设置视图框架尺寸。
+         * 在 web 平台下，设置 canvas 外层 DOM 元素尺寸。
+         * @param {Number} width
+         * @param {Number} height
+         */
+        setFrameSize(width: number, height: number): void;
+        /**
+         * @en Returns the visible area size of the view port.
+         * @zh 返回视图窗口可见区域尺寸。
+         */
+        getVisibleSize(): Size;
+        /**
+         * @en Returns the visible area size of the view port.
+         * @zh 返回视图窗口可见区域像素尺寸。
+         */
+        getVisibleSizeInPixel(): Size;
+        /**
+         * @en Returns the visible origin of the view port.
+         * @zh 返回视图窗口可见区域原点。
+         */
+        getVisibleOrigin(): Vec2;
+        /**
+         * @en Returns the visible origin of the view port.
+         * @zh 返回视图窗口可见区域像素原点。
+         */
+        getVisibleOriginInPixel(): Vec2;
+        /**
+         * @en Returns the current resolution policy
+         * @zh 返回当前分辨率方案
+         * @see {{ResolutionPolicy}}
+         */
+        getResolutionPolicy(): ResolutionPolicy;
+        /**
+         * @en Sets the current resolution policy
+         * @zh 设置当前分辨率模式
+         * @see {{ResolutionPolicy}}
+         */
+        setResolutionPolicy(resolutionPolicy: ResolutionPolicy | number): void;
+        /**
+         * @en Sets the resolution policy with designed view size in points.<br/>
+         * The resolution policy include: <br/>
+         * [1] ResolutionExactFit       Fill screen by stretch-to-fit: if the design resolution ratio of width to height is different from the screen resolution ratio, your game view will be stretched.<br/>
+         * [2] ResolutionNoBorder       Full screen without black border: if the design resolution ratio of width to height is different from the screen resolution ratio, two areas of your game view will be cut.<br/>
+         * [3] ResolutionShowAll        Full screen with black border: if the design resolution ratio of width to height is different from the screen resolution ratio, two black borders will be shown.<br/>
+         * [4] ResolutionFixedHeight    Scale the content's height to screen's height and proportionally scale its width<br/>
+         * [5] ResolutionFixedWidth     Scale the content's width to screen's width and proportionally scale its height<br/>
+         * [ResolutionPolicy]        [Web only feature] Custom resolution policy, constructed by ResolutionPolicy<br/>
+         * @zh 通过设置设计分辨率和匹配模式来进行游戏画面的屏幕适配。
+         * @param width Design resolution width.
+         * @param height Design resolution height.
+         * @param resolutionPolicy The resolution policy desired
+         */
+        setDesignResolutionSize(width: number, height: number, resolutionPolicy: ResolutionPolicy | number): void;
+        /**
+         * @en Returns the designed size for the view.
+         * Default resolution size is the same as 'getFrameSize'.
+         * @zh 返回视图的设计分辨率。
+         * 默认下分辨率尺寸同 `getFrameSize` 方法相同
+         */
+        getDesignResolutionSize(): Size;
+        /**
+         * @en Sets the container to desired pixel resolution and fit the game content to it.
+         * This function is very useful for adaptation in mobile browsers.
+         * In some HD android devices, the resolution is very high, but its browser performance may not be very good.
+         * In this case, enabling retina display is very costy and not suggested, and if retina is disabled, the image may be blurry.
+         * But this API can be helpful to set a desired pixel resolution which is in between.
+         * This API will do the following:
+         *     1. Set viewport's width to the desired width in pixel
+         *     2. Set body width to the exact pixel resolution
+         *     3. The resolution policy will be reset with designed view size in points.
+         * @zh 设置容器（container）需要的像素分辨率并且适配相应分辨率的游戏内容。
+         * @param width Design resolution width.
+         * @param height Design resolution height.
+         * @param resolutionPolicy The resolution policy desired
+         */
+        setRealPixelResolution(width: number, height: number, resolutionPolicy: ResolutionPolicy | number): void;
+        /**
+         * @en Returns the view port rectangle.
+         * @zh 返回视窗剪裁区域。
+         */
+        getViewportRect(): Rect;
+        /**
+         * @en Returns scale factor of the horizontal direction (X axis).
+         * @zh 返回横轴的缩放比，这个缩放比是将画布像素分辨率放到设计分辨率的比例。
+         */
+        getScaleX(): number;
+        /**
+         * @en Returns scale factor of the vertical direction (Y axis).
+         * @zh 返回纵轴的缩放比，这个缩放比是将画布像素分辨率缩放到设计分辨率的比例。
+         */
+        getScaleY(): number;
+        /**
+         * @en Returns device pixel ratio for retina display.
+         * @zh 返回设备或浏览器像素比例。
+         */
+        getDevicePixelRatio(): number;
+        /**
+         * @en Returns the real location in view for a translation based on a related position
+         * @zh 将屏幕坐标转换为游戏视图下的坐标。
+         * @param tx - The X axis translation
+         * @param ty - The Y axis translation
+         * @param relatedPos - The related position object including "left", "top", "width", "height" informations
+         * @param out - The out object to save the conversion result
+         */
+        convertToLocationInView(tx: number, ty: number, relatedPos: any, out: Vec2): Vec2;
+        private _convertPointWithScale;
+        private _resizeEvent;
+        private _orientationChange;
+        private _initFrameSize;
+        private _adjustSizeKeepCanvasSize;
+        private _setViewportMeta;
+        private _adjustViewportMeta;
+        private _convertMouseToLocation;
+        private _convertTouchWidthScale;
+        private _convertTouchesWithScale;
+    }
+    /**
+     * !en
+     * Emit when design resolution changed.
+     * !zh
+     * 当设计分辨率改变时发送。
+     * @event design-resolution-changed
+     */
+    interface AdaptResult {
+        scale: number[];
+        viewport?: null | Rect;
+    }
+    /**
+     * ContainerStrategy class is the root strategy class of container's scale strategy,
+     * it controls the behavior of how to scale the cc.game.container and cc.game.canvas object
+     */
+    class ContainerStrategy {
+        static EQUAL_TO_FRAME: any;
+        static PROPORTION_TO_FRAME: any;
+        name: string;
+        /**
+         * @en Manipulation before appling the strategy
+         * @zh 在应用策略之前的操作
+         * @param view - The target view
+         */
+        preApply(_view: View): void;
+        /**
+         * @en Function to apply this strategy
+         * @zh 策略应用方法
+         * @param view
+         * @param designedResolution
+         */
+        apply(_view: View, designedResolution: Size): void;
+        /**
+         * @en
+         * Manipulation after applying the strategy
+         * @zh 策略调用之后的操作
+         * @param view  The target view
+         */
+        postApply(_view: View): void;
+        protected _setupContainer(_view: any, w: any, h: any): void;
+        protected _fixContainer(): void;
+    }
+    /**
+     * @en
+     * Emit when canvas resize.
+     * @zh
+     * 当画布大小改变时发送。
+     * @event canvas-resize
+     */
+    /**
+     * ContentStrategy class is the root strategy class of content's scale strategy,
+     * it controls the behavior of how to scale the scene and setup the viewport for the game
+     *
+     * @class ContentStrategy
+     */
+    class ContentStrategy {
+        static EXACT_FIT: any;
+        static SHOW_ALL: any;
+        static NO_BORDER: any;
+        static FIXED_HEIGHT: any;
+        static FIXED_WIDTH: any;
+        name: string;
+        private _result;
+        constructor();
+        /**
+         * @en Manipulation before applying the strategy
+         * @zh 策略应用前的操作
+         * @param view - The target view
+         */
+        preApply(_view: View): void;
+        /**
+         * @en Function to apply this strategy
+         * The return value is {scale: [scaleX, scaleY], viewport: {new Rect}},
+         * The target view can then apply these value to itself, it's preferred not to modify directly its private variables
+         * @zh 调用策略方法
+         * @return The result scale and viewport rect
+         */
+        apply(_view: View, designedResolution: Size): AdaptResult;
+        /**
+         * @en Manipulation after applying the strategy
+         * @zh 策略调用之后的操作
+         * @param view - The target view
+         */
+        postApply(_view: View): void;
+        _buildResult(containerW: any, containerH: any, contentW: any, contentH: any, scaleX: any, scaleY: any): AdaptResult;
+    }
+    /**
+     * ResolutionPolicy class is the root strategy class of scale strategy,
+     * its main task is to maintain the compatibility with Cocos2d-x</p>
+     */
+    export class ResolutionPolicy {
+        /**
+         * The entire application is visible in the specified area without trying to preserve the original aspect ratio.<br/>
+         * Distortion can occur, and the application may appear stretched or compressed.
+         */
+        static EXACT_FIT: number;
+        /**
+         * The entire application fills the specified area, without distortion but possibly with some cropping,<br/>
+         * while maintaining the original aspect ratio of the application.
+         */
+        static NO_BORDER: number;
+        /**
+         * The entire application is visible in the specified area without distortion while maintaining the original<br/>
+         * aspect ratio of the application. Borders can appear on two sides of the application.
+         */
+        static SHOW_ALL: number;
+        /**
+         * The application takes the height of the design resolution size and modifies the width of the internal<br/>
+         * canvas so that it fits the aspect ratio of the device<br/>
+         * no distortion will occur however you must make sure your application works on different<br/>
+         * aspect ratios
+         */
+        static FIXED_HEIGHT: number;
+        /**
+         * The application takes the width of the design resolution size and modifies the height of the internal<br/>
+         * canvas so that it fits the aspect ratio of the device<br/>
+         * no distortion will occur however you must make sure your application works on different<br/>
+         * aspect ratios
+         */
+        static FIXED_WIDTH: number;
+        /**
+         * Unknown policy
+         */
+        static UNKNOWN: number;
+        static ContainerStrategy: typeof ContainerStrategy;
+        static ContentStrategy: typeof ContentStrategy;
+        name: string;
+        private _containerStrategy;
+        private _contentStrategy;
+        /**
+         * Constructor of ResolutionPolicy
+         * @param containerStg
+         * @param contentStg
+         */
+        constructor(containerStg: ContainerStrategy, contentStg: ContentStrategy);
+        get canvasSize(): any;
+        /**
+         * @en Manipulation before applying the resolution policy
+         * @zh 策略应用前的操作
+         * @param _view The target view
+         */
+        preApply(_view: View): void;
+        /**
+         * @en Function to apply this resolution policy
+         * The return value is {scale: [scaleX, scaleY], viewport: {new Rect}},
+         * The target view can then apply these value to itself, it's preferred not to modify directly its private variables
+         * @zh 调用策略方法
+         * @param _view - The target view
+         * @param designedResolution - The user defined design resolution
+         * @return An object contains the scale X/Y values and the viewport rect
+         */
+        apply(_view: View, designedResolution: Size): AdaptResult;
+        /**
+         * @en Manipulation after appyling the strategy
+         * @zh 策略应用之后的操作
+         * @param _view - The target view
+         */
+        postApply(_view: View): void;
+        /**
+         * @en Setup the container's scale strategy
+         * @zh 设置容器的适配策略
+         * @param containerStg The container strategy
+         */
+        setContainerStrategy(containerStg: ContainerStrategy): void;
+        /**
+         * @en Setup the content's scale strategy
+         * @zh 设置内容的适配策略
+         * @param contentStg The content strategy
+         */
+        setContentStrategy(contentStg: ContentStrategy): void;
+    }
+    /**
+     * @en view is the singleton view object.
+     * @zh view 是全局的视图单例对象。
+     */
+    export const view: View;
+}
+declare module "cocos/core/renderer/scene/fog" {
+    import { Color } from "cocos/core/math/index";
+    /**
+     * @zh
+     * 全局雾类型。
+     * @en
+     * The global fog type
+     * @static
+     * @enum FogInfo.FogType
+     */
+    export const FogType: {
+        /**
+         * @zh
+         * 线性雾。
+         * @en
+         * Linear fog
+         * @readonly
+         */
+        LINEAR: number;
+        /**
+         * @zh
+         * 指数雾。
+         * @en
+         * Exponential fog
+         * @readonly
+         */
+        EXP: number;
+        /**
+         * @zh
+         * 指数平方雾。
+         * @en
+         * Exponential square fog
+         * @readonly
+         */
+        EXP_SQUARED: number;
+        /**
+         * @zh
+         * 层叠雾。
+         * @en
+         * Layered fog
+         * @readonly
+         */
+        LAYERED: number;
+    };
+    export class Fog {
+        /**
+         * @zh 是否启用全局雾效
+         * @en Enable global fog
+         */
+        set enabled(val: boolean);
+        get enabled(): boolean;
+        /**
+         * @zh 全局雾颜色
+         * @en Global fog color
+         */
+        set fogColor(val: Color);
+        get fogColor(): Color;
+        /**
+         * @zh 全局雾类型
+         * @en Global fog type
+         */
+        get type(): number;
+        set type(val: number);
+        /**
+         * @zh 全局雾浓度
+         * @en Global fog density
+         */
+        get fogDensity(): number;
+        set fogDensity(val: number);
+        /**
+         * @zh 雾效起始位置，只适用于线性雾
+         * @en Global fog start position, only for linear fog
+         */
+        get fogStart(): number;
+        set fogStart(val: number);
+        /**
+         * @zh 雾效结束位置，只适用于线性雾
+         * @en Global fog end position, only for linear fog
+         */
+        get fogEnd(): number;
+        set fogEnd(val: number);
+        /**
+         * @zh 雾效衰减
+         * @en Global fog attenuation
+         */
+        get fogAtten(): number;
+        set fogAtten(val: number);
+        /**
+         * @zh 雾效顶部范围，只适用于层级雾
+         * @en Global fog top range, only for layered fog
+         */
+        get fogTop(): number;
+        set fogTop(val: number);
+        /**
+         * @zh 雾效范围，只适用于层级雾
+         * @en Global fog range, only for layered fog
+         */
+        get fogRange(): number;
+        set fogRange(val: number);
+        /**
+         * @zh 当前雾化类型。
+         * @en The current global fog type.
+         * @returns {FogType}
+         * Returns the current global fog type
+         * - 0:Disable global Fog
+         * - 1:Linear fog
+         * - 2:Exponential fog
+         * - 3:Exponential square fog
+         * - 4:Layered fog
+         */
+        get currType(): number;
+        get colorArray(): Float32Array;
+        protected _type: number;
+        protected _fogColor: Color;
+        protected _enabled: boolean;
+        protected _fogDensity: number;
+        protected _fogStart: number;
+        protected _fogEnd: number;
+        protected _fogAtten: number;
+        protected _fogTop: number;
+        protected _fogRange: number;
+        protected _currType: number;
+        protected _colorArray: Float32Array;
+        activate(): void;
+        protected _updatePipeline(): void;
+    }
+}
+declare module "cocos/core/scene-graph/scene-globals" {
+    /**
+     * @category scene-graph
+     */
+    import { TextureCube } from "cocos/core/assets/texture-cube";
+    import { Color, Vec3, Vec2 } from "cocos/core/math/index";
+    import { Ambient } from "cocos/core/renderer/scene/ambient";
+    import { Shadows } from "cocos/core/renderer/scene/shadows";
+    import { Skybox } from "cocos/core/renderer/scene/skybox";
+    import { Fog } from "cocos/core/renderer/scene/fog";
+    import { Node } from "cocos/core/scene-graph/node";
+    /**
+     * @en Environment lighting information in the Scene
+     * @zh 场景的环境光照相关信息
+     */
+    export class AmbientInfo {
+        protected _skyColor: Color;
+        protected _skyIllum: number;
+        protected _groundAlbedo: Color;
+        protected _resource: Ambient | null;
+        /**
+         * @en Sky color
+         * @zh 天空颜色
+         */
+        set skyColor(val: Color);
+        get skyColor(): Color;
+        /**
+         * @en Sky illuminance
+         * @zh 天空亮度
+         */
+        set skyIllum(val: number);
+        get skyIllum(): number;
+        /**
+         * @en Ground color
+         * @zh 地面颜色
+         */
+        set groundAlbedo(val: Color);
+        get groundAlbedo(): Color;
+        activate(resource: Ambient): void;
+    }
+    /**
+     * @en Skybox related information
+     * @zh 天空盒相关信息
+     */
+    export class SkyboxInfo {
+        protected _envmap: TextureCube | null;
+        protected _isRGBE: boolean;
+        protected _enabled: boolean;
+        protected _useIBL: boolean;
+        protected _resource: Skybox | null;
+        /**
+         * @en Whether activate skybox in the scene
+         * @zh 是否启用天空盒？
+         */
+        set enabled(val: boolean);
+        get enabled(): boolean;
+        /**
+         * @en Whether use environment lighting
+         * @zh 是否启用环境光照？
+         */
+        set useIBL(val: boolean);
+        get useIBL(): boolean;
+        /**
+         * @en The texture cube used for the skybox
+         * @zh 使用的立方体贴图
+         */
+        set envmap(val: TextureCube | null);
+        get envmap(): TextureCube | null;
+        /**
+         * @en Whether enable RGBE data support in skybox shader
+         * @zh 是否需要开启 shader 内的 RGBE 数据支持？
+         */
+        set isRGBE(val: boolean);
+        get isRGBE(): boolean;
+        activate(resource: Skybox): void;
+    }
+    /**
+     * @zh 全局雾相关信息
+     * @en Global fog info
+     */
+    export class FogInfo {
+        static FogType: {
+            LINEAR: number;
+            EXP: number;
+            EXP_SQUARED: number;
+            LAYERED: number;
+        };
+        protected _type: number;
+        protected _fogColor: Color;
+        protected _enabled: boolean;
+        protected _fogDensity: number;
+        protected _fogStart: number;
+        protected _fogEnd: number;
+        protected _fogAtten: number;
+        protected _fogTop: number;
+        protected _fogRange: number;
+        protected _resource: Fog | null;
+        /**
+         * @zh 是否启用全局雾效
+         * @en Enable global fog
+         */
+        set enabled(val: boolean);
+        get enabled(): boolean;
+        /**
+         * @zh 全局雾颜色
+         * @en Global fog color
+         */
+        set fogColor(val: Color);
+        get fogColor(): Color;
+        /**
+         * @zh 全局雾类型
+         * @en Global fog type
+         */
+        get type(): number;
+        set type(val: number);
+        /**
+         * @zh 全局雾浓度
+         * @en Global fog density
+         */
+        get fogDensity(): number;
+        set fogDensity(val: number);
+        /**
+         * @zh 雾效起始位置，只适用于线性雾
+         * @en Global fog start position, only for linear fog
+         */
+        get fogStart(): number;
+        set fogStart(val: number);
+        /**
+         * @zh 雾效结束位置，只适用于线性雾
+         * @en Global fog end position, only for linear fog
+         */
+        get fogEnd(): number;
+        set fogEnd(val: number);
+        /**
+         * @zh 雾效衰减
+         * @en Global fog attenuation
+         */
+        get fogAtten(): number;
+        set fogAtten(val: number);
+        /**
+         * @zh 雾效顶部范围，只适用于层级雾
+         * @en Global fog top range, only for layered fog
+         */
+        get fogTop(): number;
+        set fogTop(val: number);
+        /**
+         * @zh 雾效范围，只适用于层级雾
+         * @en Global fog range, only for layered fog
+         */
+        get fogRange(): number;
+        set fogRange(val: number);
+        activate(resource: Fog): void;
+    }
+    /**
+     * @en Scene level planar shadow related information
+     * @zh 平面阴影相关信息
+     */
+    export class ShadowsInfo {
+        protected _type: number;
+        protected _enabled: boolean;
+        protected _normal: Vec3;
+        protected _distance: number;
+        protected _shadowColor: Color;
+        protected _pcf: number;
+        protected _near: number;
+        protected _far: number;
+        protected _aspect: number;
+        protected _orthoSize: number;
+        protected _size: Vec2;
+        protected _resource: Shadows | null;
+        /**
+         * @en Whether activate planar shadow
+         * @zh 是否启用平面阴影？
+         */
+        set enabled(val: boolean);
+        get enabled(): boolean;
+        set type(val: number);
+        get type(): number;
+        /**
+         * @en Shadow color
+         * @zh 阴影颜色
+         */
+        set shadowColor(val: Color);
+        get shadowColor(): Color;
+        /**
+         * @en The normal of the plane which receives shadow
+         * @zh 阴影接收平面的法线
+         */
+        set normal(val: Vec3);
+        get normal(): Vec3;
+        /**
+         * @en The distance from coordinate origin to the receiving plane.
+         * @zh 阴影接收平面与原点的距离
+         */
+        set distance(val: number);
+        get distance(): number;
+        /**
+         * @en The normal of the plane which receives shadow
+         * @zh 阴影接收平面的法线
+         */
+        set pcf(val: number);
+        get pcf(): number;
+        /**
+         * @en get or set shadow camera near
+         * @zh 获取或者设置阴影相机近裁剪面
+         */
+        set near(val: number);
+        get near(): number;
+        /**
+         * @en get or set shadow camera far
+         * @zh 获取或者设置阴影相机远裁剪面
+         */
+        set far(val: number);
+        get far(): number;
+        /**
+         * @en get or set shadow camera orthoSize
+         * @zh 获取或者设置阴影相机正交大小
+         */
+        set orthoSize(val: number);
+        get orthoSize(): number;
+        /**
+         * @en get or set shadow camera orthoSize
+         * @zh 获取或者设置阴影纹理大小
+         */
+        set shadowMapSize(val: Vec2);
+        get shadowMapSize(): Vec2;
+        /**
+         * @en get or set shadow camera orthoSize
+         * @zh 获取或者设置阴影纹理大小
+         */
+        set aspect(val: number);
+        get aspect(): number;
+        /**
+         * @en Set plane which receives shadow with the given node's world transformation
+         * @zh 根据指定节点的世界变换设置阴影接收平面的信息
+         * @param node The node for setting up the plane
+         */
+        setPlaneFromNode(node: Node): void;
+        activate(resource: Shadows): void;
+    }
+    /**
+     * @en All scene related global parameters, it affects all content in the corresponding scene
+     * @zh 各类场景级别的渲染参数，将影响全场景的所有物体
+     */
+    export class SceneGlobals {
+        /**
+         * @en The environment light information
+         * @zh 场景的环境光照相关信息
+         */
+        ambient: AmbientInfo;
+        /**
+         * @en Scene level planar shadow related information
+         * @zh 平面阴影相关信息
+         */
+        shadows: ShadowsInfo;
+        _skybox: SkyboxInfo;
+        fog: FogInfo;
+        /**
+         * @en Skybox related information
+         * @zh 天空盒相关信息
+         */
+        get skybox(): SkyboxInfo;
+        set skybox(value: SkyboxInfo);
+        activate(): void;
+    }
+}
+declare module "cocos/core/scene-graph/scene" {
+    import { Mat4, Quat, Vec3 } from "cocos/core/math/index";
+    import { RenderScene } from "cocos/core/renderer/scene/render-scene";
+    import { BaseNode } from "cocos/core/scene-graph/base-node";
+    import { Component } from "cocos/core/components/component";
+    import { SceneGlobals } from "cocos/core/scene-graph/scene-globals";
+    /**
+     * @en
+     * Scene is a subclass of [[BaseNode]], composed by nodes, representing the root of a runnable environment in the game.
+     * It's managed by [[Director]] and user can switch from a scene to another using [[Director.loadScene]]
+     * @zh
+     * Scene 是 [[BaseNode]] 的子类，由节点所构成，代表着游戏中可运行的某一个整体环境。
+     * 它由 [[Director]] 管理，用户可以使用 [[Director.loadScene]] 来切换场景
+     */
+    export class Scene extends BaseNode {
+        /**
+         * @en The renderer scene, normally user don't need to use it
+         * @zh 渲染层场景，一般情况下用户不需要关心它
+         */
+        get renderScene(): RenderScene | null;
+        get globals(): SceneGlobals;
+        /**
+         * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
+         * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
+         */
+        autoReleaseAssets: boolean;
+        /**
+         * @en Per-scene level rendering info
+         * @zh 场景级别的渲染信息
+         */
+        _globals: SceneGlobals;
+        _renderScene: RenderScene | null;
+        dependAssets: null;
+        protected _inited: boolean;
+        protected _prefabSyncedInLiveReload: boolean;
+        protected _pos: Readonly<Vec3>;
+        protected _rot: Readonly<Quat>;
+        protected _scale: Readonly<Vec3>;
+        protected _mat: Readonly<Mat4>;
+        protected _dirtyFlags: number;
+        constructor(name: string);
+        /**
+         * @en Destroy the current scene and all its nodes, this action won't destroy related assets
+         * @zh 销毁当前场景中的所有节点，这个操作不会销毁资源
+         */
+        destroy(): boolean;
+        /**
+         * @en Only for compatibility purpose, user should not add any component to the scene
+         * @zh 仅为兼容性保留，用户不应该在场景上直接添加任何组件
+         */
+        addComponent(typeOrClassName: string | Function): Component;
+        _onHierarchyChanged(): void;
+        _onBatchCreated(): void;
+        _onBatchRestored(): void;
+        /**
+         * Refer to [[Node.getPosition]]
+         */
+        getPosition(out?: Vec3): Vec3;
+        /**
+         * Refer to [[Node.getRotation]]
+         */
+        getRotation(out?: Quat): Quat;
+        /**
+         * Refer to [[Node.getScale]]
+         */
+        getScale(out?: Vec3): Vec3;
+        /**
+         * Refer to [[Node.getWorldPosition]]
+         */
+        getWorldPosition(out?: Vec3): Vec3;
+        /**
+         * Refer to [[Node.getWorldRotation]]
+         */
+        getWorldRotation(out?: Quat): Quat;
+        /**
+         * Refer to [[Node.getWorldScale]]
+         */
+        getWorldScale(out?: Vec3): Vec3;
+        /**
+         * Refer to [[Node.getWorldMatrix]]
+         */
+        getWorldMatrix(out?: Mat4): Mat4;
+        /**
+         * Refer to [[Node.getWorldRS]]
+         */
+        getWorldRS(out?: Mat4): Mat4;
+        /**
+         * Refer to [[Node.getWorldRT]]
+         */
+        getWorldRT(out?: Mat4): Mat4;
+        /**
+         * Refer to [[Node.position]]
+         */
+        get position(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.worldPosition]]
+         */
+        get worldPosition(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.rotation]]
+         */
+        get rotation(): Readonly<Quat>;
+        /**
+         * Refer to [[Node.worldRotation]]
+         */
+        get worldRotation(): Readonly<Quat>;
+        /**
+         * Refer to [[Node.scale]]
+         */
+        get scale(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.worldScale]]
+         */
+        get worldScale(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.eulerAngles]]
+         */
+        get eulerAngles(): Readonly<Vec3>;
+        /**
+         * Refer to [[Node.worldMatrix]]
+         */
+        get worldMatrix(): Readonly<Mat4>;
+        /**
+         * Refer to [[Node.updateWorldTransform]]
+         */
+        updateWorldTransform(): void;
+        protected _instantiate(): void;
+        protected _load(): void;
+        protected _activate(active: boolean): void;
+    }
+}
+declare module "cocos/core/3d/framework/camera-component" {
+    import { RenderTexture } from "cocos/core/assets/render-texture";
+    import { Component } from "cocos/core/components/component";
+    import { ray } from "cocos/core/geometry/index";
+    import { GFXClearFlag } from "cocos/core/gfx/define";
+    import { Color, Rect, Vec3 } from "cocos/core/math/index";
+    import { scene } from "cocos/core/renderer/index";
+    import { Node } from "cocos/core/scene-graph/node";
+    import { Scene } from "cocos/core/scene-graph/scene";
+    /**
+     * @en The projection type.
+     * @zh 投影类型。
+     */
+    const ProjectionType: typeof scene.CameraProjection;
+    const FOVAxis: typeof scene.CameraFOVAxis;
+    const Aperture: typeof scene.CameraAperture;
+    const Shutter: typeof scene.CameraShutter;
+    const ISO: typeof scene.CameraISO;
+    const ClearFlag: {
+        SKYBOX: number;
+        SOLID_COLOR: GFXClearFlag;
+        DEPTH_ONLY: GFXClearFlag;
+        DONT_CLEAR: GFXClearFlag;
+    };
+    export namespace Camera {
+        type ProjectionType = EnumAlias<typeof ProjectionType>;
+        type FOVAxis = EnumAlias<typeof FOVAxis>;
+        type ClearFlag = EnumAlias<typeof ClearFlag>;
+        type Aperture = EnumAlias<typeof Aperture>;
+        type Shutter = EnumAlias<typeof Shutter>;
+        type ISO = EnumAlias<typeof ISO>;
+    }
+    /**
+     * @en The Camera Component.
+     * @zh 相机组件。
+     */
+    export class Camera extends Component {
+        static ProjectionType: typeof scene.CameraProjection;
+        static FOVAxis: typeof scene.CameraFOVAxis;
+        static ClearFlag: {
+            SKYBOX: number;
+            SOLID_COLOR: GFXClearFlag;
+            DEPTH_ONLY: GFXClearFlag;
+            DONT_CLEAR: GFXClearFlag;
+        };
+        static Aperture: typeof scene.CameraAperture;
+        static Shutter: typeof scene.CameraShutter;
+        static ISO: typeof scene.CameraISO;
+        protected _projection: scene.CameraProjection;
+        protected _priority: number;
+        protected _fov: number;
+        protected _fovAxis: scene.CameraFOVAxis;
+        protected _orthoHeight: number;
+        protected _near: number;
+        protected _far: number;
+        protected _color: Color;
+        protected _depth: number;
+        protected _stencil: number;
+        protected _clearFlags: GFXClearFlag;
+        protected _rect: Rect;
+        protected _aperture: scene.CameraAperture;
+        protected _shutter: scene.CameraShutter;
+        protected _iso: scene.CameraISO;
+        protected _screenScale: number;
+        protected _visibility: number;
+        protected _targetTexture: RenderTexture | null;
+        protected _camera: scene.Camera | null;
+        protected _inEditorMode: boolean;
+        protected _flows: string[] | undefined;
+        get camera(): scene.Camera;
+        /**
+         * @en Render priority of the camera, in ascending-order.
+         * @zh 相机的渲染优先级，值越小越优先渲染。
+         */
+        get priority(): number;
+        set priority(val: number);
+        /**
+         * @en Visibility mask, declaring a set of node layers that will be visible to this camera.
+         * @zh 可见性掩码，声明在当前相机中可见的节点层级集合。
+         */
+        get visibility(): number;
+        set visibility(val: number);
+        /**
+         * @en Clearing flags of the camera, specifies which part of the framebuffer will be actually cleared every frame.
+         * @zh 相机的缓冲清除标志位，指定帧缓冲的哪部分要每帧清除。
+         */
+        get clearFlags(): GFXClearFlag;
+        set clearFlags(val: GFXClearFlag);
+        /**
+         * @en Clearing color of the camera.
+         * @zh 相机的颜色缓冲默认值。
+         */
+        get clearColor(): Readonly<Color>;
+        set clearColor(val: Readonly<Color>);
+        /**
+         * @en Clearing depth of the camera.
+         * @zh 相机的深度缓冲默认值。
+         */
+        get clearDepth(): number;
+        set clearDepth(val: number);
+        /**
+         * @en Clearing stencil of the camera.
+         * @zh 相机的模板缓冲默认值。
+         */
+        get clearStencil(): number;
+        set clearStencil(val: number);
+        /**
+         * @en Projection type of the camera.
+         * @zh 相机的投影类型。
+         */
+        get projection(): scene.CameraProjection;
+        set projection(val: scene.CameraProjection);
+        /**
+         * @en The axis on which the FOV would be fixed regardless of screen aspect changes.
+         * @zh 指定视角的固定轴向，在此轴上不会跟随屏幕长宽比例变化。
+         */
+        get fovAxis(): scene.CameraFOVAxis;
+        set fovAxis(val: scene.CameraFOVAxis);
+        /**
+         * @en Field of view of the camera.
+         * @zh 相机的视角大小。
+         */
+        get fov(): number;
+        set fov(val: number);
+        /**
+         * @en Viewport height in orthographic mode.
+         * @zh 正交模式下的相机视角高度。
+         */
+        get orthoHeight(): number;
+        set orthoHeight(val: number);
+        /**
+         * @en Near clipping distance of the camera, should be as large as possible within acceptable range.
+         * @zh 相机的近裁剪距离，应在可接受范围内尽量取最大。
+         */
+        get near(): number;
+        set near(val: number);
+        /**
+         * @en Far clipping distance of the camera, should be as small as possible within acceptable range.
+         * @zh 相机的远裁剪距离，应在可接受范围内尽量取最小。
+         */
+        get far(): number;
+        set far(val: number);
+        /**
+         * @en Camera aperture, controls the exposure parameter.
+         * @zh 相机光圈，影响相机的曝光参数。
+         */
+        get aperture(): scene.CameraAperture;
+        set aperture(val: scene.CameraAperture);
+        /**
+         * @en Camera shutter, controls the exposure parameter.
+         * @zh 相机快门，影响相机的曝光参数。
+         */
+        get shutter(): scene.CameraShutter;
+        set shutter(val: scene.CameraShutter);
+        /**
+         * @en Camera ISO, controls the exposure parameter.
+         * @zh 相机感光度，影响相机的曝光参数。
+         */
+        get iso(): scene.CameraISO;
+        set iso(val: scene.CameraISO);
+        /**
+         * @en Screen viewport of the camera wrt. the sceen size.
+         * @zh 此相机最终渲染到屏幕上的视口位置和大小。
+         */
+        get rect(): Rect;
+        set rect(val: Rect);
+        /**
+         * @en Output render texture of the camera. Default to null, which outputs directly to screen.
+         * @zh 指定此相机的渲染输出目标贴图，默认为空，直接渲染到屏幕。
+         */
+        get targetTexture(): RenderTexture | null;
+        set targetTexture(value: RenderTexture | null);
+        /**
+         * @en Scale of the internal buffer size,
+         * set to 1 to keep the same with the canvas size.
+         * @zh 相机内部缓冲尺寸的缩放值, 1 为与 canvas 尺寸相同。
+         */
+        get screenScale(): number;
+        set screenScale(val: number);
+        get inEditorMode(): boolean;
+        set inEditorMode(value: boolean);
+        set flows(val: any);
+        onLoad(): void;
+        onEnable(): void;
+        onDisable(): void;
+        onDestroy(): void;
+        screenPointToRay(x: number, y: number, out?: ray): ray;
+        worldToScreen(worldPos: Vec3, out?: Vec3): Vec3;
+        screenToWorld(screenPos: Vec3, out?: Vec3): Vec3;
+        /**
+         * @en 3D node to UI local node coordinates. The converted value is the offset under the UI node.
+         *
+         * @zh 3D 节点转 UI 本地节点坐标。转换后的值是该 UI 节点下的偏移。
+         * @param wpos 3D 节点世界坐标
+         * @param uiNode UI 节点
+         * @param out 返回在当前传入的 UI 节点下的偏移量
+         *
+         * @example
+         * ```ts
+         * this.convertToUINode(target.worldPosition, uiNode.parent, out);
+         * uiNode.position = out;
+         * ```
+         */
+        convertToUINode(wpos: Vec3, uiNode: Node, out?: Vec3): Vec3;
+        protected _createCamera(): void;
+        protected _attachToScene(): void;
+        protected _detachFromScene(): void;
+        protected onSceneChanged(scene: Scene): void;
+        protected _chechTargetTextureEvent(old: RenderTexture | null): void;
+        protected _updateTargetTexture(): void;
+    }
+}
+declare module "cocos/core/scheduler" {
+    import System from "cocos/core/components/system";
+    export interface ISchedulable {
+        id?: string;
+        uuid?: string;
+    }
+    /**
+     * @en
+     * Scheduler is responsible of triggering the scheduled callbacks.<br>
+     * You should not use NSTimer. Instead use this class.<br>
+     * <br>
+     * There are 2 different types of callbacks (selectors):<br>
+     *     - update callback: the 'update' callback will be called every frame. You can customize the priority.<br>
+     *     - custom callback: A custom callback will be called every frame, or with a custom interval of time<br>
+     * <br>
+     * The 'custom selectors' should be avoided when possible. It is faster,<br>
+     * and consumes less memory to use the 'update callback'. *
+     * @zh
+     * Scheduler 是负责触发回调函数的类。<br>
+     * 通常情况下，建议使用 `director.getScheduler()` 来获取系统定时器。<br>
+     * 有两种不同类型的定时器：<br>
+     *     - update 定时器：每一帧都会触发。您可以自定义优先级。<br>
+     *     - 自定义定时器：自定义定时器可以每一帧或者自定义的时间间隔触发。<br>
+     * 如果希望每帧都触发，应该使用 update 定时器，使用 update 定时器更快，而且消耗更少的内存。
+     *
+     * @class Scheduler
+     */
+    export class Scheduler extends System {
+        /**
+         * @en Priority level reserved for system services.
+         * @zh 系统服务的优先级。
+         */
+        static PRIORITY_SYSTEM: number;
+        /**
+         * @en Minimum priority level for user scheduling.
+         * @zh 用户调度最低优先级。
+         */
+        static PRIORITY_NON_SYSTEM: number;
+        static ID: string;
+        private _timeScale;
+        private _updatesNegList;
+        private _updates0List;
+        private _updatesPosList;
+        private _hashForUpdates;
+        private _hashForTimers;
+        private _currentTarget;
+        private _currentTargetSalvaged;
+        private _updateHashLocked;
+        private _arrayForTimers;
+        /**
+         * @en This method should be called for any target which needs to schedule tasks, and this method should be called before any scheduler API usage.<bg>
+         * This method will add a `id` property if it doesn't exist.
+         * @zh 任何需要用 Scheduler 管理任务的对象主体都应该调用这个方法，并且应该在调用任何 Scheduler API 之前调用这个方法。<bg>
+         * 这个方法会给对象添加一个 `id` 属性，如果这个属性不存在的话。
+         * @param {Object} target
+         */
+        static enableForTarget(target: ISchedulable): void;
+        constructor();
+        /**
+         * @en
+         * Modifies the time of all scheduled callbacks.<br>
+         * You can use this property to create a 'slow motion' or 'fast forward' effect.<br>
+         * Default is 1.0. To create a 'slow motion' effect, use values below 1.0.<br>
+         * To create a 'fast forward' effect, use values higher than 1.0.<br>
+         * Note：It will affect EVERY scheduled selector / action.
+         * @zh
+         * 设置时间间隔的缩放比例。<br>
+         * 您可以使用这个方法来创建一个 “slow motion（慢动作）” 或 “fast forward（快进）” 的效果。<br>
+         * 默认是 1.0。要创建一个 “slow motion（慢动作）” 效果,使用值低于 1.0。<br>
+         * 要使用 “fast forward（快进）” 效果，使用值大于 1.0。<br>
+         * 注意：它影响该 Scheduler 下管理的所有定时器。
+         * @param {Number} timeScale
+         */
+        setTimeScale(timeScale: any): void;
+        /**
+         * @en Returns time scale of scheduler.
+         * @zh 获取时间间隔的缩放比例。
+         * @return {Number}
+         */
+        getTimeScale(): number;
+        /**
+         * @en 'update' the scheduler. (You should NEVER call this method, unless you know what you are doing.)
+         * @zh update 调度函数。(不应该直接调用这个方法，除非完全了解这么做的结果)
+         * @param {Number} dt delta time
+         */
+        update(dt: any): void;
+        /**
+         * @en
+         * <p>
+         *   The scheduled method will be called every 'interval' seconds.<br/>
+         *   If paused is YES, then it won't be called until it is resumed.<br/>
+         *   If 'interval' is 0, it will be called every frame, but if so, it recommended to use 'scheduleUpdateForTarget:' instead.<br/>
+         *   If the callback function is already scheduled, then only the interval parameter will be updated without re-scheduling it again.<br/>
+         *   repeat let the action be repeated repeat + 1 times, use `macro.REPEAT_FOREVER` to let the action run continuously<br/>
+         *   delay is the amount of time the action will wait before it'll start<br/>
+         * </p>
+         * @zh
+         * 指定回调函数，调用对象等信息来添加一个新的定时器。<br/>
+         * 如果 paused 值为 true，那么直到 resume 被调用才开始计时。<br/>
+         * 当时间间隔达到指定值时，设置的回调函数将会被调用。<br/>
+         * 如果 interval 值为 0，那么回调函数每一帧都会被调用，但如果是这样，
+         * 建议使用 scheduleUpdateForTarget 代替。<br/>
+         * 如果回调函数已经被定时器使用，那么只会更新之前定时器的时间间隔参数，不会设置新的定时器。<br/>
+         * repeat 值可以让定时器触发 repeat + 1 次，使用 `macro.REPEAT_FOREVER`
+         * 可以让定时器一直循环触发。<br/>
+         * delay 值指定延迟时间，定时器会在延迟指定的时间之后开始计时。
+         * @param {Function} callback
+         * @param {Object} target
+         * @param {Number} interval
+         * @param {Number} [repeat]
+         * @param {Number} [delay=0]
+         * @param {Boolean} [paused=fasle]
+         */
+        schedule(callback: Function, target: ISchedulable, interval: number, repeat?: number, delay?: number, paused?: boolean): void;
+        /**
+         * @en
+         * Schedules the update callback for a given target,
+         * During every frame after schedule started, the "update" function of target will be invoked.
+         * @zh
+         * 使用指定的优先级为指定的对象设置 update 定时器。<br>
+         * update 定时器每一帧都会被触发，触发时自动调用指定对象的 "update" 函数。<br>
+         * 优先级的值越低，定时器被触发的越早。
+         * @param {Object} target
+         * @param {Number} priority
+         * @param {Boolean} paused
+         */
+        scheduleUpdate(target: ISchedulable, priority: Number, paused: Boolean): void;
+        /**
+         * @en
+         * Unschedules a callback for a callback and a given target.<br>
+         * If you want to unschedule the "update", use `unscheduleUpdate()`
+         * @zh
+         * 根据指定的回调函数和调用对象。<br>
+         * 如果需要取消 update 定时器，请使用 unscheduleUpdate()。
+         * @param {Function} callback The callback to be unscheduled
+         * @param {Object} target The target bound to the callback.
+         */
+        unschedule(callback: any, target: ISchedulable): void;
+        /**
+         * @en Unschedules the update callback for a given target.
+         * @zh 取消指定对象的 update 定时器。
+         * @param {Object} target The target to be unscheduled.
+         */
+        unscheduleUpdate(target: ISchedulable): void;
+        /**
+         * @en
+         * Unschedules all scheduled callbacks for a given target.
+         * This also includes the "update" callback.
+         * @zh 取消指定对象的所有定时器，包括 update 定时器。
+         * @param {Object} target The target to be unscheduled.
+         */
+        unscheduleAllForTarget(target: any): void;
+        /**
+         * @en
+         * Unschedules all scheduled callbacks from all targets including the system callbacks.<br/>
+         * You should NEVER call this method, unless you know what you are doing.
+         * @zh
+         * 取消所有对象的所有定时器，包括系统定时器。<br/>
+         * 不用调用此函数，除非你确定你在做什么。
+         */
+        unscheduleAll(): void;
+        /**
+         * @en
+         * Unschedules all callbacks from all targets with a minimum priority.<br/>
+         * You should only call this with `PRIORITY_NON_SYSTEM_MIN` or higher.
+         * @zh
+         * 取消所有优先级的值大于指定优先级的定时器。<br/>
+         * 你应该只取消优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
+         * @param {Number} minPriority The minimum priority of selector to be unscheduled. Which means, all selectors which
+         *        priority is higher than minPriority will be unscheduled.
+         */
+        unscheduleAllWithMinPriority(minPriority: number): void;
+        /**
+         * @en Checks whether a callback for a given target is scheduled.
+         * @zh 检查指定的回调函数和回调对象组合是否存在定时器。
+         * @param {Function} callback The callback to check.
+         * @param {Object} target The target of the callback.
+         * @return {Boolean} True if the specified callback is invoked, false if not.
+         */
+        isScheduled(callback: any, target: ISchedulable): boolean | undefined;
+        /**
+         * @en
+         * Pause all selectors from all targets.<br/>
+         * You should NEVER call this method, unless you know what you are doing.
+         * @zh
+         * 暂停所有对象的所有定时器。<br/>
+         * 不要调用这个方法，除非你知道你正在做什么。
+         */
+        pauseAllTargets(): any;
+        /**
+         * @en
+         * Pause all selectors from all targets with a minimum priority. <br/>
+         * You should only call this with kCCPriorityNonSystemMin or higher.
+         * @zh
+         * 暂停所有优先级的值大于指定优先级的定时器。<br/>
+         * 你应该只暂停优先级的值大于 PRIORITY_NON_SYSTEM_MIN 的定时器。
+         * @param {Number} minPriority
+         */
+        pauseAllTargetsWithMinPriority(minPriority: number): any;
+        /**
+         * @en
+         * Resume selectors on a set of targets.<br/>
+         * This can be useful for undoing a call to pauseAllCallbacks.
+         * @zh
+         * 恢复指定数组中所有对象的定时器。<br/>
+         * 这个函数是 pauseAllCallbacks 的逆操作。
+         * @param {Array} targetsToResume
+         */
+        resumeTargets(targetsToResume: any): void;
+        /**
+         * @en
+         * Pauses the target.<br/>
+         * All scheduled selectors/update for a given target won't be 'ticked' until the target is resumed.<br/>
+         * If the target is not present, nothing happens.
+         * @zh
+         * 暂停指定对象的定时器。<br/>
+         * 指定对象的所有定时器都会被暂停。<br/>
+         * 如果指定的对象没有定时器，什么也不会发生。
+         * @param {Object} target
+         */
+        pauseTarget(target: ISchedulable): void;
+        /**
+         * @en
+         * Resumes the target.<br/>
+         * The 'target' will be unpaused, so all schedule selectors/update will be 'ticked' again.<br/>
+         * If the target is not present, nothing happens.
+         * @zh
+         * 恢复指定对象的所有定时器。<br/>
+         * 指定对象的所有定时器将继续工作。<br/>
+         * 如果指定的对象没有定时器，什么也不会发生。
+         * @param {Object} target
+         */
+        resumeTarget(target: ISchedulable): void;
+        /**
+         * @en Returns whether or not the target is paused.
+         * @zh 返回指定对象的定时器是否处于暂停状态。
+         * @param {Object} target
+         * @return {Boolean}
+         */
+        isTargetPaused(target: ISchedulable): any;
+        private _removeHashElement;
+        private _removeUpdateFromHash;
+        private _priorityIn;
+        private _appendIn;
+    }
+}
+declare module "cocos/core/components/system" {
+    /**
+     * @hidden
+     */
+    import { ISchedulable } from "cocos/core/scheduler";
+    export default class System implements ISchedulable {
+        protected _id: string;
+        protected _priority: number;
+        protected _executeInEditMode: boolean;
+        set priority(value: number);
+        get priority(): number;
+        set id(id: string);
+        get id(): string;
+        static sortByPriority(a: System, b: System): 1 | 0 | -1;
+        init(): void;
+        update(dt: number): void;
+        postUpdate(dt: number): void;
+    }
 }
 declare module "cocos/core/load-pipeline/auto-release-utils" {
     export function autoRelease(oldSceneAssets: any, nextSceneAssets: any, persistNodes: any): void;
@@ -17695,1297 +18524,11 @@ declare module "cocos/core/director" {
      */
     export const director: Director;
 }
-declare module "cocos/core/animation/animation-manager" {
-    /**
-     * @category animation
-     */
-    import System from "cocos/core/components/system";
-    import { Node } from "cocos/core/scene-graph/index";
-    import { BlendStateBuffer } from "cocos/core/animation/skeletal-animation-blending";
-    import { AnimationState } from "cocos/core/animation/animation-state";
-    import { CrossFade } from "cocos/core/animation/cross-fade";
-    import { Socket } from "cocos/core/animation/skeletal-animation-component";
-    export class AnimationManager extends System {
-        get blendState(): BlendStateBuffer;
-        static ID: string;
-        private _anims;
-        private _delayEvents;
-        private _blendStateBuffer;
-        private _crossFades;
-        private _sockets;
-        addCrossFade(crossFade: CrossFade): void;
-        removeCrossFade(crossFade: CrossFade): void;
-        update(dt: number): void;
-        destruct(): void;
-        addAnimation(anim: AnimationState): void;
-        removeAnimation(anim: AnimationState): void;
-        pushDelayEvent(fn: Function, thisArg: any, args: any[]): void;
-        addSockets(root: Node, sockets: Socket[]): void;
-        removeSockets(root: Node, sockets: Socket[]): void;
-    }
-}
-declare module "cocos/core/animation/skeletal-animation-component" {
-    import { Node } from "cocos/core/scene-graph/node";
-    import { AnimationClip } from "cocos/core/animation/animation-clip";
-    import { AnimationComponent } from "cocos/core/animation/animation-component";
-    import { SkeletalAnimationState } from "cocos/core/animation/skeletal-animation-state";
-    export class Socket {
-        /**
-         * @en Path of the target joint.
-         * @zh 此挂点的目标骨骼路径。
-         */
-        path: string;
-        /**
-         * @en Transform output node.
-         * @zh 此挂点的变换信息输出节点。
-         */
-        target: Node | null;
-        constructor(path?: string, target?: Node | null);
-    }
-    /**
-     * @en
-     * Skeletal animation component, offers the following features on top of [[AnimationComponent]]:
-     * * Choice between baked animation and real-time calculation, to leverage efficiency and expressiveness.
-     * * Joint socket system: Create any socket node directly under the animation component root node,
-     *   find your target joint and register both to the socket list, so that the socket node would be in-sync with the joint.
-     * @zh
-     * 骨骼动画组件，在普通动画组件基础上额外提供以下功能：
-     * * 可选预烘焙动画模式或实时计算模式，用以权衡运行时效率与效果；
-     * * 提供骨骼挂点功能：通过在动画根节点下创建挂点节点，并在骨骼动画组件上配置 socket 列表，挂点节点的 Transform 就能与骨骼保持同步。
-     */
-    export class SkeletalAnimationComponent extends AnimationComponent {
-        static Socket: typeof Socket;
-        /**
-         * @en
-         * The joint sockets this animation component maintains.<br>
-         * Sockets have to be registered here before attaching custom nodes to animated joints.
-         * @zh
-         * 当前动画组件维护的挂点数组。要挂载自定义节点到受动画驱动的骨骼上，必须先在此注册挂点。
-         */
-        get sockets(): Socket[];
-        set sockets(val: Socket[]);
-        /**
-         * @en
-         * Whether to bake animations. Default to true,<br>
-         * which substantially increases performance while making all animations completely fixed.<br>
-         * Dynamically changing this property will take effect when playing the next animation clip.
-         * @zh
-         * 是否使用预烘焙动画，默认启用，可以大幅提高运行效时率，但所有动画效果会被彻底固定，不支持任何形式的编辑和混合。<br>
-         * 运行时动态修改此选项会在播放下一条动画片段时生效。
-         */
-        get useBakedAnimation(): boolean;
-        set useBakedAnimation(val: boolean);
-        protected _useBakedAnimation: boolean;
-        protected _sockets: Socket[];
-        onDestroy(): void;
-        start(): void;
-        querySockets(): string[];
-        rebuildSocketAnimations(): void;
-        createSocket(path: string): Node | null;
-        protected _createState(clip: AnimationClip, name?: string): SkeletalAnimationState;
-        protected _doCreateState(clip: AnimationClip, name: string): SkeletalAnimationState;
-    }
-}
-declare module "cocos/core/3d/framework/skinning-model-component" {
-    /**
-     * @category model
-     */
-    import { AnimationClip } from "cocos/core/animation/animation-clip";
-    import { Material } from "cocos/core/assets/index";
-    import { Skeleton } from "cocos/core/assets/skeleton";
-    import { BakedSkinningModel } from "cocos/core/renderer/models/baked-skinning-model";
-    import { SkinningModel } from "cocos/core/renderer/models/skinning-model";
-    import { Node } from "cocos/core/scene-graph/node";
-    import { ModelComponent } from "cocos/core/3d/framework/model-component";
-    /**
-     * @en The Skinning Model Component.
-     * @zh 蒙皮模型组件。
-     */
-    export class SkinningModelComponent extends ModelComponent {
-        protected _skeleton: Skeleton | null;
-        protected _skinningRoot: Node | null;
-        protected _clip: AnimationClip | null;
-        /**
-         * @en The skeleton asset.
-         * @zh 骨骼资源。
-         */
-        get skeleton(): Skeleton | null;
-        set skeleton(val: Skeleton | null);
-        /**
-         * @en The skinning root. (The node where the controlling AnimationComponent is located)
-         * 骨骼根节点的引用，对应控制此模型的动画组件所在节点。
-         */
-        get skinningRoot(): Node | null;
-        set skinningRoot(value: Node | null);
-        get model(): SkinningModel | BakedSkinningModel | null;
-        constructor();
-        __preload(): void;
-        uploadAnimation(clip: AnimationClip | null): void;
-        setUseBakedAnimation(val?: boolean): void;
-        setMaterial(material: Material | null, index: number): void;
-        protected _updateModelParams(): void;
-        private _updateModelType;
-        private _update;
-    }
-}
-declare module "cocos/core/3d/framework/batched-skinning-model-component" {
-    import { Material } from "cocos/core/assets/material";
-    import { Mesh } from "cocos/core/assets/mesh";
-    import { Skeleton } from "cocos/core/assets/skeleton";
-    import { Texture2D } from "cocos/core/assets/texture-2d";
-    import { Mat4, Vec2 } from "cocos/core/math/index";
-    import { SkinningModelComponent } from "cocos/core/3d/framework/skinning-model-component";
-    export class SkinningModelUnit {
-        /**
-         * @en Skinning mesh of this unit.
-         * @zh 子蒙皮模型的网格模型。
-         */
-        mesh: Mesh | null;
-        /**
-         * @en Skeleton of this unit.
-         * @zh 子蒙皮模型的骨骼。
-         */
-        skeleton: Skeleton | null;
-        /**
-         * @en Skinning material of this unit.
-         * @zh 子蒙皮模型使用的材质。
-         */
-        material: Material | null;
-        _localTransform: Mat4;
-        private _offset;
-        private _size;
-        /**
-         * @en UV offset on texture atlas.
-         * @zh 在图集中的 uv 坐标偏移。
-         */
-        set offset(offset: Vec2);
-        get offset(): Vec2;
-        /**
-         * @en UV extent on texture atlas.
-         * @zh 在图集中占的 UV 尺寸。
-         */
-        set size(size: Vec2);
-        get size(): Vec2;
-        /**
-         * @en Convenient setter, copying all necessary information from target skinning model component.
-         * @zh 复制目标 SkinningModelComponent 的所有属性到本单元，方便快速配置。
-         */
-        set copyFrom(comp: SkinningModelComponent | null);
-        get copyFrom(): SkinningModelComponent | null;
-    }
-    /**
-     * @en The Batched Skinning Model Component, batches multiple skeleton-sharing skinning models.
-     * @zh 蒙皮模型合批组件，用于合并绘制共享同一骨骼资源的所有蒙皮模型。
-     */
-    export class BatchedSkinningModelComponent extends SkinningModelComponent {
-        /**
-         * @en Size of the generated texture atlas.
-         * @zh 合图生成的最终图集的边长。
-         */
-        atlasSize: number;
-        /**
-         * @en
-         * Texture properties that will be actually using the generated atlas.<br>
-         * The first unit's texture will be used if not specified.
-         * @zh
-         * 材质中真正参与合图的贴图属性，不参与的属性统一使用第一个 unit 的贴图。
-         */
-        batchableTextureNames: string[];
-        /**
-         * @en Source skinning model components, containing all the data to be batched.
-         * @zh 合批前的子蒙皮模型数组，最主要的数据来源。
-         */
-        units: SkinningModelUnit[];
-        private _textures;
-        private _batchMaterial;
-        get mesh(): Mesh | null;
-        set mesh(val: Mesh | null);
-        get skeleton(): Skeleton | null;
-        set skeleton(val: Skeleton | null);
-        onLoad(): void;
-        onDestroy(): void;
-        _onMaterialModified(idx: number, material: Material | null): void;
-        cook(): void;
-        cookMaterials(): void;
-        cookSkeletons(): void;
-        cookMeshes(): void;
-        protected cookTextures(target: Texture2D, prop: string, passIdx: number): void;
-        protected createTexture(prop: string): Texture2D;
-        protected resizeAtlases(): void;
-        private _createUnitMesh;
-    }
-}
-declare module "cocos/core/3d/framework/light-component" {
-    /**
-     * @category component/light
-     */
-    import { Component } from "cocos/core/components/component";
-    import { Color } from "cocos/core/math/index";
-    import { Light, LightType } from "cocos/core/renderer/scene/light";
-    export const PhotometricTerm: {
-        LUMINOUS_POWER: number;
-        LUMINANCE: number;
-    };
-    /**
-     * @en static light settings.
-     * @zh 静态灯光设置
-     */
-    class StaticLightSettings {
-        protected _editorOnly: boolean;
-        protected _bakeable: boolean;
-        protected _castShadow: boolean;
-        /**
-         * @en editor only.
-         * @zh 是否只在编辑器里生效。
-         */
-        get editorOnly(): boolean;
-        set editorOnly(val: boolean);
-        /**
-         * @en bakeable.
-         * @zh 是否可烘培。
-         */
-        get bakeable(): boolean;
-        set bakeable(val: boolean);
-        /**
-         * @en cast shadow.
-         * @zh 是否投射阴影。
-         */
-        get castShadow(): boolean;
-        set castShadow(val: boolean);
-    }
-    export namespace LightComponent {
-        type Type = EnumAlias<typeof LightType>;
-        type PhotometricTerm = EnumAlias<typeof PhotometricTerm>;
-    }
-    export class LightComponent extends Component {
-        static Type: typeof LightType;
-        static PhotometricTerm: {
-            LUMINOUS_POWER: number;
-            LUMINANCE: number;
-        };
-        protected _color: Color;
-        protected _useColorTemperature: boolean;
-        protected _colorTemperature: number;
-        protected _staticSettings: StaticLightSettings;
-        protected _type: LightType;
-        protected _lightType: typeof Light;
-        protected _light: Light | null;
-        /**
-         * @en
-         * Color of the light.
-         * @zh
-         * 光源颜色。
-         */
-        get color(): Readonly<Color>;
-        set color(val: Readonly<Color>);
-        /**
-         * @en
-         * Whether to enable light color temperature.
-         * @zh
-         * 是否启用光源色温。
-         */
-        get useColorTemperature(): boolean;
-        set useColorTemperature(enable: boolean);
-        /**
-         * @en
-         * The light color temperature.
-         * @zh
-         * 光源色温。
-         */
-        get colorTemperature(): number;
-        set colorTemperature(val: number);
-        /**
-         * @en
-         * static light settings.
-         * @zh
-         * 静态灯光设置。
-         */
-        get staticSettings(): StaticLightSettings;
-        set staticSettings(val: StaticLightSettings);
-        /**
-         * @en
-         * The light type.
-         * @zh
-         * 光源类型。
-         */
-        get type(): LightType;
-        constructor();
-        onLoad(): void;
-        onEnable(): void;
-        onDisable(): void;
-        onDestroy(): void;
-        protected _createLight(): void;
-        protected _destroyLight(): void;
-        protected _attachToScene(): void;
-        protected _detachFromScene(): void;
-    }
-}
-declare module "cocos/core/3d/framework/directional-light-component" {
-    import { DirectionalLight } from "cocos/core/renderer/scene/directional-light";
-    import { LightType } from "cocos/core/renderer/scene/light";
-    import { LightComponent } from "cocos/core/3d/framework/light-component";
-    export class DirectionalLightComponent extends LightComponent {
-        protected _illuminance: number;
-        protected _type: LightType;
-        protected _light: DirectionalLight | null;
-        /**
-         * @en
-         * The light source intensity.
-         * @zh
-         * 光源强度。
-         */
-        get illuminance(): number;
-        set illuminance(val: number);
-        constructor();
-        protected _createLight(): void;
-    }
-}
-declare module "cocos/core/3d/framework/sphere-light-component" {
-    import { LightType } from "cocos/core/renderer/scene/light";
-    import { SphereLight } from "cocos/core/renderer/scene/sphere-light";
-    import { LightComponent } from "cocos/core/3d/framework/light-component";
-    export class SphereLightComponent extends LightComponent {
-        protected _size: number;
-        protected _luminance: number;
-        protected _term: number;
-        protected _range: number;
-        protected _type: LightType;
-        protected _light: SphereLight | null;
-        /**
-         * @en Luminous power of the light.
-         * @zh 光通量。
-         */
-        get luminousPower(): number;
-        set luminousPower(val: number);
-        /**
-         * @en Luminance of the light.
-         * @zh 光亮度。
-         */
-        get luminance(): number;
-        set luminance(val: number);
-        /**
-         * @en The photometric term currently being used.
-         * @zh 当前使用的光度学计量单位。
-         */
-        get term(): number;
-        set term(val: number);
-        /**
-         * @en
-         * Size of the light.
-         * @zh
-         * 光源大小。
-         */
-        get size(): number;
-        set size(val: number);
-        /**
-         * @en
-         * Range of the light.
-         * @zh
-         * 光源范围。
-         */
-        get range(): number;
-        set range(val: number);
-        constructor();
-        protected _createLight(): void;
-    }
-}
-declare module "cocos/core/3d/framework/spot-light-component" {
-    import { LightType } from "cocos/core/renderer/scene/light";
-    import { SpotLight } from "cocos/core/renderer/scene/spot-light";
-    import { LightComponent } from "cocos/core/3d/framework/light-component";
-    export class SpotLightComponent extends LightComponent {
-        protected _size: number;
-        protected _luminance: number;
-        protected _term: number;
-        protected _range: number;
-        protected _spotAngle: number;
-        protected _type: LightType;
-        protected _light: SpotLight | null;
-        /**
-         * @en Luminous power of the light.
-         * @zh 光通量。
-         */
-        get luminousPower(): number;
-        set luminousPower(val: number);
-        /**
-         * @en Luminance of the light.
-         * @zh 光亮度。
-         */
-        get luminance(): number;
-        set luminance(val: number);
-        /**
-         * @en The photometric term currently being used.
-         * @zh 当前使用的光度学计量单位。
-         */
-        get term(): number;
-        set term(val: number);
-        /**
-         * @en
-         * Size of the light.
-         * @zh
-         * 光源大小。
-         */
-        get size(): number;
-        set size(val: number);
-        /**
-         * @en
-         * Range of the light.
-         * @zh
-         * 光源范围。
-         */
-        get range(): number;
-        set range(val: number);
-        /**
-         * @en
-         * The spot light cone angle.
-         * @zh
-         * 聚光灯锥角。
-         */
-        get spotAngle(): number;
-        set spotAngle(val: number);
-        constructor();
-        protected _createLight(): void;
-    }
-}
-declare module "cocos/core/3d/framework/deprecated" { }
-declare module "cocos/core/3d/framework/index" {
-    import { BatchedSkinningModelComponent, SkinningModelUnit } from "cocos/core/3d/framework/batched-skinning-model-component";
-    import { CameraComponent } from "cocos/core/3d/framework/camera-component";
-    import { DirectionalLightComponent } from "cocos/core/3d/framework/directional-light-component";
-    import { LightComponent } from "cocos/core/3d/framework/light-component";
-    import { ModelComponent, MeshRenderer } from "cocos/core/3d/framework/model-component";
-    import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
-    import { SkinningModelComponent } from "cocos/core/3d/framework/skinning-model-component";
-    import { SphereLightComponent } from "cocos/core/3d/framework/sphere-light-component";
-    import { SpotLightComponent } from "cocos/core/3d/framework/spot-light-component";
-    export { CameraComponent, LightComponent, ModelComponent, MeshRenderer, SkinningModelComponent, BatchedSkinningModelComponent, SkinningModelUnit, RenderableComponent, DirectionalLightComponent, SphereLightComponent, SpotLightComponent, };
-    /** deprecated */
-    import "cocos/core/3d/framework/deprecated";
-}
-declare module "cocos/core/3d/index" {
-    /**
-     * @hidden
-     */
-    export * from "cocos/core/3d/builtin/index";
-    export * from "cocos/core/3d/framework/index";
-    import * as utils from "cocos/core/3d/misc/utils";
-    export { utils, };
-}
-declare module "cocos/core/components/ui-coodinate-tracker-component" {
-    /**
-     * @category component
-     */
-    import { Component } from "cocos/core/components/component";
-    import { EventHandler } from "cocos/core/components/component-event-handler";
-    import { Node } from "cocos/core/scene-graph/index";
-    import { CameraComponent } from "cocos/core/3d/index";
-    import { Vec3 } from "cocos/core/math/index";
-    /**
-     * @zh 3D 节点映射 UI 节点组件
-     * 主要提供映射后的转换世界坐标以及模拟透视相机远近比。
-     */
-    export class UICoordinateTrackerComponent extends Component {
-        /**
-         * @zh
-         * 目标对象。
-         */
-        get target(): Node | null;
-        set target(value: Node | null);
-        /**
-         * @zh
-         * 照射相机。
-         */
-        get camera(): CameraComponent | null;
-        set camera(value: CameraComponent | null);
-        /**
-         * @zh
-         * 是否是缩放映射。
-         */
-        get useScale(): boolean;
-        set useScale(value: boolean);
-        /**
-         * @zh
-         * 距相机多少距离为正常显示计算大小。
-         */
-        get distance(): number;
-        set distance(value: number);
-        /**
-         * @zh
-         * 映射数据事件。回调的第一个参数是映射后的本地坐标，第二个是距相机距离比。
-         */
-        syncEvents: EventHandler[];
-        protected _target: Node | null;
-        protected _camera: CameraComponent | null;
-        protected _useScale: boolean;
-        protected _distance: number;
-        protected _transformPos: Vec3;
-        protected _viewPos: Vec3;
-        protected _canMove: boolean;
-        protected _lastWpos: Vec3;
-        protected _lastCameraPos: Vec3;
-        onEnable(): void;
-        update(): void;
-        protected _checkCanMove(): void;
-    }
-}
-declare module "cocos/core/components/index" {
-    /**
-     * @hidden
-     */
-    export { Component } from "cocos/core/components/component";
-    export { EventHandler } from "cocos/core/components/component-event-handler";
-    export { default as MissingScript } from "cocos/core/components/missing-script";
-    export { BlockInputEventsComponent } from "cocos/core/components/block-input-events-component";
-    export { default as System } from "cocos/core/components/system";
-    export * from "cocos/core/components/ui-base/index";
-    export { UICoordinateTrackerComponent } from "cocos/core/components/ui-coodinate-tracker-component";
-}
-declare module "cocos/core/platform/visible-rect" {
-    /**
-     * @hidden
-     */
-    import { Rect } from "cocos/core/math/index";
-    /**
-     * `visibleRect` is a singleton object which defines the actual visible rect of the current view,
-     * it should represent the same rect as `view.getViewportRect()`
-     */
-    const visibleRect: {
-        /**
-         * Top left coordinate of the screen related to the game scene.
-         */
-        topLeft: any;
-        /**
-         * Top right coordinate of the screen related to the game scene.
-         */
-        topRight: any;
-        /**
-         * Top center coordinate of the screen related to the game scene.
-         */
-        top: any;
-        /**
-         * Bottom left coordinate of the screen related to the game scene.
-         */
-        bottomLeft: any;
-        /**
-         * Bottom right coordinate of the screen related to the game scene.
-         */
-        bottomRight: any;
-        /**
-         * Bottom center coordinate of the screen related to the game scene.
-         */
-        bottom: any;
-        /**
-         * Center coordinate of the screen related to the game scene.
-         */
-        center: any;
-        /**
-         * Left center coordinate of the screen related to the game scene.
-         */
-        left: any;
-        /**
-         * Right center coordinate of the screen related to the game scene.
-         */
-        right: any;
-        /**
-         * Width of the screen.
-         */
-        width: number;
-        /**
-         * Height of the screen.
-         */
-        height: number;
-        /**
-         * initialize
-         */
-        init(visibleRect_: Rect): void;
-    };
-    export default visibleRect;
-}
-declare module "cocos/core/platform/view" {
-    /**
-     * @category core
-     */
-    import "cocos/core/data/class";
-    import { EventTarget } from "cocos/core/event/event-target";
-    import "cocos/core/game";
-    import { Rect, Size, Vec2 } from "cocos/core/math/index";
-    /**
-     * @en View represents the game window.<br/>
-     * It's main task include: <br/>
-     *  - Apply the design resolution policy to the UI Canvas<br/>
-     *  - Provide interaction with the window, like resize event on web, retina display support, etc...<br/>
-     *  - Manage the scale and translation of canvas related to the frame on Web<br/>
-     * <br/>
-     * With {{view}} as its singleton initialized by the engine, you don't need to call any constructor or create functions,<br/>
-     * the standard way to use it is by calling:<br/>
-     *  - view.methodName(); <br/>
-     * @zh View 代表游戏窗口视图，它的核心功能包括：
-     *  - 对所有 UI Canvas 进行设计分辨率适配。
-     *  - 提供窗口视图的交互，比如监听 resize 事件，控制 retina 屏幕适配，等等。
-     *  - 控制 Canvas 节点相对于外层 DOM 节点的缩放和偏移。
-     * 引擎会自动初始化它的单例对象 {{view}}，所以你不需要实例化任何 View，只需要直接使用 `view.methodName();`
-     */
-    export class View extends EventTarget {
-        static instance: View;
-        _resizeWithBrowserSize: boolean;
-        _designResolutionSize: Size;
-        _originalDesignResolutionSize: Size;
-        private _frameSize;
-        private _scaleX;
-        private _scaleY;
-        private _viewportRect;
-        private _visibleRect;
-        private _autoFullScreen;
-        private _devicePixelRatio;
-        private _maxPixelRatio;
-        private _retinaEnabled;
-        private _resizeCallback;
-        private _resizing;
-        private _orientationChanging;
-        private _isRotated;
-        private _orientation;
-        private _isAdjustViewport;
-        private _antiAliasEnabled;
-        private _resolutionPolicy;
-        private _rpExactFit;
-        private _rpShowAll;
-        private _rpNoBorder;
-        private _rpFixedHeight;
-        private _rpFixedWidth;
-        constructor();
-        init(): void;
-        /**
-         * @en
-         * Sets whether resize canvas automatically when browser's size changed.<br/>
-         * Useful only on web.
-         * @zh 设置当发现浏览器的尺寸改变时，是否自动调整 canvas 尺寸大小。
-         * 仅在 Web 模式下有效。
-         * @param enabled - Whether enable automatic resize with browser's resize event
-         */
-        resizeWithBrowserSize(enabled: boolean): void;
-        /**
-         * @en
-         * Sets the callback function for `view`'s resize action,<br/>
-         * this callback will be invoked before applying resolution policy, <br/>
-         * so you can do any additional modifications within the callback.<br/>
-         * Useful only on web.
-         * @zh 设置 `view` 调整视窗尺寸行为的回调函数，
-         * 这个回调函数会在应用适配模式之前被调用，
-         * 因此你可以在这个回调函数内添加任意附加改变，
-         * 仅在 Web 平台下有效。
-         * @param callback - The callback function
-         */
-        setResizeCallback(callback: Function | null): void;
-        /**
-         * @en
-         * Sets the orientation of the game, it can be landscape, portrait or auto.
-         * When set it to landscape or portrait, and screen w/h ratio doesn't fit,
-         * `view` will automatically rotate the game canvas using CSS.
-         * Note that this function doesn't have any effect in native,
-         * in native, you need to set the application orientation in native project settings
-         * @zh 设置游戏屏幕朝向，它能够是横版，竖版或自动。
-         * 当设置为横版或竖版，并且屏幕的宽高比例不匹配时，
-         * `view` 会自动用 CSS 旋转游戏场景的 canvas，
-         * 这个方法不会对 native 部分产生任何影响，对于 native 而言，你需要在应用设置中的设置排版。
-         * @param orientation - Possible values: macro.ORIENTATION_LANDSCAPE | macro.ORIENTATION_PORTRAIT | macro.ORIENTATION_AUTO
-         */
-        setOrientation(orientation: number): void;
-        /**
-         * @en
-         * Sets whether the engine modify the "viewport" meta in your web page.<br/>
-         * It's enabled by default, we strongly suggest you not to disable it.<br/>
-         * And even when it's enabled, you can still set your own "viewport" meta, it won't be overridden<br/>
-         * Only useful on web
-         * @zh 设置引擎是否调整 viewport meta 来配合屏幕适配。
-         * 默认设置为启动，我们强烈建议你不要将它设置为关闭。
-         * 即使当它启动时，你仍然能够设置你的 viewport meta，它不会被覆盖。
-         * 仅在 Web 模式下有效
-         * @param enabled - Enable automatic modification to "viewport" meta
-         */
-        adjustViewportMeta(enabled: boolean): void;
-        /**
-         * @en
-         * Retina support is enabled by default for Apple device but disabled for other devices,<br/>
-         * it takes effect only when you called setDesignResolutionPolicy<br/>
-         * Only useful on web
-         * @zh 对于 Apple 这种支持 Retina 显示的设备上默认进行优化而其他类型设备默认不进行优化，
-         * 它仅会在你调用 setDesignResolutionPolicy 方法时有影响。
-         * 仅在 Web 模式下有效。
-         * @param enabled - Enable or disable retina display
-         */
-        enableRetina(enabled: boolean): void;
-        /**
-         * @en
-         * Check whether retina display is enabled.<br/>
-         * Only useful on web
-         * @zh 检查是否对 Retina 显示设备进行优化。
-         * 仅在 Web 模式下有效。
-         */
-        isRetinaEnabled(): boolean;
-        /**
-         * @en Whether to Enable on anti-alias
-         * @zh 控制抗锯齿是否开启
-         * @param enabled - Enable or not anti-alias
-         */
-        enableAntiAlias(enabled: boolean): void;
-        /**
-         * @en Returns whether the current enable on anti-alias
-         * @zh 返回当前是否抗锯齿
-         */
-        isAntiAliasEnabled(): boolean;
-        /**
-         * @en
-         * If enabled, the application will try automatically to enter full screen mode on mobile devices<br/>
-         * You can pass true as parameter to enable it and disable it by passing false.<br/>
-         * Only useful on web
-         * @zh 启动时，移动端游戏会在移动端自动尝试进入全屏模式。
-         * 你能够传入 true 为参数去启动它，用 false 参数来关闭它。
-         * @param enabled - Enable or disable auto full screen on mobile devices
-         */
-        enableAutoFullScreen(enabled: boolean): void;
-        /**
-         * @en
-         * Check whether auto full screen is enabled.<br/>
-         * Only useful on web
-         * @zh 检查自动进入全屏模式是否启动。
-         * 仅在 Web 模式下有效。
-         * @return Auto full screen enabled or not
-         */
-        isAutoFullScreenEnabled(): boolean;
-        setCanvasSize(width: number, height: number): void;
-        /**
-         * @en
-         * Returns the canvas size of the view.<br/>
-         * On native platforms, it returns the screen size since the view is a fullscreen view.<br/>
-         * On web, it returns the size of the canvas element.
-         * @zh 返回视图中 canvas 的尺寸。
-         * 在 native 平台下，它返回全屏视图下屏幕的尺寸。
-         * 在 Web 平台下，它返回 canvas 元素尺寸。
-         */
-        getCanvasSize(): Size;
-        /**
-         * @en
-         * Returns the frame size of the view.<br/>
-         * On native platforms, it returns the screen size since the view is a fullscreen view.<br/>
-         * On web, it returns the size of the canvas's outer DOM element.
-         * @zh 返回视图中边框尺寸。
-         * 在 native 平台下，它返回全屏视图下屏幕的尺寸。
-         * 在 web 平台下，它返回 canvas 元素的外层 DOM 元素尺寸。
-         */
-        getFrameSize(): Size;
-        /**
-         * @en On native, it sets the frame size of view.<br/>
-         * On web, it sets the size of the canvas's outer DOM element.
-         * @zh 在 native 平台下，设置视图框架尺寸。
-         * 在 web 平台下，设置 canvas 外层 DOM 元素尺寸。
-         * @param {Number} width
-         * @param {Number} height
-         */
-        setFrameSize(width: number, height: number): void;
-        /**
-         * @en Returns the visible area size of the view port.
-         * @zh 返回视图窗口可见区域尺寸。
-         */
-        getVisibleSize(): Size;
-        /**
-         * @en Returns the visible area size of the view port.
-         * @zh 返回视图窗口可见区域像素尺寸。
-         */
-        getVisibleSizeInPixel(): Size;
-        /**
-         * @en Returns the visible origin of the view port.
-         * @zh 返回视图窗口可见区域原点。
-         */
-        getVisibleOrigin(): Vec2;
-        /**
-         * @en Returns the visible origin of the view port.
-         * @zh 返回视图窗口可见区域像素原点。
-         */
-        getVisibleOriginInPixel(): Vec2;
-        /**
-         * @en Returns the current resolution policy
-         * @zh 返回当前分辨率方案
-         * @see {{ResolutionPolicy}}
-         */
-        getResolutionPolicy(): ResolutionPolicy;
-        /**
-         * @en Sets the current resolution policy
-         * @zh 设置当前分辨率模式
-         * @see {{ResolutionPolicy}}
-         */
-        setResolutionPolicy(resolutionPolicy: ResolutionPolicy | number): void;
-        /**
-         * @en Sets the resolution policy with designed view size in points.<br/>
-         * The resolution policy include: <br/>
-         * [1] ResolutionExactFit       Fill screen by stretch-to-fit: if the design resolution ratio of width to height is different from the screen resolution ratio, your game view will be stretched.<br/>
-         * [2] ResolutionNoBorder       Full screen without black border: if the design resolution ratio of width to height is different from the screen resolution ratio, two areas of your game view will be cut.<br/>
-         * [3] ResolutionShowAll        Full screen with black border: if the design resolution ratio of width to height is different from the screen resolution ratio, two black borders will be shown.<br/>
-         * [4] ResolutionFixedHeight    Scale the content's height to screen's height and proportionally scale its width<br/>
-         * [5] ResolutionFixedWidth     Scale the content's width to screen's width and proportionally scale its height<br/>
-         * [ResolutionPolicy]        [Web only feature] Custom resolution policy, constructed by ResolutionPolicy<br/>
-         * @zh 通过设置设计分辨率和匹配模式来进行游戏画面的屏幕适配。
-         * @param width Design resolution width.
-         * @param height Design resolution height.
-         * @param resolutionPolicy The resolution policy desired
-         */
-        setDesignResolutionSize(width: number, height: number, resolutionPolicy: ResolutionPolicy | number): void;
-        /**
-         * @en Returns the designed size for the view.
-         * Default resolution size is the same as 'getFrameSize'.
-         * @zh 返回视图的设计分辨率。
-         * 默认下分辨率尺寸同 `getFrameSize` 方法相同
-         */
-        getDesignResolutionSize(): Size;
-        /**
-         * @en Sets the container to desired pixel resolution and fit the game content to it.
-         * This function is very useful for adaptation in mobile browsers.
-         * In some HD android devices, the resolution is very high, but its browser performance may not be very good.
-         * In this case, enabling retina display is very costy and not suggested, and if retina is disabled, the image may be blurry.
-         * But this API can be helpful to set a desired pixel resolution which is in between.
-         * This API will do the following:
-         *     1. Set viewport's width to the desired width in pixel
-         *     2. Set body width to the exact pixel resolution
-         *     3. The resolution policy will be reset with designed view size in points.
-         * @zh 设置容器（container）需要的像素分辨率并且适配相应分辨率的游戏内容。
-         * @param width Design resolution width.
-         * @param height Design resolution height.
-         * @param resolutionPolicy The resolution policy desired
-         */
-        setRealPixelResolution(width: number, height: number, resolutionPolicy: ResolutionPolicy | number): void;
-        /**
-         * @en Returns the view port rectangle.
-         * @zh 返回视窗剪裁区域。
-         */
-        getViewportRect(): Rect;
-        /**
-         * @en Returns scale factor of the horizontal direction (X axis).
-         * @zh 返回横轴的缩放比，这个缩放比是将画布像素分辨率放到设计分辨率的比例。
-         */
-        getScaleX(): number;
-        /**
-         * @en Returns scale factor of the vertical direction (Y axis).
-         * @zh 返回纵轴的缩放比，这个缩放比是将画布像素分辨率缩放到设计分辨率的比例。
-         */
-        getScaleY(): number;
-        /**
-         * @en Returns device pixel ratio for retina display.
-         * @zh 返回设备或浏览器像素比例。
-         */
-        getDevicePixelRatio(): number;
-        /**
-         * @en Returns the real location in view for a translation based on a related position
-         * @zh 将屏幕坐标转换为游戏视图下的坐标。
-         * @param tx - The X axis translation
-         * @param ty - The Y axis translation
-         * @param relatedPos - The related position object including "left", "top", "width", "height" informations
-         * @param out - The out object to save the conversion result
-         */
-        convertToLocationInView(tx: number, ty: number, relatedPos: any, out: Vec2): Vec2;
-        private _convertPointWithScale;
-        private _resizeEvent;
-        private _orientationChange;
-        private _initFrameSize;
-        private _adjustSizeKeepCanvasSize;
-        private _setViewportMeta;
-        private _adjustViewportMeta;
-        private _convertMouseToLocation;
-        private _convertTouchWidthScale;
-        private _convertTouchesWithScale;
-    }
-    /**
-     * !en
-     * Emit when design resolution changed.
-     * !zh
-     * 当设计分辨率改变时发送。
-     * @event design-resolution-changed
-     */
-    interface AdaptResult {
-        scale: number[];
-        viewport?: null | Rect;
-    }
-    /**
-     * ContainerStrategy class is the root strategy class of container's scale strategy,
-     * it controls the behavior of how to scale the cc.game.container and cc.game.canvas object
-     */
-    class ContainerStrategy {
-        static EQUAL_TO_FRAME: any;
-        static PROPORTION_TO_FRAME: any;
-        name: string;
-        /**
-         * @en Manipulation before appling the strategy
-         * @zh 在应用策略之前的操作
-         * @param view - The target view
-         */
-        preApply(_view: View): void;
-        /**
-         * @en Function to apply this strategy
-         * @zh 策略应用方法
-         * @param view
-         * @param designedResolution
-         */
-        apply(_view: View, designedResolution: Size): void;
-        /**
-         * @en
-         * Manipulation after applying the strategy
-         * @zh 策略调用之后的操作
-         * @param view  The target view
-         */
-        postApply(_view: View): void;
-        protected _setupContainer(_view: any, w: any, h: any): void;
-        protected _fixContainer(): void;
-    }
-    /**
-     * @en
-     * Emit when canvas resize.
-     * @zh
-     * 当画布大小改变时发送。
-     * @event canvas-resize
-     */
-    /**
-     * ContentStrategy class is the root strategy class of content's scale strategy,
-     * it controls the behavior of how to scale the scene and setup the viewport for the game
-     *
-     * @class ContentStrategy
-     */
-    class ContentStrategy {
-        static EXACT_FIT: any;
-        static SHOW_ALL: any;
-        static NO_BORDER: any;
-        static FIXED_HEIGHT: any;
-        static FIXED_WIDTH: any;
-        name: string;
-        private _result;
-        constructor();
-        /**
-         * @en Manipulation before applying the strategy
-         * @zh 策略应用前的操作
-         * @param view - The target view
-         */
-        preApply(_view: View): void;
-        /**
-         * @en Function to apply this strategy
-         * The return value is {scale: [scaleX, scaleY], viewport: {new Rect}},
-         * The target view can then apply these value to itself, it's preferred not to modify directly its private variables
-         * @zh 调用策略方法
-         * @return The result scale and viewport rect
-         */
-        apply(_view: View, designedResolution: Size): AdaptResult;
-        /**
-         * @en Manipulation after applying the strategy
-         * @zh 策略调用之后的操作
-         * @param view - The target view
-         */
-        postApply(_view: View): void;
-        _buildResult(containerW: any, containerH: any, contentW: any, contentH: any, scaleX: any, scaleY: any): AdaptResult;
-    }
-    /**
-     * ResolutionPolicy class is the root strategy class of scale strategy,
-     * its main task is to maintain the compatibility with Cocos2d-x</p>
-     */
-    export class ResolutionPolicy {
-        /**
-         * The entire application is visible in the specified area without trying to preserve the original aspect ratio.<br/>
-         * Distortion can occur, and the application may appear stretched or compressed.
-         */
-        static EXACT_FIT: number;
-        /**
-         * The entire application fills the specified area, without distortion but possibly with some cropping,<br/>
-         * while maintaining the original aspect ratio of the application.
-         */
-        static NO_BORDER: number;
-        /**
-         * The entire application is visible in the specified area without distortion while maintaining the original<br/>
-         * aspect ratio of the application. Borders can appear on two sides of the application.
-         */
-        static SHOW_ALL: number;
-        /**
-         * The application takes the height of the design resolution size and modifies the width of the internal<br/>
-         * canvas so that it fits the aspect ratio of the device<br/>
-         * no distortion will occur however you must make sure your application works on different<br/>
-         * aspect ratios
-         */
-        static FIXED_HEIGHT: number;
-        /**
-         * The application takes the width of the design resolution size and modifies the height of the internal<br/>
-         * canvas so that it fits the aspect ratio of the device<br/>
-         * no distortion will occur however you must make sure your application works on different<br/>
-         * aspect ratios
-         */
-        static FIXED_WIDTH: number;
-        /**
-         * Unknown policy
-         */
-        static UNKNOWN: number;
-        static ContainerStrategy: typeof ContainerStrategy;
-        static ContentStrategy: typeof ContentStrategy;
-        name: string;
-        private _containerStrategy;
-        private _contentStrategy;
-        /**
-         * Constructor of ResolutionPolicy
-         * @param containerStg
-         * @param contentStg
-         */
-        constructor(containerStg: ContainerStrategy, contentStg: ContentStrategy);
-        get canvasSize(): any;
-        /**
-         * @en Manipulation before applying the resolution policy
-         * @zh 策略应用前的操作
-         * @param _view The target view
-         */
-        preApply(_view: View): void;
-        /**
-         * @en Function to apply this resolution policy
-         * The return value is {scale: [scaleX, scaleY], viewport: {new Rect}},
-         * The target view can then apply these value to itself, it's preferred not to modify directly its private variables
-         * @zh 调用策略方法
-         * @param _view - The target view
-         * @param designedResolution - The user defined design resolution
-         * @return An object contains the scale X/Y values and the viewport rect
-         */
-        apply(_view: View, designedResolution: Size): AdaptResult;
-        /**
-         * @en Manipulation after appyling the strategy
-         * @zh 策略应用之后的操作
-         * @param _view - The target view
-         */
-        postApply(_view: View): void;
-        /**
-         * @en Setup the container's scale strategy
-         * @zh 设置容器的适配策略
-         * @param containerStg The container strategy
-         */
-        setContainerStrategy(containerStg: ContainerStrategy): void;
-        /**
-         * @en Setup the content's scale strategy
-         * @zh 设置内容的适配策略
-         * @param contentStg The content strategy
-         */
-        setContentStrategy(contentStg: ContentStrategy): void;
-    }
-    /**
-     * @en view is the singleton view object.
-     * @zh view 是全局的视图单例对象。
-     */
-    export const view: View;
-}
-declare module "cocos/core/3d/framework/camera-component" {
-    import { RenderTexture } from "cocos/core/assets/render-texture";
-    import { Component } from "cocos/core/components/component";
-    import { ray } from "cocos/core/geometry/index";
-    import { GFXClearFlag } from "cocos/core/gfx/define";
-    import { Color, Rect, Vec3 } from "cocos/core/math/index";
-    import { Camera } from "cocos/core/renderer/index";
-    import { CameraProjection, CameraFOVAxis, CameraAperture, CameraISO, CameraShutter } from "cocos/core/renderer/scene/camera";
-    import { Node, Scene } from "cocos/core/scene-graph/index";
-    /**
-     * @en The projection type.
-     * @zh 投影类型。
-     */
-    const ProjectionType: typeof CameraProjection;
-    const FOVAxis: typeof CameraFOVAxis;
-    const Aperture: typeof CameraAperture;
-    const Shutter: typeof CameraShutter;
-    const ISO: typeof CameraISO;
-    const ClearFlag: {
-        SKYBOX: number;
-        SOLID_COLOR: GFXClearFlag;
-        DEPTH_ONLY: GFXClearFlag;
-        DONT_CLEAR: GFXClearFlag;
-    };
-    export namespace CameraComponent {
-        type ProjectionType = EnumAlias<typeof ProjectionType>;
-        type FOVAxis = EnumAlias<typeof FOVAxis>;
-        type ClearFlag = EnumAlias<typeof ClearFlag>;
-        type Aperture = EnumAlias<typeof Aperture>;
-        type Shutter = EnumAlias<typeof Shutter>;
-        type ISO = EnumAlias<typeof ISO>;
-    }
-    /**
-     * @en The Camera Component.
-     * @zh 相机组件。
-     */
-    export class CameraComponent extends Component {
-        static ProjectionType: typeof CameraProjection;
-        static FOVAxis: typeof CameraFOVAxis;
-        static ClearFlag: {
-            SKYBOX: number;
-            SOLID_COLOR: GFXClearFlag;
-            DEPTH_ONLY: GFXClearFlag;
-            DONT_CLEAR: GFXClearFlag;
-        };
-        static Aperture: typeof CameraAperture;
-        static Shutter: typeof CameraShutter;
-        static ISO: typeof CameraISO;
-        protected _projection: CameraProjection;
-        protected _priority: number;
-        protected _fov: number;
-        protected _fovAxis: CameraFOVAxis;
-        protected _orthoHeight: number;
-        protected _near: number;
-        protected _far: number;
-        protected _color: Color;
-        protected _depth: number;
-        protected _stencil: number;
-        protected _clearFlags: GFXClearFlag;
-        protected _rect: Rect;
-        protected _aperture: CameraAperture;
-        protected _shutter: CameraShutter;
-        protected _iso: CameraISO;
-        protected _screenScale: number;
-        protected _visibility: number;
-        protected _targetTexture: RenderTexture | null;
-        protected _camera: Camera | null;
-        protected _inEditorMode: boolean;
-        protected _flows: string[] | undefined;
-        get camera(): Camera;
-        /**
-         * @en Render priority of the camera, in ascending-order.
-         * @zh 相机的渲染优先级，值越小越优先渲染。
-         */
-        get priority(): number;
-        set priority(val: number);
-        /**
-         * @en Visibility mask, declaring a set of node layers that will be visible to this camera.
-         * @zh 可见性掩码，声明在当前相机中可见的节点层级集合。
-         */
-        get visibility(): number;
-        set visibility(val: number);
-        /**
-         * @en Clearing flags of the camera, specifies which part of the framebuffer will be actually cleared every frame.
-         * @zh 相机的缓冲清除标志位，指定帧缓冲的哪部分要每帧清除。
-         */
-        get clearFlags(): GFXClearFlag;
-        set clearFlags(val: GFXClearFlag);
-        /**
-         * @en Clearing color of the camera.
-         * @zh 相机的颜色缓冲默认值。
-         */
-        get clearColor(): Readonly<Color>;
-        set clearColor(val: Readonly<Color>);
-        /**
-         * @en Clearing depth of the camera.
-         * @zh 相机的深度缓冲默认值。
-         */
-        get clearDepth(): number;
-        set clearDepth(val: number);
-        /**
-         * @en Clearing stencil of the camera.
-         * @zh 相机的模板缓冲默认值。
-         */
-        get clearStencil(): number;
-        set clearStencil(val: number);
-        /**
-         * @en Projection type of the camera.
-         * @zh 相机的投影类型。
-         */
-        get projection(): CameraProjection;
-        set projection(val: CameraProjection);
-        /**
-         * @en The axis on which the FOV would be fixed regardless of screen aspect changes.
-         * @zh 指定视角的固定轴向，在此轴上不会跟随屏幕长宽比例变化。
-         */
-        get fovAxis(): CameraFOVAxis;
-        set fovAxis(val: CameraFOVAxis);
-        /**
-         * @en Field of view of the camera.
-         * @zh 相机的视角大小。
-         */
-        get fov(): number;
-        set fov(val: number);
-        /**
-         * @en Viewport height in orthographic mode.
-         * @zh 正交模式下的相机视角高度。
-         */
-        get orthoHeight(): number;
-        set orthoHeight(val: number);
-        /**
-         * @en Near clipping distance of the camera, should be as large as possible within acceptable range.
-         * @zh 相机的近裁剪距离，应在可接受范围内尽量取最大。
-         */
-        get near(): number;
-        set near(val: number);
-        /**
-         * @en Far clipping distance of the camera, should be as small as possible within acceptable range.
-         * @zh 相机的远裁剪距离，应在可接受范围内尽量取最小。
-         */
-        get far(): number;
-        set far(val: number);
-        /**
-         * @en Camera aperture, controls the exposure parameter.
-         * @zh 相机光圈，影响相机的曝光参数。
-         */
-        get aperture(): CameraAperture;
-        set aperture(val: CameraAperture);
-        /**
-         * @en Camera shutter, controls the exposure parameter.
-         * @zh 相机快门，影响相机的曝光参数。
-         */
-        get shutter(): CameraShutter;
-        set shutter(val: CameraShutter);
-        /**
-         * @en Camera ISO, controls the exposure parameter.
-         * @zh 相机感光度，影响相机的曝光参数。
-         */
-        get iso(): CameraISO;
-        set iso(val: CameraISO);
-        /**
-         * @en Screen viewport of the camera wrt. the sceen size.
-         * @zh 此相机最终渲染到屏幕上的视口位置和大小。
-         */
-        get rect(): Rect;
-        set rect(val: Rect);
-        /**
-         * @en Output render texture of the camera. Default to null, which outputs directly to screen.
-         * @zh 指定此相机的渲染输出目标贴图，默认为空，直接渲染到屏幕。
-         */
-        get targetTexture(): RenderTexture | null;
-        set targetTexture(value: RenderTexture | null);
-        /**
-         * @en Scale of the internal buffer size,
-         * set to 1 to keep the same with the canvas size.
-         * @zh 相机内部缓冲尺寸的缩放值, 1 为与 canvas 尺寸相同。
-         */
-        get screenScale(): number;
-        set screenScale(val: number);
-        get inEditorMode(): boolean;
-        set inEditorMode(value: boolean);
-        set flows(val: any);
-        onLoad(): void;
-        onEnable(): void;
-        onDisable(): void;
-        onDestroy(): void;
-        screenPointToRay(x: number, y: number, out?: ray): ray;
-        worldToScreen(worldPos: Vec3, out?: Vec3): Vec3;
-        screenToWorld(screenPos: Vec3, out?: Vec3): Vec3;
-        /**
-         * @en 3D node to UI local node coordinates. The converted value is the offset under the UI node.
-         *
-         * @zh 3D 节点转 UI 本地节点坐标。转换后的值是该 UI 节点下的偏移。
-         * @param wpos 3D 节点世界坐标
-         * @param uiNode UI 节点
-         * @param out 返回在当前传入的 UI 节点下的偏移量
-         *
-         * @example
-         * ```ts
-         * this.convertToUINode(target.worldPosition, uiNode.parent, out);
-         * uiNode.position = out;
-         * ```
-         */
-        convertToUINode(wpos: Vec3, uiNode: Node, out?: Vec3): Vec3;
-        protected _createCamera(): void;
-        protected _attachToScene(): void;
-        protected _detachFromScene(): void;
-        protected onSceneChanged(scene: Scene): void;
-        protected _chechTargetTextureEvent(old: RenderTexture | null): void;
-        protected _updateTargetTexture(): void;
-    }
-}
-declare module "cocos/core/components/ui-base/canvas-component" {
+declare module "cocos/core/components/ui-base/canvas" {
     import { RenderTexture } from "cocos/core/assets/render-texture";
     import { GFXClearFlag } from "cocos/core/gfx/define";
     import { Color } from "cocos/core/math/index";
-    import { Camera } from "cocos/core/renderer/index";
+    import { scene } from "cocos/core/renderer/index";
     import { Component } from "cocos/core/components/component";
     /**
      * @en
@@ -18998,7 +18541,7 @@ declare module "cocos/core/components/ui-base/canvas-component" {
      * 注：由于本节点的尺寸会跟随屏幕拉伸，所以 anchorPoint 只支持 (0.5, 0.5)，否则适配不同屏幕时坐标会有偏差。
      * UI 的视距范围是 -999 ～ 1000.
      */
-    export class CanvasComponent extends Component {
+    export class Canvas extends Component {
         /**
          * @en
          * The flags to clear the built in camera.
@@ -19055,14 +18598,14 @@ declare module "cocos/core/components/ui-base/canvas-component" {
         get targetTexture(): RenderTexture | null;
         set targetTexture(value: RenderTexture | null);
         get visibility(): number;
-        get camera(): Camera | null;
+        get camera(): scene.Camera | null;
         protected _priority: number;
         protected _targetTexture: RenderTexture | null;
         protected _clearFlag: GFXClearFlag;
         protected _color: Color;
         protected _renderMode: number;
         protected _thisOnResized: () => void;
-        protected _camera: Camera | null;
+        protected _camera: scene.Camera | null;
         private _pos;
         constructor();
         __preload(): void;
@@ -19082,7 +18625,7 @@ declare module "cocos/core/components/ui-base/canvas-component" {
         private _getViewPriority;
     }
 }
-declare module "cocos/core/components/ui-base/ui-transform-component" {
+declare module "cocos/core/components/ui-base/ui-transform" {
     /**
      * @category ui
      */
@@ -19091,7 +18634,7 @@ declare module "cocos/core/components/ui-base/ui-transform-component" {
     import { EventListener } from "cocos/core/platform/event-manager/event-listener";
     import { Mat4, Rect, Size, Vec2, Vec3 } from "cocos/core/math/index";
     import { aabb } from "cocos/core/geometry/index";
-    import { CanvasComponent } from "cocos/core/components/ui-base/canvas-component";
+    import { Canvas } from "cocos/core/components/ui-base/canvas";
     import { Node } from "cocos/core/scene-graph/index";
     /**
      * @en
@@ -19100,7 +18643,7 @@ declare module "cocos/core/components/ui-base/ui-transform-component" {
      * @zh
      * UI 变换组件。
      */
-    export class UITransformComponent extends Component {
+    export class UITransform extends Component {
         /**
          * @en
          * Size of the UI node.
@@ -19144,7 +18687,7 @@ declare module "cocos/core/components/ui-base/ui-transform-component" {
          */
         get visibility(): number;
         static EventType: typeof SystemEventType;
-        _canvas: CanvasComponent | null;
+        _canvas: Canvas | null;
         protected _contentSize: Size;
         protected _anchorPoint: Vec2;
         __preload(): void;
@@ -19211,7 +18754,7 @@ declare module "cocos/core/components/ui-base/ui-transform-component" {
          *
          * @zh
          * 将一个 UI 节点世界坐标系下点转换到另一个 UI 节点 (局部) 空间坐标系，这个坐标系以锚点为原点。
-         * 非 UI 节点转换到 UI 节点(局部) 空间坐标系，请走 CameraComponent 的 `convertToUINode`。
+         * 非 UI 节点转换到 UI 节点(局部) 空间坐标系，请走 Camera 的 `convertToUINode`。
          *
          * @param worldPoint - 世界坐标点。
          * @param out - 转换后坐标。
@@ -19293,11 +18836,7 @@ declare module "cocos/core/components/ui-base/ui-transform-component" {
         protected _sortSiblings(): void;
     }
 }
-declare module "cocos/core/components/ui-base/ui-render-component" {
-    /**
-     * @category ui
-     */
-    import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
+declare module "cocos/core/components/ui-base/ui-renderable" {
     import { Color } from "cocos/core/math/index";
     import { Material } from "cocos/core/assets/index";
     import { GFXBlendFactor } from "cocos/core/gfx/define";
@@ -19307,6 +18846,7 @@ declare module "cocos/core/components/ui-base/ui-render-component" {
     import { UI } from "cocos/core/renderer/ui/ui";
     import { Node } from "cocos/core/scene-graph/index";
     import { TransformBit } from "cocos/core/scene-graph/node-enum";
+    import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
     /**
      * @en
      * The shader property type of the material after instantiation.
@@ -19363,7 +18903,7 @@ declare module "cocos/core/components/ui-base/ui-render-component" {
      * @zh
      * 所有支持渲染的 UI 组件的基类。
      */
-    export class UIRenderComponent extends RenderableComponent {
+    export class UIRenderable extends RenderableComponent {
         /**
          * @en
          * Specifies the blend mode for the original image, it will clone a new material object.
@@ -19482,6 +19022,84 @@ declare module "cocos/core/components/ui-base/ui-render-component" {
         _updateBuiltinMaterial(): Material;
         protected _flushAssembler?(): void;
     }
+}
+declare module "cocos/core/components/component-event-handler" {
+    import { Node } from "cocos/core/scene-graph/index";
+    /**
+     * @zh
+     * “EventHandler” 类用来设置场景中的事件回调，该类允许用户设置回调目标节点，目标组件名，组件方法名，并可通过 emit 方法调用目标函数。
+     *
+     * @example
+     * ```ts
+     * import { Component } from 'cc';
+     * const eventHandler = new Component.EventHandler();
+     * eventHandler.target = newTarget;
+     * eventHandler.component = "MainMenu";
+     * eventHandler.handler = "OnClick";
+     * eventHandler.customEventData = "my data";
+     * ```
+     */
+    export class EventHandler {
+        get _componentName(): any;
+        set _componentName(value: any);
+        /**
+         * @zh
+         * 组件事件派发。
+         *
+         * @param events - 需要派发的组件事件列表。
+         * @param args - 派发参数数组。
+         */
+        static emitEvents(events: EventHandler[], ...args: any[]): void;
+        /**
+         * @zh
+         * 目标节点。
+         */
+        target: Node | null;
+        /**
+         * @zh
+         * 目标组件名。
+         */
+        component: string;
+        _componentId: string;
+        /**
+         * @zh
+         * 响应事件函数名。
+         */
+        handler: string;
+        /**
+         * @zh
+         * 自定义事件数据。
+         */
+        customEventData: string;
+        /**
+         * @zh
+         * 触发目标组件上的指定 handler 函数，该参数是回调函数的参数值（可不填）。
+         *
+         * @param params - 派发参数数组。
+         * @example
+         * ```ts
+         * import { Component } from 'cc';
+         * const eventHandler = new Component.EventHandler();
+         * eventHandler.target = newTarget;
+         * eventHandler.component = "MainMenu";
+         * eventHandler.handler = "OnClick"
+         * eventHandler.emit(["param1", "param2", ....]);
+         * ```
+         */
+        emit(params: any[]): void;
+        private _compName2Id;
+        private _compId2Name;
+        private _genCompIdIfNeeded;
+    }
+}
+declare module "cocos/core/components/index" {
+    /**
+     * @hidden
+     */
+    export { default as System } from "cocos/core/components/system";
+    export { default as MissingScript } from "cocos/core/components/missing-script";
+    export { EventHandler } from "cocos/core/components/component-event-handler";
+    export { Component } from "cocos/core/components/component";
 }
 declare module "cocos/core/platform/event-manager/system-event" {
     /**
@@ -19612,14 +19230,14 @@ declare module "cocos/core/platform/screen" {
     };
     export { screen };
 }
-declare module "cocos/ui/components/sprite-component" {
+declare module "cocos/ui/components/sprite" {
     /**
      * @category ui
      */
     import { SpriteAtlas, SpriteFrame } from "cocos/core/assets/index";
     import { Vec2 } from "cocos/core/math/index";
     import { UI } from "cocos/core/renderer/ui/ui";
-    import { UIRenderComponent } from "cocos/core/components/ui-base/ui-render-component";
+    import { UIRenderable } from "cocos/core/components/ui-base/ui-renderable";
     /**
      * @en
      * Enum for sprite type.
@@ -19735,7 +19353,7 @@ declare module "cocos/ui/components/sprite-component" {
      * @zh
      * 渲染精灵组件。
      */
-    export class SpriteComponent extends UIRenderComponent {
+    export class Sprite extends UIRenderable {
         /**
          * @en
          * The sprite atlas where the sprite is.
@@ -19763,33 +19381,33 @@ declare module "cocos/ui/components/sprite-component" {
          *
          * @example
          * ```ts
-         * import { SpriteComponent } from 'cc';
-         * sprite.type = SpriteComponent.Type.SIMPLE;
+         * import { Sprite } from 'cc';
+         * sprite.type = Sprite.Type.SIMPLE;
          * ```
          */
         get type(): SpriteType;
         set type(value: SpriteType);
         /**
          * @en
-         * The fill type, This will only have any effect if the "type" is set to “SpriteComponent.Type.FILLED”.
+         * The fill type, This will only have any effect if the "type" is set to “Sprite.Type.FILLED”.
          *
          * @zh
-         * 精灵填充类型，仅渲染类型设置为 SpriteComponent.Type.FILLED 时有效。
+         * 精灵填充类型，仅渲染类型设置为 Sprite.Type.FILLED 时有效。
          *
          * @example
          * ```ts
-         * import { SpriteComponent } from 'cc';
-         * sprite.fillType = SpriteComponent.FillType.HORIZONTAL;
+         * import { Sprite } from 'cc';
+         * sprite.fillType = Sprite.FillType.HORIZONTAL;
          * ```
          */
         get fillType(): FillType;
         set fillType(value: FillType);
         /**
          * @en
-         * The fill Center, This will only have any effect if the "type" is set to “SpriteComponent.Type.FILLED”.
+         * The fill Center, This will only have any effect if the "type" is set to “Sprite.Type.FILLED”.
          *
          * @zh
-         * 填充中心点，仅渲染类型设置为 SpriteComponent.Type.FILLED 时有效。
+         * 填充中心点，仅渲染类型设置为 Sprite.Type.FILLED 时有效。
          *
          * @example
          * ```ts
@@ -19801,10 +19419,10 @@ declare module "cocos/ui/components/sprite-component" {
         set fillCenter(value: Vec2);
         /**
          * @en
-         * The fill Start, This will only have any effect if the "type" is set to “SpriteComponent.Type.FILLED”.
+         * The fill Start, This will only have any effect if the "type" is set to “Sprite.Type.FILLED”.
          *
          * @zh
-         * 填充起始点，仅渲染类型设置为 SpriteComponent.Type.FILLED 时有效。
+         * 填充起始点，仅渲染类型设置为 Sprite.Type.FILLED 时有效。
          *
          * @example
          * ```ts
@@ -19816,10 +19434,10 @@ declare module "cocos/ui/components/sprite-component" {
         set fillStart(value: number);
         /**
          * @en
-         * The fill Range, This will only have any effect if the "type" is set to “SpriteComponent.Type.FILLED”.
+         * The fill Range, This will only have any effect if the "type" is set to “Sprite.Type.FILLED”.
          *
          * @zh
-         * 填充范围，仅渲染类型设置为 SpriteComponent.Type.FILLED 时有效。
+         * 填充范围，仅渲染类型设置为 Sprite.Type.FILLED 时有效。
          *
          * @example
          * ```ts
@@ -19854,8 +19472,8 @@ declare module "cocos/ui/components/sprite-component" {
          *
          * @example
          * ```ts
-         * import { SpriteComponent } from 'cc';
-         * sprite.sizeMode = SpriteComponent.SizeMode.CUSTOM;
+         * import { Sprite } from 'cc';
+         * sprite.sizeMode = Sprite.SizeMode.CUSTOM;
          * ```
          */
         get sizeMode(): SizeMode;
@@ -19976,7 +19594,7 @@ declare module "cocos/core/platform/index" {
     export { screen } from "cocos/core/platform/screen";
     export { SubContextView } from "cocos/core/platform/SubContextView";
 }
-declare module "cocos/ui/components/button-component" {
+declare module "cocos/ui/components/button" {
     /**
      * 用户界面组件
      * @category ui
@@ -19986,7 +19604,7 @@ declare module "cocos/ui/components/button-component" {
     import { EventMouse, EventTouch } from "cocos/core/platform/index";
     import { Color } from "cocos/core/math/index";
     import { Node } from "cocos/core/scene-graph/node";
-    import { SpriteComponent } from "cocos/ui/components/sprite-component";
+    import { Sprite } from "cocos/ui/components/sprite";
     /**
      * @en Enum for transition type.
      *
@@ -20075,7 +19693,7 @@ declare module "cocos/ui/components/button-component" {
      * })
      * ```
      */
-    export class ButtonComponent extends Component {
+    export class Button extends Component {
         /**
          * @en
          * Transition target.
@@ -20245,7 +19863,7 @@ declare module "cocos/ui/components/button-component" {
         protected _resizeNodeToTargetNode(): void;
         protected _resetState(): void;
         protected _registerEvent(): void;
-        protected _getTargetSprite(target: Node | null): SpriteComponent | null;
+        protected _getTargetSprite(target: Node | null): Sprite | null;
         protected _applyTarget(): void;
         protected _onTouchBegan(event?: EventTouch): void;
         protected _onTouchMove(event?: EventTouch): false | undefined;
@@ -20309,7 +19927,7 @@ declare module "cocos/core/assets/bitmap-font" {
 }
 declare module "cocos/ui/assembler/label/bmfontUtils" {
     import { Vec2 } from "cocos/core/math/index";
-    import { LabelComponent } from "cocos/ui/components/label-component";
+    import { Label } from "cocos/ui/components/label";
     class FontLetterDefinition {
         u: number;
         v: number;
@@ -20334,7 +19952,7 @@ declare module "cocos/ui/assembler/label/bmfontUtils" {
         getLetterDefinitionForChar(char: string): FontLetterDefinition;
     }
     export const bmfontUtils: {
-        updateRenderData(comp: LabelComponent): void;
+        updateRenderData(comp: Label): void;
         _updateFontScale(): void;
         _updateProperties(): void;
         _resetProperties(): void;
@@ -21016,7 +20634,7 @@ declare module "cocos/ui/assembler/label/letter-font" {
      */
     import { ImageAsset, Texture2D } from "cocos/core/assets/index";
     import { Color, Vec2 } from "cocos/core/math/index";
-    import { LabelComponent } from "cocos/ui/components/index";
+    import { Label } from "cocos/ui/components/index";
     import { ISharedLabelData } from "cocos/ui/assembler/label/font-utils";
     interface ILabelInfo {
         fontSize: number;
@@ -21104,10 +20722,10 @@ declare module "cocos/ui/assembler/label/letter-font" {
     }
     export const letterFont: {
         getAssemblerData(): LetterRenderTexture;
-        updateRenderData(comp: LabelComponent): void;
+        updateRenderData(comp: Label): void;
         _updateFontScale(): void;
         _updateProperties(): void;
-        _updateFontFamily(comp: LabelComponent): void;
+        _updateFontFamily(comp: Label): void;
         _computeHash(labelInfo: ILabelInfo): string;
         _getFontDesc(): string;
         _resetProperties(): void;
@@ -21131,7 +20749,7 @@ declare module "cocos/ui/assembler/label/letter-font" {
         _setupBMFontOverflowMetrics(): void;
     };
 }
-declare module "cocos/ui/components/label-component" {
+declare module "cocos/ui/components/label" {
     /**
      * @category ui
      */
@@ -21140,7 +20758,7 @@ declare module "cocos/ui/components/label-component" {
     import { FontAtlas } from "cocos/ui/assembler/label/bmfontUtils";
     import { CanvasPool, ISharedLabelData } from "cocos/ui/assembler/label/font-utils";
     import { LetterRenderTexture } from "cocos/ui/assembler/label/letter-font";
-    import { UIRenderComponent } from "cocos/core/components/ui-base/ui-render-component";
+    import { UIRenderable } from "cocos/core/components/ui-base/ui-renderable";
     /**
      * @en Enum for horizontal text alignment.
      *
@@ -21274,7 +20892,7 @@ declare module "cocos/ui/components/label-component" {
      * @zh
      * 文字标签组件。
      */
-    export class LabelComponent extends UIRenderComponent {
+    export class Label extends UIRenderable {
         /**
          * @en
          * Content string of label.
@@ -21577,11 +21195,11 @@ declare module "cocos/ui/components/editbox/edit-box-impl-base" {
     /**
      * @hidden
      */
-    import { EditBoxComponent } from "cocos/ui/components/editbox/edit-box-component";
+    import { EditBox } from "cocos/ui/components/editbox/edit-box";
     export class EditBoxImplBase {
         _editing: boolean;
-        _delegate: EditBoxComponent | null;
-        init(delegate: EditBoxComponent): void;
+        _delegate: EditBox | null;
+        init(delegate: EditBox): void;
         onEnable(): void;
         update(): void;
         onDisable(): void;
@@ -21595,11 +21213,11 @@ declare module "cocos/ui/components/editbox/edit-box-impl-base" {
     }
 }
 declare module "cocos/ui/components/editbox/edit-box-impl" {
-    import { EditBoxComponent } from "cocos/ui/components/editbox/edit-box-component";
+    import { EditBox } from "cocos/ui/components/editbox/edit-box";
     import { InputFlag, InputMode, KeyboardReturnType } from "cocos/ui/components/editbox/types";
     import { EditBoxImplBase } from "cocos/ui/components/editbox/edit-box-impl-base";
     export class EditBoxImpl extends EditBoxImplBase {
-        _delegate: EditBoxComponent | null;
+        _delegate: EditBox | null;
         _inputMode: InputMode;
         _inputFlag: InputFlag;
         _returnType: KeyboardReturnType;
@@ -21620,7 +21238,7 @@ declare module "cocos/ui/components/editbox/edit-box-impl" {
         private _placeholderLineHeight;
         private _placeholderStyleSheet;
         private _domId;
-        init(delegate: EditBoxComponent): void;
+        init(delegate: EditBox): void;
         clear(): void;
         update(): void;
         setTabIndex(index: number): void;
@@ -21648,14 +21266,14 @@ declare module "cocos/ui/components/editbox/edit-box-impl" {
         private _removeEventListeners;
     }
 }
-declare module "cocos/ui/components/editbox/edit-box-component" {
+declare module "cocos/ui/components/editbox/edit-box" {
     import { SpriteFrame } from "cocos/core/assets/sprite-frame";
     import { Component } from "cocos/core/components/component";
     import { EventHandler as ComponentEventHandler } from "cocos/core/components/component-event-handler";
     import { Size } from "cocos/core/math/index";
     import { EventTouch } from "cocos/core/platform/index";
-    import { LabelComponent } from "cocos/ui/components/label-component";
-    import { SpriteComponent } from "cocos/ui/components/sprite-component";
+    import { Label } from "cocos/ui/components/label";
+    import { Sprite } from "cocos/ui/components/sprite";
     import { EditBoxImplBase } from "cocos/ui/components/editbox/edit-box-impl-base";
     import { InputFlag, InputMode, KeyboardReturnType } from "cocos/ui/components/editbox/types";
     enum EventType {
@@ -21666,12 +21284,12 @@ declare module "cocos/ui/components/editbox/edit-box-component" {
     }
     /**
      * @en
-     * `EditBoxComponent` is a component for inputing text, you can use it to gather small amounts of text from users.
+     * `EditBox` is a component for inputing text, you can use it to gather small amounts of text from users.
      *
      * @zh
-     * `EditBoxComponent` 组件，用于获取用户的输入文本。
+     * `EditBox` 组件，用于获取用户的输入文本。
      */
-    export class EditBoxComponent extends Component {
+    export class EditBox extends Component {
         /**
          * @en
          * Input string of EditBox.
@@ -21697,8 +21315,8 @@ declare module "cocos/ui/components/editbox/edit-box-component" {
          * @zh
          * 输入框输入文本节点上挂载的 Label 组件对象
          */
-        get textLabel(): LabelComponent | null;
-        set textLabel(oldValue: LabelComponent | null);
+        get textLabel(): Label | null;
+        set textLabel(oldValue: Label | null);
         /**
          * @en
          * The Label component attached to the node for EditBox's placeholder text label.
@@ -21706,8 +21324,8 @@ declare module "cocos/ui/components/editbox/edit-box-component" {
          * @zh
          * 输入框占位符节点上挂载的 Label 组件对象。
          */
-        get placeholderLabel(): LabelComponent | null;
-        set placeholderLabel(oldValue: LabelComponent | null);
+        get placeholderLabel(): Label | null;
+        set placeholderLabel(oldValue: Label | null);
         /**
          * @en
          * The background image of EditBox.
@@ -21807,9 +21425,9 @@ declare module "cocos/ui/components/editbox/edit-box-component" {
          */
         editingReturn: ComponentEventHandler[];
         _impl: EditBoxImplBase | null;
-        _background: SpriteComponent | null;
-        protected _textLabel: LabelComponent | null;
-        protected _placeholderLabel: LabelComponent | null;
+        _background: Sprite | null;
+        protected _textLabel: Label | null;
+        protected _placeholderLabel: Label | null;
         protected _returnType: KeyboardReturnType;
         protected _useOriginalSize: boolean;
         protected _string: string;
@@ -21868,7 +21486,7 @@ declare module "cocos/ui/components/editbox/edit-box-component" {
         protected _resizeChildNodes(): void;
     }
 }
-declare module "cocos/ui/components/layout-component" {
+declare module "cocos/ui/components/layout" {
     /**
      * @category ui
      */
@@ -22000,7 +21618,7 @@ declare module "cocos/ui/components/layout-component" {
      * 1.不会考虑子节点的缩放和旋转。<br>
      * 2.对 Layout 设置后结果需要到下一帧才会更新，除非你设置完以后手动调用。[[updateLayout]]
      */
-    export class LayoutComponent extends Component {
+    export class Layout extends Component {
         /**
          * @en
          * The layout type.
@@ -22161,8 +21779,8 @@ declare module "cocos/ui/components/layout-component" {
          *
          * @example
          * ```ts
-         * import { LayoutComponent, log } from 'cc';
-         * layout.type = LayoutComponent.HORIZONTAL;
+         * import { Layout, log } from 'cc';
+         * layout.type = Layout.HORIZONTAL;
          * layout.node.addChild(childNode);
          * log(childNode.x); // not yet changed
          * layout.updateLayout();
@@ -22315,10 +21933,10 @@ declare module "cocos/ui/assembler/graphics/webgl/impl" {
         private _addPath;
     }
 }
-declare module "cocos/ui/components/graphics-component" {
-    import { UIRenderComponent } from "cocos/core/components/ui-base/ui-render-component";
+declare module "cocos/ui/components/graphics" {
+    import { UIRenderable } from "cocos/core/components/ui-base/ui-renderable";
     import { Color } from "cocos/core/math/index";
-    import { Model } from "cocos/core/renderer/index";
+    import { scene } from "cocos/core/renderer/index";
     import { UI } from "cocos/core/renderer/ui/ui";
     import { LineCap, LineJoin } from "cocos/ui/assembler/graphics/types";
     import { Impl } from "cocos/ui/assembler/graphics/webgl/impl";
@@ -22329,7 +21947,7 @@ declare module "cocos/ui/components/graphics-component" {
      * @zh
      * 自定义图形类
      */
-    export class GraphicsComponent extends UIRenderComponent {
+    export class Graphics extends UIRenderable {
         /**
          * @en
          * Current line width.
@@ -22389,7 +22007,7 @@ declare module "cocos/ui/components/graphics-component" {
         static LineJoin: typeof LineJoin;
         static LineCap: typeof LineCap;
         impl: Impl | null;
-        model: Model | null;
+        model: scene.Model | null;
         protected _lineWidth: number;
         protected _strokeColor: Color;
         protected _lineJoin: LineJoin;
@@ -22581,14 +22199,11 @@ declare module "cocos/ui/components/graphics-component" {
         protected _detachFromScene(): void;
     }
 }
-declare module "cocos/ui/components/mask-component" {
-    /**
-     * @category ui
-     */
-    import { UIRenderComponent } from "cocos/core/components/ui-base/ui-render-component";
+declare module "cocos/ui/components/mask" {
+    import { UIRenderable } from "cocos/core/components/ui-base/ui-renderable";
     import { Color, Vec2 } from "cocos/core/math/index";
     import { UI } from "cocos/core/renderer/ui/ui";
-    import { GraphicsComponent } from "cocos/ui/components/graphics-component";
+    import { Graphics } from "cocos/ui/components/graphics";
     import { TransformBit } from "cocos/core/scene-graph/node-enum";
     /**
      * @en The type for mask.
@@ -22625,7 +22240,7 @@ declare module "cocos/ui/components/mask-component" {
      * @zh
      * 遮罩组件。
      */
-    export class MaskComponent extends UIRenderComponent {
+    export class Mask extends UIRenderable {
         /**
          * @en
          * The mask type.
@@ -22654,8 +22269,8 @@ declare module "cocos/ui/components/mask-component" {
          */
         get segments(): number;
         set segments(value: number);
-        get graphics(): GraphicsComponent | null;
-        get clearGraphics(): GraphicsComponent | null;
+        get graphics(): Graphics | null;
+        get clearGraphics(): Graphics | null;
         get dstBlendFactor(): import("cocos/core").GFXBlendFactor;
         set dstBlendFactor(value: import("cocos/core").GFXBlendFactor);
         get srcBlendFactor(): import("cocos/core").GFXBlendFactor;
@@ -22666,8 +22281,8 @@ declare module "cocos/ui/components/mask-component" {
         protected _type: MaskType;
         protected _inverted: boolean;
         protected _segments: number;
-        protected _graphics: GraphicsComponent | null;
-        protected _clearGraphics: GraphicsComponent | null;
+        protected _graphics: Graphics | null;
+        protected _clearGraphics: Graphics | null;
         constructor();
         onLoad(): void;
         /**
@@ -22699,12 +22314,12 @@ declare module "cocos/ui/components/mask-component" {
         protected _removeGraphics(): void;
     }
 }
-declare module "cocos/ui/components/progress-bar-component" {
+declare module "cocos/ui/components/progress-bar" {
     /**
      * @category ui
      */
-    import { Component } from "cocos/core/components/index";
-    import { SpriteComponent } from "cocos/ui/components/sprite-component";
+    import { Component } from "cocos/core/components/component";
+    import { Sprite } from "cocos/ui/components/sprite";
     /**
      * @en
      * Enum for ProgressBar mode.
@@ -22761,7 +22376,7 @@ declare module "cocos/ui/components/progress-bar-component" {
      * }
      * ```
      */
-    export class ProgressBarComponent extends Component {
+    export class ProgressBar extends Component {
         /**
          * @en
          * The targeted Sprite which will be changed progressively.
@@ -22769,8 +22384,8 @@ declare module "cocos/ui/components/progress-bar-component" {
          * @zh
          * 用来显示进度条比例的 Sprite 对象。
          */
-        get barSprite(): SpriteComponent | null;
-        set barSprite(value: SpriteComponent | null);
+        get barSprite(): Sprite | null;
+        set barSprite(value: Sprite | null);
         /**
          * @en
          * The progress mode, there are two modes supported now: horizontal and vertical.
@@ -22808,7 +22423,7 @@ declare module "cocos/ui/components/progress-bar-component" {
         get reverse(): boolean;
         set reverse(value: boolean);
         static Mode: typeof Mode;
-        protected _barSprite: SpriteComponent | null;
+        protected _barSprite: Sprite | null;
         protected _mode: Mode;
         protected _totalLength: number;
         protected _progress: number;
@@ -22817,7 +22432,7 @@ declare module "cocos/ui/components/progress-bar-component" {
         protected _updateBarStatus(): void;
     }
 }
-declare module "cocos/ui/components/label-outline-component" {
+declare module "cocos/ui/components/label-outline" {
     /**
      * @category ui
      */
@@ -22832,15 +22447,15 @@ declare module "cocos/ui/components/label-outline-component" {
      *
      * @example
      * ```ts
-     * import { Node, LabelComponent, LabelOutlineComponent } from 'cc';
+     * import { Node, Label, LabelOutline } from 'cc';
      * // Create a new node and add label components.
      * const node = new Node("New Label");
-     * const label = node.addComponent(LabelComponent);
-     * const outline = node.addComponent(LabelOutlineComponent);
+     * const label = node.addComponent(Label);
+     * const outline = node.addComponent(LabelOutline);
      * node.parent = this.node;
      * ```
      */
-    export class LabelOutlineComponent extends Component {
+    export class LabelOutline extends Component {
         protected _color: Color;
         protected _width: number;
         /**
@@ -22877,7 +22492,7 @@ declare module "cocos/ui/components/label-outline-component" {
         protected _updateRenderData(): void;
     }
 }
-declare module "cocos/ui/components/rich-text-component" {
+declare module "cocos/ui/components/rich-text" {
     /**
      * @category ui
      */
@@ -22886,11 +22501,11 @@ declare module "cocos/ui/components/rich-text-component" {
     import { IHtmlTextParserResultObj } from "cocos/core/utils/index";
     import { Vec2 } from "cocos/core/math/index";
     import { PrivateNode } from "cocos/core/scene-graph/index";
-    import { CacheMode, HorizontalTextAlignment, VerticalTextAlignment } from "cocos/ui/components/label-component";
-    import { UIComponent, UIRenderComponent } from "cocos/core/components/ui-base/index";
+    import { CacheMode, HorizontalTextAlignment, VerticalTextAlignment } from "cocos/ui/components/label";
+    import { UIComponent, UIRenderable } from "cocos/core/components/ui-base/index";
     interface ILabelSegment {
         node: PrivateNode;
-        comp: UIRenderComponent | null;
+        comp: UIRenderable | null;
         lineCount: number;
         styleIndex: number;
         imageOffset: string;
@@ -22904,7 +22519,7 @@ declare module "cocos/ui/components/rich-text-component" {
      * @zh
      * 富文本组件。
      */
-    export class RichTextComponent extends UIComponent {
+    export class RichText extends UIComponent {
         /**
          * @en
          * Content string of RichText.
@@ -23058,7 +22673,7 @@ declare module "cocos/ui/components/rich-text-component" {
         protected _applyTextAttribute(labelSeg: ILabelSegment): void;
     }
 }
-declare module "cocos/ui/components/view-group-component" {
+declare module "cocos/ui/components/view-group" {
     /**
      * @category ui
      */
@@ -23076,19 +22691,20 @@ declare module "cocos/ui/components/view-group-component" {
      * 请参考 ScrollView 的实现来获取更多信息。
      */
     import { Component } from "cocos/core/components/index";
-    export class ViewGroupComponent extends Component {
+    export class ViewGroup extends Component {
     }
 }
-declare module "cocos/ui/components/scroll-view-component" {
+declare module "cocos/ui/components/scroll-view" {
     /**
      * @category ui
      */
-    import { EventHandler as ComponentEventHandler, UITransformComponent } from "cocos/core/components/index";
+    import { EventHandler as ComponentEventHandler } from "cocos/core/components/component-event-handler";
+    import { UITransform } from "cocos/core/components/ui-base/index";
     import { Event } from "cocos/core/event/index";
     import { EventMouse, EventTouch, Touch } from "cocos/core/platform/index";
     import { Size, Vec2, Vec3 } from "cocos/core/math/index";
-    import { ScrollBarComponent } from "cocos/ui/components/scroll-bar-component";
-    import { ViewGroupComponent } from "cocos/ui/components/view-group-component";
+    import { ScrollBar } from "cocos/ui/components/scroll-bar";
+    import { ViewGroup } from "cocos/ui/components/view-group";
     import { Node } from "cocos/core/scene-graph/node";
     import { TransformBit } from "cocos/core/scene-graph/node-enum";
     /**
@@ -23212,7 +22828,7 @@ declare module "cocos/ui/components/scroll-view-component" {
      * @zh
      * 滚动视图组件。
      */
-    export class ScrollViewComponent extends ViewGroupComponent {
+    export class ScrollView extends ViewGroup {
         static EventType: typeof EventType;
         /**
          * @en
@@ -23270,8 +22886,8 @@ declare module "cocos/ui/components/scroll-view-component" {
          * @zh
          * 水平滚动的 ScrollBar。
          */
-        get horizontalScrollBar(): ScrollBarComponent | null;
-        set horizontalScrollBar(value: ScrollBarComponent | null);
+        get horizontalScrollBar(): ScrollBar | null;
+        set horizontalScrollBar(value: ScrollBar | null);
         /**
          * @en
          * Enable vertical scroll.
@@ -23287,8 +22903,8 @@ declare module "cocos/ui/components/scroll-view-component" {
          * @zh
          * 垂直滚动的 ScrollBar。
          */
-        get verticalScrollBar(): ScrollBarComponent | null;
-        set verticalScrollBar(value: ScrollBarComponent | null);
+        get verticalScrollBar(): ScrollBar | null;
+        set verticalScrollBar(value: ScrollBar | null);
         /**
          * @en
          * If cancelInnerEvents is set to true, the scroll behavior will cancel touch events on inner content nodes
@@ -23307,12 +22923,12 @@ declare module "cocos/ui/components/scroll-view-component" {
          * 滚动视图的事件回调函数。
          */
         scrollEvents: ComponentEventHandler[];
-        get view(): UITransformComponent | null;
+        get view(): UITransform | null;
         protected _autoScrolling: boolean;
         protected _scrolling: boolean;
         protected _content: Node | null;
-        protected _horizontalScrollBar: ScrollBarComponent | null;
-        protected _verticalScrollBar: ScrollBarComponent | null;
+        protected _horizontalScrollBar: ScrollBar | null;
+        protected _verticalScrollBar: ScrollBar | null;
         protected _topBoundary: number;
         protected _bottomBoundary: number;
         protected _leftBoundary: number;
@@ -23659,14 +23275,14 @@ declare module "cocos/ui/components/scroll-view-component" {
         protected _scaleChanged(value: TransformBit): void;
     }
 }
-declare module "cocos/ui/components/scroll-bar-component" {
+declare module "cocos/ui/components/scroll-bar" {
     /**
      * @category ui
      */
-    import { Component } from "cocos/core/components/index";
+    import { Component } from "cocos/core/components/component";
     import { Size, Vec3 } from "cocos/core/math/index";
-    import { ScrollViewComponent } from "cocos/ui/components/scroll-view-component";
-    import { SpriteComponent } from "cocos/ui/components/sprite-component";
+    import { ScrollView } from "cocos/ui/components/scroll-view";
+    import { Sprite } from "cocos/ui/components/sprite";
     import { Node } from "cocos/core/index";
     /**
      * @en
@@ -23700,7 +23316,7 @@ declare module "cocos/ui/components/scroll-bar-component" {
      * @zh
      * 滚动条组件。
      */
-    export class ScrollBarComponent extends Component {
+    export class ScrollBar extends Component {
         /**
          * @en
          * The "handle" part of the ScrollBar.
@@ -23708,8 +23324,8 @@ declare module "cocos/ui/components/scroll-bar-component" {
          * @zh
          * 作为当前滚动区域位置显示的滑块 Sprite。
          */
-        get handle(): SpriteComponent | null;
-        set handle(value: SpriteComponent | null);
+        get handle(): Sprite | null;
+        set handle(value: Sprite | null);
         /**
          * @en
          * The direction of scrolling.
@@ -23740,8 +23356,8 @@ declare module "cocos/ui/components/scroll-bar-component" {
         get autoHideTime(): number;
         set autoHideTime(value: number);
         static Direction: typeof Direction;
-        protected _scrollView: ScrollViewComponent | null;
-        protected _handle: SpriteComponent | null;
+        protected _scrollView: ScrollView | null;
+        protected _handle: Sprite | null;
         protected _direction: Direction;
         protected _enableAutoHide: boolean;
         protected _autoHideTime: number;
@@ -23780,7 +23396,7 @@ declare module "cocos/ui/components/scroll-bar-component" {
          *
          * @param scrollView - 滚动视窗。
          */
-        setScrollView(scrollView: ScrollViewComponent): void;
+        setScrollView(scrollView: ScrollView): void;
         onTouchBegan(): void;
         onTouchEnded(): void;
         protected onEnable(): void;
@@ -23797,13 +23413,13 @@ declare module "cocos/ui/components/scroll-bar-component" {
         protected _processAutoHide(deltaTime: number): void;
     }
 }
-declare module "cocos/ui/components/slider-component" {
+declare module "cocos/ui/components/slider" {
     /**
      * @category ui
      */
     import { Component, EventHandler } from "cocos/core/components/index";
     import { EventTouch, Touch } from "cocos/core/platform/index";
-    import { SpriteComponent } from "cocos/ui/components/sprite-component";
+    import { Sprite } from "cocos/ui/components/sprite";
     /**
      * @en
      * The Slider Direction.
@@ -23836,7 +23452,7 @@ declare module "cocos/ui/components/slider-component" {
      * @zh
      * 滑动器组件。
      */
-    export class SliderComponent extends Component {
+    export class Slider extends Component {
         /**
          * @en
          * The "handle" part of the slider.
@@ -23844,8 +23460,8 @@ declare module "cocos/ui/components/slider-component" {
          * @zh
          * 滑动器滑块按钮部件。
          */
-        get handle(): SpriteComponent | null;
-        set handle(value: SpriteComponent | null);
+        get handle(): Sprite | null;
+        set handle(value: Sprite | null);
         /**
          * @en
          * The slider direction.
@@ -23896,12 +23512,12 @@ declare module "cocos/ui/components/slider-component" {
         private _changeLayout;
     }
 }
-declare module "cocos/ui/components/toggle-container-component" {
+declare module "cocos/ui/components/toggle-container" {
     /**
      * @category ui
      */
     import { Component, EventHandler as ComponentEventHandler } from "cocos/core/components/index";
-    import { ToggleComponent } from "cocos/ui/components/toggle-component";
+    import { Toggle } from "cocos/ui/components/toggle";
     /**
      * @en
      * ToggleContainer is not a visible UI component but a way to modify the behavior of a set of Toggles. <br/>
@@ -23912,7 +23528,7 @@ declare module "cocos/ui/components/toggle-container-component" {
      * ToggleGroup 不是一个可见的 UI 组件，它可以用来修改一组 Toggle  组件的行为。当一组 Toggle 属于同一个 ToggleGroup 的时候，<br/>
      * 任何时候只能有一个 Toggle 处于选中状态。
      */
-    export class ToggleContainerComponent extends Component {
+    export class ToggleContainer extends Component {
         protected _allowSwitchOff: boolean;
         /**
          * @en
@@ -23940,9 +23556,9 @@ declare module "cocos/ui/components/toggle-container-component" {
          * @zh
          * 只读属性，返回 toggleContainer 管理的 toggle 数组引用。
          */
-        get toggleItems(): (ToggleComponent | undefined)[];
+        get toggleItems(): (Toggle | undefined)[];
         start(): void;
-        activeToggles(): (ToggleComponent | undefined)[];
+        activeToggles(): (Toggle | undefined)[];
         anyTogglesChecked(): boolean;
         /**
          * @en
@@ -23954,7 +23570,7 @@ declare module "cocos/ui/components/toggle-container-component" {
          * @param toggle - 需要被更新的 toggle。
          * @param emitEvent - 是否需要触发事件
          */
-        notifyToggleCheck(toggle: ToggleComponent, emitEvent?: boolean): void;
+        notifyToggleCheck(toggle: Toggle, emitEvent?: boolean): void;
         ensureValidState(): void;
     }
 }
@@ -23984,15 +23600,15 @@ declare module "cocos/core/data/utils/extends-enum" {
     export function extendsEnum<E0, E1, E2>(e0: E0, e1: E1, e2: E2): E0 & E1 & E2;
     export function extendsEnum<E0, E1, E2, E3>(e0: E0, e1: E1, e2: E2, e3: E3): E0 & E1 & E2 & E3;
 }
-declare module "cocos/ui/components/toggle-component" {
+declare module "cocos/ui/components/toggle" {
     /**
      * @category ui
      */
-    import { EventHandler as ComponentEventHandler } from "cocos/core/components/index";
-    import { ButtonComponent } from "cocos/ui/components/button-component";
-    import { SpriteComponent } from "cocos/ui/components/sprite-component";
-    import { ToggleContainerComponent } from "cocos/ui/components/toggle-container-component";
-    import { EventType as ButtonEventType } from "cocos/ui/components/button-component";
+    import { EventHandler as ComponentEventHandler } from "cocos/core/components/component-event-handler";
+    import { Button } from "cocos/ui/components/button";
+    import { Sprite } from "cocos/ui/components/sprite";
+    import { ToggleContainer } from "cocos/ui/components/toggle-container";
+    import { EventType as ButtonEventType } from "cocos/ui/components/button";
     enum EventType {
         TOGGLE = "toggle"
     }
@@ -24004,7 +23620,7 @@ declare module "cocos/ui/components/toggle-component" {
      * @zh
      * Toggle 是一个 CheckBox，当它和 ToggleGroup 一起使用的时候，可以变成 RadioButton。
      */
-    export class ToggleComponent extends ButtonComponent {
+    export class Toggle extends Button {
         /**
          * @en
          * When this value is true, the check mark component will be enabled,
@@ -24022,10 +23638,10 @@ declare module "cocos/ui/components/toggle-component" {
          * @zh
          * Toggle 处于选中状态时显示的图片。
          */
-        get checkMark(): SpriteComponent | null;
-        set checkMark(value: SpriteComponent | null);
+        get checkMark(): Sprite | null;
+        set checkMark(value: Sprite | null);
         set _resizeToTarget(value: boolean);
-        get _toggleContainer(): ToggleContainerComponent | null;
+        get _toggleContainer(): ToggleContainer | null;
         static EventType: typeof EventType & typeof ButtonEventType;
         /**
          * @en
@@ -24036,7 +23652,7 @@ declare module "cocos/ui/components/toggle-component" {
          */
         checkEvents: ComponentEventHandler[];
         protected _isChecked: boolean;
-        protected _checkMark: SpriteComponent | null;
+        protected _checkMark: Sprite | null;
         protected _internalToggle(): void;
         protected _set(value: boolean, emitEvent?: boolean): void;
         playEffect(): void;
@@ -24056,7 +23672,7 @@ declare module "cocos/ui/components/toggle-component" {
         protected _emitToggleEvents(): void;
     }
 }
-declare module "cocos/ui/components/ui-model-component" {
+declare module "cocos/ui/components/ui-mesh-renderer" {
     /**
      * @category ui
      */
@@ -24067,13 +23683,13 @@ declare module "cocos/ui/components/ui-model-component" {
      * @en
      * The component of model.
      * When you place particles or models in the UI, you must add this component to render.
-     * The component must be placed on a node with the modelComponent or the particleComponent.
+     * The component must be placed on a node with the [[MeshRenderer]] or the [[Particle]].
      *
      * @zh
      * UI 模型基础组件。
-     * 当你在 UI 中放置模型或者粒子的时候，必须添加该组件才能渲染。该组件必须放置在带有 modelComponent 或者 particleComponent 组件的节点上。
+     * 当你在 UI 中放置模型或者粒子的时候，必须添加该组件才能渲染。该组件必须放置在带有 [[MeshRenderer]] 或者 [[Particle]] 组件的节点上。
      */
-    export class UIModelComponent extends UIComponent {
+    export class UIMeshRenderer extends UIComponent {
         private _models;
         get modelComponent(): RenderableComponent | null;
         private _modelComponent;
@@ -24086,7 +23702,7 @@ declare module "cocos/ui/components/ui-model-component" {
         private _fitUIRenderQueue;
     }
 }
-declare module "cocos/ui/components/widget-component" {
+declare module "cocos/ui/components/widget" {
     /**
      * @category ui
      */
@@ -24202,7 +23818,7 @@ declare module "cocos/ui/components/widget-component" {
      * @zh Widget 组件，用于设置和适配其相对于父节点的边距，Widget 通常被用于 UI 界面，也可以用于其他地方。<br/>
      * Widget 会自动调整当前节点的坐标和宽高，不过目前调整后的结果要到下一帧才能在脚本里获取到，除非你先手动调用 [[updateAlignment]]。
      */
-    export class WidgetComponent extends Component {
+    export class Widget extends Component {
         /**
          * @en
          * Specifies an alignment target that can only be one of the parent nodes of the current node.
@@ -24511,21 +24127,11 @@ declare module "cocos/ui/components/widget-component" {
         private _setAlign;
         private _recursiveDirty;
     }
-    export namespace WidgetComponent {
+    export namespace Widget {
         type AlignMode = EnumAlias<typeof AlignMode>;
     }
 }
-declare module "cocos/ui/components/ui-reorder-component" {
-    import { UIComponent } from "cocos/core/components/ui-base/ui-component";
-    /**
-     * @zh
-     * UI 及 UI 模型渲染基类。
-     * @deprecated 会在 1.2 的版本移除
-     */
-    export class UIReorderComponent extends UIComponent {
-    }
-}
-declare module "cocos/ui/components/page-view-indicator-component" {
+declare module "cocos/ui/components/page-view-indicator" {
     /**
      * @category ui
      */
@@ -24533,8 +24139,8 @@ declare module "cocos/ui/components/page-view-indicator-component" {
     import { Component } from "cocos/core/components/index";
     import { Size } from "cocos/core/math/index";
     import { Node } from "cocos/core/scene-graph/index";
-    import { LayoutComponent } from "cocos/ui/components/layout-component";
-    import { PageViewComponent } from "cocos/ui/components/page-view-component";
+    import { Layout } from "cocos/ui/components/layout";
+    import { PageView } from "cocos/ui/components/page-view";
     /**
      * @en Enum for PageView Indicator direction.
      *
@@ -24563,7 +24169,7 @@ declare module "cocos/ui/components/page-view-indicator-component" {
      * @zh
      * 页面视图每页标记组件
      */
-    export class PageViewIndicatorComponent extends Component {
+    export class PageViewIndicator extends Component {
         /**
          * @en
          * The spriteFrame for each element.
@@ -24605,8 +24211,8 @@ declare module "cocos/ui/components/page-view-indicator-component" {
         protected _spriteFrame: SpriteFrame | null;
         protected _direction: Direction;
         protected _cellSize: Size;
-        protected _layout: LayoutComponent | null;
-        protected _pageView: PageViewComponent | null;
+        protected _layout: Layout | null;
+        protected _pageView: PageView | null;
         protected _indicators: Node[];
         onLoad(): void;
         /**
@@ -24618,24 +24224,24 @@ declare module "cocos/ui/components/page-view-indicator-component" {
          *
          * @param target 页面视图对象
          */
-        setPageView(target: PageViewComponent): void;
+        setPageView(target: PageView): void;
         _updateLayout(): void;
         _createIndicator(): Node;
         _changedState(): void;
         _refresh(): void;
     }
 }
-declare module "cocos/ui/components/page-view-component" {
+declare module "cocos/ui/components/page-view" {
     /**
      * @category ui
      */
     import { EventHandler as ComponentEventHandler } from "cocos/core/components/index";
     import { EventTouch } from "cocos/core/platform/index";
     import { Vec3 } from "cocos/core/math/index";
-    import { PageViewIndicatorComponent } from "cocos/ui/components/page-view-indicator-component";
-    import { ScrollViewComponent } from "cocos/ui/components/scroll-view-component";
-    import { ScrollBarComponent } from "cocos/ui/components/scroll-bar-component";
-    import { EventType as ScrollEventType } from "cocos/ui/components/scroll-view-component";
+    import { PageViewIndicator } from "cocos/ui/components/page-view-indicator";
+    import { ScrollView } from "cocos/ui/components/scroll-view";
+    import { ScrollBar } from "cocos/ui/components/scroll-bar";
+    import { EventType as ScrollEventType } from "cocos/ui/components/scroll-view";
     import { Node } from "cocos/core/index";
     /**
      * @en Enum for Page View Size Mode.
@@ -24686,7 +24292,7 @@ declare module "cocos/ui/components/page-view-component" {
      * @zh
      * 页面视图组件
      */
-    export class PageViewComponent extends ScrollViewComponent {
+    export class PageView extends ScrollView {
         /**
          * @en
          * Specify the size type of each page in PageView.
@@ -24731,8 +24337,8 @@ declare module "cocos/ui/components/page-view-component" {
          * @zh
          * 页面视图指示器组件
          */
-        get indicator(): PageViewIndicatorComponent | null;
-        set indicator(value: PageViewIndicatorComponent | null);
+        get indicator(): PageViewIndicator | null;
+        set indicator(value: PageViewIndicator | null);
         get curPageIdx(): number;
         static SizeMode: typeof SizeMode;
         static Direction: typeof Direction;
@@ -24749,10 +24355,10 @@ declare module "cocos/ui/components/page-view-component" {
          * 该值与此临界值相比较，如果大于临界值，则进行自动翻页。
          */
         autoPageTurningThreshold: number;
-        get verticalScrollBar(): ScrollBarComponent | null;
-        set verticalScrollBar(value: ScrollBarComponent | null);
-        get horizontalScrollBar(): ScrollBarComponent | null;
-        set horizontalScrollBar(value: ScrollBarComponent | null);
+        get verticalScrollBar(): ScrollBar | null;
+        set verticalScrollBar(value: ScrollBar | null);
+        get horizontalScrollBar(): ScrollBar | null;
+        set horizontalScrollBar(value: ScrollBar | null);
         horizontal: boolean;
         vertical: boolean;
         cancelInnerEvents: boolean;
@@ -24771,7 +24377,7 @@ declare module "cocos/ui/components/page-view-component" {
         protected _direction: Direction;
         protected _scrollThreshold: number;
         protected _pageTurningEventTiming: number;
-        protected _indicator: PageViewIndicatorComponent | null;
+        protected _indicator: PageViewIndicator | null;
         protected _curPageIdx: number;
         protected _lastPageIdx: number;
         protected _pages: Node[];
@@ -24901,14 +24507,14 @@ declare module "cocos/core/renderer/ui/mesh-buffer" {
     import { GFXBuffer } from "cocos/core/gfx/buffer";
     import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
     import { UI } from "cocos/core/renderer/ui/ui";
+    import { InputAssemblerHandle } from "cocos/core/renderer/core/memory-pools";
     export class MeshBuffer {
         static OPACITY_OFFSET: number;
-        batcher: UI;
         vData: Float32Array | null;
         iData: Uint16Array | null;
         attributes: IGFXAttribute[];
         vertexBuffers: GFXBuffer[];
-        indexBuffer?: GFXBuffer;
+        indexBuffer: GFXBuffer;
         byteStart: number;
         byteOffset: number;
         indicesStart: number;
@@ -24916,16 +24522,20 @@ declare module "cocos/core/renderer/ui/mesh-buffer" {
         vertexStart: number;
         vertexOffset: number;
         lastByteOffset: number;
-        dirty: boolean;
+        private _batcher;
+        private _dirty;
         private _vertexFormatBytes;
         private _initVDataCount;
         private _initIDataCount;
         private _outOfCallback;
+        private _hInputAssemblers;
+        private _nextFreeIAHandle;
         constructor(batcher: UI);
         initialize(attrs: IGFXAttribute[], outOfCallback: ((...args: number[]) => void) | null): void;
         request(vertexCount?: number, indicesCount?: number): boolean;
         reset(): void;
         destroy(): void;
+        recordBatch(): InputAssemblerHandle;
         uploadData(): void;
         private _reallocBuffer;
         private _reallocVData;
@@ -24943,25 +24553,21 @@ declare module "cocos/core/renderer/ui/ui-draw-batch" {
     import { Camera } from "cocos/core/renderer/scene/camera";
     import { Model } from "cocos/core/renderer/scene/model";
     import { UI } from "cocos/core/renderer/ui/ui";
-    import { GFXInputAssembler } from "cocos/core/gfx/input-assembler";
     import { InputAssemblerHandle, DescriptorSetHandle } from "cocos/core/renderer/core/memory-pools";
     export class UIDrawBatch {
-        private _bufferBatch;
+        bufferBatch: MeshBuffer | null;
         camera: Camera | null;
-        ia: GFXInputAssembler | null;
-        hIA: InputAssemblerHandle;
         model: Model | null;
         material: Material | null;
         texture: GFXTexture | null;
         sampler: GFXSampler | null;
+        hInputAssembler: InputAssemblerHandle;
         hDescriptorSet: DescriptorSetHandle;
         useLocalData: Node | null;
         isStatic: boolean;
         constructor();
         destroy(ui: UI): void;
         clear(): void;
-        get bufferBatch(): MeshBuffer | null;
-        set bufferBatch(meshBuffer: MeshBuffer | null);
     }
 }
 declare module "cocos/core/renderer/ui/ui-vertex-format" {
@@ -24974,11 +24580,11 @@ declare module "cocos/core/renderer/ui/ui-vertex-format" {
         format: GFXFormat;
     }[];
 }
-declare module "cocos/ui/components/ui-static-batch-component" {
+declare module "cocos/ui/components/ui-static-batch" {
     /**
      * @category ui
      */
-    import { UIRenderComponent } from "cocos/core/components/ui-base/ui-render-component";
+    import { UIRenderable } from "cocos/core/components/ui-base/ui-renderable";
     import { UI } from "cocos/core/renderer/ui/ui";
     import { MeshBuffer } from "cocos/core/renderer/ui/mesh-buffer";
     import { UIDrawBatch } from "cocos/core/renderer/ui/ui-draw-batch";
@@ -24999,7 +24605,7 @@ declare module "cocos/ui/components/ui-static-batch-component" {
      * 用户必须通过手动方式启用收集静态合批数据[[markAsDirty]]，否则合批方式仍然采用动态合批（采集数据的流程相同）。此后渲染的内容是采用收集到的合批渲染数据，子节点的任何修改将不再有效。
      * 注意：子节点下不要放置 Mask，Graphics，以及 UI 模型或者粒子之类对象，否则会在启用完静态合批后跳过渲染。
      */
-    export class UIStaticBatchComponent extends UIRenderComponent {
+    export class UIStaticBatch extends UIRenderable {
         get dstBlendFactor(): GFXBlendFactor;
         set dstBlendFactor(value: GFXBlendFactor);
         get srcBlendFactor(): GFXBlendFactor;
@@ -25035,7 +24641,7 @@ declare module "cocos/ui/components/ui-static-batch-component" {
         protected _arrivalMaxBuffer(): void;
     }
 }
-declare module "cocos/ui/components/ui-opacity-component" {
+declare module "cocos/ui/components/ui-opacity" {
     /**
      * @category ui
      */
@@ -25049,7 +24655,7 @@ declare module "cocos/ui/components/ui-opacity-component" {
      * @zh
      * UI 透明度设置组件。可以通过该组件设置透明度来影响后续的渲染节点。已经带有渲染组件的节点可以直接修改 color 的 alpha 通道。
      */
-    export class UIOpacityComponent extends Component {
+    export class UIOpacity extends Component {
         /**
          * @en
          * The transparency value of the impact.
@@ -25064,7 +24670,7 @@ declare module "cocos/ui/components/ui-opacity-component" {
         onDisable(): void;
     }
 }
-declare module "cocos/ui/components/safe-area-component" {
+declare module "cocos/ui/components/safe-area" {
     import { Component } from "cocos/core/components/index";
     /**
      * @en
@@ -25083,7 +24689,7 @@ declare module "cocos/ui/components/safe-area-component" {
      * 该组件内部通过 API `sys.getSafeAreaRect();` 获取到当前 iOS 或 Android 设备的安全区域，并通过 Widget 组件实现适配。
      *
      */
-    export class SafeAreaComponent extends Component {
+    export class SafeArea extends Component {
         onEnable(): void;
         onDisable(): void;
         /**
@@ -25097,25 +24703,1246 @@ declare module "cocos/ui/components/safe-area-component" {
         updateArea(): void;
     }
 }
+declare module "cocos/core/animation/bound-target" {
+    import { IValueProxyFactory } from "cocos/core/animation/value-proxy";
+    import { TargetPath } from "cocos/core/animation/target-path";
+    export interface IBoundTarget {
+        setValue(value: any): void;
+        getValue(): any;
+    }
+    export interface IBufferedTarget extends IBoundTarget {
+        peek(): any;
+        pull(): void;
+        push(): void;
+    }
+    export function createBoundTarget(target: any, modifiers: TargetPath[], valueAdapter?: IValueProxyFactory): null | IBoundTarget;
+    export function createBufferedTarget(target: any, modifiers: TargetPath[], valueAdapter?: IValueProxyFactory): null | IBufferedTarget;
+}
+declare module "cocos/core/animation/playable" {
+    export class Playable {
+        /**
+         * @en Whether if this `Playable` is in playing.
+         * @zh 该 `Playable` 是否正在播放状态。
+         * @default false
+         */
+        get isPlaying(): boolean;
+        /**
+         * @en Whether if this `Playable` has been paused. This can be true even if in edit mode(isPlaying == false).
+         * @zh 该 `Playable` 是否已被暂停。
+         * @default false
+         */
+        get isPaused(): boolean;
+        /**
+         * @en Whether if this `Playable` has been paused or stopped.
+         * @zh 该 `Playable` 是否已被暂停或停止。
+         */
+        get isMotionless(): boolean;
+        private _isPlaying;
+        private _isPaused;
+        private _stepOnce;
+        /**
+         * @en Play this animation.
+         * @zh 播放动画。
+         */
+        play(): void;
+        /**
+         * @en Stop this animation.
+         * @zh 停止动画播放。
+         */
+        stop(): void;
+        /**
+         * @en Pause this animation.
+         * @zh 暂停动画。
+         */
+        pause(): void;
+        /**
+         * @en Resume this animation.
+         * @zh 重新播放动画。
+         */
+        resume(): void;
+        /**
+         * @en Perform a single frame step.
+         * @zh 执行一帧动画。
+         */
+        step(): void;
+        update(deltaTime: number): void;
+        protected onPlay(): void;
+        protected onPause(): void;
+        protected onResume(): void;
+        protected onStop(): void;
+        protected onError(message: string): void;
+    }
+}
+declare module "cocos/core/animation/skeletal-animation-blending" {
+    /**
+     * @hidden
+     */
+    import { Vec3, Quat } from "cocos/core/math/index";
+    import { Node } from "cocos/core/scene-graph/index";
+    import { IValueProxyFactory } from "cocos/core/animation/value-proxy";
+    export class BlendStateBuffer {
+        private _nodeBlendStates;
+        ref(node: Node, property: BlendingProperty): PropertyBlendState<Vec3> | PropertyBlendState<Quat>;
+        deRef(node: Node, property: BlendingProperty): void;
+        apply(): void;
+    }
+    export type IBlendStateWriter = IValueProxyFactory & {
+        destroy: () => void;
+    };
+    export function createBlendStateWriter<P extends BlendingProperty>(blendState: BlendStateBuffer, node: Node, property: P, weightProxy: {
+        weight: number;
+    }, // Effectively equals to AnimationState
+    /**
+     * True if this writer will write constant value each time.
+     */
+    constants: boolean): IBlendStateWriter;
+    type BlendingProperty = keyof NodeBlendState['properties'];
+    class PropertyBlendState<T> {
+        weight: number;
+        value: T;
+        /**
+         * How many writer reference this property.
+         */
+        refCount: number;
+        private _node;
+        constructor(node: NodeBlendState, value: T);
+        markAsDirty(): void;
+    }
+    interface NodeBlendState {
+        dirty: boolean;
+        properties: {
+            position?: PropertyBlendState<Vec3>;
+            rotation?: PropertyBlendState<Quat>;
+            eulerAngles?: PropertyBlendState<Vec3>;
+            scale?: PropertyBlendState<Vec3>;
+        };
+    }
+}
+declare module "cocos/core/animation/animation-state" {
+    /**
+     * @category animation
+     */
+    import { Node } from "cocos/core/scene-graph/node";
+    import { AnimationClip, IRuntimeCurve } from "cocos/core/animation/animation-clip";
+    import { RatioSampler } from "cocos/core/animation/animation-curve";
+    import { IBufferedTarget, IBoundTarget } from "cocos/core/animation/bound-target";
+    import { Playable } from "cocos/core/animation/playable";
+    import { WrapMode, WrappedInfo } from "cocos/core/animation/types";
+    /**
+     * @en The event type supported by Animation
+     * @zh Animation 支持的事件类型。
+     */
+    export enum EventType {
+        /**
+         * @en Emit when begin playing animation
+         * @zh 开始播放时触发。
+         */
+        PLAY = "play",
+        /**
+         * @en Emit when stop playing animation
+         * @zh 停止播放时触发。
+         */
+        STOP = "stop",
+        /**
+         * @en Emit when pause animation
+         * @zh 暂停播放时触发。
+         */
+        PAUSE = "pause",
+        /**
+         * @en Emit when resume animation
+         * @zh 恢复播放时触发。
+         */
+        RESUME = "resume",
+        /**
+         * @en If animation repeat count is larger than 1, emit when animation play to the last frame.
+         * @zh 假如动画循环次数大于 1，当动画播放到最后一帧时触发。
+         */
+        LASTFRAME = "lastframe",
+        /**
+         * @en Triggered when finish playing animation.
+         * @zh 动画完成播放时触发。
+         */
+        FINISHED = "finished"
+    }
+    export class ICurveInstance {
+        commonTargetIndex?: number;
+        private _curve;
+        private _boundTarget;
+        private _rootTargetProperty?;
+        private _curveDetail;
+        constructor(runtimeCurve: Omit<IRuntimeCurve, 'sampler'>, target: any, boundTarget: IBoundTarget);
+        applySample(ratio: number, index: number, lerpRequired: boolean, samplerResultCache: any, weight: number): void;
+        private _setValue;
+        get propertyName(): string;
+        get curveDetail(): Pick<IRuntimeCurve, "modifiers" | "valueAdapter" | "commonTarget" | "curve">;
+    }
+    /**
+     * The curves in ISamplerSharedGroup share a same keys.
+     */
+    interface ISamplerSharedGroup {
+        sampler: RatioSampler | null;
+        curves: ICurveInstance[];
+        samplerResultCache: {
+            from: number;
+            fromRatio: number;
+            to: number;
+            toRatio: number;
+        };
+    }
+    /**
+     * @en
+     * The AnimationState gives full control over animation playback process.
+     * In most cases the Animation Component is sufficient and easier to use. Use the AnimationState if you need full control.
+     * @zh
+     * AnimationState 完全控制动画播放过程。<br/>
+     * 大多数情况下 动画组件 是足够和易于使用的。如果您需要更多的动画控制接口，请使用 AnimationState。
+     *
+     */
+    export class AnimationState extends Playable {
+        /**
+         * @en The clip that is being played by this animation state.
+         * @zh 此动画状态正在播放的剪辑。
+         */
+        get clip(): AnimationClip;
+        /**
+         * @en The name of the playing animation.
+         * @zh 动画的名字。
+         */
+        get name(): string;
+        get length(): number;
+        /**
+         * @en
+         * Wrapping mode of the playing animation.
+         * Notice : dynamic change wrapMode will reset time and repeatCount property
+         * @zh
+         * 动画循环方式。
+         * 需要注意的是，动态修改 wrapMode 时，会重置 time 以及 repeatCount。
+         * @default: WrapMode.Normal
+         */
+        get wrapMode(): WrapMode;
+        set wrapMode(value: WrapMode);
+        /**
+         * @en The animation's iteration count property.
+         *
+         * A real number greater than or equal to zero (including positive infinity) representing the number of times
+         * to repeat the animation node.
+         *
+         * Values less than zero and NaN values are treated as the value 1.0 for the purpose of timing model
+         * calculations.
+         *
+         * @zh 迭代次数，指动画播放多少次后结束, normalize time。 如 2.5（2次半）。
+         *
+         * @default 1
+         */
+        get repeatCount(): number;
+        set repeatCount(value: number);
+        /**
+         * @en The start delay which represents the number of seconds from an animation's start time to the start of
+         * the active interval.
+         * @zh 延迟多少秒播放。
+         * @default 0
+         */
+        get delay(): number;
+        set delay(value: number);
+        /**
+         * @en The iteration duration of this animation in seconds. (length)
+         * @zh 单次动画的持续时间，秒。（动画长度）
+         * @readOnly
+         */
+        duration: number;
+        /**
+         * @en The animation's playback speed. 1 is normal playback speed.
+         * @zh 播放速率。
+         * @default: 1.0
+         */
+        speed: number;
+        /**
+         * @en The current time of this animation in seconds.
+         * @zh 动画当前的时间，秒。
+         * @default 0
+         */
+        time: number;
+        /**
+         * The weight.
+         */
+        weight: number;
+        frameRate: number;
+        protected _wrapMode: WrapMode;
+        protected _repeatCount: number;
+        /**
+         * Mark whether the current frame is played.
+         * When set new time to animation state, we should ensure the frame at the specified time being played at next update.
+         */
+        protected _currentFramePlayed: boolean;
+        protected _delay: number;
+        protected _delayTime: number;
+        protected _wrappedInfo: WrappedInfo;
+        protected _lastWrapInfo: WrappedInfo | null;
+        protected _lastWrapInfoEvent: WrappedInfo | null;
+        protected _process: () => void;
+        protected _target: Node | null;
+        protected _targetNode: Node | null;
+        protected _clip: AnimationClip;
+        protected _name: string;
+        protected _lastIterations?: number;
+        protected _samplerSharedGroups: ISamplerSharedGroup[];
+        /**
+         * May be `null` due to failed to initialize.
+         */
+        protected _commonTargetStatuses: (null | {
+            target: IBufferedTarget;
+            changed: boolean;
+        })[];
+        protected _curveLoaded: boolean;
+        protected _ignoreIndex: number;
+        private _blendStateBuffer;
+        private _blendStateWriters;
+        private _allowLastFrame;
+        constructor(clip: AnimationClip, name?: string);
+        get curveLoaded(): boolean;
+        initialize(root: Node, propertyCurves?: readonly IRuntimeCurve[]): void;
+        destroy(): void;
+        /**
+         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
+         * To process animation events, use `Animation` instead.
+         */
+        emit(...args: any[]): void;
+        /**
+         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
+         * To process animation events, use `Animation` instead.
+         */
+        on(type: string, callback: Function, target?: any): void | null;
+        /**
+         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
+         * To process animation events, use `Animation` instead.
+         */
+        once(type: string, callback: Function, target?: any): void | null;
+        /**
+         * @deprecated Since V1.1.1, animation states were no longer defined as event targets.
+         * To process animation events, use `Animation` instead.
+         */
+        off(type: string, callback: Function, target?: any): void;
+        /**
+         * @zh
+         * 是否允许触发 `LastFrame` 事件。
+         * @en
+         * Whether `LastFrame` should be triggered.
+         * @param allowed True if the last frame events may be triggered.
+         */
+        allowLastFrameEvent(allowed: boolean): void;
+        _setEventTarget(target: any): void;
+        setTime(time: number): void;
+        update(delta: number): void;
+        _needReverse(currentIterations: number): boolean;
+        getWrappedInfo(time: number, info?: WrappedInfo): WrappedInfo;
+        sample(): WrappedInfo;
+        process(): void;
+        simpleProcess(): void;
+        cache(frames: number): void;
+        protected onPlay(): void;
+        protected onStop(): void;
+        protected onResume(): void;
+        protected onPause(): void;
+        protected _sampleCurves(ratio: number): void;
+        private _sampleEvents;
+        private _emit;
+        private _fireEvent;
+        private _onReplayOrResume;
+        private _onPauseOrStop;
+        private _destroyBlendStateWriters;
+    }
+}
+declare module "cocos/core/animation/cross-fade" {
+    import { AnimationState } from "cocos/core/animation/animation-state";
+    import { Playable } from "cocos/core/animation/playable";
+    export class CrossFade extends Playable {
+        private readonly _managedStates;
+        private readonly _fadings;
+        constructor();
+        update(deltaTime: number): void;
+        /**
+         * 在指定时间内将从当前动画状态切换到指定的动画状态。
+         * @param state 指定的动画状态。
+         * @param duration 切换时间。
+         */
+        crossFade(state: AnimationState | null, duration: number): void;
+        clear(): void;
+        protected onPlay(): void;
+        /**
+         * 停止我们淡入淡出的所有动画状态并停止淡入淡出。
+         */
+        protected onPause(): void;
+        /**
+         * 恢复我们淡入淡出的所有动画状态并继续淡入淡出。
+         */
+        protected onResume(): void;
+        /**
+         * 停止所有淡入淡出的动画状态。
+         */
+        protected onStop(): void;
+    }
+}
+declare module "cocos/core/animation/animation-component" {
+    /**
+     * @category animation
+     */
+    import { Component } from "cocos/core/components/component";
+    import { AnimationClip } from "cocos/core/animation/animation-clip";
+    import { AnimationState, EventType } from "cocos/core/animation/animation-state";
+    import { CrossFade } from "cocos/core/animation/cross-fade";
+    const Animation_base: new (...args: any[]) => Component & import("cocos/core/event/eventify").IEventified;
+    /**
+     * @en
+     * Animation component governs a group of animation states to control playback of the states.
+     * For convenient, it stores a group of animation clips.
+     * Each of those clips would have an associated animation state uniquely created.
+     * Animation component is eventful, it dispatch a serials playback status events.
+     * See [[EventType]].
+     * @zh
+     * 动画组件管理一组动画状态，控制它们的播放。
+     * 为了方便，动画组件还存储了一组动画剪辑。
+     * 每个剪辑都会独自创建一个关联的动画状态对象。
+     * 动画组件具有事件特性，它会派发一系列播放状态相关的事件。
+     * 参考 [[EventType]]
+     */
+    export class Animation extends Animation_base {
+        /**
+         * @en
+         * Gets or sets clips this component governs.
+         * When set, associated animation state of each existing clip will be stopped.
+         * If the existing default clip is not in the set of new clips, default clip will be reset to null.
+         * @zh
+         * 获取或设置此组件管理的剪辑。
+         * 设置时，已有剪辑关联的动画状态将被停止；若默认剪辑不在新的动画剪辑中，将被重置为空。
+         */
+        get clips(): (AnimationClip | null)[];
+        set clips(value: (AnimationClip | null)[]);
+        /**
+         * @en
+         * Gets or sets the default clip.
+         * @en
+         * 获取或设置默认剪辑。
+         * 设置时，若指定的剪辑不在 `this.clips` 中则会被自动添加至 `this.clips`。
+         * @see [[playOnLoad]]
+         */
+        get defaultClip(): AnimationClip | null;
+        set defaultClip(value: AnimationClip | null);
+        static EventType: typeof EventType;
+        /**
+         * @en
+         * Whether the default clip should get into playing when this components starts.
+         * Note, this field takes no effect if `crossFade()` or `play()` has been called before this component starts.
+         * @zh
+         * 是否在组件开始运行时自动播放默认剪辑。
+         * 注意，若在组件开始运行前调用了 `crossFade` 或 `play()`，此字段将不会生效。
+         */
+        playOnLoad: boolean;
+        protected _crossFade: CrossFade;
+        protected _nameToState: Record<string, AnimationState>;
+        protected _clips: (AnimationClip | null)[];
+        protected _defaultClip: AnimationClip | null;
+        /**
+         * Whether if `crossFade()` or `play()` has been called before this component starts.
+         */
+        private _hasBeenPlayed;
+        onLoad(): void;
+        start(): void;
+        onEnable(): void;
+        onDisable(): void;
+        onDestroy(): void;
+        /**
+         * @en
+         * Switch to play specified animation state, without fading.
+         * @zh
+         * 立即切换到指定动画状态。
+         * @param name The name of the animation to be played, if absent, the default clip will be played
+         */
+        play(name?: string): void;
+        /**
+         * @en
+         * Smoothly switch to play specified animation state.
+         * @zn
+         * 平滑地切换到指定动画状态。
+         * @param name The name of the animation to switch to
+         * @param duration The duration of the cross fade, default value is 0.3s
+         */
+        crossFade(name: string, duration?: number): void;
+        /**
+         * @en
+         * Pause all animation states and all switching.
+         * @zh
+         * 暂停所有动画状态，并暂停所有切换。
+         */
+        pause(): void;
+        /**
+         * @en
+         * Resume all animation states and all switching.
+         * @zh
+         * 恢复所有动画状态，并恢复所有切换。
+         */
+        resume(): void;
+        /**
+         * @en
+         * Stop all animation states and all switching.
+         * @zh
+         * 停止所有动画状态，并停止所有切换。
+         */
+        stop(): void;
+        /**
+         * @en
+         * Get specified animation state.
+         * @zh
+         * 获取指定的动画状态。
+         * @deprecated please use [[getState]]
+         */
+        getAnimationState(name: string): AnimationState;
+        /**
+         * @en
+         * Get specified animation state.
+         * @zh
+         * 获取指定的动画状态。
+         * @param name The name of the animation
+         * @returns If no animation found, return null, otherwise the correspond animation state is returned
+         */
+        getState(name: string): AnimationState;
+        /**
+         * @en
+         * Creates a state for specified clip.
+         * If there is already a clip with same name, the existing animation state will be stopped and overridden.
+         * @zh
+         * 使用指定的动画剪辑创建一个动画状态。
+         * 若指定名称的动画状态已存在，已存在的动画状态将先被设为停止并被覆盖。
+         * @param clip The animation clip
+         * @param name The animation state name, if absent, the default clip's name will be used
+         * @returns The animation state created
+         */
+        createState(clip: AnimationClip, name?: string): AnimationState;
+        /**
+         * @en
+         * Stops and removes specified clip.
+         * @zh
+         * 停止并移除指定的动画状态。
+         * @param name The name of the animation state
+         */
+        removeState(name: string): void;
+        /**
+         * 添加一个动画剪辑到 `this.clips`中并以此剪辑创建动画状态。
+         * @deprecated please use [[createState]]
+         * @param clip The animation clip
+         * @param name The animation state name, if absent, the default clip's name will be used
+         * @returns The created animation state
+         */
+        addClip(clip: AnimationClip, name?: string): AnimationState;
+        /**
+         * @en
+         * Remove clip from the animation list. This will remove the clip and any animation states based on it.<br>
+         * If there are animation states depend on the clip are playing or clip is defaultClip, it will not delete the clip.<br>
+         * But if force is true, then will always remove the clip and any animation states based on it. If clip is defaultClip, defaultClip will be reset to null
+         * @zh
+         * 从动画列表中移除指定的动画剪辑，<br/>
+         * 如果依赖于 clip 的 AnimationState 正在播放或者 clip 是 defaultClip 的话，默认是不会删除 clip 的。<br/>
+         * 但是如果 force 参数为 true，则会强制停止该动画，然后移除该动画剪辑和相关的动画。这时候如果 clip 是 defaultClip，defaultClip 将会被重置为 null。<br/>
+         * @deprecated please use [[removeState]]
+         * @param force - If force is true, then will always remove the clip and any animation states based on it.
+         */
+        removeClip(clip: AnimationClip, force?: boolean): void;
+        /**
+         * @en
+         * Register animation event callback.<bg>
+         * The event arguments will provide the AnimationState which emit the event.<bg>
+         * When play an animation, will auto register the event callback to the AnimationState,<bg>
+         * and unregister the event callback from the AnimationState when animation stopped.
+         * @zh
+         * 注册动画事件回调。<bg>
+         * 回调的事件里将会附上发送事件的 AnimationState。<bg>
+         * 当播放一个动画时，会自动将事件注册到对应的 AnimationState 上，停止播放时会将事件从这个 AnimationState 上取消注册。
+         * @param type The event type to listen to
+         * @param callback The callback when event triggered
+         * @param target The callee when invoke the callback, could be absent
+         * @return The registered callback
+         * @example
+         * ```ts
+         * onPlay: function (type, state) {
+         *     // callback
+         * }
+         *
+         * // register event to all animation
+         * animation.on('play', this.onPlay, this);
+         * ```
+         */
+        on<TFunction extends Function>(type: EventType, callback: TFunction, thisArg?: any, once?: boolean): TFunction;
+        once<TFunction extends Function>(type: EventType, callback: TFunction, thisArg?: any): TFunction;
+        /**
+         * @en
+         * Unregister animation event callback.
+         * @zh
+         * 取消注册动画事件回调。
+         * @param {String} type The event type to unregister
+         * @param {Function} callback The callback to unregister
+         * @param {Object} target The callee of the callback, could be absent
+         * @example
+         * ```ts
+         * // unregister event to all animation
+         * animation.off('play', this.onPlay, this);
+         * ```
+         */
+        off(type: EventType, callback?: Function, thisArg?: any): void;
+        protected _createState(clip: AnimationClip, name?: string): AnimationState;
+        protected _doCreateState(clip: AnimationClip, name: string): AnimationState;
+        private _getStateByNameOrDefaultClip;
+        private _removeStateOfAutomaticClip;
+        private _syncAllowLastFrameEvent;
+        private _syncDisallowLastFrameEvent;
+    }
+    export namespace Animation {
+        type EventType = EnumAlias<typeof EventType>;
+    }
+}
+declare module "cocos/core/animation/skeletal-animation-state" {
+    /**
+     * @category animation
+     */
+    import { SkinnedMeshRenderer } from "cocos/core/3d/framework/skinned-mesh-renderer";
+    import { Quat, Vec3 } from "cocos/core/math/index";
+    import { IAnimInfo, JointAnimationInfo } from "cocos/core/renderer/models/skeletal-animation-utils";
+    import { Node } from "cocos/core/scene-graph/node";
+    import { AnimationClip } from "cocos/core/animation/animation-clip";
+    import { AnimationState } from "cocos/core/animation/animation-state";
+    import { SkeletalAnimation, Socket } from "cocos/core/animation/skeletal-animation";
+    interface ITransform {
+        pos: Vec3;
+        rot: Quat;
+        scale: Vec3;
+    }
+    interface ISocketData {
+        target: Node;
+        frames: ITransform[];
+    }
+    export class SkeletalAnimationState extends AnimationState {
+        protected _frames: number;
+        protected _bakedDuration: number;
+        protected _animInfo: IAnimInfo | null;
+        protected _sockets: ISocketData[];
+        protected _animInfoMgr: JointAnimationInfo;
+        protected _comps: SkinnedMeshRenderer[];
+        protected _parent: SkeletalAnimation | null;
+        protected _curvesInited: boolean;
+        constructor(clip: AnimationClip, name?: string);
+        initialize(root: Node): void;
+        onPlay(): void;
+        rebuildSocketCurves(sockets: Socket[]): null | undefined;
+        private _sampleCurvesBaked;
+    }
+}
+declare module "cocos/core/animation/animation-manager" {
+    /**
+     * @category animation
+     */
+    import System from "cocos/core/components/system";
+    import { Node } from "cocos/core/scene-graph/index";
+    import { BlendStateBuffer } from "cocos/core/animation/skeletal-animation-blending";
+    import { AnimationState } from "cocos/core/animation/animation-state";
+    import { CrossFade } from "cocos/core/animation/cross-fade";
+    import { Socket } from "cocos/core/animation/skeletal-animation";
+    export class AnimationManager extends System {
+        get blendState(): BlendStateBuffer;
+        static ID: string;
+        private _anims;
+        private _delayEvents;
+        private _blendStateBuffer;
+        private _crossFades;
+        private _sockets;
+        addCrossFade(crossFade: CrossFade): void;
+        removeCrossFade(crossFade: CrossFade): void;
+        update(dt: number): void;
+        destruct(): void;
+        addAnimation(anim: AnimationState): void;
+        removeAnimation(anim: AnimationState): void;
+        pushDelayEvent(fn: Function, thisArg: any, args: any[]): void;
+        addSockets(root: Node, sockets: Socket[]): void;
+        removeSockets(root: Node, sockets: Socket[]): void;
+    }
+}
+declare module "cocos/core/animation/skeletal-animation" {
+    import { Node } from "cocos/core/scene-graph/node";
+    import { AnimationClip } from "cocos/core/animation/animation-clip";
+    import { Animation } from "cocos/core/animation/animation-component";
+    import { SkeletalAnimationState } from "cocos/core/animation/skeletal-animation-state";
+    export class Socket {
+        /**
+         * @en Path of the target joint.
+         * @zh 此挂点的目标骨骼路径。
+         */
+        path: string;
+        /**
+         * @en Transform output node.
+         * @zh 此挂点的变换信息输出节点。
+         */
+        target: Node | null;
+        constructor(path?: string, target?: Node | null);
+    }
+    /**
+     * @en
+     * Skeletal animation component, offers the following features on top of [[Animation]]:
+     * * Choice between baked animation and real-time calculation, to leverage efficiency and expressiveness.
+     * * Joint socket system: Create any socket node directly under the animation component root node,
+     *   find your target joint and register both to the socket list, so that the socket node would be in-sync with the joint.
+     * @zh
+     * 骨骼动画组件，在普通动画组件基础上额外提供以下功能：
+     * * 可选预烘焙动画模式或实时计算模式，用以权衡运行时效率与效果；
+     * * 提供骨骼挂点功能：通过在动画根节点下创建挂点节点，并在骨骼动画组件上配置 socket 列表，挂点节点的 Transform 就能与骨骼保持同步。
+     */
+    export class SkeletalAnimation extends Animation {
+        static Socket: typeof Socket;
+        /**
+         * @en
+         * The joint sockets this animation component maintains.<br>
+         * Sockets have to be registered here before attaching custom nodes to animated joints.
+         * @zh
+         * 当前动画组件维护的挂点数组。要挂载自定义节点到受动画驱动的骨骼上，必须先在此注册挂点。
+         */
+        get sockets(): Socket[];
+        set sockets(val: Socket[]);
+        /**
+         * @en
+         * Whether to bake animations. Default to true,<br>
+         * which substantially increases performance while making all animations completely fixed.<br>
+         * Dynamically changing this property will take effect when playing the next animation clip.
+         * @zh
+         * 是否使用预烘焙动画，默认启用，可以大幅提高运行效时率，但所有动画效果会被彻底固定，不支持任何形式的编辑和混合。<br>
+         * 运行时动态修改此选项会在播放下一条动画片段时生效。
+         */
+        get useBakedAnimation(): boolean;
+        set useBakedAnimation(val: boolean);
+        protected _useBakedAnimation: boolean;
+        protected _sockets: Socket[];
+        onDestroy(): void;
+        start(): void;
+        querySockets(): string[];
+        rebuildSocketAnimations(): void;
+        createSocket(path: string): Node | null;
+        protected _createState(clip: AnimationClip, name?: string): SkeletalAnimationState;
+        protected _doCreateState(clip: AnimationClip, name: string): SkeletalAnimationState;
+    }
+}
+declare module "cocos/core/3d/framework/skinned-mesh-renderer" {
+    /**
+     * @category model
+     */
+    import { AnimationClip } from "cocos/core/animation/animation-clip";
+    import { Material } from "cocos/core/assets/index";
+    import { Skeleton } from "cocos/core/assets/skeleton";
+    import { models } from "cocos/core/renderer/index";
+    import { Node } from "cocos/core/scene-graph/node";
+    import { MeshRenderer } from "cocos/core/3d/framework/mesh-renderer";
+    /**
+     * @en The skinned mesh renderer component.
+     * @zh 蒙皮网格渲染器组件。
+     */
+    export class SkinnedMeshRenderer extends MeshRenderer {
+        protected _skeleton: Skeleton | null;
+        protected _skinningRoot: Node | null;
+        protected _clip: AnimationClip | null;
+        /**
+         * @en The skeleton asset.
+         * @zh 骨骼资源。
+         */
+        get skeleton(): Skeleton | null;
+        set skeleton(val: Skeleton | null);
+        /**
+         * @en The skinning root. (The node where the controlling Animation is located)
+         * 骨骼根节点的引用，对应控制此模型的动画组件所在节点。
+         */
+        get skinningRoot(): Node | null;
+        set skinningRoot(value: Node | null);
+        get model(): models.SkinningModel | models.BakedSkinningModel | null;
+        constructor();
+        __preload(): void;
+        uploadAnimation(clip: AnimationClip | null): void;
+        setUseBakedAnimation(val?: boolean): void;
+        setMaterial(material: Material | null, index: number): void;
+        protected _updateModelParams(): void;
+        private _updateModelType;
+        private _update;
+    }
+}
+declare module "cocos/core/3d/framework/skinned-mesh-batch-renderer" {
+    import { Material } from "cocos/core/assets/material";
+    import { Mesh } from "cocos/core/assets/mesh";
+    import { Skeleton } from "cocos/core/assets/skeleton";
+    import { Texture2D } from "cocos/core/assets/texture-2d";
+    import { Mat4, Vec2 } from "cocos/core/math/index";
+    import { SkinnedMeshRenderer } from "cocos/core/3d/framework/skinned-mesh-renderer";
+    export class SkinnedMeshUnit {
+        /**
+         * @en Skinned mesh of this unit.
+         * @zh 子蒙皮模型的网格模型。
+         */
+        mesh: Mesh | null;
+        /**
+         * @en Skeleton of this unit.
+         * @zh 子蒙皮模型的骨骼。
+         */
+        skeleton: Skeleton | null;
+        /**
+         * @en Skinning material of this unit.
+         * @zh 子蒙皮模型使用的材质。
+         */
+        material: Material | null;
+        _localTransform: Mat4;
+        private _offset;
+        private _size;
+        /**
+         * @en UV offset on texture atlas.
+         * @zh 在图集中的 uv 坐标偏移。
+         */
+        set offset(offset: Vec2);
+        get offset(): Vec2;
+        /**
+         * @en UV extent on texture atlas.
+         * @zh 在图集中占的 UV 尺寸。
+         */
+        set size(size: Vec2);
+        get size(): Vec2;
+        /**
+         * @en Convenient setter, copying all necessary information from target [[SkinnedMeshRenderer]] component.
+         * @zh 复制目标 [[SkinnedMeshRenderer]] 的所有属性到本单元，方便快速配置。
+         */
+        set copyFrom(comp: SkinnedMeshRenderer | null);
+        get copyFrom(): SkinnedMeshRenderer | null;
+    }
+    /**
+     * @en The skinned mesh batch renderer component, batches multiple skeleton-sharing [[SkinnedMeshRenderer]].
+     * @zh 蒙皮模型合批组件，用于合并绘制共享同一骨骼资源的所有蒙皮网格。
+     */
+    export class SkinnedMeshBatchRenderer extends SkinnedMeshRenderer {
+        /**
+         * @en Size of the generated texture atlas.
+         * @zh 合图生成的最终图集的边长。
+         */
+        atlasSize: number;
+        /**
+         * @en
+         * Texture properties that will be actually using the generated atlas.<br>
+         * The first unit's texture will be used if not specified.
+         * @zh
+         * 材质中真正参与合图的贴图属性，不参与的属性统一使用第一个 unit 的贴图。
+         */
+        batchableTextureNames: string[];
+        /**
+         * @en Source skinning model components, containing all the data to be batched.
+         * @zh 合批前的子蒙皮模型数组，最主要的数据来源。
+         */
+        units: SkinnedMeshUnit[];
+        private _textures;
+        private _batchMaterial;
+        get mesh(): Mesh | null;
+        set mesh(val: Mesh | null);
+        get skeleton(): Skeleton | null;
+        set skeleton(val: Skeleton | null);
+        onLoad(): void;
+        onDestroy(): void;
+        _onMaterialModified(idx: number, material: Material | null): void;
+        cook(): void;
+        cookMaterials(): void;
+        cookSkeletons(): void;
+        cookMeshes(): void;
+        protected cookTextures(target: Texture2D, prop: string, passIdx: number): void;
+        protected createTexture(prop: string): Texture2D;
+        protected resizeAtlases(): void;
+        private _createUnitMesh;
+    }
+}
+declare module "cocos/core/3d/framework/light-component" {
+    /**
+     * @category component/light
+     */
+    import { Component } from "cocos/core/components/component";
+    import { Color } from "cocos/core/math/index";
+    import { scene } from "cocos/core/renderer/index";
+    export const PhotometricTerm: {
+        LUMINOUS_POWER: number;
+        LUMINANCE: number;
+    };
+    /**
+     * @en static light settings.
+     * @zh 静态灯光设置
+     */
+    class StaticLightSettings {
+        protected _editorOnly: boolean;
+        protected _bakeable: boolean;
+        protected _castShadow: boolean;
+        /**
+         * @en editor only.
+         * @zh 是否只在编辑器里生效。
+         */
+        get editorOnly(): boolean;
+        set editorOnly(val: boolean);
+        /**
+         * @en bakeable.
+         * @zh 是否可烘培。
+         */
+        get bakeable(): boolean;
+        set bakeable(val: boolean);
+        /**
+         * @en cast shadow.
+         * @zh 是否投射阴影。
+         */
+        get castShadow(): boolean;
+        set castShadow(val: boolean);
+    }
+    export namespace Light {
+        type Type = EnumAlias<typeof scene.LightType>;
+        type PhotometricTerm = EnumAlias<typeof PhotometricTerm>;
+    }
+    export class Light extends Component {
+        static Type: typeof scene.LightType;
+        static PhotometricTerm: {
+            LUMINOUS_POWER: number;
+            LUMINANCE: number;
+        };
+        protected _color: Color;
+        protected _useColorTemperature: boolean;
+        protected _colorTemperature: number;
+        protected _staticSettings: StaticLightSettings;
+        protected _type: scene.LightType;
+        protected _lightType: typeof scene.Light;
+        protected _light: scene.Light | null;
+        /**
+         * @en
+         * Color of the light.
+         * @zh
+         * 光源颜色。
+         */
+        get color(): Readonly<Color>;
+        set color(val: Readonly<Color>);
+        /**
+         * @en
+         * Whether to enable light color temperature.
+         * @zh
+         * 是否启用光源色温。
+         */
+        get useColorTemperature(): boolean;
+        set useColorTemperature(enable: boolean);
+        /**
+         * @en
+         * The light color temperature.
+         * @zh
+         * 光源色温。
+         */
+        get colorTemperature(): number;
+        set colorTemperature(val: number);
+        /**
+         * @en
+         * static light settings.
+         * @zh
+         * 静态灯光设置。
+         */
+        get staticSettings(): StaticLightSettings;
+        set staticSettings(val: StaticLightSettings);
+        /**
+         * @en
+         * The light type.
+         * @zh
+         * 光源类型。
+         */
+        get type(): scene.LightType;
+        constructor();
+        onLoad(): void;
+        onEnable(): void;
+        onDisable(): void;
+        onDestroy(): void;
+        protected _createLight(): void;
+        protected _destroyLight(): void;
+        protected _attachToScene(): void;
+        protected _detachFromScene(): void;
+    }
+}
+declare module "cocos/core/3d/framework/directional-light-component" {
+    import { scene } from "cocos/core/renderer/index";
+    import { Light } from "cocos/core/3d/framework/light-component";
+    export class DirectionalLight extends Light {
+        protected _illuminance: number;
+        protected _type: scene.LightType;
+        protected _light: scene.DirectionalLight | null;
+        /**
+         * @en
+         * The light source intensity.
+         * @zh
+         * 光源强度。
+         */
+        get illuminance(): number;
+        set illuminance(val: number);
+        constructor();
+        protected _createLight(): void;
+    }
+}
+declare module "cocos/core/3d/framework/sphere-light-component" {
+    import { scene } from "cocos/core/renderer/index";
+    import { Light } from "cocos/core/3d/framework/light-component";
+    export class SphereLight extends Light {
+        protected _size: number;
+        protected _luminance: number;
+        protected _term: number;
+        protected _range: number;
+        protected _type: scene.LightType;
+        protected _light: scene.SphereLight | null;
+        /**
+         * @en Luminous power of the light.
+         * @zh 光通量。
+         */
+        get luminousPower(): number;
+        set luminousPower(val: number);
+        /**
+         * @en Luminance of the light.
+         * @zh 光亮度。
+         */
+        get luminance(): number;
+        set luminance(val: number);
+        /**
+         * @en The photometric term currently being used.
+         * @zh 当前使用的光度学计量单位。
+         */
+        get term(): number;
+        set term(val: number);
+        /**
+         * @en
+         * Size of the light.
+         * @zh
+         * 光源大小。
+         */
+        get size(): number;
+        set size(val: number);
+        /**
+         * @en
+         * Range of the light.
+         * @zh
+         * 光源范围。
+         */
+        get range(): number;
+        set range(val: number);
+        constructor();
+        protected _createLight(): void;
+    }
+}
+declare module "cocos/core/3d/framework/spot-light-component" {
+    import { scene } from "cocos/core/renderer/index";
+    import { Light } from "cocos/core/3d/framework/light-component";
+    export class SpotLight extends Light {
+        protected _size: number;
+        protected _luminance: number;
+        protected _term: number;
+        protected _range: number;
+        protected _spotAngle: number;
+        protected _type: scene.LightType;
+        protected _light: scene.SpotLight | null;
+        /**
+         * @en Luminous power of the light.
+         * @zh 光通量。
+         */
+        get luminousPower(): number;
+        set luminousPower(val: number);
+        /**
+         * @en Luminance of the light.
+         * @zh 光亮度。
+         */
+        get luminance(): number;
+        set luminance(val: number);
+        /**
+         * @en The photometric term currently being used.
+         * @zh 当前使用的光度学计量单位。
+         */
+        get term(): number;
+        set term(val: number);
+        /**
+         * @en
+         * Size of the light.
+         * @zh
+         * 光源大小。
+         */
+        get size(): number;
+        set size(val: number);
+        /**
+         * @en
+         * Range of the light.
+         * @zh
+         * 光源范围。
+         */
+        get range(): number;
+        set range(val: number);
+        /**
+         * @en
+         * The spot light cone angle.
+         * @zh
+         * 聚光灯锥角。
+         */
+        get spotAngle(): number;
+        set spotAngle(val: number);
+        constructor();
+        protected _createLight(): void;
+    }
+}
+declare module "cocos/core/3d/framework/deprecated" {
+    import { MeshRenderer } from "cocos/core/3d/framework/mesh-renderer";
+    import { Camera } from "cocos/core/3d/framework/camera-component";
+    import { Light } from "cocos/core/3d/framework/light-component";
+    import { SpotLight } from "cocos/core/3d/framework/spot-light-component";
+    import { SphereLight } from "cocos/core/3d/framework/sphere-light-component";
+    import { DirectionalLight } from "cocos/core/3d/framework/directional-light-component";
+    import { SkinnedMeshRenderer } from "cocos/core/3d/framework/skinned-mesh-renderer";
+    import { SkinnedMeshBatchRenderer, SkinnedMeshUnit } from "cocos/core/3d/framework/skinned-mesh-batch-renderer";
+    /**
+     * Alias of [[Camera]]
+     * @deprecated Since v1.2
+     */
+    export { Camera as CameraComponent };
+    /**
+     * Alias of [[Light]]
+     * @deprecated Since v1.2
+     */
+    export { Light as LightComponent };
+    /**
+     * Alias of [[DirectionalLight]]
+     * @deprecated Since v1.2
+     */
+    export { DirectionalLight as DirectionalLightComponent };
+    /**
+     * Alias of [[SphereLight]]
+     * @deprecated Since v1.2
+     */
+    export { SphereLight as SphereLightComponent };
+    /**
+     * Alias of [[SpotLight]]
+     * @deprecated Since v1.2
+     */
+    export { SpotLight as SpotLightComponent };
+    /**
+     * Alias of [[MeshRenderer]]
+     * @deprecated Since v1.2
+     */
+    export { MeshRenderer as ModelComponent };
+    /**
+     * Alias of [[SkinnedMeshRenderer]]
+     * @deprecated Since v1.2
+     */
+    export { SkinnedMeshRenderer as SkinningModelComponent };
+    /**
+     * Alias of [[SkinnedMeshUnit]]
+     * @deprecated Since v1.2
+     */
+    export { SkinnedMeshUnit as SkinningModelUnit };
+    /**
+     * Alias of [[SkinnedMeshBatchRenderer]]
+     * @deprecated Since v1.2
+     */
+    export { SkinnedMeshBatchRenderer as BatchedSkinningModelComponent };
+}
+declare module "cocos/core/3d/framework/index" {
+    import { SkinnedMeshBatchRenderer, SkinnedMeshUnit } from "cocos/core/3d/framework/skinned-mesh-batch-renderer";
+    import { Camera } from "cocos/core/3d/framework/camera-component";
+    import { DirectionalLight } from "cocos/core/3d/framework/directional-light-component";
+    import { Light } from "cocos/core/3d/framework/light-component";
+    import { MeshRenderer } from "cocos/core/3d/framework/mesh-renderer";
+    import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
+    import { SkinnedMeshRenderer } from "cocos/core/3d/framework/skinned-mesh-renderer";
+    import { SphereLight } from "cocos/core/3d/framework/sphere-light-component";
+    import { SpotLight } from "cocos/core/3d/framework/spot-light-component";
+    export { Camera, Light, MeshRenderer, SkinnedMeshRenderer, SkinnedMeshBatchRenderer, SkinnedMeshUnit, RenderableComponent, DirectionalLight, SphereLight, SpotLight, };
+    /** deprecated */
+    export * from "cocos/core/3d/framework/deprecated";
+}
+declare module "cocos/core/3d/index" {
+    /**
+     * @hidden
+     */
+    export * from "cocos/core/3d/builtin/index";
+    export * from "cocos/core/3d/framework/index";
+    import * as utils from "cocos/core/3d/misc/utils";
+    export { utils, };
+}
+declare module "cocos/ui/components/ui-coodinate-tracker" {
+    /**
+     * @category component
+     */
+    import { Component } from "cocos/core/components/component";
+    import { EventHandler } from "cocos/core/components/component-event-handler";
+    import { Node } from "cocos/core/scene-graph/index";
+    import { Camera } from "cocos/core/3d/index";
+    import { Vec3 } from "cocos/core/math/index";
+    /**
+     * @zh 3D 节点映射 UI 节点组件
+     * 主要提供映射后的转换世界坐标以及模拟透视相机远近比。
+     */
+    export class UICoordinateTracker extends Component {
+        /**
+         * @zh
+         * 目标对象。
+         */
+        get target(): Node | null;
+        set target(value: Node | null);
+        /**
+         * @zh
+         * 照射相机。
+         */
+        get camera(): Camera | null;
+        set camera(value: Camera | null);
+        /**
+         * @zh
+         * 是否是缩放映射。
+         */
+        get useScale(): boolean;
+        set useScale(value: boolean);
+        /**
+         * @zh
+         * 距相机多少距离为正常显示计算大小。
+         */
+        get distance(): number;
+        set distance(value: number);
+        /**
+         * @zh
+         * 映射数据事件。回调的第一个参数是映射后的本地坐标，第二个是距相机距离比。
+         */
+        syncEvents: EventHandler[];
+        protected _target: Node | null;
+        protected _camera: Camera | null;
+        protected _useScale: boolean;
+        protected _distance: number;
+        protected _transformPos: Vec3;
+        protected _viewPos: Vec3;
+        protected _canMove: boolean;
+        protected _lastWpos: Vec3;
+        protected _lastCameraPos: Vec3;
+        onEnable(): void;
+        update(): void;
+        protected _checkCanMove(): void;
+    }
+}
+declare module "cocos/ui/components/block-input-events" {
+    import { Component } from "cocos/core/components/component";
+    export class BlockInputEvents extends Component {
+        onEnable(): void;
+        onDisable(): void;
+    }
+}
 declare module "cocos/ui/components/widget-manager" {
     import { Node } from "cocos/core/scene-graph/node";
-    import { AlignFlags, AlignMode, WidgetComponent } from "cocos/ui/components/widget-component";
+    import { AlignFlags, AlignMode, Widget } from "cocos/ui/components/widget";
     function updateAlignment(node: Node): void;
     export const widgetManager: {
         isAligning: boolean;
         _nodesOrderDirty: boolean;
-        _activeWidgetsIterator: import("cocos/core/utils/mutable-forward-iterator").default<WidgetComponent>;
+        _activeWidgetsIterator: import("cocos/core/utils/mutable-forward-iterator").default<Widget>;
         animationState: {
             previewing: boolean;
             time: number;
             animatedSinceLastFrame: boolean;
         } | null;
         init(): void;
-        add(widget: WidgetComponent): void;
-        remove(widget: WidgetComponent): void;
+        add(widget: Widget): void;
+        remove(widget: Widget): void;
         onResized(): void;
         refreshWidgetOnResized(node: Node): void;
-        updateOffsetsToStayPut(widget: WidgetComponent, e?: AlignFlags | undefined): void;
+        updateOffsetsToStayPut(widget: Widget, e?: AlignFlags | undefined): void;
         updateAlignment: typeof updateAlignment;
         AlignMode: typeof AlignMode;
         AlignFlags: typeof AlignFlags;
@@ -25125,30 +25952,31 @@ declare module "cocos/ui/components/index" {
     /**
      * @hidden
      */
-    export { ButtonComponent } from "cocos/ui/components/button-component";
-    export { EditBoxComponent } from "cocos/ui/components/editbox/edit-box-component";
-    export * from "cocos/ui/components/label-component";
-    export { LayoutComponent } from "cocos/ui/components/layout-component";
-    export { MaskComponent } from "cocos/ui/components/mask-component";
-    export { ProgressBarComponent } from "cocos/ui/components/progress-bar-component";
-    export { RichTextComponent } from "cocos/ui/components/rich-text-component";
-    export { ScrollBarComponent } from "cocos/ui/components/scroll-bar-component";
-    export { ScrollViewComponent } from "cocos/ui/components/scroll-view-component";
-    export { SliderComponent } from "cocos/ui/components/slider-component";
-    export { SpriteComponent } from "cocos/ui/components/sprite-component";
-    export { ToggleComponent } from "cocos/ui/components/toggle-component";
-    export { ToggleContainerComponent } from "cocos/ui/components/toggle-container-component";
-    export { UIModelComponent } from "cocos/ui/components/ui-model-component";
-    export { ViewGroupComponent } from "cocos/ui/components/view-group-component";
-    export { WidgetComponent } from "cocos/ui/components/widget-component";
-    export { LabelOutlineComponent } from "cocos/ui/components/label-outline-component";
-    export { GraphicsComponent } from "cocos/ui/components/graphics-component";
-    export { UIReorderComponent } from "cocos/ui/components/ui-reorder-component";
-    export { PageViewComponent } from "cocos/ui/components/page-view-component";
-    export { PageViewIndicatorComponent } from "cocos/ui/components/page-view-indicator-component";
-    export { UIStaticBatchComponent } from "cocos/ui/components/ui-static-batch-component";
-    export { UIOpacityComponent } from "cocos/ui/components/ui-opacity-component";
-    export { SafeAreaComponent } from "cocos/ui/components/safe-area-component";
+    export { Button } from "cocos/ui/components/button";
+    export { EditBox } from "cocos/ui/components/editbox/edit-box";
+    export * from "cocos/ui/components/label";
+    export { Layout } from "cocos/ui/components/layout";
+    export { Mask } from "cocos/ui/components/mask";
+    export { ProgressBar } from "cocos/ui/components/progress-bar";
+    export { RichText } from "cocos/ui/components/rich-text";
+    export { ScrollBar } from "cocos/ui/components/scroll-bar";
+    export { ScrollView } from "cocos/ui/components/scroll-view";
+    export { Slider } from "cocos/ui/components/slider";
+    export { Sprite } from "cocos/ui/components/sprite";
+    export { Toggle } from "cocos/ui/components/toggle";
+    export { ToggleContainer } from "cocos/ui/components/toggle-container";
+    export { UIMeshRenderer } from "cocos/ui/components/ui-mesh-renderer";
+    export { ViewGroup } from "cocos/ui/components/view-group";
+    export { Widget } from "cocos/ui/components/widget";
+    export { LabelOutline } from "cocos/ui/components/label-outline";
+    export { Graphics } from "cocos/ui/components/graphics";
+    export { PageView } from "cocos/ui/components/page-view";
+    export { PageViewIndicator } from "cocos/ui/components/page-view-indicator";
+    export { UIStaticBatch } from "cocos/ui/components/ui-static-batch";
+    export { UIOpacity } from "cocos/ui/components/ui-opacity";
+    export { SafeArea } from "cocos/ui/components/safe-area";
+    export { UICoordinateTracker } from "cocos/ui/components/ui-coodinate-tracker";
+    export { BlockInputEvents } from "cocos/ui/components/block-input-events";
     export { widgetManager } from "cocos/ui/components/widget-manager";
 }
 declare module "cocos/ui/assembler/graphics/webgl/earcut" {
@@ -25181,29 +26009,29 @@ declare module "cocos/ui/assembler/label/bmfont" {
 }
 declare module "cocos/ui/assembler/label/letter" {
     import { UI } from "cocos/core/renderer/ui/ui";
-    import { LabelComponent } from "cocos/ui/components/label-component";
+    import { Label } from "cocos/ui/components/label";
     /**
      * letter 组装器
      * 可通过 `UI.letter` 获取该组装器。
      */
     export const letter: {
-        createData(comp: LabelComponent): import("cocos/core/renderer/ui/render-data").RenderData;
-        fillBuffers(comp: LabelComponent, renderer: UI): void;
+        createData(comp: Label): import("cocos/core/renderer/ui/render-data").RenderData;
+        fillBuffers(comp: Label, renderer: UI): void;
         appendQuad: any;
     };
 }
 declare module "cocos/ui/assembler/label/ttfUtils" {
     import { Vec2 } from "cocos/core/math/index";
-    import { LabelComponent } from "cocos/ui/components/index";
+    import { Label } from "cocos/ui/components/index";
     import { ISharedLabelData } from "cocos/ui/assembler/label/font-utils";
-    import { UITransformComponent } from "cocos/core/components/ui-base/ui-transform-component";
+    import { UITransform } from "cocos/core/components/ui-base/ui-transform";
     export const ttfUtils: {
         getAssemblerData(): ISharedLabelData;
         resetAssemblerData(assemblerData: ISharedLabelData): void;
-        updateRenderData(comp: LabelComponent): void;
-        updateVertexData(comp: LabelComponent): void;
-        _updateFontFamily(comp: LabelComponent): void;
-        _updateProperties(comp: LabelComponent, trans: UITransformComponent): void;
+        updateRenderData(comp: Label): void;
+        updateVertexData(comp: Label): void;
+        _updateFontFamily(comp: Label): void;
+        _updateProperties(comp: Label, trans: UITransform): void;
         _calculateFillTextStartPosition(): Vec2;
         _updateTexture(): void;
         _calculateUnderlineStartPosition(): Vec2;
@@ -25343,16 +26171,146 @@ declare module "cocos/ui/assembler/index" {
     export * from "cocos/ui/assembler/sprite/index";
     export * from "cocos/core/renderer/ui/base";
 }
+declare module "cocos/ui/deprecated" {
+    import { BlockInputEvents, Button, EditBox, Layout, Mask, Label, LabelOutline, ProgressBar, RichText, ScrollView, ScrollBar, Slider, Sprite, Toggle, ToggleContainer, UIMeshRenderer, Widget, Graphics, PageView, PageViewIndicator, UIStaticBatch, UIOpacity, SafeArea, UICoordinateTracker } from "cocos/ui/components/index";
+    /**
+     * @deprecated Since v1.2
+     */
+    export class UIReorderComponent {
+        constructor();
+    }
+    /**
+     * Alias of [[Button]]
+     * @deprecated Since v1.2
+     */
+    export { Button as ButtonComponent };
+    /**
+     * Alias of [[EditBox]]
+     * @deprecated Since v1.2
+     */
+    export { EditBox as EditBoxComponent };
+    /**
+     * Alias of [[Layout]]
+     * @deprecated Since v1.2
+     */
+    export { Layout as LayoutComponent };
+    /**
+     * Alias of [[Mask]]
+     * @deprecated Since v1.2
+     */
+    export { Mask as MaskComponent };
+    /**
+     * Alias of [[Label]]
+     * @deprecated Since v1.2
+     */
+    export { Label as LabelComponent };
+    /**
+     * Alias of [[LabelOutline]]
+     * @deprecated Since v1.2
+     */
+    export { LabelOutline as LabelOutlineComponent };
+    /**
+     * Alias of [[ProgressBar]]
+     * @deprecated Since v1.2
+     */
+    export { ProgressBar as ProgressBarComponent };
+    /**
+     * Alias of [[RichText]]
+     * @deprecated Since v1.2
+     */
+    export { RichText as RichTextComponent };
+    /**
+     * Alias of [[ScrollView]]
+     * @deprecated Since v1.2
+     */
+    export { ScrollView as ScrollViewComponent };
+    /**
+     * Alias of [[ScrollBar]]
+     * @deprecated Since v1.2
+     */
+    export { ScrollBar as ScrollBarComponent };
+    /**
+     * Alias of [[Slider]]
+     * @deprecated Since v1.2
+     */
+    export { Slider as SliderComponent };
+    /**
+     * Alias of [[Sprite]]
+     * @deprecated Since v1.2
+     */
+    export { Sprite as SpriteComponent };
+    /**
+     * Alias of [[Toggle]]
+     * @deprecated Since v1.2
+     */
+    export { Toggle as ToggleComponent };
+    /**
+     * Alias of [[ToggleContainer]]
+     * @deprecated Since v1.2
+     */
+    export { ToggleContainer as ToggleContainerComponent };
+    /**
+     * Alias of [[UIMeshRenderer]]
+     * @deprecated Since v1.2
+     */
+    export { UIMeshRenderer as UIModelComponent };
+    /**
+     * Alias of [[Widget]]
+     * @deprecated Since v1.2
+     */
+    export { Widget as WidgetComponent };
+    /**
+     * Alias of [[Graphics]]
+     * @deprecated Since v1.2
+     */
+    export { Graphics as GraphicsComponent };
+    /**
+     * Alias of [[PageView]]
+     * @deprecated Since v1.2
+     */
+    export { PageView as PageViewComponent };
+    /**
+     * Alias of [[PageViewIndicator]]
+     * @deprecated Since v1.2
+     */
+    export { PageViewIndicator as PageViewIndicatorComponent };
+    /**
+     * Alias of [[UIStaticBatch]]
+     * @deprecated Since v1.2
+     */
+    export { UIStaticBatch as UIStaticBatchComponent };
+    /**
+     * Alias of [[UIOpacity]]
+     * @deprecated Since v1.2
+     */
+    export { UIOpacity as UIOpacityComponent };
+    /**
+     * Alias of [[SafeArea]]
+     * @deprecated Since v1.2
+     */
+    export { SafeArea as SafeAreaComponent };
+    /**
+     * Alias of [[UICoordinateTracker]]
+     * @deprecated Since v1.2
+     */
+    export { UICoordinateTracker as UICoordinateTrackerComponent };
+    /**
+     * Alias of [[BlockInputEvents]]
+     * @deprecated Since v1.2
+     */
+    export { BlockInputEvents as BlockInputEventsComponent };
+}
 declare module "cocos/ui/index" {
     /**
      * @hidden
      */
-    import { barFilled, bmfont, CanvasPool, graphics, graphicsAssembler, labelAssembler, letter, mask, maskEnd, radialFilled, simple, sliced, spriteAssembler, ttf } from "cocos/ui/assembler/index";
+    import { CanvasPool, graphicsAssembler, labelAssembler, spriteAssembler } from "cocos/ui/assembler/index";
     import { MeshBuffer } from "cocos/core/renderer/ui/mesh-buffer";
     import * as UIVertexFormat from "cocos/core/renderer/ui/ui-vertex-format";
     import { StencilManager } from "cocos/core/renderer/ui/stencil-manager";
     export * from "cocos/ui/components/index";
-    export { MeshBuffer, UIVertexFormat, StencilManager, CanvasPool, barFilled, radialFilled, simple, sliced, ttf, bmfont, letter, mask, maskEnd, spriteAssembler, graphics, labelAssembler, graphicsAssembler, };
+    export * from "cocos/ui/deprecated";
+    export { MeshBuffer, UIVertexFormat, StencilManager, CanvasPool, spriteAssembler, labelAssembler, graphicsAssembler, };
 }
 declare module "cocos/core/renderer/ui/ui-batch-model" {
     /**
@@ -25397,9 +26355,9 @@ declare module "cocos/core/renderer/ui/ui" {
     /**
      * @hidden
      */
-    import { UIStaticBatchComponent } from "cocos/ui/index";
+    import { UIStaticBatch } from "cocos/ui/index";
     import { Material } from "cocos/core/assets/material";
-    import { CanvasComponent, UIComponent, UIRenderComponent } from "cocos/core/components/ui-base/index";
+    import { Canvas, UIComponent, UIRenderable } from "cocos/core/components/ui-base/index";
     import { GFXDevice } from "cocos/core/gfx/device";
     import { GFXSampler } from "cocos/core/gfx/sampler";
     import { GFXTexture } from "cocos/core/gfx/texture";
@@ -25417,7 +26375,7 @@ declare module "cocos/core/renderer/ui/ui" {
         get renderScene(): RenderScene;
         get currBufferBatch(): MeshBuffer | null;
         set currBufferBatch(value: MeshBuffer | null);
-        set currStaticRoot(value: UIStaticBatchComponent | null);
+        set currStaticRoot(value: UIStaticBatch | null);
         device: GFXDevice;
         private _screens;
         private _bufferBatchPool;
@@ -25448,31 +26406,31 @@ declare module "cocos/core/renderer/ui/ui" {
         _removeUIMaterial(hash: number): void;
         /**
          * @en
-         * Add the managed CanvasComponent.
+         * Add the managed Canvas.
          *
          * @zh
          * 添加屏幕组件管理。
          *
          * @param comp - 屏幕组件。
          */
-        addScreen(comp: CanvasComponent): void;
+        addScreen(comp: Canvas): void;
         /**
          * @en
-         * Get the CanvasComponent by number.
+         * Get the Canvas by number.
          *
          * @zh
          * 通过屏幕编号获得屏幕组件。
          *
          * @param visibility - 屏幕编号。
          */
-        getScreen(visibility: number): CanvasComponent | null;
+        getScreen(visibility: number): Canvas | null;
         /**
          * @zh
-         * Removes the CanvasComponent from the list.
+         * Removes the Canvas from the list.
          *
          * @param comp - 被移除的屏幕。
          */
-        removeScreen(comp: CanvasComponent): void;
+        removeScreen(comp: Canvas): void;
         update(dt: number): void;
         sortScreens(): void;
         render(): void;
@@ -25480,31 +26438,31 @@ declare module "cocos/core/renderer/ui/ui" {
          * @en
          * Render component data submission process of UI.
          * The submitted vertex data is the UI for world coordinates.
-         * For example: The UI components except Graphics and UIModelComponent.
+         * For example: The UI components except Graphics and UIModel.
          *
          * @zh
-         * UI 渲染组件数据提交流程（针对提交的顶点数据是世界坐标的提交流程，例如：除 graphics 和 uimodel 的大部分 ui 组件）。
+         * UI 渲染组件数据提交流程（针对提交的顶点数据是世界坐标的提交流程，例如：除 Graphics 和 UIModel 的大部分 ui 组件）。
          * 此处的数据最终会生成需要提交渲染的 model 数据。
          *
          * @param comp - 当前执行组件。
          * @param frame - 当前执行组件贴图。
          * @param assembler - 当前组件渲染数据组装器。
          */
-        commitComp(comp: UIRenderComponent, frame: GFXTexture | null | undefined, assembler: any, sampler?: GFXSampler | null): void;
+        commitComp(comp: UIRenderable, frame: GFXTexture | null | undefined, assembler: any, sampler?: GFXSampler | null): void;
         /**
          * @en
          * Render component data submission process of UI.
          * The submitted vertex data is the UI for local coordinates.
-         * For example: The UI components of Graphics and UIModelComponent.
+         * For example: The UI components of Graphics and UIModel.
          *
          * @zh
-         * UI 渲染组件数据提交流程（针对例如： graphics 和 uimodel 等数据量较为庞大的 ui 组件）。
+         * UI 渲染组件数据提交流程（针对例如： Graphics 和 UIModel 等数据量较为庞大的 ui 组件）。
          *
          * @param comp - 当前执行组件。
          * @param model - 提交渲染的 model 数据。
          * @param mat - 提交渲染的材质。
          */
-        commitModel(comp: UIComponent | UIRenderComponent, model: Model | null, mat: Material | null): void;
+        commitModel(comp: UIComponent | UIRenderable, model: Model | null, mat: Material | null): void;
         /**
          * @en
          * Submit separate render data.
@@ -25514,7 +26472,7 @@ declare module "cocos/core/renderer/ui/ui" {
          * 提交独立渲染数据.
          * @param comp 静态组件
          */
-        commitStaticBatch(comp: UIStaticBatchComponent): void;
+        commitStaticBatch(comp: UIStaticBatch): void;
         /**
          * @en
          * End a section of render data and submit according to the batch condition.
@@ -25522,7 +26480,7 @@ declare module "cocos/core/renderer/ui/ui" {
          * @zh
          * 根据合批条件，结束一段渲染数据并提交。
          */
-        autoMergeBatches(renderComp?: UIRenderComponent): void;
+        autoMergeBatches(renderComp?: UIRenderable): void;
         /**
          * @en
          * Force changes to current batch data and merge
@@ -25578,8 +26536,8 @@ declare module "cocos/core/scene-graph/node-ui-properties" {
      * @category scene-graph
      */
     import { UIComponent } from "cocos/core/components/ui-base/ui-component";
-    import { UITransformComponent } from "cocos/core/components/ui-base/ui-transform-component";
-    import { UIRenderComponent } from "cocos/core/components/index";
+    import { UITransform } from "cocos/core/components/ui-base/ui-transform";
+    import { UIRenderable } from "cocos/core/components/ui-base/ui-renderable";
     /**
      * @en Node's UI properties abstraction
      * @zh 节点上 UI 相关的属性抽象类
@@ -25589,19 +26547,19 @@ declare module "cocos/core/scene-graph/node-ui-properties" {
          * @en The UI transform component
          * @zh UI 变换组件
          */
-        get uiTransformComp(): UITransformComponent | null;
-        set uiTransformComp(value: UITransformComponent | null);
+        get uiTransformComp(): UITransform | null;
+        set uiTransformComp(value: UITransform | null);
         /**
          * @en The base UI component
          * @zh UI 基类组件
          */
-        uiComp: UIComponent | UIRenderComponent | null;
+        uiComp: UIComponent | UIRenderable | null;
         /**
          * @en The opacity of the UI node
          * @zh UI 透明度
          */
         opacity: number;
-        protected _uiTransformComp: UITransformComponent | null;
+        protected _uiTransformComp: UITransform | null;
         private _node;
         constructor(node: any);
     }
@@ -25999,8 +26957,21 @@ declare module "cocos/core/data/instantiate" {
      * node.parent = director.getScene();
      * ```
      */
-    function instantiate(prefab: Prefab): Node;
-    namespace instantiate {
+    export function instantiate(prefab: Prefab): Node;
+    /**
+     * @zh 从 Prefab 实例化出新节点。
+     * @en Instantiate a node from the Prefab.
+     * @param prefab The prefab.
+     * @returns The instantiated node.
+     * @example
+     * ```ts
+     * import { instantiate, director } from 'cc';
+     * // Instantiate node from prefab.
+     * const node = instantiate(prefabAsset);
+     * node.parent = director.getScene();
+     * ```
+     */
+    export namespace instantiate {
         var _clone: typeof doInstantiate;
     }
     /**
@@ -26020,12 +26991,28 @@ declare module "cocos/core/data/instantiate" {
      * node.parent = director.getScene();
      * ```
      */
-    function instantiate<T>(original: T): T;
-    namespace instantiate {
+    export function instantiate<T>(original: T): T;
+    /**
+     * @en Clones the object `original.
+     * @zh 克隆指定的任意类型的对象。
+     * @param original An existing object that you want to make a copy of.
+     * It can be any JavaScript object(`typeof original === 'object'`) but:
+     * - it shall not be array or null;
+     * - it shall not be object of `Asset`;
+     * - if it's an object of `CCObject`, it should not have been destroyed.
+     * @returns The newly instantiated object.
+     * @example
+     * ```ts
+     * import { instantiate, director } from 'cc';
+     * // Clone a node.
+     * const node = instantiate(targetNode);
+     * node.parent = director.getScene();
+     * ```
+     */
+    export namespace instantiate {
         var _clone: typeof doInstantiate;
     }
     function doInstantiate(obj: any, parent?: any): any;
-    export default instantiate;
 }
 declare module "cocos/core/data/index" {
     /**
@@ -26033,10 +27020,10 @@ declare module "cocos/core/data/index" {
      */
     import * as _decorator from "cocos/core/data/class-decorator";
     export { _decorator };
-    export { default as CCClass } from "cocos/core/data/class";
+    export { CCClass } from "cocos/core/data/class";
     export { CCObject, isValid } from "cocos/core/data/object";
-    export { default as deserialize } from "cocos/core/data/deserialize";
-    export { default as instantiate } from "cocos/core/data/instantiate";
+    export { deserialize } from "cocos/core/data/deserialize";
+    export { instantiate } from "cocos/core/data/instantiate";
     export { CCInteger, CCFloat, CCBoolean, CCString } from "cocos/core/data/utils/attribute";
     export { CompactValueTypeArray } from "cocos/core/data/utils/compact-value-type-array";
 }
@@ -26301,7 +27288,7 @@ declare module "cocos/core/pipeline/render-view" {
 declare module "cocos/core/pipeline/render-stage" {
     import { RenderView } from "cocos/core/pipeline/render-view";
     import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
-    import { RenderFlow } from "cocos/core/index";
+    import { RenderFlow } from "cocos/core/pipeline/render-flow";
     /**
      * @en The render stage information descriptor
      * @zh 渲染阶段描述信息。
@@ -27086,6 +28073,8 @@ declare module "cocos/core/pipeline/render-shadowMap-batched-queue" {
         private _shaderArray;
         private _shadowMapBuffer;
         private _phaseID;
+        private _instancedQueue;
+        private _batchedQueue;
         /**
          * @zh
          * clear ligth-Batched-Queue
@@ -27151,133 +28140,6 @@ declare module "cocos/core/pipeline/shadow/shadow-flow" {
         activate(pipeline: ForwardPipeline): void;
         render(view: RenderView): void;
         private resizeShadowMap;
-    }
-}
-declare module "cocos/core/renderer/scene/fog" {
-    import { Color } from "cocos/core/math/index";
-    /**
-     * @zh
-     * 全局雾类型。
-     * @en
-     * The global fog type
-     * @static
-     * @enum FogInfo.FogType
-     */
-    export const FogType: {
-        /**
-         * @zh
-         * 线性雾。
-         * @en
-         * Linear fog
-         * @readonly
-         */
-        LINEAR: number;
-        /**
-         * @zh
-         * 指数雾。
-         * @en
-         * Exponential fog
-         * @readonly
-         */
-        EXP: number;
-        /**
-         * @zh
-         * 指数平方雾。
-         * @en
-         * Exponential square fog
-         * @readonly
-         */
-        EXP_SQUARED: number;
-        /**
-         * @zh
-         * 层叠雾。
-         * @en
-         * Layered fog
-         * @readonly
-         */
-        LAYERED: number;
-    };
-    export class Fog {
-        /**
-         * @zh 是否启用全局雾效
-         * @en Enable global fog
-         */
-        set enabled(val: boolean);
-        get enabled(): boolean;
-        /**
-         * @zh 全局雾颜色
-         * @en Global fog color
-         */
-        set fogColor(val: Color);
-        get fogColor(): Color;
-        /**
-         * @zh 全局雾类型
-         * @en Global fog type
-         */
-        get type(): number;
-        set type(val: number);
-        /**
-         * @zh 全局雾浓度
-         * @en Global fog density
-         */
-        get fogDensity(): number;
-        set fogDensity(val: number);
-        /**
-         * @zh 雾效起始位置，只适用于线性雾
-         * @en Global fog start position, only for linear fog
-         */
-        get fogStart(): number;
-        set fogStart(val: number);
-        /**
-         * @zh 雾效结束位置，只适用于线性雾
-         * @en Global fog end position, only for linear fog
-         */
-        get fogEnd(): number;
-        set fogEnd(val: number);
-        /**
-         * @zh 雾效衰减
-         * @en Global fog attenuation
-         */
-        get fogAtten(): number;
-        set fogAtten(val: number);
-        /**
-         * @zh 雾效顶部范围，只适用于层级雾
-         * @en Global fog top range, only for layered fog
-         */
-        get fogTop(): number;
-        set fogTop(val: number);
-        /**
-         * @zh 雾效范围，只适用于层级雾
-         * @en Global fog range, only for layered fog
-         */
-        get fogRange(): number;
-        set fogRange(val: number);
-        /**
-         * @zh 当前雾化类型。
-         * @en The current global fog type.
-         * @returns {FogType}
-         * Returns the current global fog type
-         * - 0:Disable global Fog
-         * - 1:Linear fog
-         * - 2:Exponential fog
-         * - 3:Exponential square fog
-         * - 4:Layered fog
-         */
-        get currType(): number;
-        get colorArray(): Float32Array;
-        protected _type: number;
-        protected _fogColor: Color;
-        protected _enabled: boolean;
-        protected _fogDensity: number;
-        protected _fogStart: number;
-        protected _fogEnd: number;
-        protected _fogAtten: number;
-        protected _fogTop: number;
-        protected _fogRange: number;
-        protected _currType: number;
-        protected _colorArray: Float32Array;
-        activate(): void;
-        protected _updatePipeline(): void;
     }
 }
 declare module "cocos/core/pipeline/forward/scene-culling" {
@@ -27348,7 +28210,7 @@ declare module "cocos/core/root" {
     import { GFXDevice } from "cocos/core/gfx/device";
     import { RenderPipeline } from "cocos/core/pipeline/render-pipeline";
     import { IRenderViewInfo, RenderView } from "cocos/core/pipeline/render-view";
-    import { Camera, Light, Model } from "cocos/core/renderer/index";
+    import { Camera, Light, Model } from "cocos/core/renderer/scene/index";
     import { DataPoolManager } from "cocos/core/renderer/data-pool-manager";
     import { IRenderSceneInfo, RenderScene } from "cocos/core/renderer/scene/render-scene";
     import { UI } from "cocos/core/renderer/ui/ui";
@@ -27722,10 +28584,6 @@ declare module "cocos/core/renderer/core/pass" {
         stateOverrides?: PassOverrides;
     }
     export type PassOverrides = RecursivePartial<IPassStates>;
-    export interface IBlock {
-        view: Float32Array;
-        dirty: boolean;
-    }
     export interface IMacroPatch {
         name: string;
         value: boolean | number | string;
@@ -27781,16 +28639,17 @@ declare module "cocos/core/renderer/core/pass" {
          */
         static getPassHash(hPass: PassHandle, hShader: ShaderHandle): number;
         protected static getOffsetFromHandle: (handle: number) => number;
-        protected _buffers: Record<number, GFXBuffer>;
-        protected _samplers: Record<number, GFXSampler>;
-        protected _textures: Record<number, GFXTexture>;
+        protected _rootBuffer: GFXBuffer | null;
+        protected _rootBufferDirty: boolean;
+        protected _buffers: GFXBuffer[];
         protected _descriptorSet: GFXDescriptorSet;
         protected _passIndex: number;
         protected _propertyIndex: number;
         protected _programName: string;
         protected _dynamics: IPassDynamics;
         protected _propertyHandleMap: Record<string, number>;
-        protected _blocks: IBlock[];
+        protected _rootBlock: ArrayBuffer | null;
+        protected _blocks: Float32Array[];
         protected _shaderInfo: IProgramInfo;
         protected _defines: MacroRecord;
         protected _properties: Record<string, IPropertyInfo>;
@@ -27824,13 +28683,13 @@ declare module "cocos/core/renderer/core/pass" {
          * pass.setUniform(hThreshold, 0.5); // now, albedoScale.w = 0.5
          * ```
          */
-        getHandle(name: string, offset?: number, targetType?: GFXType): number | undefined;
+        getHandle(name: string, offset?: number, targetType?: GFXType): number;
         /**
          * @zh
          * 获取指定 uniform 的 binding。
          * @param name 目标 uniform 名。
          */
-        getBinding(name: string): number | undefined;
+        getBinding(name: string): number;
         /**
          * @zh
          * 设置指定普通向量类 uniform 的值，如果需要频繁更新请尽量使用此接口。
@@ -27854,25 +28713,18 @@ declare module "cocos/core/renderer/core/pass" {
         setUniformArray(handle: number, value: MaterialProperty[]): void;
         /**
          * @zh
-         * 绑定实际 [[GFXBuffer]] 到指定 binding。
-         * @param binding 目标 UBO 的 binding。
-         * @param value 目标 buffer。
-         */
-        bindBuffer(binding: number, value: GFXBuffer): void;
-        /**
-         * @zh
          * 绑定实际 [[GFXTexture]] 到指定 binding。
          * @param binding 目标贴图类 uniform 的 binding。
          * @param value 目标 texture
          */
-        bindTexture(binding: number, value: GFXTexture): void;
+        bindTexture(binding: number, value: GFXTexture, index?: number): void;
         /**
          * @zh
          * 绑定实际 [[GFXSampler]] 到指定 binding。
          * @param binding 目标贴图类 uniform 的 binding。
          * @param value 目标 sampler。
          */
-        bindSampler(binding: number, value: GFXSampler): void;
+        bindSampler(binding: number, value: GFXSampler, index?: number): void;
         /**
          * @zh
          * 设置运行时 pass 内可动态更新的管线状态属性。
@@ -27906,7 +28758,7 @@ declare module "cocos/core/renderer/core/pass" {
          * @zh
          * 重置指定贴图为 Effect 默认值。
          */
-        resetTexture(name: string): void;
+        resetTexture(name: string, index?: number): void;
         /**
          * @zh
          * 重置所有 UBO 为默认值。
@@ -27938,7 +28790,7 @@ declare module "cocos/core/renderer/core/pass" {
         get passIndex(): number;
         get propertyIndex(): number;
         get dynamics(): IPassDynamics;
-        get blocks(): IBlock[];
+        get blocks(): Float32Array[];
         get handle(): PassHandle;
         get priority(): number;
         get primitive(): GFXPrimitiveMode;
@@ -28092,6 +28944,8 @@ declare module "cocos/core/pipeline/define" {
         static MAT_LIGHT_PLANE_PROJ_OFFSET: number;
         static MAT_LIGHT_VIEW_PROJ_OFFSET: number;
         static SHADOW_COLOR_OFFSET: number;
+        static SHADOW_PCF_OFFSET: number;
+        static SHADOW_SIZE_OFFSET: number;
         static COUNT: number;
         static SIZE: number;
         static BLOCK: IBlockInfo;
@@ -28330,7 +29184,7 @@ declare module "cocos/core/assets/sprite-frame" {
      * const url = "assets/PurpleMonster/icon/spriteFrame";
      * loader.loadRes(url, (err, spriteFrame) => {
      *   const node = new Node("New Sprite");
-     *   const sprite = node.addComponent(SpriteComponent);
+     *   const sprite = node.addComponent(Sprite);
      *   sprite.spriteFrame = spriteFrame;
      *   node.parent = self.node;
      * });
@@ -28344,7 +29198,7 @@ declare module "cocos/core/assets/sprite-frame" {
      *  }
      *
      *  const node = new Node("New Sprite");
-     *  const sprite = node.addComponent(SpriteComponent);
+     *  const sprite = node.addComponent(Sprite);
      *  const spriteFrame = new SpriteFrame();
      *  const tex = imageAsset._texture;
      *  spriteFrame.texture = tex;
@@ -28354,7 +29208,7 @@ declare module "cocos/core/assets/sprite-frame" {
      *
      * // Third way to use a SpriteFrame
      * const self = this;
-     * const cameraComp = this.getComponent(CameraComponent);
+     * const cameraComp = this.getComponent(Camera);
      * const renderTexture = new RenderTexture();
      * rendetTex.reset({
      *   width: 512,
@@ -28707,7 +29561,7 @@ declare module "cocos/core/assets/index" {
     export { RenderTexture } from "cocos/core/assets/render-texture";
     import "cocos/core/assets/deprecation";
 }
-declare module "cocos/core/3d/framework/model-component" {
+declare module "cocos/core/3d/framework/mesh-renderer" {
     /**
      * @category model
      */
@@ -28715,7 +29569,7 @@ declare module "cocos/core/3d/framework/model-component" {
     import { Material } from "cocos/core/assets/material";
     import { Mesh } from "cocos/core/assets/mesh";
     import { Vec4 } from "cocos/core/math/index";
-    import { Model } from "cocos/core/renderer/scene/model";
+    import { scene } from "cocos/core/renderer/index";
     import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
     /**
      * @en Shadow projection mode.
@@ -28786,10 +29640,10 @@ declare module "cocos/core/3d/framework/model-component" {
         set lightmapSize(val: number);
     }
     /**
-     * 模型组件。
-     * @class ModelComponent
+     * @en Mesh renderer component
+     * @zh 网格渲染器组件。
      */
-    export class ModelComponent extends RenderableComponent {
+    export class MeshRenderer extends RenderableComponent {
         static ShadowCastingMode: {
             /**
              * @en Disable shadow projection.
@@ -28836,11 +29690,11 @@ declare module "cocos/core/3d/framework/model-component" {
          */
         get mesh(): Mesh | null;
         set mesh(val: Mesh | null);
-        get model(): Model | null;
+        get model(): scene.Model | null;
         get enableMorph(): boolean;
         set enableMorph(value: boolean);
-        protected _modelType: typeof Model;
-        protected _model: Model | null;
+        protected _modelType: typeof scene.Model;
+        protected _model: scene.Model | null;
         private _morphInstance;
         private _enableMorph;
         constructor();
@@ -28870,23 +29724,21 @@ declare module "cocos/core/3d/framework/model-component" {
         private _watchMorphInMesh;
         private _syncMorphWeights;
     }
-    export namespace ModelComponent {
+    export namespace MeshRenderer {
         type ShadowCastingMode = EnumAlias<typeof ModelShadowCastingMode>;
         type ShadowReceivingMode = EnumAlias<typeof ModelShadowReceivingMode>;
     }
-
-    export { ModelComponent as MeshRenderer };
 }
 declare module "cocos/core/utils/batch-utils" {
     import { Node } from "cocos/core/scene-graph/node";
     export class BatchingUtility {
         /**
-         * Collect the ModelComponents under `staticModelRoot`,
+         * Collect the Models under `staticModelRoot`,
          * merge all the meshes statically into one (while disabling each component),
-         * and attach it to a new ModelComponent on `batchedRoot`.
+         * and attach it to a new Model on `batchedRoot`.
          * The world transform of each model is guaranteed to be preserved.
          *
-         * For a more fine-grained controll over the process, use `Mesh.merge` directly.
+         * For a more fine-grained control over the process, use `Mesh.merge` directly.
          * @param staticModelRoot root of all the static models to be batched
          * @param batchedRoot the target output node
          */
@@ -28904,7 +29756,7 @@ declare module "cocos/core/utils/coordinates-converts-utils" {
     /**
      * @category pipeline
      */
-    import { CameraComponent } from "cocos/core/3d/framework/camera-component";
+    import { Camera } from "cocos/core/3d/framework/camera-component";
     import { Vec3 } from "cocos/core/math/index";
     import { Node } from "cocos/core/scene-graph/index";
     /**
@@ -28912,26 +29764,26 @@ declare module "cocos/core/utils/coordinates-converts-utils" {
      * Conversion of non-UI nodes to UI Node (Local) Space coordinate system.
      * @zh
      * 非 UI 节点转换到 UI 节点(局部) 空间坐标系。
-     * @deprecated 将在 1.2 移除，请使用 CameraComponent 的 `convertToUINode`。
+     * @deprecated 将在 1.2 移除，请使用 Camera 的 `convertToUINode`。
      * @param mainCamera 主相机。
      * @param wpos 世界空间位置。
      * @param uiNode UI节点。
      * @param out 返回局部坐标。
      */
-    export function WorldNode3DToLocalNodeUI(mainCamera: CameraComponent, wpos: Vec3, uiNode: Node, out?: Vec3): Vec3;
+    export function WorldNode3DToLocalNodeUI(mainCamera: Camera, wpos: Vec3, uiNode: Node, out?: Vec3): Vec3;
     /**
      * @en
      * Conversion of non-UI nodes to UI Node (World) Space coordinate system.
      * @zh
      * 非 UI 节点转换到 UI 节点(世界) 空间坐标系。
-     * @deprecated 将在 1.2 移除，请使用 CameraComponent 的 `convertToUINode`。
+     * @deprecated 将在 1.2 移除，请使用 Camera 的 `convertToUINode`。
      * @param mainCamera 主相机。
      * @param wpos 世界空间位置。
      * @param out 返回世界坐标。
      */
-    export function WorldNode3DToWorldNodeUI(mainCamera: CameraComponent, wpos: Vec3, out?: Vec3): Vec3;
+    export function WorldNode3DToWorldNodeUI(mainCamera: Camera, wpos: Vec3, out?: Vec3): Vec3;
     /**
-     * @deprecated 将在 1.2 移除，请使用 CameraComponent 的 `convertToUINode`。
+     * @deprecated 将在 1.2 移除，请使用 Camera 的 `convertToUINode`。
      */
     const convertUtils: {
         WorldNode3DToLocalNodeUI: typeof WorldNode3DToLocalNodeUI;
@@ -28994,7 +29846,7 @@ declare module "cocos/core/animation/value-proxy-factories/uniform" {
     }
 }
 declare module "cocos/core/animation/value-proxy-factories/morph-weights" {
-    import { ModelComponent } from "cocos/core/3d/framework/model-component";
+    import { MeshRenderer } from "cocos/core/3d/framework/mesh-renderer";
     import { IValueProxyFactory } from "cocos/core/animation/value-proxy";
     /**
      * @en
@@ -29008,7 +29860,7 @@ declare module "cocos/core/animation/value-proxy-factories/morph-weights" {
          * @zh 子网格索引。
          */
         subMeshIndex: number;
-        forTarget(target: ModelComponent): {
+        forTarget(target: MeshRenderer): {
             set: (value: number[]) => void;
         };
     }
@@ -29019,7 +29871,7 @@ declare module "cocos/core/animation/value-proxy-factories/morph-weights" {
      * 用于设置模型组件目标上所有子网格形变权重的曲线值代理工厂。
      */
     export class MorphWeightsAllValueProxy implements IValueProxyFactory {
-        forTarget(target: ModelComponent): {
+        forTarget(target: MeshRenderer): {
             set: (value: number[]) => void;
         };
     }
@@ -29058,14 +29910,27 @@ declare module "cocos/core/animation/animation" {
     export { MorphWeightsValueProxy, MorphWeightsAllValueProxy } from "cocos/core/animation/value-proxy-factories/morph-weights";
     export * from "cocos/core/animation/cubic-spline-value";
 }
-declare module "cocos/core/animation/deprecated" { }
+declare module "cocos/core/animation/deprecated" {
+    import { Animation } from "cocos/core/animation/animation-component";
+    import { SkeletalAnimation } from "cocos/core/animation/skeletal-animation";
+    /**
+     * Alias of [[Animation]]
+     * @deprecated Since v1.2
+     */
+    export { Animation as AnimationComponent };
+    /**
+     * Alias of [[SkeletalAnimation]]
+     * @deprecated Since v1.2
+     */
+    export { SkeletalAnimation as SkeletalAnimationComponent };
+}
 declare module "cocos/core/animation/index" {
     import * as animation from "cocos/core/animation/animation";
-    import "cocos/core/animation/deprecated";
     import * as easing from "cocos/core/animation/easing";
     import { ComponentPath, HierarchyPath, ICustomTargetPath, TargetPath } from "cocos/core/animation/target-path";
     import { IValueProxyFactory } from "cocos/core/animation/value-proxy";
     import { UniformProxyFactory } from "cocos/core/animation/value-proxy-factories/uniform";
+    export * from "cocos/core/animation/deprecated";
     export * from "cocos/core/animation/bezier";
     export { easing };
     export * from "cocos/core/animation/animation-curve";
@@ -29075,7 +29940,7 @@ declare module "cocos/core/animation/index" {
     export * from "cocos/core/animation/animation-component";
     export * from "cocos/core/animation/skeletal-animation-data-hub";
     export * from "cocos/core/animation/skeletal-animation-state";
-    export * from "cocos/core/animation/skeletal-animation-component";
+    export * from "cocos/core/animation/skeletal-animation";
     export * from "cocos/core/animation/transform-utils";
     export { animation };
     /**
@@ -29194,6 +30059,7 @@ declare module "cocos/core/utils/profiler/profiler" {
         private readonly _canvasArr;
         private readonly _regionArr;
         private digitsData;
+        private pass;
         private _canvasDone;
         private _statsDone;
         private _inited;
@@ -29217,71 +30083,6 @@ declare module "cocos/core/utils/profiler/profiler" {
         afterDraw(): void;
     }
     export const profiler: Profiler;
-}
-declare module "cocos/core/splash-screen" {
-    import { Root } from "cocos/core/root";
-    import { GFXColor } from "cocos/core/gfx/define";
-    export type SplashEffectType = 'NONE' | 'FADE-INOUT';
-    export interface ISplashSetting {
-        readonly totalTime: number;
-        readonly base64src: string;
-        readonly effect: SplashEffectType;
-        readonly clearColor: GFXColor;
-        readonly displayRatio: number;
-        readonly displayWatermark: boolean;
-    }
-    export class SplashScreen {
-        private set splashFinish(value);
-        set loadFinish(v: boolean);
-        private handle;
-        private callBack;
-        private cancelAnimate;
-        private startTime;
-        private setting;
-        private image;
-        private root;
-        private device;
-        private sampler;
-        private cmdBuff;
-        private assmebler;
-        private vertexBuffers;
-        private indicesBuffers;
-        private shader;
-        private framebuffer;
-        private renderArea;
-        private region;
-        private material;
-        private texture;
-        private clearColors;
-        private _splashFinish;
-        private _loadFinish;
-        private _directCall;
-        /** text */
-        private textImg;
-        private textRegion;
-        private textTexture;
-        private textVB;
-        private textIB;
-        private textAssmebler;
-        private textMaterial;
-        private textShader;
-        private screenWidth;
-        private screenHeight;
-        main(root: Root): void;
-        setOnFinish(cb: Function): any;
-        private _tryToStart;
-        private init;
-        private hide;
-        private frame;
-        private initText;
-        private initCMD;
-        private initIA;
-        private initPSO;
-        private destoy;
-        private static _ins;
-        static get instance(): SplashScreen;
-        private constructor();
-    }
 }
 declare module "cocos/core/deprecated" {
     const vmath: {};
@@ -30197,7 +30998,7 @@ declare module "cocos/core/gfx/buffer" {
      */
     import { GFXBufferFlags, GFXBufferUsage, GFXMemoryUsage, GFXObject } from "cocos/core/gfx/define";
     import { GFXDevice } from "cocos/core/gfx/device";
-    export interface IGFXDrawInfo {
+    export class GFXDrawInfo {
         vertexCount: number;
         firstVertex: number;
         indexCount: number;
@@ -30205,10 +31006,11 @@ declare module "cocos/core/gfx/buffer" {
         vertexOffset: number;
         instanceCount: number;
         firstInstance: number;
+        constructor(vertexCount?: number, firstVertex?: number, indexCount?: number, firstIndex?: number, vertexOffset?: number, instanceCount?: number, firstInstance?: number);
     }
     export const GFX_DRAW_INFO_SIZE: number;
     export interface IGFXIndirectBuffer {
-        drawInfos: IGFXDrawInfo[];
+        drawInfos: GFXDrawInfo[];
     }
     export type GFXBufferSource = ArrayBuffer | IGFXIndirectBuffer;
     export interface IGFXBufferInfo {
@@ -30478,7 +31280,7 @@ declare module "cocos/core/geometry/intersect" {
     import triangle from "cocos/core/geometry/triangle";
     import { RenderingSubMesh, Mesh } from "cocos/core/assets/mesh";
     import { IRaySubMeshOptions, IRayMeshOptions, IRayModelOptions } from "cocos/core/geometry/spec";
-    import { Model } from "cocos/core/renderer/index";
+    import { scene } from "cocos/core/renderer/index";
     /**
      * @en
      * line-aabb intersect detect.
@@ -30524,7 +31326,7 @@ declare module "cocos/core/geometry/intersect" {
         ray_capsule: (ray: ray, capsule: capsule) => number;
         ray_subMesh: (ray: ray, submesh: RenderingSubMesh, options?: IRaySubMeshOptions | undefined) => number;
         ray_mesh: (ray: ray, mesh: Mesh, options?: IRayMeshOptions | undefined) => number;
-        ray_model: (r: ray, model: Model, options?: IRayModelOptions | undefined) => number;
+        ray_model: (r: ray, model: scene.Model, options?: IRayModelOptions | undefined) => number;
         line_sphere: typeof line_sphere;
         line_aabb: typeof line_aabb;
         line_obb: typeof line_obb;
@@ -31250,8 +32052,8 @@ declare module "cocos/core/components/component" {
          * @zh 向节点添加一个指定类型的组件类，你还可以通过传入脚本的名称来添加组件。
          * @example
          * ```ts
-         * import { SpriteComponent } from 'cc';
-         * const sprite = node.addComponent(SpriteComponent);
+         * import { Sprite } from 'cc';
+         * const sprite = node.addComponent(Sprite);
          * ```
          */
         addComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
@@ -31273,9 +32075,9 @@ declare module "cocos/core/components/component" {
          * 传入参数也可以是脚本的名称。
          * @example
          * ```ts
-         * import { SpriteComponent } from 'cc';
+         * import { Sprite } from 'cc';
          * // get sprite component.
-         * const sprite = node.getComponent(SpriteComponent);
+         * var sprite = node.getComponent(Sprite);
          * ```
          */
         getComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
@@ -31298,8 +32100,8 @@ declare module "cocos/core/components/component" {
          * @zh 返回节点上指定类型的所有组件。
          * @example
          * ```ts
-         * import { SpriteComponent } from 'cc';
-         * const sprites = node.getComponents(SpriteComponent);
+         * import { Sprite } from 'cc';
+         * const sprites = node.getComponents(Sprite);
          * ```
          */
         getComponents<T extends Component>(classConstructor: Constructor<T>): T[];
@@ -31317,8 +32119,8 @@ declare module "cocos/core/components/component" {
          * @zh 递归查找所有子节点中第一个匹配指定类型的组件。
          * @example
          * ```ts
-         * import { SpriteComponent } from 'cc';
-         * const sprite = node.getComponentInChildren(SpriteComponent);
+         * import { Sprite } from 'cc';
+         * const sprite = node.getComponentInChildren(Sprite);
          * ```
          */
         getComponentInChildren<T extends Component>(classConstructor: Constructor<T>): T | null;
@@ -31336,8 +32138,8 @@ declare module "cocos/core/components/component" {
          * @zh 递归查找自身或所有子节点中指定类型的组件。
          * @example
          * ```ts
-         * import { SpriteComponent } from 'cc';
-         * const sprites = node.getComponentsInChildren(SpriteComponent);
+         * import { Sprite } from 'cc';
+         * const sprites = node.getComponentsInChildren(Sprite);
          * ```
          */
         getComponentsInChildren<T extends Component>(classConstructor: Constructor<T>): T[];
@@ -31548,396 +32350,6 @@ declare module "cocos/core/components/component" {
 }
 declare module "cocos/core/scene-graph/base-node-dev" {
     export function baseNodePolyfill(BaseNode: any): void;
-}
-declare module "cocos/core/scene-graph/scene-globals" {
-    /**
-     * @category scene-graph
-     */
-    import { TextureCube } from "cocos/core/assets/texture-cube";
-    import { Color, Vec3, Vec2 } from "cocos/core/math/index";
-    import { Ambient } from "cocos/core/renderer/scene/ambient";
-    import { Shadows } from "cocos/core/renderer/scene/shadows";
-    import { Skybox } from "cocos/core/renderer/scene/skybox";
-    import { Fog } from "cocos/core/renderer/scene/fog";
-    import { Node } from "cocos/core/scene-graph/node";
-    /**
-     * @en Environment lighting information in the Scene
-     * @zh 场景的环境光照相关信息
-     */
-    export class AmbientInfo {
-        protected _skyColor: Color;
-        protected _skyIllum: number;
-        protected _groundAlbedo: Color;
-        protected _resource: Ambient | null;
-        /**
-         * @en Sky color
-         * @zh 天空颜色
-         */
-        set skyColor(val: Color);
-        get skyColor(): Color;
-        /**
-         * @en Sky illuminance
-         * @zh 天空亮度
-         */
-        set skyIllum(val: number);
-        get skyIllum(): number;
-        /**
-         * @en Ground color
-         * @zh 地面颜色
-         */
-        set groundAlbedo(val: Color);
-        get groundAlbedo(): Color;
-        activate(resource: Ambient): void;
-    }
-    /**
-     * @en Skybox related information
-     * @zh 天空盒相关信息
-     */
-    export class SkyboxInfo {
-        protected _envmap: TextureCube | null;
-        protected _isRGBE: boolean;
-        protected _enabled: boolean;
-        protected _useIBL: boolean;
-        protected _resource: Skybox | null;
-        /**
-         * @en Whether activate skybox in the scene
-         * @zh 是否启用天空盒？
-         */
-        set enabled(val: boolean);
-        get enabled(): boolean;
-        /**
-         * @en Whether use environment lighting
-         * @zh 是否启用环境光照？
-         */
-        set useIBL(val: boolean);
-        get useIBL(): boolean;
-        /**
-         * @en The texture cube used for the skybox
-         * @zh 使用的立方体贴图
-         */
-        set envmap(val: TextureCube | null);
-        get envmap(): TextureCube | null;
-        /**
-         * @en Whether enable RGBE data support in skybox shader
-         * @zh 是否需要开启 shader 内的 RGBE 数据支持？
-         */
-        set isRGBE(val: boolean);
-        get isRGBE(): boolean;
-        activate(resource: Skybox): void;
-    }
-    /**
-     * @zh 全局雾相关信息
-     * @en Global fog info
-     */
-    export class FogInfo {
-        static FogType: {
-            LINEAR: number;
-            EXP: number;
-            EXP_SQUARED: number;
-            LAYERED: number;
-        };
-        protected _type: number;
-        protected _fogColor: Color;
-        protected _enabled: boolean;
-        protected _fogDensity: number;
-        protected _fogStart: number;
-        protected _fogEnd: number;
-        protected _fogAtten: number;
-        protected _fogTop: number;
-        protected _fogRange: number;
-        protected _resource: Fog | null;
-        /**
-         * @zh 是否启用全局雾效
-         * @en Enable global fog
-         */
-        set enabled(val: boolean);
-        get enabled(): boolean;
-        /**
-         * @zh 全局雾颜色
-         * @en Global fog color
-         */
-        set fogColor(val: Color);
-        get fogColor(): Color;
-        /**
-         * @zh 全局雾类型
-         * @en Global fog type
-         */
-        get type(): number;
-        set type(val: number);
-        /**
-         * @zh 全局雾浓度
-         * @en Global fog density
-         */
-        get fogDensity(): number;
-        set fogDensity(val: number);
-        /**
-         * @zh 雾效起始位置，只适用于线性雾
-         * @en Global fog start position, only for linear fog
-         */
-        get fogStart(): number;
-        set fogStart(val: number);
-        /**
-         * @zh 雾效结束位置，只适用于线性雾
-         * @en Global fog end position, only for linear fog
-         */
-        get fogEnd(): number;
-        set fogEnd(val: number);
-        /**
-         * @zh 雾效衰减
-         * @en Global fog attenuation
-         */
-        get fogAtten(): number;
-        set fogAtten(val: number);
-        /**
-         * @zh 雾效顶部范围，只适用于层级雾
-         * @en Global fog top range, only for layered fog
-         */
-        get fogTop(): number;
-        set fogTop(val: number);
-        /**
-         * @zh 雾效范围，只适用于层级雾
-         * @en Global fog range, only for layered fog
-         */
-        get fogRange(): number;
-        set fogRange(val: number);
-        activate(resource: Fog): void;
-    }
-    /**
-     * @en Scene level planar shadow related information
-     * @zh 平面阴影相关信息
-     */
-    export class ShadowsInfo {
-        protected _type: number;
-        protected _enabled: boolean;
-        protected _normal: Vec3;
-        protected _distance: number;
-        protected _shadowColor: Color;
-        protected _near: number;
-        protected _far: number;
-        protected _aspect: number;
-        protected _orthoSize: number;
-        protected _size: Vec2;
-        protected _resource: Shadows | null;
-        /**
-         * @en Whether activate planar shadow
-         * @zh 是否启用平面阴影？
-         */
-        set enabled(val: boolean);
-        get enabled(): boolean;
-        set type(val: number);
-        get type(): number;
-        /**
-         * @en Shadow color
-         * @zh 阴影颜色
-         */
-        set shadowColor(val: Color);
-        get shadowColor(): Color;
-        /**
-         * @en The normal of the plane which receives shadow
-         * @zh 阴影接收平面的法线
-         */
-        set normal(val: Vec3);
-        get normal(): Vec3;
-        /**
-         * @en The distance from coordinate origin to the receiving plane.
-         * @zh 阴影接收平面与原点的距离
-         */
-        set distance(val: number);
-        get distance(): number;
-        /**
-         * @en get or set shadow camera near
-         * @zh 获取或者设置阴影相机近裁剪面
-         */
-        set near(val: number);
-        get near(): number;
-        /**
-         * @en get or set shadow camera far
-         * @zh 获取或者设置阴影相机远裁剪面
-         */
-        set far(val: number);
-        get far(): number;
-        /**
-         * @en get or set shadow camera orthoSize
-         * @zh 获取或者设置阴影相机正交大小
-         */
-        set orthoSize(val: number);
-        get orthoSize(): number;
-        /**
-         * @en get or set shadow camera orthoSize
-         * @zh 获取或者设置阴影纹理大小
-         */
-        set shadowMapSize(val: Vec2);
-        get shadowMapSize(): Vec2;
-        /**
-         * @en get or set shadow camera orthoSize
-         * @zh 获取或者设置阴影纹理大小
-         */
-        set aspect(val: number);
-        get aspect(): number;
-        /**
-         * @en Set plane which receives shadow with the given node's world transformation
-         * @zh 根据指定节点的世界变换设置阴影接收平面的信息
-         * @param node The node for setting up the plane
-         */
-        setPlaneFromNode(node: Node): void;
-        activate(resource: Shadows): void;
-    }
-    /**
-     * @en All scene related global parameters, it affects all content in the corresponding scene
-     * @zh 各类场景级别的渲染参数，将影响全场景的所有物体
-     */
-    export class SceneGlobals {
-        /**
-         * @en The environment light information
-         * @zh 场景的环境光照相关信息
-         */
-        ambient: AmbientInfo;
-        /**
-         * @en Scene level planar shadow related information
-         * @zh 平面阴影相关信息
-         */
-        shadows: ShadowsInfo;
-        _skybox: SkyboxInfo;
-        fog: FogInfo;
-        /**
-         * @en Skybox related information
-         * @zh 天空盒相关信息
-         */
-        get skybox(): SkyboxInfo;
-        set skybox(value: SkyboxInfo);
-        activate(): void;
-    }
-}
-declare module "cocos/core/scene-graph/scene" {
-    import { Mat4, Quat, Vec3 } from "cocos/core/math/index";
-    import { RenderScene } from "cocos/core/renderer/scene/render-scene";
-    import { BaseNode } from "cocos/core/scene-graph/base-node";
-    import { Component } from "cocos/core/components/component";
-    import { SceneGlobals } from "cocos/core/scene-graph/scene-globals";
-    /**
-     * @en
-     * Scene is a subclass of [[BaseNode]], composed by nodes, representing the root of a runnable environment in the game.
-     * It's managed by [[Director]] and user can switch from a scene to another using [[Director.loadScene]]
-     * @zh
-     * Scene 是 [[BaseNode]] 的子类，由节点所构成，代表着游戏中可运行的某一个整体环境。
-     * 它由 [[Director]] 管理，用户可以使用 [[Director.loadScene]] 来切换场景
-     */
-    export class Scene extends BaseNode {
-        /**
-         * @en The renderer scene, normally user don't need to use it
-         * @zh 渲染层场景，一般情况下用户不需要关心它
-         */
-        get renderScene(): RenderScene | null;
-        get globals(): SceneGlobals;
-        /**
-         * @en Indicates whether all (directly or indirectly) static referenced assets of this scene are releasable by default after scene unloading.
-         * @zh 指示该场景中直接或间接静态引用到的所有资源是否默认在场景切换后自动释放。
-         */
-        autoReleaseAssets: boolean;
-        /**
-         * @en Per-scene level rendering info
-         * @zh 场景级别的渲染信息
-         */
-        _globals: SceneGlobals;
-        _renderScene: RenderScene | null;
-        dependAssets: null;
-        protected _inited: boolean;
-        protected _prefabSyncedInLiveReload: boolean;
-        protected _pos: Readonly<Vec3>;
-        protected _rot: Readonly<Quat>;
-        protected _scale: Readonly<Vec3>;
-        protected _mat: Readonly<Mat4>;
-        protected _dirtyFlags: number;
-        constructor(name: string);
-        /**
-         * @en Destroy the current scene and all its nodes, this action won't destroy related assets
-         * @zh 销毁当前场景中的所有节点，这个操作不会销毁资源
-         */
-        destroy(): boolean;
-        /**
-         * @en Only for compatibility purpose, user should not add any component to the scene
-         * @zh 仅为兼容性保留，用户不应该在场景上直接添加任何组件
-         */
-        addComponent(typeOrClassName: string | Function): Component;
-        _onHierarchyChanged(): void;
-        _onBatchCreated(): void;
-        _onBatchRestored(): void;
-        /**
-         * Refer to [[Node.getPosition]]
-         */
-        getPosition(out?: Vec3): Vec3;
-        /**
-         * Refer to [[Node.getRotation]]
-         */
-        getRotation(out?: Quat): Quat;
-        /**
-         * Refer to [[Node.getScale]]
-         */
-        getScale(out?: Vec3): Vec3;
-        /**
-         * Refer to [[Node.getWorldPosition]]
-         */
-        getWorldPosition(out?: Vec3): Vec3;
-        /**
-         * Refer to [[Node.getWorldRotation]]
-         */
-        getWorldRotation(out?: Quat): Quat;
-        /**
-         * Refer to [[Node.getWorldScale]]
-         */
-        getWorldScale(out?: Vec3): Vec3;
-        /**
-         * Refer to [[Node.getWorldMatrix]]
-         */
-        getWorldMatrix(out?: Mat4): Mat4;
-        /**
-         * Refer to [[Node.getWorldRS]]
-         */
-        getWorldRS(out?: Mat4): Mat4;
-        /**
-         * Refer to [[Node.getWorldRT]]
-         */
-        getWorldRT(out?: Mat4): Mat4;
-        /**
-         * Refer to [[Node.position]]
-         */
-        get position(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.worldPosition]]
-         */
-        get worldPosition(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.rotation]]
-         */
-        get rotation(): Readonly<Quat>;
-        /**
-         * Refer to [[Node.worldRotation]]
-         */
-        get worldRotation(): Readonly<Quat>;
-        /**
-         * Refer to [[Node.scale]]
-         */
-        get scale(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.worldScale]]
-         */
-        get worldScale(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.eulerAngles]]
-         */
-        get eulerAngles(): Readonly<Vec3>;
-        /**
-         * Refer to [[Node.worldMatrix]]
-         */
-        get worldMatrix(): Readonly<Mat4>;
-        /**
-         * Refer to [[Node.updateWorldTransform]]
-         */
-        updateWorldTransform(): void;
-        protected _instantiate(): void;
-        protected _load(): void;
-        protected _activate(active: boolean): void;
-    }
 }
 declare module "cocos/core/scene-graph/base-node" {
     /**
@@ -32199,7 +32611,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * @example
          * ```
          * // get sprite component.
-         * var sprite = node.getComponent(SpriteComponent);
+         * var sprite = node.getComponent(Sprite);
          * ```
          */
         getComponent<T extends Component>(classConstructor: Constructor<T>): T | null;
@@ -32236,7 +32648,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * @param classConstructor The class of the target component
          * @example
          * ```
-         * var sprite = node.getComponentInChildren(SpriteComponent);
+         * var sprite = node.getComponentInChildren(Sprite);
          * ```
          */
         getComponentInChildren<T extends Component>(classConstructor: Constructor<T>): T | null;
@@ -32256,7 +32668,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * @param classConstructor The class of the target component
          * @example
          * ```
-         * var sprites = node.getComponentsInChildren(SpriteComponent);
+         * var sprites = node.getComponentsInChildren(Sprite);
          * ```
          */
         getComponentsInChildren<T extends Component>(classConstructor: Constructor<T>): T[];
@@ -32277,7 +32689,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * @throws `TypeError` if the `classConstructor` does not specify a cc-class constructor extending the `Component`.
          * @example
          * ```
-         * var sprite = node.addComponent(SpriteComponent);
+         * var sprite = node.addComponent(Sprite);
          * ```
          */
         addComponent<T extends Component>(classConstructor: Constructor<T>): T;
@@ -32303,7 +32715,7 @@ declare module "cocos/core/scene-graph/base-node" {
          * @deprecated please destroy the component to remove it.
          * @example
          * ```
-         * node.removeComponent(SpriteComponent);
+         * node.removeComponent(Sprite);
          * ```
          */
         removeComponent<T extends Component>(classConstructor: Constructor<T>): void;
@@ -32318,12 +32730,12 @@ declare module "cocos/core/scene-graph/base-node" {
          * @deprecated please destroy the component to remove it.
          * @example
          * ```
-         * import { SpriteComponent } from 'cc';
-         * const sprite = node.getComponent(SpriteComponent);
+         * import { Sprite } from 'cc';
+         * const sprite = node.getComponent(Sprite);
          * if (sprite) {
          *     node.removeComponent(sprite);
          * }
-         * node.removeComponent('cc.SpriteComponent');
+         * node.removeComponent('Sprite');
          * ```
          */
         removeComponent(classNameOrInstance: string | Component): void;
@@ -32985,7 +33397,7 @@ declare module "cocos/audio/assets/clip" {
         private _getPlayer;
     }
 }
-declare module "cocos/audio/audio-source-component" {
+declare module "cocos/audio/audio-source" {
     /**
      * @category component/audio
      */
@@ -32998,7 +33410,7 @@ declare module "cocos/audio/audio-source-component" {
      * @zh
      * 音频组件，代表单个音源，提供播放、暂停、停止等基本功能。
      */
-    export class AudioSourceComponent extends Component {
+    export class AudioSource extends Component {
         protected _clip: AudioClip | null;
         protected _loop: boolean;
         protected _playOnAwake: boolean;
@@ -33123,17 +33535,18 @@ declare module "cocos/audio/audio-source-component" {
         get playing(): boolean;
     }
 }
+declare module "cocos/audio/index" {
+    export { AudioClip } from "cocos/audio/assets/clip";
+    import "cocos/audio/audio-downloader";
+    import { AudioSource } from "cocos/audio/audio-source";
+    export { AudioSource };
+    export { AudioSource as AudioSourceComponent };
+}
 declare module "exports/audio" {
     /**
      * @hidden
      */
-    export { AudioClip } from "cocos/audio/assets/clip";
-    import "cocos/audio/audio-downloader";
-    import { AudioSourceComponent } from "cocos/audio/audio-source-component";
-    export { AudioSourceComponent };
-}
-declare module "exports/decorator" {
-    export * from "cocos/core/data/decorators/index";
+    export * from "cocos/audio/index";
 }
 declare module "cocos/core/gfx/webgl/webgl-command-allocator" {
     import { CachedArray } from "cocos/core/memop/cached-array";
@@ -33160,7 +33573,7 @@ declare module "cocos/core/gfx/webgl/webgl-command-allocator" {
     }
 }
 declare module "cocos/core/gfx/webgl/webgl-gpu-objects" {
-    import { IGFXDrawInfo } from "cocos/core/gfx/buffer";
+    import { GFXDrawInfo } from "cocos/core/gfx/buffer";
     import { GFXDescriptorType, GFXBufferUsage, GFXFormat, GFXMemoryUsage, GFXSampleCount, GFXShaderStageFlagBit, GFXTextureFlags, GFXTextureType, GFXTextureUsage, GFXType, GFXDynamicStateFlagBit } from "cocos/core/gfx/define";
     import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
     import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
@@ -33189,7 +33602,7 @@ declare module "cocos/core/gfx/webgl/webgl-gpu-objects" {
         glBuffer: WebGLBuffer | null;
         buffer: ArrayBufferView | null;
         vf32: Float32Array | null;
-        indirects: IGFXDrawInfo[];
+        indirects: GFXDrawInfo[];
     }
     export interface IWebGLGPUTexture {
         type: GFXTextureType;
@@ -33270,6 +33683,7 @@ declare module "cocos/core/gfx/webgl/webgl-gpu-objects" {
         name: string;
         type: GFXType;
         units: number[];
+        glUnits: Int32Array;
         glType: GLenum;
         glLoc: WebGLUniformLocation;
     }
@@ -33292,6 +33706,8 @@ declare module "cocos/core/gfx/webgl/webgl-gpu-objects" {
     export interface IWebGLGPUDescriptorSetLayout {
         bindings: IGFXDescriptorSetLayoutBinding[];
         dynamicBindings: number[];
+        descriptorIndices: number[];
+        descriptorCount: number;
     }
     export interface IWebGLGPUPipelineLayout {
         gpuSetLayouts: IWebGLGPUDescriptorSetLayout[];
@@ -33317,6 +33733,7 @@ declare module "cocos/core/gfx/webgl/webgl-gpu-objects" {
     }
     export interface IWebGLGPUDescriptorSet {
         gpuDescriptors: IWebGLGPUDescriptor[];
+        descriptorIndices: number[];
     }
     export interface IWebGLAttrib {
         name: string;
@@ -33559,7 +33976,7 @@ declare module "cocos/core/gfx/webgl/webgl-define" {
 }
 declare module "cocos/core/gfx/webgl/webgl-commands" {
     import { CachedArray } from "cocos/core/memop/cached-array";
-    import { GFXBufferSource, IGFXDrawInfo } from "cocos/core/gfx/buffer";
+    import { GFXBufferSource, GFXDrawInfo } from "cocos/core/gfx/buffer";
     import { WebGLCommandAllocator } from "cocos/core/gfx/webgl/webgl-command-allocator";
     import { IWebGLDepthBias, IWebGLDepthBounds, IWebGLStencilCompareMask, IWebGLStencilWriteMask } from "cocos/core/gfx/webgl/webgl-command-buffer";
     import { WebGLDevice } from "cocos/core/gfx/webgl/webgl-device";
@@ -33611,7 +34028,7 @@ declare module "cocos/core/gfx/webgl/webgl-commands" {
         clear(): void;
     }
     export class WebGLCmdDraw extends WebGLCmdObject {
-        drawInfo: IGFXDrawInfo;
+        drawInfo: GFXDrawInfo;
         constructor();
         clear(): void;
     }
@@ -33654,7 +34071,7 @@ declare module "cocos/core/gfx/webgl/webgl-commands" {
     export function WebGLCmdFuncDestroyInputAssembler(device: WebGLDevice, gpuInputAssembler: IWebGLGPUInputAssembler): void;
     export function WebGLCmdFuncBeginRenderPass(device: WebGLDevice, gpuRenderPass: IWebGLGPURenderPass | null, gpuFramebuffer: IWebGLGPUFramebuffer | null, renderArea: GFXRect, clearColors: GFXColor[], clearDepth: number, clearStencil: number): void;
     export function WebGLCmdFuncBindStates(device: WebGLDevice, gpuPipelineState: IWebGLGPUPipelineState | null, gpuInputAssembler: IWebGLGPUInputAssembler | null, gpuDescriptorSets: IWebGLGPUDescriptorSet[], dynamicOffsets: number[], viewport: GFXViewport | null, scissor: GFXRect | null, lineWidth: number | null, depthBias: IWebGLDepthBias | null, blendConstants: number[], depthBounds: IWebGLDepthBounds | null, stencilWriteMask: IWebGLStencilWriteMask | null, stencilCompareMask: IWebGLStencilCompareMask | null): void;
-    export function WebGLCmdFuncDraw(device: WebGLDevice, drawInfo: IGFXDrawInfo): void;
+    export function WebGLCmdFuncDraw(device: WebGLDevice, drawInfo: GFXDrawInfo): void;
     export function WebGLCmdFuncExecuteCmds(device: WebGLDevice, cmdPackage: WebGLCmdPackage): void;
     export function WebGLCmdFuncCopyTexImagesToTexture(device: WebGLDevice, texImages: TexImageSource[], gpuTexture: IWebGLGPUTexture, regions: GFXBufferTextureCopy[]): void;
     export function WebGLCmdFuncCopyBuffersToTexture(device: WebGLDevice, buffers: ArrayBufferView[], gpuTexture: IWebGLGPUTexture, regions: GFXBufferTextureCopy[]): void;
@@ -33823,6 +34240,7 @@ declare module "cocos/core/gfx/webgl/webgl-device" {
         private _destroyShadersImmediately;
         private _noCompressedTexSubImage2D;
         private _bindingMappingInfo;
+        private _webGLContextLostHandler;
         private _extensions;
         private _EXT_texture_filter_anisotropic;
         private _EXT_frag_depth;
@@ -33874,6 +34292,7 @@ declare module "cocos/core/gfx/webgl/webgl-device" {
         blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: GFXRect, dstRect: GFXRect, filter: GFXFilter): void;
         private getExtension;
         private initStates;
+        private _onWebGLContextLost;
     }
 }
 declare module "exports/gfx-webgl" {
@@ -33908,7 +34327,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-command-allocator" {
     }
 }
 declare module "cocos/core/gfx/webgl2/webgl2-gpu-objects" {
-    import { IGFXDrawInfo } from "cocos/core/gfx/buffer";
+    import { GFXDrawInfo } from "cocos/core/gfx/buffer";
     import { GFXAddress, GFXDescriptorType, GFXBufferUsage, GFXFilter, GFXFormat, GFXMemoryUsage, GFXSampleCount, GFXShaderStageFlagBit, GFXTextureFlags, GFXTextureType, GFXTextureUsage, GFXType, GFXDynamicStateFlagBit } from "cocos/core/gfx/define";
     import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
     import { GFXBlendState, GFXDepthStencilState, GFXRasterizerState } from "cocos/core/gfx/pipeline-state";
@@ -33932,7 +34351,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-gpu-objects" {
         glBuffer: WebGLBuffer | null;
         glOffset: number;
         buffer: ArrayBufferView | null;
-        indirects: IGFXDrawInfo[];
+        indirects: GFXDrawInfo[];
     }
     export interface IWebGL2GPUTexture {
         type: GFXTextureType;
@@ -34015,8 +34434,6 @@ declare module "cocos/core/gfx/webgl2/webgl2-gpu-objects" {
         name: string;
         size: number;
         glBinding: number;
-        glUniforms: IWebGL2GPUUniform[];
-        glActiveUniforms: IWebGL2GPUUniform[];
     }
     export interface IWebGL2GPUUniformSampler {
         set: number;
@@ -34024,6 +34441,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-gpu-objects" {
         name: string;
         type: GFXType;
         units: number[];
+        glUnits: Int32Array;
         glType: GLenum;
         glLoc: WebGLUniformLocation;
     }
@@ -34046,6 +34464,8 @@ declare module "cocos/core/gfx/webgl2/webgl2-gpu-objects" {
     export interface IWebGL2GPUDescriptorSetLayout {
         bindings: IGFXDescriptorSetLayoutBinding[];
         dynamicBindings: number[];
+        descriptorIndices: number[];
+        descriptorCount: number;
     }
     export interface IWebGL2GPUPipelineLayout {
         gpuSetLayouts: IWebGL2GPUDescriptorSetLayout[];
@@ -34071,6 +34491,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-gpu-objects" {
     }
     export interface IWebGL2GPUDescriptorSet {
         gpuDescriptors: IWebGL2GPUDescriptor[];
+        descriptorIndices: number[];
     }
     export interface IWebGL2Attrib {
         name: string;
@@ -34251,7 +34672,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-command-buffer" {
 }
 declare module "cocos/core/gfx/webgl2/webgl2-commands" {
     import { CachedArray } from "cocos/core/memop/cached-array";
-    import { GFXBufferSource, IGFXDrawInfo } from "cocos/core/gfx/buffer";
+    import { GFXBufferSource, GFXDrawInfo } from "cocos/core/gfx/buffer";
     import { GFXBufferTextureCopy, GFXFilter, GFXFormat, GFXColor, GFXRect, GFXViewport } from "cocos/core/gfx/define";
     import { WebGL2CommandAllocator } from "cocos/core/gfx/webgl2/webgl2-command-allocator";
     import { IWebGL2DepthBias, IWebGL2DepthBounds, IWebGL2StencilCompareMask, IWebGL2StencilWriteMask } from "cocos/core/gfx/webgl2/webgl2-command-buffer";
@@ -34302,7 +34723,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-commands" {
         clear(): void;
     }
     export class WebGL2CmdDraw extends WebGL2CmdObject {
-        drawInfo: IGFXDrawInfo;
+        drawInfo: GFXDrawInfo;
         constructor();
         clear(): void;
     }
@@ -34347,7 +34768,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-commands" {
     export function WebGL2CmdFuncDestroyInputAssembler(device: WebGL2Device, gpuInputAssembler: IWebGL2GPUInputAssembler): void;
     export function WebGL2CmdFuncBeginRenderPass(device: WebGL2Device, gpuRenderPass: IWebGL2GPURenderPass | null, gpuFramebuffer: IWebGL2GPUFramebuffer | null, renderArea: GFXRect, clearColors: GFXColor[], clearDepth: number, clearStencil: number): void;
     export function WebGL2CmdFuncBindStates(device: WebGL2Device, gpuPipelineState: IWebGL2GPUPipelineState | null, gpuInputAssembler: IWebGL2GPUInputAssembler | null, gpuDescriptorSets: IWebGL2GPUDescriptorSet[], dynamicOffsets: number[], viewport: GFXViewport | null, scissor: GFXRect | null, lineWidth: number | null, depthBias: IWebGL2DepthBias | null, blendConstants: number[], depthBounds: IWebGL2DepthBounds | null, stencilWriteMask: IWebGL2StencilWriteMask | null, stencilCompareMask: IWebGL2StencilCompareMask | null): void;
-    export function WebGL2CmdFuncDraw(device: WebGL2Device, drawInfo: IGFXDrawInfo): void;
+    export function WebGL2CmdFuncDraw(device: WebGL2Device, drawInfo: GFXDrawInfo): void;
     export function WebGL2CmdFuncExecuteCmds(device: WebGL2Device, cmdPackage: WebGL2CmdPackage): void;
     export function WebGL2CmdFuncCopyTexImagesToTexture(device: WebGL2Device, texImages: TexImageSource[], gpuTexture: IWebGL2GPUTexture, regions: GFXBufferTextureCopy[]): void;
     export function WebGL2CmdFuncCopyBuffersToTexture(device: WebGL2Device, buffers: ArrayBufferView[], gpuTexture: IWebGL2GPUTexture, regions: GFXBufferTextureCopy[]): void;
@@ -34440,6 +34861,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-state-cache" {
         glElementArrayBuffer: WebGLBuffer | null;
         glUniformBuffer: WebGLBuffer | null;
         glBindUBOs: (WebGLBuffer | null)[];
+        glBindUBOOffsets: number[];
         glVAO: WebGLVertexArrayObject | null;
         texUnit: number;
         glTexUnits: IWebGL2TexUnit[];
@@ -34504,6 +34926,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-device" {
         private _isPremultipliedAlpha;
         private _useVAO;
         private _bindingMappingInfo;
+        private _webGLContextLostHandler;
         private _extensions;
         private _EXT_texture_filter_anisotropic;
         private _OES_texture_float_linear;
@@ -34545,6 +34968,7 @@ declare module "cocos/core/gfx/webgl2/webgl2-device" {
         blitFramebuffer(src: GFXFramebuffer, dst: GFXFramebuffer, srcRect: GFXRect, dstRect: GFXRect, filter: GFXFilter): void;
         private getExtension;
         private initStates;
+        private _onWebGLContextLost;
     }
 }
 declare module "exports/gfx-webgl2" {
@@ -34554,9 +34978,9 @@ declare module "exports/gfx-webgl2" {
     import { WebGL2Device } from "cocos/core/gfx/webgl2/webgl2-device";
     export { WebGL2Device };
 }
-declare module "cocos/particle/billboard-component" {
+declare module "cocos/particle/billboard" {
     import { Component } from "cocos/core/components/component";
-    export class BillboardComponent extends Component {
+    export class Billboard extends Component {
         private _texture;
         /**
          * @zh Billboard纹理。
@@ -34731,11 +35155,11 @@ declare module "cocos/particle/animator/gradient-range" {
 }
 declare module "cocos/particle/models/line-model" {
     import { Vec3 } from "cocos/core/math/index";
-    import { Model } from "cocos/core/renderer/scene/model";
+    import { scene } from "cocos/core/renderer/index";
     import CurveRange from "cocos/particle/animator/curve-range";
     import GradientRange from "cocos/particle/animator/gradient-range";
     import { Material } from "cocos/core/assets/index";
-    export class LineModel extends Model {
+    export class LineModel extends scene.Model {
         private _capacity;
         private _vertSize;
         private _vBuffer;
@@ -34758,12 +35182,12 @@ declare module "cocos/particle/models/line-model" {
         private destroySubMeshData;
     }
 }
-declare module "cocos/particle/line-component" {
+declare module "cocos/particle/line" {
     import { Component } from "cocos/core/components/index";
     import { Vec2 } from "cocos/core/math/index";
     import CurveRange from "cocos/particle/animator/curve-range";
     import GradientRange from "cocos/particle/animator/gradient-range";
-    export class LineComponent extends Component {
+    export class Line extends Component {
         private _texture;
         /**
          * @zh 显示的纹理。
@@ -34824,10 +35248,10 @@ declare module "cocos/particle/models/particle-batch-model" {
      */
     import { Mesh } from "cocos/core/assets/mesh";
     import { IGFXAttribute } from "cocos/core/gfx/input-assembler";
-    import { Model } from "cocos/core/renderer/scene/model";
+    import { scene } from "cocos/core/renderer/index";
     import { Particle } from "cocos/particle/particle";
     import { Material } from "cocos/core/assets/index";
-    export default class ParticleBatchModel extends Model {
+    export default class ParticleBatchModel extends scene.Model {
         private _capacity;
         private _vertAttrs;
         private _vertSize;
@@ -35189,10 +35613,10 @@ declare module "cocos/particle/particle" {
      * @hidden
      */
     import { Color, Vec3, Mat4 } from "cocos/core/math/index";
-    import { ParticleSystemComponent } from "cocos/particle/particle-system-component";
+    import { ParticleSystem } from "cocos/particle/particle-system";
     import { IParticleSystemRenderer } from "cocos/particle/renderer/particle-system-renderer-base";
     export class Particle {
-        particleSystem: ParticleSystemComponent;
+        particleSystem: ParticleSystem;
         position: Vec3;
         velocity: Vec3;
         animatedVelocity: Vec3;
@@ -35576,7 +36000,7 @@ declare module "cocos/particle/burst" {
 declare module "cocos/particle/emitter/shape-module" {
     import { Vec3 } from "cocos/core/math/index";
     import CurveRange from "cocos/particle/animator/curve-range";
-    import { ParticleSystemComponent } from "cocos/particle/particle-system-component";
+    import { ParticleSystem } from "cocos/particle/particle-system";
     export default class ShapeModule {
         /**
          * @zh 粒子发射器位置。
@@ -35679,7 +36103,7 @@ declare module "cocos/particle/emitter/shape-module" {
         private lastTime;
         private totalAngle;
         constructor();
-        onInit(ps: ParticleSystemComponent): void;
+        onInit(ps: ParticleSystem): void;
         emit(p: any): void;
         private constructMat;
         private generateArcAngle;
@@ -35773,13 +36197,13 @@ declare module "cocos/particle/renderer/trail" {
         private destroySubMeshData;
     }
 }
-declare module "cocos/particle/particle-system-component" {
+declare module "cocos/particle/particle-system" {
     /**
      * @category particle
      */
     import { RenderableComponent } from "cocos/core/3d/framework/renderable-component";
     import { Material } from "cocos/core/assets/material";
-    import { Model } from "cocos/core/renderer/index";
+    import { scene } from "cocos/core/renderer/index";
     import ColorOverLifetimeModule from "cocos/particle/animator/color-overtime";
     import CurveRange from "cocos/particle/animator/curve-range";
     import ForceOvertimeModule from "cocos/particle/animator/force-overtime";
@@ -35794,7 +36218,7 @@ declare module "cocos/particle/particle-system-component" {
     import ParticleSystemRenderer from "cocos/particle/renderer/particle-system-renderer-data";
     import TrailModule from "cocos/particle/renderer/trail";
     import { IParticleSystemRenderer } from "cocos/particle/renderer/particle-system-renderer-base";
-    export class ParticleSystemComponent extends RenderableComponent {
+    export class ParticleSystem extends RenderableComponent {
         /**
          * @zh 粒子系统能生成的最大粒子数量。
          */
@@ -35966,7 +36390,7 @@ declare module "cocos/particle/particle-system-component" {
         onLoad(): void;
         _onMaterialModified(index: number, material: Material): void;
         _onRebuildPSO(index: number, material: Material): void;
-        _collectModels(): Model[];
+        _collectModels(): scene.Model[];
         protected _attachToScene(): void;
         protected _detachFromScene(): void;
         bindModule(): void;
@@ -36035,18 +36459,37 @@ declare module "cocos/particle/particle-utils" {
         private static onSceneUnload;
     }
 }
-declare module "cocos/particle/deprecated" { }
+declare module "cocos/particle/deprecated" {
+    import { ParticleSystem } from "cocos/particle/particle-system";
+    import { Billboard } from "cocos/particle/billboard";
+    import { Line } from "cocos/particle/line";
+    /**
+     * Alias of [[ParticleSystem]]
+     * @deprecated Since v1.2
+     */
+    export { ParticleSystem as ParticleSystemComponent };
+    /**
+     * Alias of [[Billboard]]
+     * @deprecated Since v1.2
+     */
+    export { Billboard as BillboardComponent };
+    /**
+     * Alias of [[Line]]
+     * @deprecated Since v1.2
+     */
+    export { Line as LineComponent };
+}
 declare module "cocos/particle/index" {
     /**
      * @hidden
      */
-    import { BillboardComponent } from "cocos/particle/billboard-component";
-    import { LineComponent } from "cocos/particle/line-component";
-    import { ParticleSystemComponent } from "cocos/particle/particle-system-component";
+    import { Billboard } from "cocos/particle/billboard";
+    import { Line } from "cocos/particle/line";
+    import { ParticleSystem } from "cocos/particle/particle-system";
     import { ParticleUtils } from "cocos/particle/particle-utils";
-    import "cocos/particle/deprecated";
     import CurveRange from "cocos/particle/animator/curve-range";
-    export { BillboardComponent, LineComponent, ParticleSystemComponent, ParticleUtils, CurveRange };
+    export { Billboard, Line, ParticleSystem, ParticleUtils, CurveRange };
+    export * from "cocos/particle/deprecated";
 }
 declare module "exports/particle" {
     /**
@@ -36126,7 +36569,7 @@ declare module "cocos/physics/framework/physics-ray-result" {
      * @category physics
      */
     import { Vec3 } from "cocos/core/math/index";
-    import { ColliderComponent } from "exports/physics-framework";
+    import { Collider } from "exports/physics-framework";
     import { IVec3Like } from "cocos/core/math/type-define";
     /**
      * @en
@@ -36155,7 +36598,7 @@ declare module "cocos/physics/framework/physics-ray-result" {
          * @zh
          * 击中的碰撞盒
          */
-        get collider(): ColliderComponent;
+        get collider(): Collider;
         /**
          * @en
          * The normal of the hit plane，in world space.
@@ -36173,7 +36616,7 @@ declare module "cocos/physics/framework/physics-ray-result" {
          * @zh
          * 设置射线，此方法由引擎内部使用，请勿在外部脚本调用。
          */
-        _assign(hitPoint: IVec3Like, distance: number, collider: ColliderComponent, hitNormal: IVec3Like): void;
+        _assign(hitPoint: IVec3Like, distance: number, collider: Collider, hitNormal: IVec3Like): void;
         /**
          * @en
          * clone.
@@ -36392,7 +36835,7 @@ declare module "cocos/physics/framework/physics-enum" {
         CONE_TWIST = 2
     }
 }
-declare module "cocos/physics/framework/components/rigid-body-component" {
+declare module "cocos/physics/framework/components/rigid-body" {
     import { Vec3 } from "cocos/core/math/index";
     import { Component } from "cocos/core/index";
     import { IRigidBody } from "cocos/physics/spec/i-rigid-body";
@@ -36403,7 +36846,7 @@ declare module "cocos/physics/framework/components/rigid-body-component" {
      * @zh
      * 刚体组件。
      */
-    export class RigidBodyComponent extends Component {
+    export class RigidBody extends Component {
         static readonly ERigidBodyType: typeof ERigidBodyType;
         /**
          * @en
@@ -36720,7 +37163,7 @@ declare module "cocos/physics/framework/components/rigid-body-component" {
          */
         removeMask(v: number): void;
     }
-    export namespace RigidBodyComponent {
+    export namespace RigidBody {
         type ERigidBodyType = EnumAlias<typeof ERigidBodyType>;
     }
 }
@@ -36731,14 +37174,14 @@ declare module "cocos/physics/spec/i-rigid-body" {
     import { ILifecycle } from "cocos/physics/spec/i-lifecycle";
     import { IGroupMask } from "cocos/physics/spec/i-group-mask";
     import { IVec3Like } from "cocos/core/math/type-define";
-    import { RigidBodyComponent } from "cocos/physics/framework/components/rigid-body-component";
+    import { RigidBody } from "cocos/physics/framework/components/rigid-body";
     export interface IRigidBody extends ILifecycle, IGroupMask {
         readonly impl: any;
-        readonly rigidBody: RigidBodyComponent;
+        readonly rigidBody: RigidBody;
         readonly isAwake: boolean;
         readonly isSleepy: boolean;
         readonly isSleeping: boolean;
-        initialize(v: RigidBodyComponent): void;
+        initialize(v: RigidBody): void;
         setMass: (v: number) => void;
         setLinearDamping: (v: number) => void;
         setAngularDamping: (v: number) => void;
@@ -36783,15 +37226,15 @@ declare module "cocos/physics/spec/i-physics-shape" {
     import { ILifecycle } from "cocos/physics/spec/i-lifecycle";
     import { IGroupMask } from "cocos/physics/spec/i-group-mask";
     import { IVec3Like } from "cocos/core/math/type-define";
-    import { ColliderComponent, RigidBodyComponent, PhysicMaterial, SimplexColliderComponent } from "exports/physics-framework";
+    import { Collider, RigidBody, PhysicMaterial, SimplexCollider } from "exports/physics-framework";
     import { Mesh } from "cocos/core/index";
     import { ITerrainAsset } from "cocos/physics/spec/i-external";
     import { aabb, sphere } from "cocos/core/geometry/index";
     export interface IBaseShape extends ILifecycle, IGroupMask {
         readonly impl: any;
-        readonly collider: ColliderComponent;
-        readonly attachedRigidBody: RigidBodyComponent | null;
-        initialize(v: ColliderComponent): void;
+        readonly collider: Collider;
+        readonly attachedRigidBody: RigidBody | null;
+        initialize(v: Collider): void;
         setMaterial: (v: PhysicMaterial | null) => void;
         setAsTrigger: (v: boolean) => void;
         setCenter: (v: IVec3Like) => void;
@@ -36815,7 +37258,7 @@ declare module "cocos/physics/spec/i-physics-shape" {
         setDirection: (v: number) => void;
     }
     export interface ISimplexShape extends IBaseShape {
-        setShapeType: (v: SimplexColliderComponent.ESimplexType) => void;
+        setShapeType: (v: SimplexCollider.ESimplexType) => void;
         setVertices: (v: IVec3Like[]) => void;
     }
     export interface IConeShape extends IBaseShape {
@@ -36844,12 +37287,12 @@ declare module "cocos/physics/spec/i-physics-constraint" {
      * @hidden
      */
     import { ILifecycle } from "cocos/physics/spec/i-lifecycle";
-    import { ConstraintComponent, RigidBodyComponent } from "cocos/physics/framework/index";
+    import { Constraint, RigidBody } from "cocos/physics/framework/index";
     import { IVec3Like } from "cocos/core/index";
     export interface IBaseConstraint extends ILifecycle {
         readonly impl: any;
-        initialize(v: ConstraintComponent): void;
-        setConnectedBody(v: RigidBodyComponent | null): void;
+        initialize(v: Constraint): void;
+        setConnectedBody(v: RigidBody | null): void;
         setEnableCollision(v: boolean): void;
     }
     export interface IPointToPointConstraint extends IBaseConstraint {
@@ -36958,6 +37401,9 @@ declare module "cocos/physics/framework/physics-system" {
     import { ray } from "cocos/core/geometry/index";
     import { PhysicsRayResult } from "cocos/physics/framework/physics-ray-result";
     import { ICollisionMatrix } from "cocos/physics/framework/physics-config";
+    enum PhysicsGroup {
+        DEFAULT = 1
+    }
     /**
      * @en
      * Physics system.
@@ -36965,6 +37411,32 @@ declare module "cocos/physics/framework/physics-system" {
      * 物理系统。
      */
     export class PhysicsSystem extends System {
+        static get PHYSICS_NONE(): boolean;
+        static get PHYSICS_BUILTIN(): boolean;
+        static get PHYSICS_CANNON(): boolean;
+        static get PHYSICS_AMMO(): boolean;
+        /**
+         * @en
+         * Gets the ID of the system.
+         * @zh
+         * 获取此系统的ID。
+         */
+        static readonly ID = "PHYSICS";
+        /**
+         * @en
+         * Gets the predefined physics groups.
+         * @zh
+         * 获取预定义的物理分组。
+         */
+        static get PhysicsGroup(): typeof PhysicsGroup;
+        /**
+         * @en
+         * Gets the physical system instance.
+         * @zh
+         * 获取物理系统实例。
+         */
+        static get instance(): PhysicsSystem;
+        private static readonly _instance;
         /**
          * @en
          * Gets or sets whether the physical system is enabled, which can be used to pause or continue running the physical system.
@@ -37064,31 +37536,11 @@ declare module "cocos/physics/framework/physics-system" {
          */
         readonly useCollisionMatrix: boolean;
         readonly useNodeChains: boolean;
-        static get PHYSICS_NONE(): boolean;
-        static get PHYSICS_BUILTIN(): boolean;
-        static get PHYSICS_CANNON(): boolean;
-        static get PHYSICS_AMMO(): boolean;
-        /**
-         * @en
-         * Gets the ID of the system.
-         * @zh
-         * 获取此系统的ID。
-         */
-        static readonly ID = "PHYSICS";
-        /**
-         * @en
-         * Gets the physical system instance.
-         * @zh
-         * 获取物理系统实例。
-         */
-        static get instance(): PhysicsSystem;
-        private static readonly _instance;
         private _enable;
         private _allowSleep;
         private _maxSubSteps;
+        private _subStepCount;
         private _fixedTimeStep;
-        private _timeSinceLastCalled;
-        private _timeReset;
         private _autoSimulation;
         private _accumulator;
         private _sleepThreshold;
@@ -37139,7 +37591,7 @@ declare module "cocos/physics/framework/physics-system" {
          * Updates the mask corresponding to the collision matrix for the lowLevel rigid-body instance.
          * Automatic execution during automatic simulation.
          * @zh
-         * 更新底层实例对应于碰撞矩阵的掩码，自动模拟时会自动更新。
+         * 更新底层实例对应于碰撞矩阵的掩码，开启自动模拟时会自动更新。
          */
         updateCollisionMatrix(): void;
         /**
@@ -37196,7 +37648,7 @@ declare module "cocos/physics/framework/physics-interface" {
      * @category physics
      */
     import { IVec3Like } from "cocos/core/math/index";
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     /**
      * @en
      * The definition of the triggering event.
@@ -37217,14 +37669,14 @@ declare module "cocos/physics/framework/physics-interface" {
          * @zh
          * 触发事件中的自己的碰撞器
          */
-        readonly selfCollider: ColliderComponent;
+        readonly selfCollider: Collider;
         /**
          * @en
          * Trigger another collider in event.
          * @zh
          * 触发事件中的另一个碰撞器
          */
-        readonly otherCollider: ColliderComponent;
+        readonly otherCollider: Collider;
         /**
          * @en
          * Gets the lowLevel object, through which all the exposed properties can be accessed.
@@ -37337,14 +37789,14 @@ declare module "cocos/physics/framework/physics-interface" {
          * @zh
          * 碰撞中的自己的碰撞器。
          */
-        readonly selfCollider: ColliderComponent;
+        readonly selfCollider: Collider;
         /**
          * @en
          * Another collider in collision.
          * @zh
          * 碰撞中的另一个碰撞器。
          */
-        readonly otherCollider: ColliderComponent;
+        readonly otherCollider: Collider;
         /**
          * @en
          * Information about all points of impact in a collision event.
@@ -37375,23 +37827,23 @@ declare module "cocos/physics/framework/physics-interface" {
      */
     export type CollisionCallback = (event?: ICollisionEvent) => void;
 }
-declare module "cocos/physics/framework/components/colliders/collider-component" {
+declare module "cocos/physics/framework/components/colliders/collider" {
     import { Vec3 } from "cocos/core/math/index";
     import { CollisionEventType, TriggerEventType } from "cocos/physics/framework/physics-interface";
-    import { RigidBodyComponent } from "cocos/physics/framework/components/rigid-body-component";
+    import { RigidBody } from "cocos/physics/framework/components/rigid-body";
     import { PhysicMaterial } from "cocos/physics/framework/assets/physic-material";
     import { Component } from "cocos/core/index";
     import { IBaseShape } from "cocos/physics/spec/i-physics-shape";
     import { aabb, sphere } from "cocos/core/geometry/index";
     import { EColliderType, EAxisDirection } from "cocos/physics/framework/physics-enum";
-    const ColliderComponent_base: new (...args: any[]) => Component & import("cocos/core/event/eventify").IEventified;
+    const Collider_base: new (...args: any[]) => Component & import("cocos/core/event/eventify").IEventified;
     /**
      * @en
      * Base class of collider.
      * @zh
      * 碰撞器的基类。
      */
-    export class ColliderComponent extends ColliderComponent_base {
+    export class Collider extends Collider_base {
         static readonly EColliderType: typeof EColliderType;
         static readonly EAxisDirection: typeof EAxisDirection;
         /**
@@ -37400,7 +37852,7 @@ declare module "cocos/physics/framework/components/colliders/collider-component"
          * @zh
          * 获取碰撞器所绑定的刚体组件，可能为 null 。
          */
-        get attachedRigidBody(): RigidBodyComponent | null;
+        get attachedRigidBody(): RigidBody | null;
         /**
          * @en
          * Gets or sets the physical material for this collider.
@@ -37567,14 +38019,14 @@ declare module "cocos/physics/framework/components/colliders/collider-component"
         private _updateNeedEvent;
         private _updateMask;
     }
-    export namespace ColliderComponent {
+    export namespace Collider {
         type EColliderType = EnumAlias<typeof EColliderType>;
         type EAxisDirection = EnumAlias<typeof EAxisDirection>;
     }
 }
-declare module "cocos/physics/framework/components/colliders/box-collider-component" {
+declare module "cocos/physics/framework/components/colliders/box-collider" {
     import { Vec3 } from "cocos/core/math/index";
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { IBoxShape } from "cocos/physics/spec/i-physics-shape";
     /**
      * @en
@@ -37582,7 +38034,7 @@ declare module "cocos/physics/framework/components/colliders/box-collider-compon
      * @zh
      * 盒子碰撞器。
      */
-    export class BoxColliderComponent extends ColliderComponent {
+    export class BoxCollider extends Collider {
         /**
          * @en
          * Gets or sets the size of the box, in local space.
@@ -37602,8 +38054,8 @@ declare module "cocos/physics/framework/components/colliders/box-collider-compon
         constructor();
     }
 }
-declare module "cocos/physics/framework/components/colliders/sphere-collider-component" {
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+declare module "cocos/physics/framework/components/colliders/sphere-collider" {
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { ISphereShape } from "cocos/physics/spec/i-physics-shape";
     /**
      * @en
@@ -37611,7 +38063,7 @@ declare module "cocos/physics/framework/components/colliders/sphere-collider-com
      * @zh
      * 球碰撞器。
      */
-    export class SphereColliderComponent extends ColliderComponent {
+    export class SphereCollider extends Collider {
         /**
          * @en
          * Gets or sets the radius of the sphere.
@@ -37631,8 +38083,8 @@ declare module "cocos/physics/framework/components/colliders/sphere-collider-com
         constructor();
     }
 }
-declare module "cocos/physics/framework/components/colliders/capsule-collider-component" {
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+declare module "cocos/physics/framework/components/colliders/capsule-collider" {
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { ICapsuleShape } from "cocos/physics/spec/i-physics-shape";
     import { EAxisDirection } from "cocos/physics/framework/physics-enum";
     /**
@@ -37641,7 +38093,7 @@ declare module "cocos/physics/framework/components/colliders/capsule-collider-co
      * @zh
      * 胶囊体碰撞器。
      */
-    export class CapsuleColliderComponent extends ColliderComponent {
+    export class CapsuleCollider extends Collider {
         /**
          * @en
          * Gets or sets the radius of the sphere on the capsule body, in local space.
@@ -37696,8 +38148,8 @@ declare module "cocos/physics/framework/components/colliders/capsule-collider-co
         private _getHeightScale;
     }
 }
-declare module "cocos/physics/framework/components/colliders/cylinder-collider-component" {
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+declare module "cocos/physics/framework/components/colliders/cylinder-collider" {
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { ICylinderShape } from "cocos/physics/spec/i-physics-shape";
     import { EAxisDirection } from "cocos/physics/framework/physics-enum";
     /**
@@ -37706,7 +38158,7 @@ declare module "cocos/physics/framework/components/colliders/cylinder-collider-c
      * @zh
      * 圆柱体碰撞器。
      */
-    export class CylinderColliderComponent extends ColliderComponent {
+    export class CylinderCollider extends Collider {
         /**
          * @en
          * Gets or sets the radius of the circle on the cylinder body, in local space.
@@ -37738,8 +38190,8 @@ declare module "cocos/physics/framework/components/colliders/cylinder-collider-c
         constructor();
     }
 }
-declare module "cocos/physics/framework/components/colliders/cone-collider-component" {
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+declare module "cocos/physics/framework/components/colliders/cone-collider" {
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { IConeShape } from "cocos/physics/spec/i-physics-shape";
     import { EAxisDirection } from "cocos/physics/framework/physics-enum";
     /**
@@ -37748,7 +38200,7 @@ declare module "cocos/physics/framework/components/colliders/cone-collider-compo
      * @zh
      * 圆锥体碰撞器。
      */
-    export class ConeColliderComponent extends ColliderComponent {
+    export class ConeCollider extends Collider {
         /**
          * @en
          * Gets or sets the radius of the circle on the cone body, in local space.
@@ -37780,8 +38232,8 @@ declare module "cocos/physics/framework/components/colliders/cone-collider-compo
         constructor();
     }
 }
-declare module "cocos/physics/framework/components/colliders/mesh-collider-component" {
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+declare module "cocos/physics/framework/components/colliders/mesh-collider" {
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { Mesh } from "cocos/core/index";
     import { ITrimeshShape } from "cocos/physics/spec/i-physics-shape";
     /**
@@ -37790,7 +38242,7 @@ declare module "cocos/physics/framework/components/colliders/mesh-collider-compo
      * @zh
      * 三角网格碰撞器。
      */
-    export class MeshColliderComponent extends ColliderComponent {
+    export class MeshCollider extends Collider {
         /**
          * @en
          * Gets or sets the mesh assets referenced by this collider.
@@ -37826,7 +38278,7 @@ declare module "cocos/physics/framework/components/constant-force" {
      * @en
      * A tool component to help apply force to the rigid body at each frame.
      * @zh
-     * 在每帧对一个刚体施加持续的力，依赖 RigidBodyComponent 组件。
+     * 在每帧对一个刚体施加持续的力，依赖 RigidBody 组件。
      */
     export class ConstantForce extends Component {
         private _rigidBody;
@@ -37989,8 +38441,8 @@ declare module "cocos/terrain/terrain-asset" {
         _exportDefaultNativeData(): Uint8Array;
     }
 }
-declare module "cocos/physics/framework/components/colliders/terrain-collider-component" {
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+declare module "cocos/physics/framework/components/colliders/terrain-collider" {
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { ITerrainShape } from "cocos/physics/spec/i-physics-shape";
     import { ITerrainAsset } from "cocos/physics/spec/i-external";
     /**
@@ -37999,7 +38451,7 @@ declare module "cocos/physics/framework/components/colliders/terrain-collider-co
      * @zh
      * 地形碰撞器。
      */
-    export class TerrainColliderComponent extends ColliderComponent {
+    export class TerrainCollider extends Collider {
         /**
          * @en
          * Gets or sets the terrain assets referenced by this collider.
@@ -38019,8 +38471,8 @@ declare module "cocos/physics/framework/components/colliders/terrain-collider-co
         constructor();
     }
 }
-declare module "cocos/physics/framework/components/colliders/simplex-collider-component" {
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+declare module "cocos/physics/framework/components/colliders/simplex-collider" {
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { ISimplexShape } from "cocos/physics/spec/i-physics-shape";
     import { ESimplexType } from "cocos/physics/framework/physics-enum";
     import { IVec3Like } from "cocos/core/math/type-define";
@@ -38030,7 +38482,7 @@ declare module "cocos/physics/framework/components/colliders/simplex-collider-co
      * @zh
      * 单纯形碰撞器，支持点、线、三角形、四面体。
      */
-    export class SimplexColliderComponent extends ColliderComponent {
+    export class SimplexCollider extends Collider {
         static readonly ESimplexType: typeof ESimplexType;
         get shapeType(): ESimplexType;
         set shapeType(v: ESimplexType);
@@ -38055,13 +38507,13 @@ declare module "cocos/physics/framework/components/colliders/simplex-collider-co
         constructor();
         updateVertices(): void;
     }
-    export namespace SimplexColliderComponent {
+    export namespace SimplexCollider {
         type ESimplexType = EnumAlias<typeof ESimplexType>;
     }
 }
-declare module "cocos/physics/framework/components/colliders/plane-collider-component" {
+declare module "cocos/physics/framework/components/colliders/plane-collider" {
     import { Vec3 } from "cocos/core/math/index";
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
     import { IPlaneShape } from "cocos/physics/spec/i-physics-shape";
     /**
      * @en
@@ -38069,7 +38521,7 @@ declare module "cocos/physics/framework/components/colliders/plane-collider-comp
      * @zh
      * 静态平面碰撞器。
      */
-    export class PlaneColliderComponent extends ColliderComponent {
+    export class PlaneCollider extends Collider {
         /**
          * @en
          * Gets or sets the normal of the plane, in local space.
@@ -38098,22 +38550,22 @@ declare module "cocos/physics/framework/components/colliders/plane-collider-comp
         constructor();
     }
 }
-declare module "cocos/physics/framework/components/constraints/constraint-component" {
+declare module "cocos/physics/framework/components/constraints/constraint" {
     import { Component } from "cocos/core/index";
-    import { RigidBodyComponent } from "cocos/physics/framework/components/rigid-body-component";
+    import { RigidBody } from "cocos/physics/framework/components/rigid-body";
     import { IBaseConstraint } from "cocos/physics/spec/i-physics-constraint";
     import { EConstraintType } from "cocos/physics/framework/physics-enum";
-    const ConstraintComponent_base: new (...args: any[]) => Component & import("cocos/core/event/eventify").IEventified;
-    export class ConstraintComponent extends ConstraintComponent_base {
+    const Constraint_base: new (...args: any[]) => Component & import("cocos/core/event/eventify").IEventified;
+    export class Constraint extends Constraint_base {
         static readonly EConstraintType: typeof EConstraintType;
-        get attachedBody(): RigidBodyComponent | null;
-        get connectedBody(): RigidBodyComponent | null;
-        set connectedBody(v: RigidBodyComponent | null);
+        get attachedBody(): RigidBody | null;
+        get connectedBody(): RigidBody | null;
+        set connectedBody(v: RigidBody | null);
         get enableCollision(): boolean;
         set enableCollision(v: boolean);
         readonly TYPE: EConstraintType;
         protected _enableCollision: boolean;
-        protected _connectedBody: RigidBodyComponent | null;
+        protected _connectedBody: RigidBody | null;
         protected _constraint: IBaseConstraint | null;
         constructor(type: EConstraintType);
         protected onLoad(): void;
@@ -38121,14 +38573,14 @@ declare module "cocos/physics/framework/components/constraints/constraint-compon
         protected onDisable(): void;
         protected onDestroy(): void;
     }
-    export namespace ConstraintComponent {
+    export namespace Constraint {
         type EConstraintType = EnumAlias<typeof EConstraintType>;
     }
 }
-declare module "cocos/physics/framework/components/constraints/hinge-constraint-component" {
-    import { ConstraintComponent } from "cocos/physics/framework/components/constraints/constraint-component";
+declare module "cocos/physics/framework/components/constraints/hinge-constraint" {
+    import { Constraint } from "cocos/physics/framework/components/constraints/constraint";
     import { IVec3Like } from "cocos/core/index";
-    export class HingeConstraintComponent extends ConstraintComponent {
+    export class HingeConstraint extends Constraint {
         axisA: IVec3Like;
         axisB: IVec3Like;
         pivotA: IVec3Like;
@@ -38136,11 +38588,11 @@ declare module "cocos/physics/framework/components/constraints/hinge-constraint-
         constructor();
     }
 }
-declare module "cocos/physics/framework/components/constraints/point-to-point-constraint-component" {
-    import { ConstraintComponent } from "cocos/physics/framework/components/constraints/constraint-component";
+declare module "cocos/physics/framework/components/constraints/point-to-point-constraint" {
+    import { Constraint } from "cocos/physics/framework/components/constraints/constraint";
     import { IVec3Like } from "cocos/core/index";
     import { IPointToPointConstraint } from "cocos/physics/spec/i-physics-constraint";
-    export class PointToPointConstraintComponent extends ConstraintComponent {
+    export class PointToPointConstraint extends Constraint {
         get pivotA(): IVec3Like;
         set pivotA(v: IVec3Like);
         get pivotB(): IVec3Like;
@@ -38151,7 +38603,50 @@ declare module "cocos/physics/framework/components/constraints/point-to-point-co
         constructor();
     }
 }
-declare module "cocos/physics/framework/deprecated" { }
+declare module "cocos/physics/framework/deprecated" {
+    import { BoxCollider } from "cocos/physics/framework/components/colliders/box-collider";
+    import { SphereCollider } from "cocos/physics/framework/components/colliders/sphere-collider";
+    import { CapsuleCollider } from "cocos/physics/framework/components/colliders/capsule-collider";
+    import { CylinderCollider } from "cocos/physics/framework/components/colliders/cylinder-collider";
+    import { MeshCollider } from "cocos/physics/framework/components/colliders/mesh-collider";
+    import { RigidBody } from "cocos/physics/framework/components/rigid-body";
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
+    /**
+     * Alias of [[RigidBody]]
+     * @deprecated Since v1.2
+     */
+    export { RigidBody as RigidBodyComponent };
+    /**
+     * Alias of [[Collider]]
+     * @deprecated Since v1.2
+     */
+    export { Collider as ColliderComponent };
+    /**
+     * Alias of [[BoxCollider]]
+     * @deprecated Since v1.2
+     */
+    export { BoxCollider as BoxColliderComponent };
+    /**
+     * Alias of [[SphereCollider]]
+     * @deprecated Since v1.2
+     */
+    export { SphereCollider as SphereColliderComponent };
+    /**
+     * Alias of [[CapsuleCollider]]
+     * @deprecated Since v1.2
+     */
+    export { CapsuleCollider as CapsuleColliderComponent };
+    /**
+     * Alias of [[MeshCollider]]
+     * @deprecated Since v1.2
+     */
+    export { MeshCollider as MeshColliderComponent };
+    /**
+     * Alias of [[CylinderCollider]]
+     * @deprecated Since v1.2
+     */
+    export { CylinderCollider as CylinderColliderComponent };
+}
 declare module "cocos/physics/framework/index" {
     /**
      * @hidden
@@ -38159,25 +38654,25 @@ declare module "cocos/physics/framework/index" {
     import { PhysicsSystem } from "cocos/physics/framework/physics-system";
     import { PhysicMaterial } from "cocos/physics/framework/assets/physic-material";
     import { PhysicsRayResult } from "cocos/physics/framework/physics-ray-result";
-    import { BoxColliderComponent } from "cocos/physics/framework/components/colliders/box-collider-component";
-    import { ColliderComponent } from "cocos/physics/framework/components/colliders/collider-component";
-    import { SphereColliderComponent } from "cocos/physics/framework/components/colliders/sphere-collider-component";
-    import { CapsuleColliderComponent } from "cocos/physics/framework/components/colliders/capsule-collider-component";
-    import { CylinderColliderComponent } from "cocos/physics/framework/components/colliders/cylinder-collider-component";
-    import { ConeColliderComponent } from "cocos/physics/framework/components/colliders/cone-collider-component";
-    import { MeshColliderComponent } from "cocos/physics/framework/components/colliders/mesh-collider-component";
-    import { RigidBodyComponent } from "cocos/physics/framework/components/rigid-body-component";
+    import { BoxCollider } from "cocos/physics/framework/components/colliders/box-collider";
+    import { Collider } from "cocos/physics/framework/components/colliders/collider";
+    import { SphereCollider } from "cocos/physics/framework/components/colliders/sphere-collider";
+    import { CapsuleCollider } from "cocos/physics/framework/components/colliders/capsule-collider";
+    import { CylinderCollider } from "cocos/physics/framework/components/colliders/cylinder-collider";
+    import { ConeCollider } from "cocos/physics/framework/components/colliders/cone-collider";
+    import { MeshCollider } from "cocos/physics/framework/components/colliders/mesh-collider";
+    import { RigidBody } from "cocos/physics/framework/components/rigid-body";
     import { ConstantForce } from "cocos/physics/framework/components/constant-force";
-    import { TerrainColliderComponent } from "cocos/physics/framework/components/colliders/terrain-collider-component";
-    import { SimplexColliderComponent } from "cocos/physics/framework/components/colliders/simplex-collider-component";
-    import { PlaneColliderComponent } from "cocos/physics/framework/components/colliders/plane-collider-component";
-    import { ConstraintComponent } from "cocos/physics/framework/components/constraints/constraint-component";
-    import { HingeConstraintComponent } from "cocos/physics/framework/components/constraints/hinge-constraint-component";
-    import { PointToPointConstraintComponent } from "cocos/physics/framework/components/constraints/point-to-point-constraint-component";
-    export { PhysicsSystem, PhysicsRayResult, ColliderComponent, BoxColliderComponent, SphereColliderComponent, CapsuleColliderComponent, MeshColliderComponent, CylinderColliderComponent, ConeColliderComponent, TerrainColliderComponent, SimplexColliderComponent, PlaneColliderComponent, ConstraintComponent, HingeConstraintComponent, PointToPointConstraintComponent, RigidBodyComponent, PhysicMaterial, ConstantForce };
+    import { TerrainCollider } from "cocos/physics/framework/components/colliders/terrain-collider";
+    import { SimplexCollider } from "cocos/physics/framework/components/colliders/simplex-collider";
+    import { PlaneCollider } from "cocos/physics/framework/components/colliders/plane-collider";
+    import { Constraint } from "cocos/physics/framework/components/constraints/constraint";
+    import { HingeConstraint } from "cocos/physics/framework/components/constraints/hinge-constraint";
+    import { PointToPointConstraint } from "cocos/physics/framework/components/constraints/point-to-point-constraint";
+    export { PhysicsSystem, PhysicsRayResult, Collider, BoxCollider, SphereCollider, CapsuleCollider, MeshCollider, CylinderCollider, ConeCollider, TerrainCollider, SimplexCollider, PlaneCollider, Constraint, HingeConstraint, PointToPointConstraint, RigidBody, PhysicMaterial, ConstantForce, };
     export * from "cocos/physics/framework/physics-interface";
     export { EAxisDirection, ERigidBodyType } from "cocos/physics/framework/physics-enum";
-    import "cocos/physics/framework/deprecated";
+    export * from "cocos/physics/framework/deprecated";
 }
 declare module "exports/physics-framework" {
     /**
@@ -38289,18 +38784,18 @@ declare module "cocos/physics/ammo/ammo-util" {
     export function cocos2AmmoTriMesh(out: Ammo.btTriangleMesh, mesh: Mesh): Ammo.btTriangleMesh;
 }
 declare module "cocos/physics/ammo/ammo-const" {
-    import { ColliderComponent, TriggerEventType, CollisionEventType, IContactEquation } from "exports/physics-framework";
+    import { Collider, TriggerEventType, CollisionEventType, IContactEquation } from "exports/physics-framework";
     import { Vec3, Quat } from "cocos/core/index";
     export const TriggerEventObject: {
         type: TriggerEventType;
-        selfCollider: ColliderComponent;
-        otherCollider: ColliderComponent;
+        selfCollider: Collider;
+        otherCollider: Collider;
         impl: null;
     };
     export const CollisionEventObject: {
         type: CollisionEventType;
-        selfCollider: ColliderComponent;
-        otherCollider: ColliderComponent;
+        selfCollider: Collider;
+        otherCollider: Collider;
         contacts: IContactEquation[];
         impl: null;
     };
@@ -38318,7 +38813,7 @@ declare module "cocos/physics/ammo/ammo-const" {
     export const CC_QUAT_0: Quat;
 }
 declare module "cocos/physics/ammo/shapes/ammo-shape" {
-    import { ColliderComponent, RigidBodyComponent, PhysicMaterial } from "exports/physics-framework";
+    import { Collider, PhysicMaterial } from "exports/physics-framework";
     import { AmmoBroadphaseNativeTypes } from "cocos/physics/ammo/ammo-enum";
     import { Node } from "cocos/core/index";
     import { IBaseShape } from "cocos/physics/spec/i-physics-shape";
@@ -38329,9 +38824,9 @@ declare module "cocos/physics/ammo/shapes/ammo-shape" {
         setMaterial(v: PhysicMaterial | null): void;
         setCenter(v: IVec3Like): void;
         setAsTrigger(v: boolean): void;
-        get attachedRigidBody(): RigidBodyComponent | null;
+        get attachedRigidBody(): import("exports/physics-framework").RigidBody | null;
         get impl(): Ammo.btCollisionShape;
-        get collider(): ColliderComponent;
+        get collider(): Collider;
         get sharedBody(): AmmoSharedBody;
         get index(): number;
         private static idCounter;
@@ -38344,7 +38839,7 @@ declare module "cocos/physics/ammo/shapes/ammo-shape" {
         protected _sharedBody: AmmoSharedBody;
         protected _btShape: Ammo.btCollisionShape;
         protected _btCompound: Ammo.btCompoundShape | null;
-        protected _collider: ColliderComponent;
+        protected _collider: Collider;
         protected readonly transform: Ammo.btTransform;
         protected readonly pos: Ammo.btVector3;
         protected readonly quat: Ammo.btQuaternion;
@@ -38352,7 +38847,7 @@ declare module "cocos/physics/ammo/shapes/ammo-shape" {
         constructor(type: AmmoBroadphaseNativeTypes);
         getAABB(v: aabb): void;
         getBoundingSphere(v: sphere): void;
-        initialize(com: ColliderComponent): void;
+        initialize(com: Collider): void;
         protected onComponentSet(): void;
         onLoad(): void;
         onEnable(): void;
@@ -38587,20 +39082,20 @@ declare module "cocos/physics/ammo/ammo-contact-equation" {
 }
 declare module "cocos/physics/ammo/constraints/ammo-constraint" {
     import { IBaseConstraint } from "cocos/physics/spec/i-physics-constraint";
-    import { ConstraintComponent, RigidBodyComponent } from "cocos/physics/framework/index";
+    import { Constraint, RigidBody } from "cocos/physics/framework/index";
     export class AmmoConstraint implements IBaseConstraint {
-        setConnectedBody(v: RigidBodyComponent | null): void;
+        setConnectedBody(v: RigidBody | null): void;
         setEnableCollision(v: boolean): void;
         get impl(): Ammo.btTypedConstraint;
-        get constraint(): ConstraintComponent;
+        get constraint(): Constraint;
         dirty: number;
         index: number;
         protected _impl: Ammo.btTypedConstraint;
-        protected _com: ConstraintComponent;
-        protected _rigidBody: RigidBodyComponent | null;
+        protected _com: Constraint;
+        protected _rigidBody: RigidBody | null;
         protected _collided: boolean;
         updateByReAdd(): void;
-        initialize(v: ConstraintComponent): void;
+        initialize(v: Constraint): void;
         protected onComponentSet(): void;
         onLoad(): void;
         onEnable(): void;
@@ -38660,7 +39155,7 @@ declare module "cocos/physics/ammo/ammo-world" {
 }
 declare module "cocos/physics/ammo/ammo-rigid-body" {
     import { Vec3 } from "cocos/core/index";
-    import { RigidBodyComponent } from "exports/physics-framework";
+    import { RigidBody } from "exports/physics-framework";
     import { IRigidBody } from "cocos/physics/spec/i-rigid-body";
     import { ERigidBodyType } from "cocos/physics/framework/physics-enum";
     import { AmmoSharedBody } from "cocos/physics/ammo/ammo-shared-body";
@@ -38680,7 +39175,7 @@ declare module "cocos/physics/ammo/ammo-rigid-body" {
         setAllowSleep(v: boolean): void;
         get isEnabled(): boolean;
         get impl(): Ammo.btRigidBody;
-        get rigidBody(): RigidBodyComponent;
+        get rigidBody(): RigidBody;
         get sharedBody(): AmmoSharedBody;
         private static idCounter;
         readonly id: number;
@@ -38692,7 +39187,7 @@ declare module "cocos/physics/ammo/ammo-rigid-body" {
         clearVelocity(): void;
         clearForces(): void;
         /** LIFECYCLE */
-        initialize(com: RigidBodyComponent): void;
+        initialize(com: RigidBody): void;
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
@@ -38729,13 +39224,13 @@ declare module "cocos/physics/ammo/ammo-rigid-body" {
 }
 declare module "cocos/physics/ammo/shapes/ammo-box-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
-    import { BoxColliderComponent } from "exports/physics-framework";
+    import { BoxCollider } from "exports/physics-framework";
     import { IBoxShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class AmmoBoxShape extends AmmoShape implements IBoxShape {
         setSize(size: IVec3Like): void;
         get impl(): Ammo.btBoxShape;
-        get collider(): BoxColliderComponent;
+        get collider(): BoxCollider;
         readonly halfExt: Ammo.btVector3;
         constructor();
         onComponentSet(): void;
@@ -38745,12 +39240,12 @@ declare module "cocos/physics/ammo/shapes/ammo-box-shape" {
 }
 declare module "cocos/physics/ammo/shapes/ammo-sphere-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
-    import { SphereColliderComponent } from "exports/physics-framework";
+    import { SphereCollider } from "exports/physics-framework";
     import { ISphereShape } from "cocos/physics/spec/i-physics-shape";
     export class AmmoSphereShape extends AmmoShape implements ISphereShape {
         setRadius(radius: number): void;
         get impl(): Ammo.btSphereShape;
-        get collider(): SphereColliderComponent;
+        get collider(): SphereCollider;
         constructor();
         onComponentSet(): void;
         setScale(): void;
@@ -38758,7 +39253,7 @@ declare module "cocos/physics/ammo/shapes/ammo-sphere-shape" {
 }
 declare module "cocos/physics/ammo/shapes/ammo-capsule-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
-    import { CapsuleColliderComponent } from "exports/physics-framework";
+    import { CapsuleCollider } from "exports/physics-framework";
     import { ICapsuleShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class AmmoCapsuleShape extends AmmoShape implements ICapsuleShape {
@@ -38766,20 +39261,20 @@ declare module "cocos/physics/ammo/shapes/ammo-capsule-shape" {
         setDirection(v: number): void;
         setRadius(v: number): void;
         get impl(): Ammo.btCapsuleShape;
-        get collider(): CapsuleColliderComponent;
+        get collider(): CapsuleCollider;
         constructor();
         onLoad(): void;
         setScale(): void;
         updateProperties(radius: number, height: number, direction: number, scale: IVec3Like): void;
     }
 }
-declare module "cocos/physics/ammo/shapes/ammo-bvh-triangle-mesh-shape" {
+declare module "cocos/physics/ammo/shapes/ammo-trimesh-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
     import { Mesh } from "cocos/core/index";
-    import { MeshColliderComponent } from "exports/physics-framework";
+    import { MeshCollider } from "exports/physics-framework";
     import { ITrimeshShape } from "cocos/physics/spec/i-physics-shape";
-    export class AmmoBvhTriangleMeshShape extends AmmoShape implements ITrimeshShape {
-        get collider(): MeshColliderComponent;
+    export class AmmoTrimeshShape extends AmmoShape implements ITrimeshShape {
+        get collider(): MeshCollider;
         get impl(): Ammo.btConvexTriangleMeshShape | Ammo.btBvhTriangleMeshShape;
         setMesh(v: Mesh | null): void;
         private refBtTriangleMesh;
@@ -38793,7 +39288,7 @@ declare module "cocos/physics/ammo/shapes/ammo-bvh-triangle-mesh-shape" {
 }
 declare module "cocos/physics/ammo/shapes/ammo-cylinder-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
-    import { CylinderColliderComponent } from "exports/physics-framework";
+    import { CylinderCollider } from "exports/physics-framework";
     import { ICylinderShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class AmmoCylinderShape extends AmmoShape implements ICylinderShape {
@@ -38801,7 +39296,7 @@ declare module "cocos/physics/ammo/shapes/ammo-cylinder-shape" {
         setDirection(v: number): void;
         setRadius(v: number): void;
         get impl(): Ammo.btCylinderShape;
-        get collider(): CylinderColliderComponent;
+        get collider(): CylinderCollider;
         readonly halfExtents: Ammo.btVector3;
         constructor();
         onLoad(): void;
@@ -38812,7 +39307,7 @@ declare module "cocos/physics/ammo/shapes/ammo-cylinder-shape" {
 }
 declare module "cocos/physics/ammo/shapes/ammo-cone-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
-    import { ConeColliderComponent } from "exports/physics-framework";
+    import { ConeCollider } from "exports/physics-framework";
     import { ICylinderShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class AmmoConeShape extends AmmoShape implements ICylinderShape {
@@ -38820,7 +39315,7 @@ declare module "cocos/physics/ammo/shapes/ammo-cone-shape" {
         setDirection(v: number): void;
         setRadius(v: number): void;
         get impl(): Ammo.btConeShape;
-        get collider(): ConeColliderComponent;
+        get collider(): ConeCollider;
         constructor();
         onLoad(): void;
         setScale(): void;
@@ -38829,12 +39324,12 @@ declare module "cocos/physics/ammo/shapes/ammo-cone-shape" {
 }
 declare module "cocos/physics/ammo/shapes/ammo-terrain-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
-    import { TerrainColliderComponent } from "exports/physics-framework";
+    import { TerrainCollider } from "exports/physics-framework";
     import { ITerrainShape } from "cocos/physics/spec/i-physics-shape";
     import { ITerrainAsset } from "cocos/physics/spec/i-external";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class AmmoTerrainShape extends AmmoShape implements ITerrainShape {
-        get collider(): TerrainColliderComponent;
+        get collider(): TerrainCollider;
         get impl(): Ammo.btHeightfieldTerrainShape;
         setTerrain(v: ITerrainAsset | null): void;
         private _terrainID;
@@ -38850,14 +39345,14 @@ declare module "cocos/physics/ammo/shapes/ammo-terrain-shape" {
 }
 declare module "cocos/physics/ammo/shapes/ammo-simplex-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
-    import { SimplexColliderComponent } from "exports/physics-framework";
+    import { SimplexCollider } from "exports/physics-framework";
     import { ISimplexShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class AmmoSimplexShape extends AmmoShape implements ISimplexShape {
-        setShapeType(v: SimplexColliderComponent.ESimplexType): void;
+        setShapeType(v: SimplexCollider.ESimplexType): void;
         setVertices(v: IVec3Like[]): void;
         get impl(): Ammo.btBU_Simplex1to4;
-        get collider(): SimplexColliderComponent;
+        get collider(): SimplexCollider;
         readonly VERTICES: Ammo.btVector3[];
         constructor();
         protected onComponentSet(): void;
@@ -38868,7 +39363,7 @@ declare module "cocos/physics/ammo/shapes/ammo-simplex-shape" {
 }
 declare module "cocos/physics/ammo/shapes/ammo-plane-shape" {
     import { AmmoShape } from "cocos/physics/ammo/shapes/ammo-shape";
-    import { PlaneColliderComponent } from "exports/physics-framework";
+    import { PlaneCollider } from "exports/physics-framework";
     import { IPlaneShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class AmmoPlaneShape extends AmmoShape implements IPlaneShape {
@@ -38876,7 +39371,7 @@ declare module "cocos/physics/ammo/shapes/ammo-plane-shape" {
         setConstant(v: number): void;
         setScale(): void;
         get impl(): Ammo.btStaticPlaneShape;
-        get collider(): PlaneColliderComponent;
+        get collider(): PlaneCollider;
         readonly NORMAL: Ammo.btVector3;
         constructor();
         onComponentSet(): void;
@@ -38887,12 +39382,12 @@ declare module "cocos/physics/ammo/constraints/ammo-point-to-point-constraint" {
     import { AmmoConstraint } from "cocos/physics/ammo/constraints/ammo-constraint";
     import { IPointToPointConstraint } from "cocos/physics/spec/i-physics-constraint";
     import { IVec3Like } from "cocos/core/index";
-    import { PointToPointConstraintComponent } from "cocos/physics/framework/index";
+    import { PointToPointConstraint } from "cocos/physics/framework/index";
     export class AmmoPointToPointConstraint extends AmmoConstraint implements IPointToPointConstraint {
         setPivotA(v: IVec3Like): void;
         setPivotB(v: IVec3Like): void;
         get impl(): Ammo.btPoint2PointConstraint;
-        get constraint(): PointToPointConstraintComponent;
+        get constraint(): PointToPointConstraint;
         private _pivotA;
         private _pivotB;
         onComponentSet(): void;
@@ -38902,14 +39397,14 @@ declare module "cocos/physics/ammo/constraints/ammo-hinge-constraint" {
     import { AmmoConstraint } from "cocos/physics/ammo/constraints/ammo-constraint";
     import { IHingeConstraint } from "cocos/physics/spec/i-physics-constraint";
     import { IVec3Like } from "cocos/core/index";
-    import { HingeConstraintComponent } from "cocos/physics/framework/index";
+    import { HingeConstraint } from "cocos/physics/framework/index";
     export class AmmoHingeConstraint extends AmmoConstraint implements IHingeConstraint {
         setPivotA(v: IVec3Like): void;
         setPivotB(v: IVec3Like): void;
         setAxisA(v: IVec3Like): void;
         setAxisB(v: IVec3Like): void;
         get impl(): Ammo.btHingeConstraint;
-        get constraint(): HingeConstraintComponent;
+        get constraint(): HingeConstraint;
         private _pivotA;
         private _pivotB;
         private _axisA;
@@ -38958,7 +39453,7 @@ declare module "cocos/physics/cocos/shapes/builtin-shape" {
     import { Mat4, Quat, Vec3 } from "cocos/core/math/index";
     import { BuiltinSharedBody } from "cocos/physics/cocos/builtin-shared-body";
     import { IBuiltinShape } from "cocos/physics/cocos/builtin-interface";
-    import { ColliderComponent, RigidBodyComponent, PhysicMaterial } from "exports/physics-framework";
+    import { Collider, RigidBody, PhysicMaterial } from "exports/physics-framework";
     import { IBaseShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
     import { aabb, sphere } from "cocos/core/geometry/index";
@@ -38967,21 +39462,21 @@ declare module "cocos/physics/cocos/shapes/builtin-shape" {
         getBoundingSphere(v: sphere): void;
         setMaterial(v: PhysicMaterial | null): void;
         setAsTrigger(v: boolean): void;
-        get attachedRigidBody(): RigidBodyComponent | null;
+        get attachedRigidBody(): RigidBody | null;
         setCenter(v: IVec3Like): void;
         get localShape(): IBuiltinShape;
         get worldShape(): IBuiltinShape;
         get impl(): IBuiltinShape;
         get sharedBody(): BuiltinSharedBody;
-        get collider(): ColliderComponent;
+        get collider(): Collider;
         /** id generator */
         private static idCounter;
         readonly id: number;
         protected _sharedBody: BuiltinSharedBody;
-        protected _collider: ColliderComponent;
+        protected _collider: Collider;
         protected _localShape: IBuiltinShape;
         protected _worldShape: IBuiltinShape;
-        initialize(comp: ColliderComponent): void;
+        initialize(comp: Collider): void;
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
@@ -39002,18 +39497,18 @@ declare module "cocos/physics/cocos/shapes/builtin-shape" {
 declare module "cocos/physics/cocos/builtin-rigid-body" {
     import { IRigidBody } from "cocos/physics/spec/i-rigid-body";
     import { IVec3Like } from "cocos/core/index";
-    import { RigidBodyComponent } from "cocos/physics/framework/index";
+    import { RigidBody } from "cocos/physics/framework/index";
     import { BuiltinSharedBody } from "cocos/physics/cocos/builtin-shared-body";
     export class BuiltinRigidBody implements IRigidBody {
         get impl(): this;
         get isAwake(): boolean;
         get isSleepy(): boolean;
         get isSleeping(): boolean;
-        get rigidBody(): RigidBodyComponent;
+        get rigidBody(): RigidBody;
         get sharedBody(): BuiltinSharedBody;
         private _rigidBody;
         protected _sharedBody: BuiltinSharedBody;
-        initialize(com: RigidBodyComponent): void;
+        initialize(com: RigidBody): void;
         onEnable(): void;
         onDisable(): void;
         onDestroy(): void;
@@ -39131,12 +39626,12 @@ declare module "cocos/physics/cocos/shapes/builtin-box-shape" {
     import { obb } from "cocos/core/geometry/index";
     import { BuiltinShape } from "cocos/physics/cocos/shapes/builtin-shape";
     import { IBoxShape } from "cocos/physics/spec/i-physics-shape";
-    import { BoxColliderComponent } from "exports/physics-framework";
+    import { BoxCollider } from "exports/physics-framework";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class BuiltinBoxShape extends BuiltinShape implements IBoxShape {
         get localObb(): obb;
         get worldObb(): obb;
-        get collider(): BoxColliderComponent;
+        get collider(): BoxCollider;
         constructor();
         setSize(size: IVec3Like): void;
         onLoad(): void;
@@ -39155,12 +39650,12 @@ declare module "cocos/physics/cocos/shapes/builtin-sphere-shape" {
     import { sphere } from "cocos/core/geometry/index";
     import { BuiltinShape } from "cocos/physics/cocos/shapes/builtin-shape";
     import { ISphereShape } from "cocos/physics/spec/i-physics-shape";
-    import { SphereColliderComponent } from "exports/physics-framework";
+    import { SphereCollider } from "exports/physics-framework";
     export class BuiltinSphereShape extends BuiltinShape implements ISphereShape {
         setRadius(radius: number): void;
         get localSphere(): sphere;
         get worldSphere(): sphere;
-        get collider(): SphereColliderComponent;
+        get collider(): SphereCollider;
         constructor(radius?: number);
         onLoad(): void;
     }
@@ -39169,11 +39664,11 @@ declare module "cocos/physics/cocos/shapes/builtin-capsule-shape" {
     import { BuiltinShape } from "cocos/physics/cocos/shapes/builtin-shape";
     import { ICapsuleShape } from "cocos/physics/spec/i-physics-shape";
     import { capsule } from "cocos/core/geometry/index";
-    import { EAxisDirection, CapsuleColliderComponent } from "cocos/physics/framework/index";
+    import { EAxisDirection, CapsuleCollider } from "cocos/physics/framework/index";
     export class BuiltinCapsuleShape extends BuiltinShape implements ICapsuleShape {
         get localCapsule(): capsule;
         get worldCapsule(): capsule;
-        get collider(): CapsuleColliderComponent;
+        get collider(): CapsuleCollider;
         constructor(radius?: number, height?: number, direction?: EAxisDirection);
         setRadius(v: number): void;
         setCylinderHeight(v: number): void;
@@ -39203,16 +39698,16 @@ declare module "cocos/physics/cannon/cannon-util" {
 declare module "cocos/physics/cannon/constraints/cannon-constraint" {
     import CANNON from '@cocos/cannon';
     import { IBaseConstraint } from "cocos/physics/spec/i-physics-constraint";
-    import { ConstraintComponent, RigidBodyComponent } from "cocos/physics/framework/index";
+    import { Constraint, RigidBody } from "cocos/physics/framework/index";
     export class CannonConstraint implements IBaseConstraint {
-        setConnectedBody(v: RigidBodyComponent | null): void;
+        setConnectedBody(v: RigidBody | null): void;
         setEnableCollision(v: boolean): void;
         get impl(): CANNON.Constraint;
-        get constraint(): ConstraintComponent;
+        get constraint(): Constraint;
         protected _impl: CANNON.Constraint;
-        protected _com: ConstraintComponent;
-        protected _rigidBody: RigidBodyComponent | null;
-        initialize(v: ConstraintComponent): void;
+        protected _com: Constraint;
+        protected _rigidBody: RigidBody | null;
+        initialize(v: Constraint): void;
         protected onComponentSet(): void;
         onLoad(): void;
         onEnable(): void;
@@ -39226,21 +39721,21 @@ declare module "cocos/physics/cannon/shapes/cannon-shape" {
     import { IBaseShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
     import { CannonSharedBody } from "cocos/physics/cannon/cannon-shared-body";
-    import { ColliderComponent, RigidBodyComponent } from "cocos/physics/framework/index";
+    import { Collider, RigidBody } from "cocos/physics/framework/index";
     import { aabb, sphere } from "cocos/core/geometry/index";
     export class CannonShape implements IBaseShape {
         static readonly idToMaterial: {};
         get impl(): CANNON.Shape;
-        get collider(): ColliderComponent;
-        get attachedRigidBody(): RigidBodyComponent | null;
+        get collider(): Collider;
+        get attachedRigidBody(): RigidBody | null;
         get sharedBody(): CannonSharedBody;
         setMaterial(mat: PhysicMaterial | null): void;
         setAsTrigger(v: boolean): void;
         setCenter(v: IVec3Like): void;
-        setAttachedBody(v: RigidBodyComponent | null): void;
+        setAttachedBody(v: RigidBody | null): void;
         getAABB(v: aabb): void;
         getBoundingSphere(v: sphere): void;
-        protected _collider: ColliderComponent;
+        protected _collider: Collider;
         protected _shape: CANNON.Shape;
         protected _offset: CANNON.Vec3;
         protected _orient: CANNON.Quaternion;
@@ -39250,7 +39745,7 @@ declare module "cocos/physics/cannon/shapes/cannon-shape" {
         protected onTriggerListener: (event: CANNON.ITriggeredEvent) => void;
         protected _isBinding: boolean;
         /** LIFECYCLE */
-        initialize(comp: ColliderComponent): void;
+        initialize(comp: Collider): void;
         protected onComponentSet(): void;
         onLoad(): void;
         onEnable(): void;
@@ -39370,7 +39865,7 @@ declare module "cocos/physics/cannon/cannon-rigid-body" {
     import { Vec3 } from "cocos/core/math/index";
     import { IRigidBody } from "cocos/physics/spec/i-rigid-body";
     import { CannonSharedBody } from "cocos/physics/cannon/cannon-shared-body";
-    import { RigidBodyComponent } from "cocos/physics/framework/index";
+    import { RigidBody } from "cocos/physics/framework/index";
     import { IVec3Like } from "cocos/core/math/type-define";
     /**
      * wrapped shared body
@@ -39391,14 +39886,14 @@ declare module "cocos/physics/cannon/cannon-rigid-body" {
         setLinearFactor(value: IVec3Like): void;
         setAngularFactor(value: IVec3Like): void;
         get impl(): CANNON.Body;
-        get rigidBody(): RigidBodyComponent;
+        get rigidBody(): RigidBody;
         get sharedBody(): CannonSharedBody;
         get isEnabled(): boolean;
         private _rigidBody;
         private _sharedBody;
         private _isEnabled;
         /** LIFECYCLE */
-        initialize(com: RigidBodyComponent): void;
+        initialize(com: RigidBody): void;
         onLoad(): void;
         onEnable(): void;
         onDisable(): void;
@@ -39440,9 +39935,9 @@ declare module "cocos/physics/cannon/shapes/cannon-box-shape" {
     import { CannonShape } from "cocos/physics/cannon/shapes/cannon-shape";
     import { IBoxShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
-    import { BoxColliderComponent } from "exports/physics-framework";
+    import { BoxCollider } from "exports/physics-framework";
     export class CannonBoxShape extends CannonShape implements IBoxShape {
-        get collider(): BoxColliderComponent;
+        get collider(): BoxCollider;
         get impl(): CANNON.Box;
         readonly HALF_EXTENT: CANNON.Vec3;
         constructor();
@@ -39456,9 +39951,9 @@ declare module "cocos/physics/cannon/shapes/cannon-sphere-shape" {
     import { Vec3 } from "cocos/core/math/index";
     import { CannonShape } from "cocos/physics/cannon/shapes/cannon-shape";
     import { ISphereShape } from "cocos/physics/spec/i-physics-shape";
-    import { SphereColliderComponent } from "exports/physics-framework";
+    import { SphereCollider } from "exports/physics-framework";
     export class CannonSphereShape extends CannonShape implements ISphereShape {
-        get collider(): SphereColliderComponent;
+        get collider(): SphereCollider;
         get impl(): CANNON.Sphere;
         setRadius(v: number): void;
         constructor(radius?: number);
@@ -39469,11 +39964,11 @@ declare module "cocos/physics/cannon/shapes/cannon-sphere-shape" {
 declare module "cocos/physics/cannon/shapes/cannon-trimesh-shape" {
     import CANNON from '@cocos/cannon';
     import { CannonShape } from "cocos/physics/cannon/shapes/cannon-shape";
-    import { MeshColliderComponent } from "cocos/physics/framework/index";
+    import { MeshCollider } from "cocos/physics/framework/index";
     import { Mesh, Vec3 } from "cocos/core/index";
     import { ITrimeshShape } from "cocos/physics/spec/i-physics-shape";
     export class CannonTrimeshShape extends CannonShape implements ITrimeshShape {
-        get collider(): MeshColliderComponent;
+        get collider(): MeshCollider;
         get impl(): CANNON.Trimesh;
         setMesh(v: Mesh | null): void;
         protected onComponentSet(): void;
@@ -39487,11 +39982,11 @@ declare module "cocos/physics/cannon/shapes/cannon-cylinder-shape" {
     import { Vec3 } from "cocos/core/math/index";
     import { CannonShape } from "cocos/physics/cannon/shapes/cannon-shape";
     import { ICylinderShape } from "cocos/physics/spec/i-physics-shape";
-    import { CylinderColliderComponent } from "exports/physics-framework";
+    import { CylinderCollider } from "exports/physics-framework";
     import { EAxisDirection } from "cocos/physics/framework/physics-enum";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class CannonCylinderShape extends CannonShape implements ICylinderShape {
-        get collider(): CylinderColliderComponent;
+        get collider(): CylinderCollider;
         get impl(): CANNON.Cylinder;
         setRadius(v: number): void;
         setHeight(v: number): void;
@@ -39507,11 +40002,11 @@ declare module "cocos/physics/cannon/shapes/cannon-cone-shape" {
     import { Vec3 } from "cocos/core/math/index";
     import { CannonShape } from "cocos/physics/cannon/shapes/cannon-shape";
     import { IConeShape } from "cocos/physics/spec/i-physics-shape";
-    import { ConeColliderComponent } from "exports/physics-framework";
+    import { ConeCollider } from "exports/physics-framework";
     import { EAxisDirection } from "cocos/physics/framework/physics-enum";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class CannonConeShape extends CannonShape implements IConeShape {
-        get collider(): ConeColliderComponent;
+        get collider(): ConeCollider;
         get impl(): CANNON.Cylinder;
         setRadius(v: number): void;
         setHeight(v: number): void;
@@ -39525,12 +40020,12 @@ declare module "cocos/physics/cannon/shapes/cannon-cone-shape" {
 declare module "cocos/physics/cannon/shapes/cannon-terrain-shape" {
     import CANNON from '@cocos/cannon';
     import { CannonShape } from "cocos/physics/cannon/shapes/cannon-shape";
-    import { TerrainColliderComponent } from "cocos/physics/framework/index";
+    import { TerrainCollider } from "cocos/physics/framework/index";
     import { ITerrainShape } from "cocos/physics/spec/i-physics-shape";
     import { ITerrainAsset } from "cocos/physics/spec/i-external";
     import { IVec3Like } from "cocos/core/math/type-define";
     export class CannonTerrainShape extends CannonShape implements ITerrainShape {
-        get collider(): TerrainColliderComponent;
+        get collider(): TerrainCollider;
         get impl(): CANNON.Heightfield;
         setTerrain(v: ITerrainAsset | null): void;
         readonly DATA: number[][];
@@ -39548,11 +40043,11 @@ declare module "cocos/physics/cannon/shapes/cannon-simplex-shape" {
     import { CannonShape } from "cocos/physics/cannon/shapes/cannon-shape";
     import { ISimplexShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
-    import { SimplexColliderComponent } from "exports/physics-framework";
+    import { SimplexCollider } from "exports/physics-framework";
     export class CannonSimplexShape extends CannonShape implements ISimplexShape {
-        setShapeType(v: SimplexColliderComponent.ESimplexType): void;
+        setShapeType(v: SimplexCollider.ESimplexType): void;
         setVertices(v: IVec3Like[]): void;
-        get collider(): SimplexColliderComponent;
+        get collider(): SimplexCollider;
         get impl(): CANNON.ConvexPolyhedron | CANNON.Particle;
         readonly VERTICES: CANNON.Vec3[];
         protected onComponentSet(): void;
@@ -39565,9 +40060,9 @@ declare module "cocos/physics/cannon/shapes/cannon-plane-shape" {
     import { CannonShape } from "cocos/physics/cannon/shapes/cannon-shape";
     import { IPlaneShape } from "cocos/physics/spec/i-physics-shape";
     import { IVec3Like } from "cocos/core/math/type-define";
-    import { PlaneColliderComponent } from "exports/physics-framework";
+    import { PlaneCollider } from "exports/physics-framework";
     export class CannonPlaneShape extends CannonShape implements IPlaneShape {
-        get collider(): PlaneColliderComponent;
+        get collider(): PlaneCollider;
         get impl(): CANNON.Plane;
         constructor();
         setNormal(v: IVec3Like): void;
@@ -39581,10 +40076,10 @@ declare module "cocos/physics/cannon/constraints/cannon-point-to-point-constrain
     import { CannonConstraint } from "cocos/physics/cannon/constraints/cannon-constraint";
     import { IPointToPointConstraint } from "cocos/physics/spec/i-physics-constraint";
     import { IVec3Like } from "cocos/core/index";
-    import { PointToPointConstraintComponent } from "cocos/physics/framework/index";
+    import { PointToPointConstraint } from "cocos/physics/framework/index";
     export class CannonPointToPointConstraint extends CannonConstraint implements IPointToPointConstraint {
         get impl(): CANNON.PointToPointConstraint;
-        get constraint(): PointToPointConstraintComponent;
+        get constraint(): PointToPointConstraint;
         setPivotA(v: IVec3Like): void;
         setPivotB(v: IVec3Like): void;
         onComponentSet(): void;
@@ -39594,11 +40089,11 @@ declare module "cocos/physics/cannon/constraints/cannon-hinge-constraint" {
     import CANNON from '@cocos/cannon';
     import { CannonConstraint } from "cocos/physics/cannon/constraints/cannon-constraint";
     import { IHingeConstraint } from "cocos/physics/spec/i-physics-constraint";
-    import { HingeConstraintComponent } from "cocos/physics/framework/index";
+    import { HingeConstraint } from "cocos/physics/framework/index";
     import { IVec3Like } from "cocos/core/index";
     export class CannonHingeConstraint extends CannonConstraint implements IHingeConstraint {
         get impl(): CANNON.HingeConstraint;
-        get constraint(): HingeConstraintComponent;
+        get constraint(): HingeConstraint;
         setPivotA(v: IVec3Like): void;
         setPivotB(v: IVec3Like): void;
         setAxisA(v: IVec3Like): void;
@@ -41140,6 +41635,7 @@ declare module "exports/ui" {
     /**
      * @hidden
      */
+    export * from "cocos/core/components/ui-base/index";
     export * from "cocos/ui/index";
 }
 declare module "exports/wait-for-ammo-instantiation" {

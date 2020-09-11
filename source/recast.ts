@@ -968,7 +968,7 @@ export function recastTopLevelModule({
             console.warn(`Failed to resolve type ${type.getText()}, There is no symbol info.`);
             return;
         }
-        const rEntity = resolveEntity(symbol);
+        const rEntity = getEntityOfSymbol(symbol);
         if (rEntity) {
             const resolved = nameResolver.resolve(rEntity);
             if (resolved) {
@@ -1054,11 +1054,16 @@ export function recastTopLevelModule({
             return;
         }
 
+        return getEntityOfSymbol(symbol);
+    }
+
+    function getEntityOfSymbol(symbol: ts.Symbol) {
         const resolved = resolveEntity(symbol);
         if (resolved) {
             return resolved;
+        } else {
+            return referenceNonExportedSymbol(symbol);
         }
-        return referenceNonExportedSymbol(symbol);
     }
 
     function referenceNonExportedSymbol(symbol: ts.Symbol): rConcepts.Entity | undefined {
