@@ -1,11 +1,12 @@
 {
   "name": "tfig",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "Yet another tool to generate .d.ts bundle.",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "prepublish": "npm run build"
   },
   "repository": {
     "type": "git",
