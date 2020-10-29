@@ -23,7 +23,8 @@
                 "./test/declarations-output",
                 "--name",
                 "cc",
-                "--config=${workspaceFolder}/test/config.json"
+                "--config=${workspaceFolder}/test/config.json",
+                "--verbose"
             ]
         }
     ]

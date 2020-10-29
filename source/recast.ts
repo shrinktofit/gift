@@ -40,7 +40,7 @@ export function recastTopLevelModule({
 
     function tryEmplaceModifier(modifiers: ts.Modifier[], kind: ts.Modifier['kind']) {
         if (modifiers.every((m) => m.kind !== kind)) {
-            modifiers.push(ts.createModifier(kind));
+            modifiers.unshift(ts.createModifier(kind));
         }
     }
 
@@ -96,6 +96,17 @@ export function recastTopLevelModule({
                 ));
             }
         });
+
+        // ts treat all things in .d.ts as public exports
+        // except it contains at least one `export {}` or `export default`.
+        // See:
+        // https://github.com/microsoft/TypeScript/issues/19545
+        statements.push(ts.factory.createExportDeclaration(
+            undefined, // decorators
+            undefined, // modifiers
+            false, // isTypeOnly,
+            ts.factory.createNamedExports([]),
+        ));
 
         const moduleDeclaration = ts.createModuleDeclaration(
             undefined, // decorators
@@ -699,19 +710,17 @@ export function recastTopLevelModule({
         };
 
         switch (type.kind) {
-        case ts.SyntaxKind.NumberKeyword:
-        case ts.SyntaxKind.BooleanKeyword:
-        case ts.SyntaxKind.StringKeyword:
-        case ts.SyntaxKind.VoidKeyword:
         case ts.SyntaxKind.AnyKeyword:
-        case ts.SyntaxKind.NullKeyword:
+        case ts.SyntaxKind.BigIntKeyword:
+        case ts.SyntaxKind.BooleanKeyword:
         case ts.SyntaxKind.NeverKeyword:
+        case ts.SyntaxKind.NumberKeyword:
         case ts.SyntaxKind.ObjectKeyword:
+        case ts.SyntaxKind.StringKeyword:
         case ts.SyntaxKind.SymbolKeyword:
         case ts.SyntaxKind.UndefinedKeyword:
         case ts.SyntaxKind.UnknownKeyword:
-        case ts.SyntaxKind.BigIntKeyword:
-        // case ts.SyntaxKind.ThisKeyword:
+        case ts.SyntaxKind.VoidKeyword:
             return ts.createKeywordTypeNode(type.kind);
         }
         if (ts.isTypeReferenceNode(type)) {
@@ -785,7 +794,7 @@ export function recastTopLevelModule({
                 recastTypeNode(type.falseType),
             );
         } else if (ts.isTupleTypeNode(type)) {
-            return ts.createTupleTypeNode(type.elementTypes.map((elementType) => recastTypeNode(elementType)));
+            return ts.createTupleTypeNode(type.elements.map((elementType) => recastTypeNode(elementType)));
         } else if (ts.isLiteralTypeNode(type)) {
             const literal = type.literal;
             let dumpedLiteral: typeof literal | undefined;
@@ -795,6 +804,8 @@ export function recastTopLevelModule({
                 dumpedLiteral = ts.createTrue();
             } else if (literal.kind === ts.SyntaxKind.FalseKeyword) {
                 dumpedLiteral = ts.createFalse();
+            } else if (literal.kind === ts.SyntaxKind.NullKeyword) {
+                dumpedLiteral = ts.createNull();
             } else if (ts.isNumericLiteral(literal)) {
                 dumpedLiteral = ts.createNumericLiteral(literal.text);
             } else if (ts.isBigIntLiteral(literal)) {
@@ -806,7 +817,7 @@ export function recastTopLevelModule({
             } else if (ts.isPrefixUnaryExpression(literal)) {
                 dumpedLiteral = ts.createPrefix(literal.operator, recastExpression(literal.operand));
             } else {
-                console.warn(`Don't know how to handle literal type ${type.getText()}(${tsUtils.stringifyNode(type)})`);
+                console.warn(`Don't know how to handle literal type ${type.getText()}(${tsUtils.stringifyNode(literal)})`);
             }
             if (dumpedLiteral) {
                 return ts.createLiteralTypeNode(dumpedLiteral);
