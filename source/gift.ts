@@ -39,6 +39,7 @@ export function bundle(options: IOptions): IBundleResult {
     if (options.verbose) {
         console.log(`Cwd: ${process.cwd()}`);
         console.log(`Options: ${JSON.stringify(options)}`);
+        console.log(`TypeScript version: ${ts.version}`);
     }
 
     // Check the input.
