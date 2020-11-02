@@ -294,7 +294,7 @@ export class NamespaceTraits extends BaseTraits {
                     // import from namespace, export into either module or namespace
                     {
                         const namespaceReference = addNamespaceReference(sourcePlace);
-                        this._addSelfExportFromNamespace(namespaceReference, exportName, importName);
+                        this._addSelfExportFromNamespace(namespaceReference, importName, exportName);
                     }
                     break;
                 case isTargetInternal && !isSourceInternal:

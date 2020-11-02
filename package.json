@@ -1,6 +1,6 @@
 {
   "name": "tfig",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "description": "Yet another tool to generate .d.ts bundle.",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",
@@ -29,7 +29,10 @@
   },
   "devDependencies": {
     "@types/fs-extra": "^5.0.5",
+    "@types/jest": "^26.0.15",
     "@types/node": "^12.0.0",
-    "@types/yargs": "^13.0.0"
+    "@types/yargs": "^13.0.0",
+    "jest": "^26.6.1",
+    "ts-jest": "^26.4.3"
   }
 }

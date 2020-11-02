@@ -648,10 +648,10 @@ export function recastTopLevelModule({
             recastDeclarationModifiers(enumDeclaration, forceExport),
             newName,
             enumDeclaration.members.map((enumerator) => {
-                return ts.createEnumMember(
+                return copyComments(enumerator, ts.createEnumMember(
                     enumerator.name.getText(),
                     recastExpression(enumerator.initializer),
-                );
+                ));
             }),
         );
     }
