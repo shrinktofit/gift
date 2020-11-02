@@ -3,7 +3,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as yargs from 'yargs';
-import YargsParser from 'yargs-parser';
 import { bundle, GiftErrors, IOptions } from './gift';
 
 main();
@@ -12,7 +11,7 @@ function main() {
     yargs.demandOption([ 'i', 'r' ]);
     yargs.option('input', {
         alias: 'i',
-        description: 'The input file.',
+        description: 'The input files(that contains `declare module "..." { }`).',
         array: true,
     });
     yargs.option('root-dir', {
@@ -29,21 +28,22 @@ function main() {
     yargs.option('verbose', { type: 'boolean', default: false });
     yargs.option('config', {
         type: 'string',
-        demandOption: true,
     });
     yargs.help();
 
     const argv = yargs.parse(process.argv);
-    const { i, n, o, r, u, p, verbose, entries: entriesUnParsed, config: configFile, rootDir } = argv;
+    const { i, n, o, r, u, p, verbose, config: configFile, rootDir } = argv;
 
-    let config;
-    try {
-        config = fs.readJsonSync(configFile as string);
-    } catch (err) {
-        console.error(`Failed to read config file ${configFile}\n`, err);
+    let entries: Record<string, string> | undefined;
+    if (configFile) {
+        let config;
+        try {
+            config = fs.readJsonSync(configFile as string);
+        } catch (err) {
+            console.error(`Failed to read config file ${configFile}\n`, err);
+        }
+        entries = config.entries;
     }
-
-    const entries: Record<string, string> = config.entries;
 
     let name: undefined | string;
     if (typeof n === 'string') {
