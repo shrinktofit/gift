@@ -13,7 +13,7 @@ jobs:
       - name: Publish if version has been updated
         uses: pascalgn/npm-publish-action@1.3.5
         with:
-          commit_pattern: "^Release .+$"
+          commit_pattern: "^Release (\\S+);.*$"
           publish_command: "npm"
           publish_args: "--non-interactive"
         env:
