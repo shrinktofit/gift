@@ -437,15 +437,13 @@ export function recastTopLevelModule({
         );
     }
 
-    function recastParameterArray(parameters: ts.NodeArray<ts.ParameterDeclaration> | ts.ParameterDeclaration[]): ts.ParameterDeclaration[];
+    function recastParameterArray(parameters: ts.NodeArray<ts.ParameterDeclaration>): ts.ParameterDeclaration[];
 
-    function recastParameterArray(parameters?: ts.NodeArray<ts.ParameterDeclaration> | ts.ParameterDeclaration[]): ts.ParameterDeclaration[] | undefined;
+    function recastParameterArray(parameters?: ts.NodeArray<ts.ParameterDeclaration>): ts.ParameterDeclaration[] | undefined;
 
-    function recastParameterArray(parameters?: ts.NodeArray<ts.ParameterDeclaration> | ts.ParameterDeclaration[]) {
+    function recastParameterArray(parameters?: ts.NodeArray<ts.ParameterDeclaration>) {
         const lambda = (p: ts.ParameterDeclaration) => copyComments(p, (recastParameter(p)));
-        if (Array.isArray(parameters)) {
-            return parameters.map(lambda);
-        } else if (parameters) {
+        if (parameters) {
             return parameters.map(lambda);
         } else {
             return undefined;
@@ -461,11 +459,9 @@ export function recastTopLevelModule({
     }
 
     function recastTypeParameterArray(
-        typeParameters?: ts.TypeParameterDeclaration[] | ts.NodeArray<ts.TypeParameterDeclaration>) {
+        typeParameters?: ts.NodeArray<ts.TypeParameterDeclaration>) {
         const lambda = (tp: ts.TypeParameterDeclaration) => copyComments(tp, (recastTypeParameter(tp)));
-        if (Array.isArray(typeParameters)) {
-            return typeParameters.map(lambda);
-        } else if (typeParameters) {
+        if (typeParameters) {
             return typeParameters.map(lambda);
         } else {
             return undefined;
@@ -630,15 +626,15 @@ export function recastTopLevelModule({
         );
     }
 
-    function recastHeritageClauses(heritageClauses?: ts.HeritageClause[] | ts.NodeArray<ts.HeritageClause>) {
+    function recastHeritageClauses(heritageClauses?: ts.NodeArray<ts.HeritageClause>) {
         if (!heritageClauses) {
             return undefined;
         }
         const lambda = (heritageClause: ts.HeritageClause) => recastHeritageClause(heritageClause);
-        if (Array.isArray(heritageClauses)) {
+        if (heritageClauses) {
             return heritageClauses.map(lambda);
         } else {
-            return heritageClauses.map(lambda);
+            return undefined;
         }
     }
 
@@ -826,6 +822,7 @@ export function recastTopLevelModule({
             return ts.createMappedTypeNode(
                 recastToken(type.readonlyToken),
                 recastTypeParameter(type.typeParameter),
+                recastTypeNode(type.type),
                 recastToken(type.questionToken),
                 recastTypeNode(type.type),
             );
