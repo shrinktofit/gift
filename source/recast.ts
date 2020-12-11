@@ -822,7 +822,7 @@ export function recastTopLevelModule({
             return ts.createMappedTypeNode(
                 recastToken(type.readonlyToken),
                 recastTypeParameter(type.typeParameter),
-                recastTypeNode(type.type),
+                recastTypeNode(type.nameType),
                 recastToken(type.questionToken),
                 recastTypeNode(type.type),
             );

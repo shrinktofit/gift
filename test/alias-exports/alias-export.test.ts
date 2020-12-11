@@ -3,7 +3,7 @@ import ps from 'path';
 import fs from 'fs-extra';
 import { bundle, GiftErrors } from '../../source/gift';
 
-test('alias export', async () => {
+describe('alias export', () => {
     const match = async (dirName: string) => {
         const inputPath = ps.join(__dirname, dirName, 'input.d.ts');
         const outputPath = ps.join(__dirname, dirName, 'output.d.ts');
@@ -19,11 +19,11 @@ test('alias export', async () => {
     };
 
     // Export from namespace to module
-    await match('n-m');
+    test('n-m', async () => await match('n-m'));
     
     // Export from namespace to namespace
-    await match('n-n');
+    test('n-n', async () => await match('n-n'));
     
     // Export from module to namespace
-    await match('m-n');
+    test('m-n', async () => await match('m-n'));
 });
