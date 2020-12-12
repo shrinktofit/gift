@@ -1,6 +1,6 @@
 {
   "name": "tfig",
-  "version": "2.0.18",
+  "version": "3.0.0",
   "description": "Yet another tool to generate .d.ts bundle.",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",
@@ -17,9 +17,7 @@
     "declaration",
     "dts"
   ],
-  "bin": {
-    "gift-cli": "./build/gift-cli.js"
-  },
+  "bin": {},
   "author": "Leslie Leigh",
   "license": "MIT",
   "dependencies": {

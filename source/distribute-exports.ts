@@ -3,8 +3,10 @@ import ts from 'typescript';
 export function distributeExports(
     moduleSymbols: ts.Symbol[],
     typeChecker: ts.TypeChecker,
-    manualMainExports: Array<distributeExports.ManualMainExport>,
+    priorityList: string[] = [],
 ) {
+    const parsedPriorityList = priorityList.map((id) => `"${id[0]}"`);
+
     const exportMap: Map<ts.Symbol, SymbolInfo> = new Map();
 
     const moduleMetaList = moduleSymbols.map((moduleSymbol) => {
@@ -12,6 +14,7 @@ export function distributeExports(
             symbol: moduleSymbol,
             mainExports: [],
             aliasExports: [],
+            [prioritySymbol]: getExportPriority(moduleSymbol, parsedPriorityList),
         };
         iterateModuleExports(moduleSymbol, moduleMeta);
         return moduleMeta;
@@ -82,6 +85,7 @@ export function distributeExports(
                         symbol: moduleSymbol,
                         mainExports: [],
                         aliasExports: [],
+                        [prioritySymbol]: moduleMeta[prioritySymbol],
                     };
                     symbolInfo.children.push(nestedModule);
                     iterateModuleExports(originalSymbol, nestedModule);
@@ -98,7 +102,20 @@ export function distributeExports(
     }
 
     function findBestExportMeta(originalSymbol: ts.Symbol, exportPorts: ExportPort[]): number {
-        // We first search if there is an export is specified as 'main' by user.
+        // If there is only one export port, that's it.
+        if (exportPorts.length === 1) {
+            return 0;
+        }
+
+        // If any of the ports is specified with priority, we take the hightest specified one.
+        const iHighestPriorityPort = exportPorts
+            .map((_, index) => index)
+            .sort((a, b) => exportPorts[a].module[prioritySymbol] - exportPorts[b].module[prioritySymbol])[0];
+        if (!isNonSpecifiedPriority(exportPorts[iHighestPriorityPort].module[prioritySymbol], parsedPriorityList)) {
+            return iHighestPriorityPort;
+        }
+
+        // Otherwise, We first search if there is an export is specified as 'main' by user.
         const iMatched = exportPorts.findIndex((exportPort) => matchExportPort(exportPort));
         if (iMatched >= 0) {
             return iMatched;
@@ -117,6 +134,17 @@ export function distributeExports(
     function matchExportPort(exportPort: ExportPort): boolean {
         return false; // TODO
     }
+}
+
+const prioritySymbol = Symbol('Priority');
+
+function getExportPriority(moduleSymbol: ts.Symbol, parsedPriorityList: string[]): number {
+    const index = parsedPriorityList.indexOf(moduleSymbol.getName());
+    return index >= 0 ? index : parsedPriorityList.length;
+}
+
+function isNonSpecifiedPriority(priority: number, parsedPriorityList: string[]) {
+    return priority === parsedPriorityList.length;
 }
 
 export namespace distributeExports {
@@ -139,6 +167,12 @@ export namespace distributeExports {
             mainExportIndex: number;
             exportSymbol: ts.Symbol;
         }>;
+
+        /**
+         * Index into the priority list indicates what priority this module has, to export a symbol.
+         * If this module is not in priority list, it's set to length of the priority list.
+         */
+        [prioritySymbol]: number;
     }
 
     export type ManualMainExport = string | RegExp;

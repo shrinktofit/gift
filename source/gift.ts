@@ -11,7 +11,7 @@ import { recastTopLevelModule } from './recast';
 export interface IOptions {
     input: string | string[];
     rootDir?: string;
-    output: string;
+    output?: string;
 
     name?: string;
     rootModule?: string;
@@ -20,20 +20,24 @@ export interface IOptions {
     exportPrivates?: string;
     shelterName?: string;
     verbose?: boolean;
+
+    priority?: string[];
+
+    groups?: Array<{
+        test: RegExp;
+        path: string;
+    }>;
 }
 
 export interface IBundleResult {
-    error: GiftErrors;
-    typeReferencePaths?: string[];
-    code?: string;
+    groups: GroupResult[];
 }
 
-export enum GiftErrors {
-    Ok,
-    InputFileNotFound,
-    RootModuleAbsent,
-    Fatal,
-}
+export interface GroupResult {
+    path: string;
+    typeReferencePaths?: string[];
+    code: string;
+};
 
 export function bundle(options: IOptions): IBundleResult {
     if (options.verbose) {
@@ -45,7 +49,7 @@ export function bundle(options: IOptions): IBundleResult {
     // Check the input.
     const inputs = Array.isArray(options.input) ? options.input : [options.input];
     if (!inputs.every(input => fs.existsSync(input))) {
-        return { error: GiftErrors.InputFileNotFound };
+        throw new Error(`Input file ${inputs} not found.`);
     }
 
     return rollupTypes(options);
@@ -72,8 +76,16 @@ export function rollupTypes(options: IOptions) {
     const entries = getEntries();
     const program = createProgram();
     const typeChecker = program.getTypeChecker();
-    const statements = bundle();
-    return emit(statements);
+    const groupSources = bundle();
+    const groups = groupSources.map(emit);
+    return {
+        groups,
+    };
+
+    interface GroupSource {
+        path: string;
+        statements: ts.Statement[];
+    }
 
     function getEntries() {
         if (options.entries) {
@@ -100,7 +112,7 @@ export function rollupTypes(options: IOptions) {
         });
     }
 
-    function bundle() {
+    function bundle(): GroupSource[] {
         const ambientModules = typeChecker.getAmbientModules();
 
         const entryModules = Object.entries(entries).map(([entryModuleName, entryModuleId]) => {
@@ -117,7 +129,7 @@ export function rollupTypes(options: IOptions) {
 
         const rEntityMap = new SymbolEntityMap();
 
-        const exportDistribution = distributeExports(entryModules.map((eM) => eM.symbol), typeChecker, []);
+        const exportDistribution = distributeExports(entryModules.map((eM) => eM.symbol), typeChecker, options.priority);
 
         const distributionMap = new Map<distributeExports.InternalModuleMeta, rConcepts.NamespaceTraits>();
 
@@ -160,11 +172,37 @@ export function rollupTypes(options: IOptions) {
             registerNonExportedSymbol,
         });
 
-        const statements: ts.Statement[] = [];
+        const groupSources = new Map<number, GroupSource>();
         for (const rModule of rExternalModules) {
-            statements.push(...myRecast(rModule.moduleTraits!));
+            let groupIndex = -1;
+            if (options.groups) {
+                const rModuleName = rModule.name;
+                const matchedGroup = options.groups.findIndex(groupOption => groupOption.test.test(rModuleName));
+                if (matchedGroup >= 0) {
+                    groupIndex = matchedGroup;
+                }
+            }
+            let groupSource = groupSources.get(groupIndex);
+            if (!groupSource) {
+                let outputPath: string;
+                if (groupIndex >= 0) {
+                    outputPath = options.groups![groupIndex].path;
+                } else {
+                    if (!options.output) {
+                        throw new Error(`You must specify <output> since there is a un-grouped module.`);
+                    } else {
+                        outputPath = options.output;
+                    }
+                }
+                groupSource = {
+                    statements: [],
+                    path: outputPath,
+                };
+                groupSources.set(groupIndex, groupSource);
+            }
+            groupSource.statements.push(...myRecast(rModule.moduleTraits!));
         }
-        return statements;
+        return Array.from(groupSources.values());
 
         function createREntities(
             moduleExportDistribution: distributeExports.InternalModuleMeta,
@@ -250,98 +288,26 @@ export function rollupTypes(options: IOptions) {
         }
     }
 
-    function emit(statements: ts.Statement[]) {
-        const outputPath = options.output;
-
-        // if (options.verbose) {
-        //     console.log(`Referenced source files:[`);
-        //     for (const referencedSourceFile of this._referencedSourceFiles) {
-        //         console.log(`  ${referencedSourceFile.fileName},`);
-        //     }
-        //     console.log(`]`);
-        // }
-
+    function emit(groupSource: GroupSource): GroupResult {
         const printer = ts.createPrinter({
             newLine: ts.NewLineKind.LineFeed,
         });
         const sourceFile = ts.createSourceFile(
-            path.basename(outputPath),
+            path.basename(groupSource.path),
             '',
             ts.ScriptTarget.Latest,
             false,
             ts.ScriptKind.TS,
         );
-
         const lines: string[] = [];
-        // const typeReferencePaths: string[] = [];
-        // if (rootModule.declarations && rootModule.declarations.length !== 0) {
-        //     const declaration0 = rootModule.declarations[0];
-        //     const rootSourceFile = declaration0.getSourceFile();
-        //     const resolvedTypeReferenceDirectives: ts.Map<ts.ResolvedTypeReferenceDirective> =
-        //         this._program.getResolvedTypeReferenceDirectives();
-        //     resolvedTypeReferenceDirectives.forEach((trd, key) => {
-        //         if (!trd.resolvedFileName) {
-        //             return;
-        //         }
-        //         const trdSourceFile = this._program.getSourceFile(trd.resolvedFileName);
-        //         if (!trdSourceFile || !this._referencedSourceFiles.has(trdSourceFile)) {
-        //             return;
-        //         }
-        //         lines.push(`/// <reference types="${key}"/>`);
-        //         typeReferencePaths.push(trd.resolvedFileName);
-        //     });
-        // }
-        const statementsArray = ts.createNodeArray(statements);
+        const statementsArray = ts.createNodeArray(groupSource.statements);
         const result = printer.printList(
             ts.ListFormat.MultiLine, statementsArray, sourceFile);
         lines.push(result);
-//         const expandTypeReferenceDirectives: Record<string, string> = {};
-//         const copyTypeReferenceDirectives: string[] = [];
-
-//         const typeReferencePaths: string[] = [];
-//         if (rootModule.declarations && rootModule.declarations.length !== 0) {
-//             const declaration0 = rootModule.declarations[0];
-//             const indexSourceFile = declaration0.getSourceFile();
-//             const indexSourceFileName = indexSourceFile.fileName;
-//             for (const typeReferenceDirective of indexSourceFile.typeReferenceDirectives) {
-//                 const resolveResult = ts.resolveTypeReferenceDirective(
-//                     typeReferenceDirective.fileName,
-//                     indexSourceFileName,
-//                     this._tsCompilerOptions, {
-//                         fileExists: ts.sys.fileExists,
-//                         readFile: ts.sys.readFile,
-//                     });
-//                 if (!resolveResult.resolvedTypeReferenceDirective ||
-//                     resolveResult.resolvedTypeReferenceDirective.packageId ||
-//                     resolveResult.resolvedTypeReferenceDirective.primary ||
-//                     resolveResult.resolvedTypeReferenceDirective.isExternalLibraryImport ||
-//                     !resolveResult.resolvedTypeReferenceDirective.resolvedFileName) {
-//                     copyTypeReferenceDirectives.push(typeReferenceDirective.fileName);
-//                 } else {
-//                     expandTypeReferenceDirectives[typeReferenceDirective.fileName] = resolveResult.resolvedTypeReferenceDirective.resolvedFileName;
-//                 }
-//             }
-//         }
-
-//         const lines: string[] = [];
-//         for (const trd of copyTypeReferenceDirectives) {
-//             lines.push(`/// <reference types="${trd}"/>`);
-//         }
-
-//         const statementsArray = ts.createNodeArray(statements);
-//         const result = printer.printList(ts.ListFormat.None, statementsArray, sourceFile);
-//         lines.push(result);
-
-//         for (const trd of Object.keys(expandTypeReferenceDirectives)) {
-// //             const referencedSource = fs.readFileSync(expandTypeReferenceDirectives[trd]).toString();
-// //             lines.push(`
-// // /// Included from type reference directive ${trd}.
-
-// // ${referencedSource}
-// // `);
-//             typeReferencePaths.push(trd);
-//         }
         const code = lines.join('\n');
-        return { error: GiftErrors.Ok, code };
+        return {
+            path: groupSource.path,
+            code,
+        };
     }
 }

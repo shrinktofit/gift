@@ -832,6 +832,8 @@ export function recastTopLevelModule({
             );
         } else if (type.kind === ts.SyntaxKind.RestType) {
             return ts.createRestTypeNode(recastTypeNode((type as ts.RestTypeNode).type));
+        } else if (ts.isOptionalTypeNode(type)) {
+            return ts.createOptionalTypeNode(type.type);
         } else {
             console.warn(`Don't know how to handle type ${type.getText()}(${tsUtils.stringifyNode(type)})`);
         }

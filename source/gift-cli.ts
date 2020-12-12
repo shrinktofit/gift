@@ -3,11 +3,11 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as yargs from 'yargs';
-import { bundle, GiftErrors, IOptions } from './gift';
+import { bundle, IOptions } from './gift';
 
 main();
 
-function main() {
+async function main() {
     yargs.demandOption([ 'i', 'r' ]);
     yargs.option('input', {
         alias: 'i',
@@ -79,15 +79,15 @@ function main() {
         entries,
     };
 
-    const bundleResult = bundle(options);
-    // if (bundleResult.error !== GiftErrors.Ok) {
-    //     console.error(`Error occurred: ${GiftErrors[bundleResult.error]}`);
-    //     return -1;
-    // }
-
-    const outputPath = options.output;
-    fs.ensureDirSync(path.dirname(outputPath));
-    fs.writeFileSync(outputPath, bundleResult.code);
+    try {
+        const bundleResult = bundle(options);
+        await Promise.all(bundleResult.groups.map(async (group) => {
+            await fs.outputFile(group.path, group.code, { encoding: 'utf8' });
+        }));
+    } catch (err) {
+        console.error(err);
+        return -1;
+    }
 
     return 0;
 }
