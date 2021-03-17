@@ -176,6 +176,7 @@ export function recastTopLevelModule({
             statements.push(ts.createImportEqualsDeclaration(
                 undefined, // decorators
                 [ts.createModifier(ts.SyntaxKind.ExportKeyword)], // modifiers
+                false,
                 ts.createIdentifier(asName),
                 ts.createQualifiedName(tsUtils.createEntityName(where), importName),
             ));
