@@ -1,11 +1,12 @@
 {
   "name": "tfig",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "description": "Yet another tool to generate .d.ts bundle.",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",
   "scripts": {
     "build": "tsc -v & tsc",
+    "test": "jest",
     "prepublishOnly": "npm run build"
   },
   "repository": {

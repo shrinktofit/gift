@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import ts, { factory } from 'typescript';
 import * as rConcepts from './r-concepts';
 import { NameResolver } from './name-resolver';
 import * as tsUtils from './ts-utils';
@@ -23,6 +23,8 @@ export function recastTopLevelModule({
         addStatements: (statements: ts.Statement[]) => void;
     },
 }) {
+    const nodeFactor = ts.factory;
+
     const moduleDeclaration = recastRModule(rModule);
     return [moduleDeclaration];
 
@@ -40,7 +42,7 @@ export function recastTopLevelModule({
 
     function tryEmplaceModifier(modifiers: ts.Modifier[], kind: ts.Modifier['kind']) {
         if (modifiers.every((m) => m.kind !== kind)) {
-            modifiers.unshift(ts.createModifier(kind));
+            modifiers.unshift(nodeFactor.createModifier(kind));
         }
     }
 
@@ -53,46 +55,49 @@ export function recastTopLevelModule({
                 return;
             }
             const importSpecifiers = importSymbols.map(([importId, localId]): ts.ImportSpecifier => {
-                const lId = ts.createIdentifier(localId);
+                const lId = nodeFactor.createIdentifier(localId);
                 if (importId === localId) {
-                    return ts.createImportSpecifier(undefined, lId);
+                    return nodeFactor.createImportSpecifier(undefined, lId);
                 } else {
-                    return ts.createImportSpecifier(ts.createIdentifier(importId), lId);
+                    return nodeFactor.createImportSpecifier(nodeFactor.createIdentifier(importId), lId);
                 }
             });
-            statements.push(ts.createImportDeclaration(
+            statements.push(nodeFactor.createImportDeclaration(
                 undefined, // decorators
                 undefined, // modifiers
-                ts.createImportClause(
+                nodeFactor.createImportClause(
+                    false,
                     undefined,
-                    ts.createNamedImports(importSpecifiers),
+                    nodeFactor.createNamedImports(importSpecifiers),
                 ),
-                ts.createStringLiteral(specifier),
+                nodeFactor.createStringLiteral(specifier),
             ));
         });
         
         rModule.interopRecord.forEach((interop) => {
             if (interop.exports.length !== 0) {
-                statements.push(ts.createExportDeclaration(
+                statements.push(nodeFactor.createExportDeclaration(
                     undefined, // decorators
                     undefined, // modifiers
-                    ts.createNamedExports(interop.exports.map(({ importName, asName }) => asName === importName ?
-                        ts.createExportSpecifier(undefined, ts.createIdentifier(importName)):
-                        ts.createExportSpecifier(ts.createIdentifier(importName), ts.createIdentifier(asName)))),
-                    ts.createStringLiteral(interop.specifier),
+                    false, // isTypeOnly
+                    nodeFactor.createNamedExports(interop.exports.map(({ importName, asName }) => asName === importName ?
+                        nodeFactor.createExportSpecifier(undefined, nodeFactor.createIdentifier(importName)):
+                        nodeFactor.createExportSpecifier(nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))),
+                    nodeFactor.createStringLiteral(interop.specifier),
                 ));
             }
             if (interop.imports.length !== 0) {
-                statements.push(ts.createImportDeclaration(
+                statements.push(nodeFactor.createImportDeclaration(
                     undefined, // decorators
                     undefined, // modifiers
-                    ts.createImportClause(
+                    nodeFactor.createImportClause(
+                        false,
                         undefined, // default import name
-                        ts.createNamedImports(interop.imports.map(({ importName, asName }) => asName === importName ?
-                            ts.createImportSpecifier(undefined, ts.createIdentifier(importName)):
-                            ts.createImportSpecifier(ts.createIdentifier(importName), ts.createIdentifier(asName)))), // namespace import or named imports, or no
+                        nodeFactor.createNamedImports(interop.imports.map(({ importName, asName }) => asName === importName ?
+                        nodeFactor.createImportSpecifier(undefined, nodeFactor.createIdentifier(importName)):
+                            nodeFactor.createImportSpecifier(nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))), // namespace import or named imports, or no
                     ),
-                    ts.createStringLiteral(interop.specifier),
+                    nodeFactor.createStringLiteral(interop.specifier),
                 ));
             }
         });
@@ -101,18 +106,18 @@ export function recastTopLevelModule({
         // except it contains at least one `export {}` or `export default`.
         // See:
         // https://github.com/microsoft/TypeScript/issues/19545
-        statements.push(ts.factory.createExportDeclaration(
+        statements.push(nodeFactor.createExportDeclaration(
             undefined, // decorators
             undefined, // modifiers
             false, // isTypeOnly,
-            ts.factory.createNamedExports([]),
+            nodeFactor.createNamedExports([]),
         ));
 
-        const moduleDeclaration = ts.createModuleDeclaration(
+        const moduleDeclaration = nodeFactor.createModuleDeclaration(
             undefined, // decorators
-            [ts.createModifier(ts.SyntaxKind.DeclareKeyword)],
-            ts.createStringLiteral(rModule.entity.name),
-            ts.createModuleBlock(statements),
+            [nodeFactor.createModifier(ts.SyntaxKind.DeclareKeyword)],
+            nodeFactor.createStringLiteral(rModule.entity.name),
+            nodeFactor.createModuleBlock(statements),
         );
         return moduleDeclaration;
     }
@@ -140,11 +145,11 @@ export function recastTopLevelModule({
 
         if (namespaceTraits) {
             const childrenEntityStatements = recastNamespaceTraits(namespaceTraits);
-            const namespaceDeclaration = ts.createModuleDeclaration(
+            const namespaceDeclaration = nodeFactor.createModuleDeclaration(
                 undefined, // decorators
-                [ts.createModifier(ts.SyntaxKind.ExportKeyword)], // TODO: recastModifiers(moduleDeclaration.modifiers),
-                ts.createIdentifier(rEntity.name),
-                ts.createModuleBlock(childrenEntityStatements),
+                [nodeFactor.createModifier(ts.SyntaxKind.ExportKeyword)], // TODO: recastModifiers(moduleDeclaration.modifiers),
+                nodeFactor.createIdentifier(rEntity.name),
+                nodeFactor.createModuleBlock(childrenEntityStatements),
                 ts.NodeFlags.Namespace,
             );
             statements.push(namespaceDeclaration);
@@ -163,32 +168,33 @@ export function recastTopLevelModule({
         }
         namespaceTraits.transformAliasExports();
         if (namespaceTraits.selfExports.length !== 0) {
-            statements.push(ts.createExportDeclaration(
+            statements.push(nodeFactor.createExportDeclaration(
                 undefined, // decorators
                 undefined, // modifiers
-                ts.createNamedExports(namespaceTraits.selfExports.map(({ importName, asName }) => asName === importName ?
-                    ts.createExportSpecifier(undefined, ts.createIdentifier(importName)):
-                    ts.createExportSpecifier(ts.createIdentifier(importName), ts.createIdentifier(asName)))),
+                false, // isTypeOnly
+                nodeFactor.createNamedExports(namespaceTraits.selfExports.map(({ importName, asName }) => asName === importName ?
+                    nodeFactor.createExportSpecifier(undefined, nodeFactor.createIdentifier(importName)):
+                    nodeFactor.createExportSpecifier(nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))),
                 undefined,
             ));
         }
         for (const { where, importName, asName } of namespaceTraits.selfExportsFromNamespaces) {
-            statements.push(ts.createImportEqualsDeclaration(
+            statements.push(nodeFactor.createImportEqualsDeclaration(
                 undefined, // decorators
-                [ts.createModifier(ts.SyntaxKind.ExportKeyword)], // modifiers
+                [nodeFactor.createModifier(ts.SyntaxKind.ExportKeyword)], // modifiers
                 false,
-                ts.createIdentifier(asName),
-                ts.createQualifiedName(tsUtils.createEntityName(where), importName),
+                nodeFactor.createIdentifier(asName),
+                nodeFactor.createQualifiedName(tsUtils.createEntityName(where), importName),
             ));
         }
         
         nameResolver.leave();
         if (namespaceTraits.neNamespace) {
-            const neNsDeclaration = ts.createModuleDeclaration(
+            const neNsDeclaration = nodeFactor.createModuleDeclaration(
                 undefined, // decorators,
-                [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
-                ts.createIdentifier(namespaceTraits.neNamespace.trait.entity.name),
-                ts.createModuleBlock(namespaceTraits.neNamespace.statements),
+                [nodeFactor.createModifier(ts.SyntaxKind.ExportKeyword)],
+                nodeFactor.createIdentifier(namespaceTraits.neNamespace.trait.entity.name),
+                nodeFactor.createModuleBlock(namespaceTraits.neNamespace.statements),
                 ts.NodeFlags.Namespace
             );
             statements.push(neNsDeclaration);
@@ -212,9 +218,9 @@ export function recastTopLevelModule({
         } else if (ts.isTypeAliasDeclaration(statement)) {
             return !statement.name ? null : recastTypeAliasDeclaration(statement, statement.name.text, false);
         } else if (ts.isVariableStatement(statement)) {
-            return ts.createVariableStatement(
+            return nodeFactor.createVariableStatement(
                 recastDeclarationModifiers(statement, false),
-                ts.createVariableDeclarationList(
+                nodeFactor.createVariableDeclarationList(
                     statement.declarationList.declarations.map((declaration) =>
                         recastVariableDeclaration(declaration, declaration.name.getText(), false)),
                     statement.declarationList.flags,
@@ -292,9 +298,9 @@ export function recastTopLevelModule({
         } else if (ts.isTypeAliasDeclaration(declaration)) {
             return recastTypeAliasDeclaration(declaration, newName, forceExport);
         } else if (ts.isVariableDeclaration(declaration)) {
-            return ts.createVariableStatement(
+            return nodeFactor.createVariableStatement(
                 recastDeclarationModifiers(declaration, forceExport),
-                ts.createVariableDeclarationList(
+                nodeFactor.createVariableDeclarationList(
                     [recastVariableDeclaration(declaration, newName, forceExport)],
                     declaration.parent.flags,
                 ),
@@ -311,24 +317,24 @@ export function recastTopLevelModule({
         if (!body) {
             // Fall through
         } else if (ts.isIdentifier(body)) {
-            newBody = ts.createIdentifier(body.text);
+            newBody = nodeFactor.createIdentifier(body.text);
         } else if (ts.isModuleBlock(body)) {
-            newBody = ts.createModuleBlock(recastStatements(body.statements));
+            newBody = nodeFactor.createModuleBlock(recastStatements(body.statements));
         } else {
             console.warn(`Unknown module declaration type ${tsUtils.stringifyNode(body)}`);
         }
 
-        return ts.createModuleDeclaration(
+        return nodeFactor.createModuleDeclaration(
             undefined, // decorators
             recastDeclarationModifiers(moduleDeclaration, true),
-            ts.createIdentifier(newName),
+            nodeFactor.createIdentifier(newName),
             newBody,
             ts.NodeFlags.Namespace, // TODO: flags. Maybe `ts.NodeFlags.Namespace`?
         );
     }
 
     function recastFunctionDeclaration(functionDeclaration: ts.FunctionDeclaration, newName: string, forceExport: boolean) {
-        return ts.createFunctionDeclaration(
+        return nodeFactor.createFunctionDeclaration(
             undefined,
             recastModifiers(functionDeclaration.modifiers),
             functionDeclaration.asteriskToken,
@@ -341,44 +347,45 @@ export function recastTopLevelModule({
     }
 
     function recastVariableDeclaration(variableDeclaration: ts.VariableDeclaration, newName: string, forceExport: boolean) {
-        return ts.createVariableDeclaration(
+        return nodeFactor.createVariableDeclaration(
             newName,
+            recastToken(variableDeclaration.exclamationToken),
             recastTypeNode(variableDeclaration.type),
             recastExpression(variableDeclaration.initializer),
         );
     }
 
     function recastPropertySignature(propertySignature: ts.PropertySignature) {
-        return copyComments(propertySignature, ts.createPropertySignature(
-            undefined,
-            recastPropertyName(propertySignature.name),
-            recastToken(propertySignature.questionToken),
-            recastTypeNode(propertySignature.type),
-            undefined,
+        return copyComments(propertySignature, nodeFactor.createPropertySignature(
+            recastModifiers(propertySignature.modifiers), // modifiers
+            recastPropertyName(propertySignature.name), // name
+            recastToken(propertySignature.questionToken), // questionToken
+            recastTypeNode(propertySignature.type), // type
         ));
     }
 
     function recastMethodSignature(methodSignature: ts.MethodSignature) {
-        return copyComments(methodSignature, ts.createMethodSignature(
-            recastTypeParameterArray(methodSignature.typeParameters),
+        return copyComments(methodSignature, nodeFactor.createMethodSignature(
+            recastModifiers(methodSignature.modifiers), // modifiers
+            recastPropertyName(methodSignature.name), // name
+            recastToken(methodSignature.questionToken), // questionToken
+            recastTypeParameterArray(methodSignature.typeParameters), // typeParameters
             recastParameterArray(methodSignature.parameters), // parameters
-            recastTypeNode(methodSignature.type),
-            recastPropertyName(methodSignature.name),
-            recastToken(methodSignature.questionToken),
+            recastTypeNode(methodSignature.type), // type
         ));
     }
 
     function recastIndexSignatureDeclaration(indexSignature: ts.IndexSignatureDeclaration) {
-        return copyComments(indexSignature, ts.createIndexSignature(
+        return copyComments(indexSignature, nodeFactor.createIndexSignature(
             undefined, // decorators
             recastModifiers(indexSignature.modifiers), // modifiers
             recastParameterArray(indexSignature.parameters), // parameters
-            recastTypeNode(indexSignature.type) || ts.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword), // type
+            recastTypeNode(indexSignature.type) || nodeFactor.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword), // type
         ));
     }
 
     function recastCallSignatureDeclaration(callSignature: ts.CallSignatureDeclaration) {
-        return copyComments(callSignature, ts.createCallSignature(
+        return copyComments(callSignature, nodeFactor.createCallSignature(
             recastTypeParameterArray(callSignature.typeParameters), // typeParameters
             recastParameterArray(callSignature.parameters), // parameters
             recastTypeNode(callSignature.type), // type
@@ -386,7 +393,7 @@ export function recastTopLevelModule({
     }
 
     function recastConstructorSignatureDeclaration(constructSignature: ts.ConstructSignatureDeclaration) {
-        return copyComments(constructSignature, ts.createConstructSignature(
+        return copyComments(constructSignature, nodeFactor.createConstructSignature(
             recastTypeParameterArray(constructSignature.typeParameters),
             recastParameterArray(constructSignature.parameters), // parameters
             recastTypeNode(constructSignature.type),
@@ -394,7 +401,7 @@ export function recastTopLevelModule({
     }
 
     function recastPropertyDeclaration(propertyDeclaration: ts.PropertyDeclaration) {
-        return copyComments(propertyDeclaration, ts.createProperty(
+        return copyComments(propertyDeclaration, nodeFactor.createPropertyDeclaration(
             undefined,
             recastModifiers(propertyDeclaration.modifiers),
             recastPropertyName(propertyDeclaration.name),
@@ -405,7 +412,7 @@ export function recastTopLevelModule({
     }
 
     function recastMethodDeclaration(methodDeclaration: ts.MethodDeclaration) {
-        return copyComments(methodDeclaration, (ts.createMethod(
+        return copyComments(methodDeclaration, (nodeFactor.createMethodDeclaration(
             undefined,
             recastModifiers(methodDeclaration.modifiers),
             recastToken(methodDeclaration.asteriskToken),
@@ -419,7 +426,7 @@ export function recastTopLevelModule({
     }
 
     function recastConstructorDeclaration(constructorDeclaration: ts.ConstructorDeclaration) {
-        return copyComments(constructorDeclaration, (ts.createConstructor(
+        return copyComments(constructorDeclaration, (nodeFactor.createConstructorDeclaration(
             undefined,
             recastModifiers(constructorDeclaration.modifiers),
             recastParameterArray(constructorDeclaration.parameters), // parameters
@@ -428,7 +435,7 @@ export function recastTopLevelModule({
     }
 
     function recastParameter(parameter: ts.ParameterDeclaration) {
-        return ts.createParameter(
+        return nodeFactor.createParameterDeclaration(
             undefined,
             recastModifiers(parameter.modifiers),
             recastToken(parameter.dotDotDotToken),
@@ -452,7 +459,7 @@ export function recastTopLevelModule({
     }
 
     function recastTypeParameter(typeParameter: ts.TypeParameterDeclaration) {
-        return ts.createTypeParameterDeclaration(
+        return nodeFactor.createTypeParameterDeclaration(
             typeParameter.name.getText(),
             recastTypeNode(typeParameter.constraint),
             recastTypeNode(typeParameter.default),
@@ -534,10 +541,10 @@ export function recastTopLevelModule({
             } else if (ts.isIndexSignatureDeclaration(element)) {
                 classElements.push(recastIndexSignatureDeclaration(element));
             } else if (ts.isSemicolonClassElement(element)) {
-                classElements.push(ts.createSemicolonClassElement());
+                classElements.push(nodeFactor.createSemicolonClassElement());
             } else if (ts.isGetAccessor(element)) {
                 // Since TS 3.7
-                classElements.push(ts.createGetAccessor(
+                classElements.push(nodeFactor.createGetAccessorDeclaration(
                     undefined, // decorators
                     recastModifiers(element.modifiers), // modifiers
                     recastPropertyName(element.name), // name
@@ -547,7 +554,7 @@ export function recastTopLevelModule({
                 ));
             } else if (ts.isSetAccessor(element)) {
                 // Since TS 3.7
-                classElements.push(ts.createSetAccessor(
+                classElements.push(nodeFactor.createSetAccessorDeclaration(
                     undefined, // decorators
                     recastModifiers(element.modifiers), // modifiers
                     recastPropertyName(element.name), // name
@@ -558,7 +565,7 @@ export function recastTopLevelModule({
                 console.warn(`Don't know how to handle element ${element.name?.getText()} of class ${newName}`);
             }
         }
-        return ts.createClassDeclaration(
+        return nodeFactor.createClassDeclaration(
             undefined,
             recastDeclarationModifiers(classDeclaration, forceExport),
             newName,
@@ -577,7 +584,7 @@ export function recastTopLevelModule({
 
     function recastInterfaceDeclaration(
         interfaceDeclaration: ts.InterfaceDeclaration, newName: string, forceExport: boolean) {
-        return ts.createInterfaceDeclaration(
+        return nodeFactor.createInterfaceDeclaration(
             undefined,
             recastDeclarationModifiers(interfaceDeclaration, forceExport),
             newName,
@@ -617,11 +624,12 @@ export function recastTopLevelModule({
     function recastHeritageClause(heritageClause: ts.HeritageClause) {
         const validClauses: ts.ExpressionWithTypeArguments[] = [];
         for (const type of heritageClause.types) {
-            validClauses.push(ts.createExpressionWithTypeArguments(
+            validClauses.push(nodeFactor.createExpressionWithTypeArguments(
+                recastExpression(type.expression),
                 type.typeArguments ? type.typeArguments.map((ta) => recastTypeNode(ta)!) : undefined,
-                recastExpression(type.expression)));
+                ));
         }
-        return ts.createHeritageClause(
+        return nodeFactor.createHeritageClause(
             heritageClause.token,
             validClauses,
         );
@@ -640,12 +648,12 @@ export function recastTopLevelModule({
     }
 
     function recastEnumDeclaration(enumDeclaration: ts.EnumDeclaration, newName: string, forceExport: boolean) {
-        return ts.createEnumDeclaration(
+        return nodeFactor.createEnumDeclaration(
             undefined,
             recastDeclarationModifiers(enumDeclaration, forceExport),
             newName,
             enumDeclaration.members.map((enumerator) => {
-                return copyComments(enumerator, ts.createEnumMember(
+                return copyComments(enumerator, nodeFactor.createEnumMember(
                     enumerator.name.getText(),
                     recastExpression(enumerator.initializer),
                 ));
@@ -655,7 +663,7 @@ export function recastTopLevelModule({
 
     function recastTypeAliasDeclaration(
         typeAliasDeclaration: ts.TypeAliasDeclaration, newName: string, forceExport: boolean) {
-        return ts.createTypeAliasDeclaration(
+        return nodeFactor.createTypeAliasDeclaration(
             undefined,
             recastDeclarationModifiers(typeAliasDeclaration, forceExport),
             newName,
@@ -703,7 +711,7 @@ export function recastTopLevelModule({
         }
 
         const fallthrough = () => {
-            return ts.createTypeReferenceNode(type.getText(), undefined);
+            return nodeFactor.createTypeReferenceNode(type.getText(), undefined);
         };
 
         switch (type.kind) {
@@ -718,7 +726,7 @@ export function recastTopLevelModule({
         case ts.SyntaxKind.UndefinedKeyword:
         case ts.SyntaxKind.UnknownKeyword:
         case ts.SyntaxKind.VoidKeyword:
-            return ts.createKeywordTypeNode(type.kind);
+            return nodeFactor.createKeywordTypeNode(type.kind);
         }
         if (ts.isTypeReferenceNode(type)) {
             return recastEntityNameAsTypeNode(
@@ -726,27 +734,27 @@ export function recastTopLevelModule({
                 type.typeArguments ? type.typeArguments.map((ta) => recastTypeNode(ta)) : undefined,
             );
         } else if (ts.isUnionTypeNode(type)) {
-            return ts.createUnionTypeNode(
+            return nodeFactor.createUnionTypeNode(
                 type.types.map((t) => recastTypeNode(t)!));
         } else if (ts.isTypeLiteralNode(type)) {
-            return ts.createTypeLiteralNode(recastTypeElements(type.members));
+            return nodeFactor.createTypeLiteralNode(recastTypeElements(type.members));
         } else if (ts.isArrayTypeNode(type)) {
-            return ts.createArrayTypeNode(recastTypeNode(type.elementType));
+            return nodeFactor.createArrayTypeNode(recastTypeNode(type.elementType));
         } else if (ts.isParenthesizedTypeNode(type)) {
-            return ts.createParenthesizedType(recastTypeNode(type.type)!);
+            return nodeFactor.createParenthesizedType(recastTypeNode(type.type)!);
         } else if (ts.isTypeQueryNode(type)) {
             // typeof Entity
-            return ts.createTypeQueryNode(recastEntityName(type.exprName));
+            return nodeFactor.createTypeQueryNode(recastEntityName(type.exprName));
         } else if (ts.isTypeOperatorNode(type)) {
-            return ts.createTypeOperatorNode(type.operator, recastTypeNode(type.type));
+            return nodeFactor.createTypeOperatorNode(type.operator, recastTypeNode(type.type));
         } else if (ts.isFunctionTypeNode(type)) {
-            return ts.createFunctionTypeNode(
+            return nodeFactor.createFunctionTypeNode(
                 recastTypeParameterArray(type.typeParameters),
                 recastParameterArray(type.parameters), // parameters
                 recastTypeNode(type.type),
             );
         } else if (ts.isConstructorTypeNode(type)) {
-            return ts.createConstructorTypeNode(
+            return nodeFactor.createConstructorTypeNode(
                 recastTypeParameterArray(type.typeParameters),
                 recastParameterArray(type.parameters), // parameters
                 recastTypeNode(type.type),
@@ -760,89 +768,114 @@ export function recastTopLevelModule({
                     if (type.typeArguments) {
                         console.error(`Unexpected: typeof import("...") should not have arguments.`);
                     }
-                    return ts.createTypeQueryNode(resolvedTypeName);
+                    return nodeFactor.createTypeQueryNode(resolvedTypeName);
                 } else {
-                    return ts.createTypeReferenceNode(
+                    return nodeFactor.createTypeReferenceNode(
                         resolvedTypeName,
                         type.typeArguments ? type.typeArguments.map((ta) => recastTypeNode(ta)!) : undefined,
                     );
                 }
             }
         } else if (ts.isIntersectionTypeNode(type)) {
-            return ts.createIntersectionTypeNode(type.types.map((t) => recastTypeNode(t)));
+            return nodeFactor.createIntersectionTypeNode(type.types.map((t) => recastTypeNode(t)));
         } else if (ts.isIndexedAccessTypeNode(type)) {
-            return ts.createIndexedAccessTypeNode(
+            return nodeFactor.createIndexedAccessTypeNode(
                 recastTypeNode(type.objectType), recastTypeNode(type.indexType));
         } else if (ts.isThisTypeNode(type)) {
-            return ts.createThisTypeNode();
+            return nodeFactor.createThisTypeNode();
         } else if (ts.isTypePredicateNode(type)) {
-            return ts.createTypePredicateNodeWithModifier(
-                type.assertsModifier ? ts.createToken(ts.SyntaxKind.AssertsKeyword) : undefined,
+            return nodeFactor.createTypePredicateNode(
+                type.assertsModifier ? nodeFactor.createToken(ts.SyntaxKind.AssertsKeyword) : undefined,
                 ts.isIdentifier(type.parameterName) ?
-                    ts.createIdentifier(type.parameterName.text) :
-                    ts.createThisTypeNode(),
+                    nodeFactor.createIdentifier(type.parameterName.text) :
+                    nodeFactor.createThisTypeNode(),
                     recastTypeNode(type.type),
             );
         } else if (ts.isConditionalTypeNode(type)) {
-            return ts.createConditionalTypeNode(
+            return nodeFactor.createConditionalTypeNode(
                 recastTypeNode(type.checkType),
                 recastTypeNode(type.extendsType),
                 recastTypeNode(type.trueType),
                 recastTypeNode(type.falseType),
             );
         } else if (ts.isTupleTypeNode(type)) {
-            return ts.createTupleTypeNode(type.elements.map((elementType) => recastTypeNode(elementType)));
+            return nodeFactor.createTupleTypeNode(type.elements.map((elementType) => recastTypeNode(elementType)));
         } else if (ts.isLiteralTypeNode(type)) {
             const literal = type.literal;
             let dumpedLiteral: typeof literal | undefined;
             if (ts.isStringLiteral(literal)) {
-                dumpedLiteral = ts.createStringLiteral(literal.text);
+                dumpedLiteral = nodeFactor.createStringLiteral(literal.text);
             } else if (literal.kind === ts.SyntaxKind.TrueKeyword) {
-                dumpedLiteral = ts.createTrue();
+                dumpedLiteral = nodeFactor.createTrue();
             } else if (literal.kind === ts.SyntaxKind.FalseKeyword) {
-                dumpedLiteral = ts.createFalse();
+                dumpedLiteral = nodeFactor.createFalse();
             } else if (literal.kind === ts.SyntaxKind.NullKeyword) {
-                dumpedLiteral = ts.createNull();
+                dumpedLiteral = nodeFactor.createNull();
             } else if (ts.isNumericLiteral(literal)) {
-                dumpedLiteral = ts.createNumericLiteral(literal.text);
+                dumpedLiteral = nodeFactor.createNumericLiteral(literal.text);
             } else if (ts.isBigIntLiteral(literal)) {
-                dumpedLiteral = ts.createBigIntLiteral(literal.text);
+                dumpedLiteral = nodeFactor.createBigIntLiteral(literal.text);
             } else if (ts.isRegularExpressionLiteral(literal)) {
-                dumpedLiteral = ts.createRegularExpressionLiteral(literal.text);
+                dumpedLiteral = nodeFactor.createRegularExpressionLiteral(literal.text);
             } else if (ts.isNoSubstitutionTemplateLiteral(literal)) {
-                dumpedLiteral = ts.createNoSubstitutionTemplateLiteral(literal.text);
+                dumpedLiteral = nodeFactor.createNoSubstitutionTemplateLiteral(literal.text);
             } else if (ts.isPrefixUnaryExpression(literal)) {
-                dumpedLiteral = ts.createPrefix(literal.operator, recastExpression(literal.operand));
+                dumpedLiteral = nodeFactor.createPrefixUnaryExpression(literal.operator, recastExpression(literal.operand));
             } else {
                 console.warn(`Don't know how to handle literal type ${type.getText()}(${tsUtils.stringifyNode(literal)})`);
             }
             if (dumpedLiteral) {
-                return ts.createLiteralTypeNode(dumpedLiteral);
+                return nodeFactor.createLiteralTypeNode(dumpedLiteral);
             }
         } else if (ts.isMappedTypeNode(type)) {
-            return ts.createMappedTypeNode(
-                recastToken(type.readonlyToken),
+            return nodeFactor.createMappedTypeNode(
+                type.readonlyToken && type.readonlyToken.kind === ts.SyntaxKind.ReadonlyKeyword ?
+                    factory.createModifier(type.readonlyToken.kind):
+                    recastToken(type.readonlyToken),
                 recastTypeParameter(type.typeParameter),
                 recastTypeNode(type.nameType),
                 recastToken(type.questionToken),
                 recastTypeNode(type.type),
             );
         } else if (ts.isInferTypeNode(type)) {
-            return ts.createInferTypeNode(
+            return nodeFactor.createInferTypeNode(
                 recastTypeParameter(type.typeParameter),
             );
         } else if (type.kind === ts.SyntaxKind.RestType) {
-            return ts.createRestTypeNode(recastTypeNode((type as ts.RestTypeNode).type));
+            return nodeFactor.createRestTypeNode(recastTypeNode((type as ts.RestTypeNode).type));
         } else if (ts.isOptionalTypeNode(type)) {
-            return ts.createOptionalTypeNode(type.type);
+            return nodeFactor.createOptionalTypeNode(type.type);
+        } else if (ts.isNamedTupleMember(type)) {
+            return nodeFactor.createNamedTupleMember(
+                recastToken(type.dotDotDotToken),
+                recastIdentifier(type.name),
+                recastToken(type.questionToken),
+                recastTypeNode(type.type),
+            );
         } else {
             console.warn(`Don't know how to handle type ${type.getText()}(${tsUtils.stringifyNode(type)})`);
         }
-        return type ? ts.createTypeReferenceNode(type.getText(), undefined) : undefined;
+        return type ? nodeFactor.createTypeReferenceNode(type.getText(), undefined) : undefined;
     }
 
-    function recastToken<TKind extends ts.SyntaxKind>(token?: ts.Token<TKind>) {
-        return token ? ts.createToken(token.kind) : undefined;
+    function recastToken(token: undefined): undefined;
+    function recastToken(token: ts.Token<ts.SyntaxKind.SuperKeyword> | undefined): ts.SuperExpression | undefined;
+    function recastToken(token: ts.Token<ts.SyntaxKind.ThisKeyword> | undefined): ts.ThisExpression | undefined;
+    function recastToken(token: ts.Token<ts.SyntaxKind.NullKeyword> | undefined): ts.NullLiteral | undefined;
+    function recastToken(token: ts.Token<ts.SyntaxKind.TrueKeyword> | undefined): ts.TrueLiteral | undefined;
+    function recastToken(token: ts.Token<ts.SyntaxKind.FalseKeyword> | undefined): ts.FalseLiteral | undefined;
+    function recastToken<TKind extends ts.PunctuationSyntaxKind>(token: ts.PunctuationToken<TKind> | undefined): ts.PunctuationToken<TKind> | undefined;
+    function recastToken<TKind extends ts.KeywordTypeSyntaxKind>(token: ts.KeywordTypeNode<TKind> | undefined): ts.KeywordTypeNode<TKind> | undefined;
+    function recastToken<TKind extends ts.ModifierSyntaxKind>(token: ts.ModifierToken<TKind> | undefined): ts.ModifierToken<TKind> | undefined;
+    function recastToken<TKind extends ts.KeywordSyntaxKind>(token: ts.KeywordToken<TKind> | undefined): ts.KeywordToken<TKind> | undefined;
+    function recastToken<TKind extends ts.SyntaxKind.Unknown | ts.SyntaxKind.EndOfFileToken>(token: ts.Token<TKind> | undefined): ts.Token<TKind> | undefined;
+
+    function recastToken<TKind extends ts.SyntaxKind>(token?: ts.Token<TKind>): any {
+        if (!token) {
+            return undefined;
+        }
+        const kind = token.kind as any;
+        return nodeFactor.createToken(kind);
     }
 
     function recastEntityName(name: ts.EntityName) {
@@ -879,7 +912,7 @@ export function recastTopLevelModule({
                 typeArguments
             );
         } else {
-            return ts.createTypeReferenceNode(
+            return nodeFactor.createTypeReferenceNode(
                 recastEntityNameTrivially(name),
                 typeArguments,
             );
@@ -890,7 +923,7 @@ export function recastTopLevelModule({
         if (ts.isIdentifier(name)) {
             return recastIdentifier(name);
         } else {
-            return ts.createQualifiedName(
+            return nodeFactor.createQualifiedName(
                 recastEntityNameTrivially(name.left),
                 recastIdentifier(name.right),
             );
@@ -898,29 +931,29 @@ export function recastTopLevelModule({
     }
 
     function recastIdentifier(id: ts.Identifier) {
-        return ts.createIdentifier(id.text);
+        return nodeFactor.createIdentifier(id.text);
     }
 
     function recastPropertyName(propertyName: ts.PropertyName) {
         if (ts.isIdentifier(propertyName)) {
-            return ts.createIdentifier(propertyName.text);
+            return nodeFactor.createIdentifier(propertyName.text);
         } else if (ts.isStringLiteral(propertyName)) {
-            return ts.createStringLiteral(propertyName.text);
+            return nodeFactor.createStringLiteral(propertyName.text);
         } else if (ts.isNumericLiteral(propertyName)) {
-            return ts.createNumericLiteral(propertyName.text);
+            return nodeFactor.createNumericLiteral(propertyName.text);
         } else if (ts.isPrivateIdentifier(propertyName)) {
-            return ts.createPrivateIdentifier(propertyName.text);
+            return nodeFactor.createPrivateIdentifier(propertyName.text);
         } else {
-            return ts.createComputedPropertyName(recastExpression(propertyName.expression));
+            return nodeFactor.createComputedPropertyName(recastExpression(propertyName.expression));
         }
     }
 
     function recastBooleanLiteral(node: ts.BooleanLiteral) {
-        return ts.createToken(node.kind);
+        return nodeFactor.createToken(node.kind);
     }
 
     function recastStringLiteral(node: ts.StringLiteral) {
-        return ts.createStringLiteral(node.text);
+        return nodeFactor.createStringLiteral(node.text);
     }
 
     function recastExpression(expression: ts.Expression): ts.Expression;
@@ -933,23 +966,23 @@ export function recastTopLevelModule({
             return undefined;
         }
         if (ts.isStringLiteral(expression)) {
-            return ts.createStringLiteral(expression.text);
+            return nodeFactor.createStringLiteral(expression.text);
         } else if (ts.isNumericLiteral(expression)) {
-            return ts.createNumericLiteral(expression.text);
+            return nodeFactor.createNumericLiteral(expression.text);
         } else if (expression.kind === ts.SyntaxKind.TrueKeyword) {
-            return ts.createTrue();
+            return nodeFactor.createTrue();
         } else if (expression.kind === ts.SyntaxKind.FalseKeyword) {
-            return ts.createFalse();
+            return nodeFactor.createFalse();
         } else if (expression.kind === ts.SyntaxKind.NullKeyword) {
-            return ts.createNull();
+            return nodeFactor.createNull();
         } else if (ts.isIdentifier(expression)) {
             return recastIdExpression(expression);
         } else if (ts.isPropertyAccessExpression(expression)) {
-            return ts.createPropertyAccess(
+            return nodeFactor.createPropertyAccessExpression(
                 recastExpression(expression.expression),
                 expression.name.text);
         } else {
-            return ts.createStringLiteral(`Bad expression <${expression.getText()}>`);
+            return nodeFactor.createStringLiteral(`Bad expression <${expression.getText()}>`);
         }
     }
 
@@ -958,7 +991,7 @@ export function recastTopLevelModule({
         if (resolveResult) {
             return createAccessLinkFromNameResolveResult(resolveResult);
         } else {
-            return ts.createIdentifier(id.text);
+            return nodeFactor.createIdentifier(id.text);
         }
     }
 
@@ -998,23 +1031,23 @@ export function recastTopLevelModule({
         if (isTypeOf) {
             const typeName = resolveResult.namespaces ?
             tsUtils.createEntityName(resolveResult.namespaces.concat([resolveResult.name]).concat(rightmost ?? []), undefined):
-            tsUtils.createEntityName(rightmost || [], ts.createIdentifier(resolveResult.name));
+            tsUtils.createEntityName(rightmost || [], nodeFactor.createIdentifier(resolveResult.name));
             if (resolveResult.module) {
-                return ts.createImportTypeNode(
-                    ts.createLiteralTypeNode(ts.createStringLiteral(resolveResult.module.name)), // arguments(module specifier)
+                return nodeFactor.createImportTypeNode(
+                    nodeFactor.createLiteralTypeNode(nodeFactor.createStringLiteral(resolveResult.module.name)), // arguments(module specifier)
                     typeName,
                     typeArguments,
                     isTypeOf,
                 );
             } else {
-                return ts.createTypeReferenceNode(
+                return nodeFactor.createTypeReferenceNode(
                     typeName,
                     typeArguments,
                 );
             }
         } else {
             const ids = prepareAndResolveIdsFromResolveResult(resolveResult);
-            return ts.createTypeReferenceNode(
+            return nodeFactor.createTypeReferenceNode(
                 tsUtils.createEntityName(ids.concat(rightmost ?? [])),
                 typeArguments,
             );
