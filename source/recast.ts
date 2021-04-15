@@ -544,23 +544,23 @@ export function recastTopLevelModule({
                 classElements.push(nodeFactor.createSemicolonClassElement());
             } else if (ts.isGetAccessor(element)) {
                 // Since TS 3.7
-                classElements.push(nodeFactor.createGetAccessorDeclaration(
+                classElements.push(copyComments(element, nodeFactor.createGetAccessorDeclaration(
                     undefined, // decorators
                     recastModifiers(element.modifiers), // modifiers
                     recastPropertyName(element.name), // name
                     recastParameterArray(element.parameters), // parameters
                     recastTypeNode(element.type), // type
                     undefined, // body
-                ));
+                )));
             } else if (ts.isSetAccessor(element)) {
                 // Since TS 3.7
-                classElements.push(nodeFactor.createSetAccessorDeclaration(
+                classElements.push(copyComments(element, nodeFactor.createSetAccessorDeclaration(
                     undefined, // decorators
                     recastModifiers(element.modifiers), // modifiers
                     recastPropertyName(element.name), // name
                     recastParameterArray(element.parameters), // parameters
                     undefined, // body
-                ));
+                )));
             } else {
                 console.warn(`Don't know how to handle element ${element.name?.getText()} of class ${newName}`);
             }
