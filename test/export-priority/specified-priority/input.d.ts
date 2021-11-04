@@ -1,9 +1,9 @@
 
 
-declare module "a" {
-    export { C } from 'c';
+declare module "aa" {
+    export { C } from 'cc';
 }
 
-declare module "b" { export { C } from 'c'; }
+declare module "bb" { export { C } from 'cc'; }
 
-declare module "c" { export class C { } }
+declare module "cc" { export class C { } }
