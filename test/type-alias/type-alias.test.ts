@@ -13,12 +13,5 @@ test('Type alias', async () => {
         output: outputPath,
     });
     expect(groups.length).toBe(1);
-    const group0 = groups[0];
-    
-    if (!await fs.pathExists(outputPath)) {
-        await fs.outputFile(outputPath, group0.code, { encoding: 'utf8' });
-    } else {
-        const expected = await fs.readFile(outputPath, 'utf8');
-        expect(group0.code).toBe(expected);
-    }
+    expect(groups[0].code).toMatchSnapshot();
 });

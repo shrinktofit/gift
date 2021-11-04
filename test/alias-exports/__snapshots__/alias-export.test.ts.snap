@@ -1,0 +1,39 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`alias export m-n 1`] = `
+"declare module \\"out/index\\" {
+    export const v: number;
+    export namespace ns {
+        export { v };
+    }
+    export {};
+}
+"
+`;
+
+exports[`alias export n-m 1`] = `
+"declare module \\"out/index\\" {
+    export namespace ns {
+        export const v: number;
+        export class c {
+        }
+    }
+    export import v_ = ns.v;
+    export import c_ = ns.c;
+    export {};
+}
+"
+`;
+
+exports[`alias export n-n 1`] = `
+"declare module \\"out/index\\" {
+    export namespace ns1 {
+        export const v: number;
+    }
+    export namespace ns2 {
+        export import v = ns1.v;
+    }
+    export {};
+}
+"
+`;

@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`From triple slash directive 1`] = `
+"declare module \\"cc\\" {
+    export class Component {
+    }
+    export class Node {
+        getComponent<T extends Component>(constructor: __private.Constructor<T>): T | null;
+    }
+    export namespace __private {
+        export type Constructor<T = unknown> = new (...args: any[]) => T;
+    }
+    export {};
+}
+"
+`;

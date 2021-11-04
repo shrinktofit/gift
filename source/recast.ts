@@ -1152,43 +1152,4 @@ export function recastTopLevelModule({
 
         return entity;
     }
-
-    function addImport(module: string, symbolName?: string): string[] {
-        const current = nameResolver.current();
-        let currentExportingModule = current;
-        while (!currentExportingModule.entity.symbol || !currentExportingModule.entity.isModule()) {
-            currentExportingModule = currentExportingModule.entity.parent.entity.namespaceTraits!;
-        }
-
-        const currentTLM = currentExportingModule.entity.moduleTraits!;
-        if (!(module in currentTLM.imports)) {
-            currentTLM.imports[module] = {
-                namedImports: {},
-            };
-        }
-
-        const symbolNameX = symbolName || 'default';
-
-        const importDetail = currentTLM.imports[module];
-        const importSymbols = importDetail.namedImports;
-        if (!(symbolNameX in importSymbols)) {
-            const importName = generateUniqueNameInModule(currentTLM, symbolNameX, importDetail);
-            importSymbols[symbolNameX] = importName;
-        }
-
-        return [
-            importSymbols[symbolNameX],
-        ];
-    }
-
-    function generateUniqueNameInModule(moduleTraits: rConcepts.ModuleTraits, preferredName: string, importDetail: rConcepts.ImportDetail): string {
-        const nsTraits = moduleTraits.entity.namespaceTraits!;
-        let tryingName = preferredName;
-        while (tryingName === '__private' ||
-            nsTraits.children.some((child) => child.name === tryingName) ||
-            (tryingName in importDetail.namedImports)) {
-            tryingName = `_${tryingName}`;
-        }
-        return tryingName;
-    }
 }

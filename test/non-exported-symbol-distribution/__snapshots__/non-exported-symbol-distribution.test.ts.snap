@@ -1,0 +1,67 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Non exported symbol distribution: Export to "firstly encountered" module 1`] = `
+"declare module \\"baz\\" {
+    export function foo(): __private.internal_NonExported;
+    export namespace __private {
+        export class internal_NonExported {
+        }
+    }
+    export {};
+}
+declare module \\"foo\\" {
+    export function foo(): ___private.internal_NonExported;
+    import { __private as ___private } from \\"baz\\";
+    export {};
+}
+declare module \\"bar\\" {
+    export function bar(): ___private.internal_NonExported;
+    import { __private as ___private } from \\"baz\\";
+    export {};
+}
+"
+`;
+
+exports[`Non exported symbol distribution: Export to bar 1`] = `
+"declare module \\"baz\\" {
+    export function foo(): ___private.internal_NonExported;
+    import { __private as ___private } from \\"bar\\";
+    export {};
+}
+declare module \\"foo\\" {
+    export function foo(): ___private.internal_NonExported;
+    import { __private as ___private } from \\"bar\\";
+    export {};
+}
+declare module \\"bar\\" {
+    export function bar(): __private.internal_NonExported;
+    export namespace __private {
+        export class internal_NonExported {
+        }
+    }
+    export {};
+}
+"
+`;
+
+exports[`Non exported symbol distribution: Export to foo 1`] = `
+"declare module \\"baz\\" {
+    export function foo(): ___private.internal_NonExported;
+    import { __private as ___private } from \\"foo\\";
+    export {};
+}
+declare module \\"foo\\" {
+    export function foo(): __private.internal_NonExported;
+    export namespace __private {
+        export class internal_NonExported {
+        }
+    }
+    export {};
+}
+declare module \\"bar\\" {
+    export function bar(): ___private.internal_NonExported;
+    import { __private as ___private } from \\"foo\\";
+    export {};
+}
+"
+`;

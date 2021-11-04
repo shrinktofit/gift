@@ -244,7 +244,11 @@ export class NamespaceTraits extends BaseTraits {
         this._aliasExports.push(aliasExport);
     }
 
-    public createNENamespace() {
+    public getOrCreateNENamespace() {
+        if (this._neNamespace) {
+            return this._neNamespace;
+        }
+
         const neNs = new Entity(this, `__private`, null);
         const trait = neNs.addNamespaceTraits();
         const neNamespace = {
@@ -324,5 +328,5 @@ export function createModule(name: string, symbol: ts.Symbol) {
     const entity = new Entity(noParent, name, symbol);
     entity.addNamespaceTraits();
     entity.moduleTraits = new ModuleTraits(entity);
-    return entity;
+    return entity as ModuleEntity;
 }

@@ -1,4 +1,7 @@
-declare module "out/index" {
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Type alias 1`] = `
+"declare module \\"out/index\\" {
     /**
      * Function.
      */
@@ -38,3 +41,5 @@ declare module "out/index" {
     }
     export {};
 }
+"
+`;

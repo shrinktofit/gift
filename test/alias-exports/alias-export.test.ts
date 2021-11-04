@@ -14,8 +14,7 @@ describe('alias export', () => {
             output: outputPath,
         });
         expect(result.groups.length).toBe(1);
-        const expectedCode = await fs.readFile(outputPath, 'utf8');
-        expect(result.groups[0].code).toStrictEqual(expectedCode);
+        expect(result.groups[0].code).toMatchSnapshot();
     };
 
     // Export from namespace to module

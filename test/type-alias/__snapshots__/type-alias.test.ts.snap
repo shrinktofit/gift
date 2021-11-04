@@ -1,4 +1,7 @@
-declare module "out/index" {
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Type alias 1`] = `
+"declare module \\"out/index\\" {
     export class C {
         get handle(): Handle;
     }
@@ -11,3 +14,5 @@ declare module "out/index" {
     export type PassHandle = Handle<PoolType.PASS>;
     export {};
 }
+"
+`;

@@ -3,15 +3,17 @@ import ps from 'path';
 import fs from 'fs-extra';
 import { bundle } from '../../source/gift';
 
-test('Type alias', async () => {
+test('From triple slash directive', async () => {
     const inputPath = ps.join(__dirname, 'input.d.ts');
     const outputPath = ps.join(__dirname, 'output.d.ts');
     const { groups } = bundle({
         input: inputPath,
-        rootModule: 'foo',
-        name: 'out/index',
+        rootModule: 'index',
+        name: 'cc',
         output: outputPath,
     });
     expect(groups.length).toBe(1);
-    expect(groups[0].code).toMatchSnapshot();
+    const group0 = groups[0];
+
+    expect(group0.code).toMatchSnapshot();
 });

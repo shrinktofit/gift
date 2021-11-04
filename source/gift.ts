@@ -27,6 +27,22 @@ export interface IOptions {
         test: RegExp;
         path: string;
     }>;
+
+    /**
+     * Specifies where to distribute non exported symbols.
+     * If not specified, the non exported symbols are distributed to the module which firstly encountered them.
+     */
+    nonExportedSymbolDistribution?: Array<{
+        /**
+         * Regex to match the module name, where the symbol is originally declared.
+         */
+        sourceModule: RegExp;
+
+        /**
+         * Target module, should be in `entries`.
+         */
+        targetModule: string;
+    }>;
 }
 
 export interface IBundleResult {
@@ -233,19 +249,15 @@ export function rollupTypes(options: IOptions) {
             }
         }
 
-        function registerNonExportedSymbol(symbol: ts.Symbol, currentNamespace: rConcepts.NamespaceTraits) {
-            let currentNamespaceInSource = currentNamespace;
-            while (!currentNamespaceInSource.entity.symbol) {
-                currentNamespaceInSource = currentNamespaceInSource.entity.parent.entity.namespaceTraits!;
+        function registerNonExportedSymbol(symbol: ts.Symbol, referencingNamespace: rConcepts.NamespaceTraits) {
+            // TODO: what's this? I forgot.. But just keep unchanged.
+            let referencingNamespaceInSource = referencingNamespace;
+            while (!referencingNamespaceInSource.entity.symbol) {
+                referencingNamespaceInSource = referencingNamespaceInSource.entity.parent.entity.namespaceTraits!;
             }
 
-            // const neNamespaceParent = currentExportingModule;
-            const neNamespaceParent = currentNamespaceInSource.entity.ownerModuleOrThis;
-            let neNamespace = neNamespaceParent.namespaceTraits.neNamespace;
-            if (!neNamespace) {
-                neNamespace = neNamespaceParent.namespaceTraits.createNENamespace();
-            }
-            const name = generateUniqueName(symbol, neNamespace.trait, currentNamespaceInSource);
+            const neNamespace = decideNeNamespaceForNonExportedSymbol(symbol, referencingNamespaceInSource);
+            const name = generateUniqueName(symbol, neNamespace.trait, referencingNamespaceInSource);
             const entity = new rConcepts.Entity(neNamespace.trait, name, symbol);
             rEntityMap.set(symbol, entity);
             return {
@@ -254,6 +266,59 @@ export function rollupTypes(options: IOptions) {
                     neNamespace!.statements.push(...statements);
                 },
             };
+        }
+
+        function decideNeNamespaceForNonExportedSymbol(symbol: ts.Symbol, currentNamespaceInSource: rConcepts.NamespaceTraits) {
+            const enclosing = getNeNamespaceOfEnclosingModule(symbol);
+            if (enclosing) {
+                return enclosing;
+            }
+
+            return currentNamespaceInSource.entity.ownerModuleOrThis.namespaceTraits.getOrCreateNENamespace();
+        }
+
+        function getNeNamespaceOfEnclosingModule(symbol: ts.Symbol) {
+            const { nonExportedSymbolDistribution } = options;
+            if (!nonExportedSymbolDistribution) {
+                return;
+            }
+
+            const enclosingModuleSymbol = getEnclosingModuleSymbol(symbol);
+            if (!enclosingModuleSymbol) {
+                return null;
+            }
+
+            const moduleName = enclosingModuleSymbol.getName();
+            for (const { sourceModule, targetModule } of nonExportedSymbolDistribution) {
+                if (!sourceModule.test(moduleName)) {
+                    continue;
+                }
+                const externalModule = rExternalModules.find(({ name }) => name === targetModule);
+                if (!externalModule) {
+                    return null;
+                }
+                return externalModule.namespaceTraits.getOrCreateNENamespace();
+            }
+
+            return null;
+        }
+
+        function getEnclosingModuleSymbol(symbol: ts.Symbol): ts.Symbol | null {
+            const declarations = symbol.getDeclarations();
+            if (!declarations || declarations.length === 0) {
+                return null;
+            }
+            const declaration0 = declarations[0];
+            let currentNode: ts.Node = declaration0;
+            while (true) {
+                if (ts.isSourceFile(currentNode)) {
+                    return typeChecker.getSymbolAtLocation(currentNode) ?? null;
+                }
+                if (ts.isModuleDeclaration(currentNode) && !(currentNode.flags & ts.NodeFlags.Namespace)) {
+                    return typeChecker.getSymbolAtLocation(currentNode.name) ?? null;
+                }
+                currentNode = currentNode.parent;
+            }
         }
 
         function generateUniqueName(symbol: ts.Symbol, parentModule: rConcepts.NamespaceTraits, referenceNamespaceTraits: rConcepts.NamespaceTraits): string {
