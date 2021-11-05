@@ -311,14 +311,13 @@ export function rollupTypes(options: IOptions) {
                 return;
             }
 
-            const enclosingModuleSymbol = getEnclosingModuleSymbol(symbol);
-            if (!enclosingModuleSymbol) {
+            const enclosingModuleName = getEnclosingModuleName(symbol);
+            if (!enclosingModuleName) {
                 return null;
             }
 
-            const moduleName = enclosingModuleSymbol.getName();
             for (const { sourceModule, targetModule } of nonExportedSymbolDistribution) {
-                if (!sourceModule.test(moduleName)) {
+                if (!sourceModule.test(enclosingModuleName)) {
                     continue;
                 }
                 const externalModule = rExternalModules.find(({ name }) => name === targetModule);
@@ -331,7 +330,7 @@ export function rollupTypes(options: IOptions) {
             return null;
         }
 
-        function getEnclosingModuleSymbol(symbol: ts.Symbol): ts.Symbol | null {
+        function getEnclosingModuleName(symbol: ts.Symbol): string | null {
             const declarations = symbol.getDeclarations();
             if (!declarations || declarations.length === 0) {
                 return null;
@@ -340,10 +339,10 @@ export function rollupTypes(options: IOptions) {
             let currentNode: ts.Node = declaration0;
             while (true) {
                 if (ts.isSourceFile(currentNode)) {
-                    return typeChecker.getSymbolAtLocation(currentNode) ?? null;
+                    return currentNode.fileName;
                 }
                 if (ts.isModuleDeclaration(currentNode) && !(currentNode.flags & ts.NodeFlags.Namespace)) {
-                    return typeChecker.getSymbolAtLocation(currentNode.name) ?? null;
+                    return typeChecker.getSymbolAtLocation(currentNode.name)?.getName() ?? '';
                 }
                 currentNode = currentNode.parent;
             }

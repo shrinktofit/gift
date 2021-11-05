@@ -23,14 +23,14 @@ describe('Export priority', () => {
     test('Specified priority', () => {
         const { entryModules, typeChecker } = genProg(
             [ ps.join(__dirname, 'specified-priority', 'input.d.ts') ],
-            [ 'a', 'b' ],
+            [ 'aa', 'bb' ],
         );
         const [aSymbol, bSymbol] = entryModules;
 
         {
             const [aDistribute, bDistribute] = distributeExports(entryModules, typeChecker, [
-                'a',
-                'b',
+                'aa',
+                'bb',
             ]);
             expect(aDistribute.mainExports.length).toBe(1);
             expect(aDistribute.mainExports[0].exportSymbol.getName()).toBe('C');
@@ -39,8 +39,8 @@ describe('Export priority', () => {
 
         {
             const [aDistribute, bDistribute] = distributeExports(entryModules, typeChecker, [
-                'b',
-                'a',
+                'bb',
+                'aa',
             ]);
             expect(bDistribute.mainExports.length).toBe(1);
             expect(bDistribute.mainExports[0].exportSymbol.getName()).toBe('C');
