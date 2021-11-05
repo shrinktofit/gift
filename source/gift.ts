@@ -137,7 +137,9 @@ export function rollupTypes(options: IOptions) {
             if (!moduleSymbol) {
                 throw new Error(`Entry ${entryModuleName}: ${entryModuleId} is not found.`);
             }
+            const referencingSymbols = getReferencingSymbolsInModule(moduleSymbol);
             return {
+                referencingSymbols,
                 name: entryModuleName,
                 symbol: moduleSymbol,
             };
@@ -219,6 +221,32 @@ export function rollupTypes(options: IOptions) {
             groupSource.statements.push(...myRecast(rModule.moduleTraits!));
         }
         return Array.from(groupSources.values());
+
+        function getReferencingSymbolsInModule(symbol: ts.Symbol) {
+            const referencingSymbols = new Set<ts.Symbol>();
+
+            const declarations = symbol.getDeclarations();
+            if (!declarations || declarations.length === 0) {
+                return referencingSymbols;
+            }
+
+            for (const declaration of declarations) {
+                const scopeSymbols = typeChecker.getSymbolsInScope(declaration, -1);
+                for (const scopeSymbol of scopeSymbols) {
+                    const declarations = scopeSymbol.getDeclarations();
+                    if (!declarations || declarations.length === 0 || declarations.some((declaration) => {
+                        const sourceFile = declaration.getSourceFile();
+                        return program.isSourceFileDefaultLibrary(sourceFile) ||
+                            program.isSourceFileFromExternalLibrary(sourceFile);
+                    })) {
+                        continue;
+                    }
+                    referencingSymbols.add(scopeSymbol);
+                }
+            }
+
+            return referencingSymbols;
+        }
 
         function createREntities(
             moduleExportDistribution: distributeExports.InternalModuleMeta,
