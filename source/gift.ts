@@ -1,7 +1,7 @@
 
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import ts from 'typescript';
+import ts, { NodeFlags } from 'typescript';
 import ps from 'path';
 import * as rConcepts from './r-concepts';
 import { NameResolver } from './name-resolver';
@@ -89,6 +89,7 @@ class SymbolEntityMap {
 
 export function rollupTypes(options: IOptions) {
     const inputs = Array.isArray(options.input) ? options.input : [options.input];
+    const rootDir = options.rootDir ?? ps.dirname(inputs[0]);
     const entries = getEntries();
     const program = createProgram();
     const typeChecker = program.getTypeChecker();
@@ -116,7 +117,7 @@ export function rollupTypes(options: IOptions) {
 
     function createTscOptions(): ts.CompilerOptions {
         return {
-            rootDir: options.rootDir ?? ps.dirname(inputs[0]),
+            rootDir,
         };
     }
 
@@ -133,7 +134,13 @@ export function rollupTypes(options: IOptions) {
 
         const entryModules = Object.entries(entries).map(([entryModuleName, entryModuleId]) => {
             const name = `"${entryModuleId}"`;
-            const moduleSymbol = ambientModules.find(m => m.getName() === name);
+            let moduleSymbol = ambientModules.find(m => m.getName() === name);
+            if (!moduleSymbol) {
+                const sourceFile = program.getSourceFile(entryModuleId);
+                if (sourceFile) {
+                    moduleSymbol = typeChecker.getSymbolAtLocation(sourceFile);
+                }
+            }
             if (!moduleSymbol) {
                 throw new Error(`Entry ${entryModuleName}: ${entryModuleId} is not found.`);
             }
@@ -337,12 +344,15 @@ export function rollupTypes(options: IOptions) {
             }
             const declaration0 = declarations[0];
             let currentNode: ts.Node = declaration0;
+            const transformModuleName = (fileName: string) => {
+                return fileName.replace(/[\\]/g, '/');
+            };
             while (true) {
                 if (ts.isSourceFile(currentNode)) {
-                    return currentNode.fileName;
+                    return transformModuleName(currentNode.fileName);
                 }
                 if (ts.isModuleDeclaration(currentNode) && !(currentNode.flags & ts.NodeFlags.Namespace)) {
-                    return typeChecker.getSymbolAtLocation(currentNode.name)?.getName() ?? '';
+                    return transformModuleName(typeChecker.getSymbolAtLocation(currentNode.name)?.getName() ?? '');
                 }
                 currentNode = currentNode.parent;
             }
@@ -355,28 +365,54 @@ export function rollupTypes(options: IOptions) {
             }
 
             const namespaces: string[] = [];
+
             let current: ts.Node = declaration0;
-            while (true) {
+
+            if (!ts.isSourceFile(declaration0)) {
+                // If the input isn't source file,
+                // we directly extract its name in symbol,
+                // otherwise we handle it further.
+                namespaces.push(generateIdFromString(symbol.getName()));
+                current = current.parent;
+            }
+
+            while (current) {
                 if (ts.isSourceFile(current)) {
+                    namespaces.unshift(generateIdFromSourceFileName(current.fileName));
                     break;
-                } else if (ts.isModuleDeclaration(current) && ts.isSourceFile(current.parent)) {
-                    namespaces.push(createIdFromModuleName(current.name));
+                } else if (ts.isModuleDeclaration(current)) {
+                    namespaces.unshift(generateIdFromModuleDeclarationName(current.name));
+                    if (ts.isSourceFile(current.parent) &&
+                        !(current.flags & NodeFlags.Namespace) &&
+                        ts.isStringLiteral(current.name)) {
+                        // is `[declare] module "" {}` under source file
+                        break;
+                    }
                 }
                 current = current.parent;
             }
-            
-            if (!(ts.isModuleDeclaration(declaration0) && ts.isSourceFile(declaration0.parent))) {
-                namespaces.push(symbol.getName());
-            }
-            return namespaces.join('_');
+
+            const name = namespaces.join('ლ');
+            return name;
         }
 
-        function createIdFromModuleName(name: ts.ModuleName) {
+        function generateIdFromModuleDeclarationName(name: ts.ModuleName) {
             if (ts.isIdentifier(name)) {
                 return name.text;
             } else {
-                return name.text.replace(/[\/\\-]/g, '_');
+                return generateIdFromString(name.text);
             }
+        }
+
+        function generateIdFromSourceFileName(fileName: string) {
+            const relativeFromRoot = ps.relative(rootDir, fileName);
+            const extensionStriped = relativeFromRoot.replace(/\.(js|ts|d\.ts)$/, '');
+            return generateIdFromString(extensionStriped);
+        }
+
+        function generateIdFromString(text: string) {
+            //  To handle keywords and illegal first letters, we prefix it with a legal letter.
+            return 'ლ' + text.replace(/[\/\\-]/g, 'ლ').replace(/['":\.@]/g, '');
         }
     }
 

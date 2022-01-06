@@ -311,6 +311,17 @@ export function recastTopLevelModule({
         return null;
     }
 
+    function recastSourceFileDeclarationAsNamespaceDeclaration(sourceFile: ts.SourceFile, newName: string) {
+        const newBody = nodeFactor.createModuleBlock(recastStatements(sourceFile.statements));
+        return nodeFactor.createModuleDeclaration(
+            undefined, // decorators
+            undefined,
+            nodeFactor.createIdentifier(newName),
+            newBody,
+            ts.NodeFlags.Namespace, // TODO: flags. Maybe `ts.NodeFlags.Namespace`?
+        );
+    }
+
     function recastModuleDeclarationAsNamespaceDeclaration(moduleDeclaration: ts.ModuleDeclaration, newName: string) {
         const body = moduleDeclaration.body;
         let newBody: ts.ModuleDeclaration['body'];
@@ -682,8 +693,13 @@ export function recastTopLevelModule({
         }
         const result: ts.Modifier[] = [];
         for (const modifier of modifiers) {
-            if (modifier.kind !== ts.SyntaxKind.DefaultKeyword) {
-                result.push(modifier);
+            switch (modifier.kind) {
+                case ts.SyntaxKind.DefaultKeyword:
+                case ts.SyntaxKind.DeclareKeyword:
+                    break;
+                default:
+                    result.push(modifier);
+                    break;
             }
         }
         return result;
@@ -1132,11 +1148,14 @@ export function recastTopLevelModule({
 
         const statements: ts.Statement[] = [];
         for (const declaration of declarations) {
-            if (ts.isModuleDeclaration(declaration)) {
+            if (ts.isSourceFile(declaration) || ts.isModuleDeclaration(declaration)) {
+                // `namespace xx {}`, `import * as`, but not exported
                 const namespaceTraits = entity.addNamespaceTraits();
                 nameResolver.enter(namespaceTraits);
-                statements.push(
-                    recastModuleDeclarationAsNamespaceDeclaration(declaration, entity.name));
+                const newNamespaceDeclaration = ts.isSourceFile(declaration)
+                    ? recastSourceFileDeclarationAsNamespaceDeclaration(declaration, entity.name)
+                    : recastModuleDeclarationAsNamespaceDeclaration(declaration, entity.name);
+                statements.push(newNamespaceDeclaration);
                 nameResolver.leave();
             } else {
                 pushIfNonNull(
