@@ -8,7 +8,7 @@ export function splitLeftmost(entityName: ts.EntityName) {
         if (ts.isIdentifier(leftmost)) {
             break;
         }
-        rights.push(leftmost.right);
+        rights.unshift(leftmost.right);
         leftmost = leftmost.left;
     }
     return {

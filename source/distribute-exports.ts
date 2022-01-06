@@ -5,7 +5,7 @@ export function distributeExports(
     typeChecker: ts.TypeChecker,
     priorityList: string[] = [],
 ) {
-    const parsedPriorityList = priorityList.map((id) => `"${id}"`);
+    const parsedPriorityList = priorityList.map((id) => `"${id.replace(/\\/g, '/').replace(/\.(js|ts|d\.ts)$/, '')}"`);
 
     const exportMap: Map<ts.Symbol, SymbolInfo> = new Map();
 

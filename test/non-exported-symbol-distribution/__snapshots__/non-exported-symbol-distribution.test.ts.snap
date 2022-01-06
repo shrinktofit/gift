@@ -2,20 +2,20 @@
 
 exports[`Non exported symbol distribution: Export to "firstly encountered" module 1`] = `
 "declare module \\"baz\\" {
-    export function foo(): __private.internal_NonExported;
+    export function foo(): __private.ლinternalლლNonExported;
     export namespace __private {
-        export class internal_NonExported {
+        export class ლinternalლლNonExported {
         }
     }
     export {};
 }
 declare module \\"foo\\" {
-    export function foo(): ___private.internal_NonExported;
+    export function foo(): ___private.ლinternalლლNonExported;
     import { __private as ___private } from \\"baz\\";
     export {};
 }
 declare module \\"bar\\" {
-    export function bar(): ___private.internal_NonExported;
+    export function bar(): ___private.ლinternalლლNonExported;
     import { __private as ___private } from \\"baz\\";
     export {};
 }
@@ -24,19 +24,19 @@ declare module \\"bar\\" {
 
 exports[`Non exported symbol distribution: Export to bar 1`] = `
 "declare module \\"baz\\" {
-    export function foo(): ___private.internal_NonExported;
+    export function foo(): ___private.ლinternalლლNonExported;
     import { __private as ___private } from \\"bar\\";
     export {};
 }
 declare module \\"foo\\" {
-    export function foo(): ___private.internal_NonExported;
+    export function foo(): ___private.ლinternalლლNonExported;
     import { __private as ___private } from \\"bar\\";
     export {};
 }
 declare module \\"bar\\" {
-    export function bar(): __private.internal_NonExported;
+    export function bar(): __private.ლinternalლლNonExported;
     export namespace __private {
-        export class internal_NonExported {
+        export class ლinternalლლNonExported {
         }
     }
     export {};
@@ -46,20 +46,20 @@ declare module \\"bar\\" {
 
 exports[`Non exported symbol distribution: Export to foo 1`] = `
 "declare module \\"baz\\" {
-    export function foo(): ___private.internal_NonExported;
+    export function foo(): ___private.ლinternalლლNonExported;
     import { __private as ___private } from \\"foo\\";
     export {};
 }
 declare module \\"foo\\" {
-    export function foo(): __private.internal_NonExported;
+    export function foo(): __private.ლinternalლლNonExported;
     export namespace __private {
-        export class internal_NonExported {
+        export class ლinternalლლNonExported {
         }
     }
     export {};
 }
 declare module \\"bar\\" {
-    export function bar(): ___private.internal_NonExported;
+    export function bar(): ___private.ლinternalლლNonExported;
     import { __private as ___private } from \\"foo\\";
     export {};
 }
