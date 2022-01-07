@@ -392,7 +392,7 @@ export function rollupTypes(options: IOptions) {
                 current = current.parent;
             }
 
-            const name = namespaces.join('ლ');
+            const name = namespaces.join('_');
             return name;
         }
 
@@ -412,7 +412,7 @@ export function rollupTypes(options: IOptions) {
 
         function generateIdFromString(text: string) {
             //  To handle keywords and illegal first letters, we prefix it with a legal letter.
-            return 'ლ' + text.replace(/[\/\\-]/g, 'ლ').replace(/['":\.@]/g, '');
+            return '_' + text.replace(/[\/\\-]/g, '_').replace(/['":\.@]/g, '');
         }
     }
 
