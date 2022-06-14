@@ -39,6 +39,10 @@ exports[`Type alias 1`] = `
         export class Bar {
         }
     }
+    /**
+     * Namespace2.
+     */
+    export namespace Ns { }
     export {};
 }
 "

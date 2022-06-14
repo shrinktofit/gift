@@ -1,6 +1,6 @@
 {
   "name": "tfig",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "description": "Yet another tool to generate .d.ts bundle.",
   "main": "build/gift.js",
   "types": "build/gift.d.ts",

@@ -45,6 +45,12 @@ declare module "foo" {
      * Namespace.
      */
     export * as bar from 'bar';
+
+    /**
+     * Namespace2.
+     */
+    export namespace Ns {
+    }
 }
 
 declare module "bar" {

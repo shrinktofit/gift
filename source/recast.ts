@@ -152,6 +152,10 @@ export function recastTopLevelModule({
                 nodeFactor.createModuleBlock(childrenEntityStatements),
                 ts.NodeFlags.Namespace,
             );
+            const declaration0 = declarations[0];
+            if (declaration0.kind === ts.SyntaxKind.ModuleDeclaration) {
+                copyComments(declaration0, namespaceDeclaration);
+            }
             statements.push(namespaceDeclaration);
         }
         return statements;
