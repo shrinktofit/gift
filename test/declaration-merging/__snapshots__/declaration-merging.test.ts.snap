@@ -1,0 +1,53 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Declaration merging 1`] = `
+Object {
+  "groups": Array [
+    Object {
+      "code": "declare module \\"cc\\" {
+    export namespace meow {
+        export class Meow {
+            /**
+             * Main method.
+             */
+            public mainMethod(): void;
+        }
+    }
+    export {};
+}
+",
+      "parts": Object {
+        "part1": Object {
+          "code": "declare module \\"cc\\" {
+    export namespace meow {
+        interface Meow {
+            /**
+             * @part part1
+             */
+            partMethod(): void;
+            /**
+             * @part part1
+             */
+            partProperty: number;
+        }
+        namespace Meow {
+            /**
+             * @part part1
+             */
+            function partMethodStatic(): void;
+            /**
+             * @part part1
+             */
+            var partPropertyStatic: number;
+        }
+    }
+}
+",
+          "path": "X:\\\\Dev\\\\Repos\\\\Leslie\\\\gift\\\\test\\\\declaration-merging\\\\output.part1.d.ts",
+        },
+      },
+      "path": "X:\\\\Dev\\\\Repos\\\\Leslie\\\\gift\\\\test\\\\declaration-merging\\\\output.d.ts",
+    },
+  ],
+}
+`;

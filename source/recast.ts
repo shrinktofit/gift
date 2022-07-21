@@ -21,12 +21,13 @@ export function recastTopLevelModule({
     registerNonExportedSymbol: (symbol: ts.Symbol, currentModule: rConcepts.NamespaceTraits) => {
         entity: rConcepts.Entity;
         addStatements: (statements: ts.Statement[]) => void;
+        addPartStatements: (parts: Record<string, ts.Statement[]>) => void;
     },
 }) {
     const nodeFactor = ts.factory;
 
-    const moduleDeclaration = recastRModule(rModule);
-    return [moduleDeclaration];
+    const moduleDeclarations = recastRModule(rModule);
+    return moduleDeclarations;
 
     function pushIfNonNull<T>(target: T[], source: T | null) {
         if (source) {
@@ -47,7 +48,10 @@ export function recastTopLevelModule({
     }
 
     function recastRModule(rModule: rConcepts.ModuleTraits) {
-        const statements = recastNamespaceTraits(rModule.entity.namespaceTraits!);
+        const {
+            statements,
+            partStatementRecord,
+        } = recastNamespaceTraits(rModule.entity.namespaceTraits!);
 
         Object.entries(rModule.imports).map(([specifier, detail]) => {
             const importSymbols = Object.entries(detail.namedImports);
@@ -119,10 +123,25 @@ export function recastTopLevelModule({
             nodeFactor.createStringLiteral(rModule.entity.name),
             nodeFactor.createModuleBlock(statements),
         );
-        return moduleDeclaration;
+
+        const moduleDeclarationParts: Record<string, ts.ModuleDeclaration> = {};
+        for (const [partName, moduleDeclarationPartStatements] of Object.entries(partStatementRecord.parts)) {
+            const moduleDeclarationPart = nodeFactor.createModuleDeclaration(
+                undefined, // decorators
+                [nodeFactor.createModifier(ts.SyntaxKind.DeclareKeyword)],
+                nodeFactor.createStringLiteral(rModule.entity.name),
+                nodeFactor.createModuleBlock(moduleDeclarationPartStatements),
+            );
+            moduleDeclarationParts[partName] = moduleDeclarationPart;
+        }
+
+        return {
+            main: moduleDeclaration,
+            parts: moduleDeclarationParts,
+        };
     }
 
-    function recastREntity(rEntity: rConcepts.Entity) {
+    function recastREntity(rEntity: rConcepts.Entity, parentNamespace: rConcepts.NamespaceTraits) {
         if (!rEntity.symbol) {
             // For example: the `__private` namespace
             return null;
@@ -136,15 +155,21 @@ export function recastTopLevelModule({
         }
 
         const statements: ts.Statement[] = [];
+        const partStatementRecord = new PartStatementRecord();
         for (const declaration of declarations) {
-            pushIfNonNull(
-                statements,
-                recastDeclaration(declaration, rEntity.name, true),
-            );
+            const multiplexDeclaration = recastDeclaration(declaration, rEntity.name, true);
+            if (!multiplexDeclaration) {
+                continue;
+            }
+            const { main, parts } = multiplexDeclaration;
+            statements.push(main);
+            if (parts) {
+                partStatementRecord.mergeSingle(parts);
+            }
         }
 
         if (namespaceTraits) {
-            const childrenEntityStatements = recastNamespaceTraits(namespaceTraits);
+            const { statements: childrenEntityStatements, partStatementRecord: childrenEntityPartStatementRecord  } = recastNamespaceTraits(namespaceTraits);
             const namespaceDeclaration = nodeFactor.createModuleDeclaration(
                 undefined, // decorators
                 [nodeFactor.createModifier(ts.SyntaxKind.ExportKeyword)], // TODO: recastModifiers(moduleDeclaration.modifiers),
@@ -157,18 +182,42 @@ export function recastTopLevelModule({
                 copyComments(declaration0, namespaceDeclaration);
             }
             statements.push(namespaceDeclaration);
+            
+            for (const [partName, stmts] of Object.entries(childrenEntityPartStatementRecord.parts)) {
+                const partNamespaceDeclaration = nodeFactor.createModuleDeclaration(
+                    undefined, // decorators
+                    [nodeFactor.createModifier(ts.SyntaxKind.ExportKeyword)], // TODO: recastModifiers(moduleDeclaration.modifiers),
+                    nodeFactor.createIdentifier(rEntity.name),
+                    nodeFactor.createModuleBlock(stmts),
+                    ts.NodeFlags.Namespace,
+                );
+                const declaration0 = declarations[0];
+                if (declaration0.kind === ts.SyntaxKind.ModuleDeclaration) {
+                    copyComments(declaration0, partNamespaceDeclaration);
+                }
+                (partStatementRecord.parts[partName] ??= []).push(
+                    partNamespaceDeclaration,
+                );
+            }
         }
-        return statements;
+        return {
+            statements,
+            partStatementRecord,
+        };
     }
 
     function recastNamespaceTraits(namespaceTraits: rConcepts.NamespaceTraits) {
         const statements: ts.Statement[] = [];
+        const partStatementRecord = new PartStatementRecord();
         nameResolver.enter(namespaceTraits);
         for (const childEntity of namespaceTraits.children) {
-            pushMultiIfNonNull(
-                statements,
-                recastREntity(childEntity),
-            );
+            const childResult = recastREntity(childEntity, namespaceTraits);
+            if (!childResult) {
+                continue;
+            }
+            const { statements: childStatements, partStatementRecord: childPartStatementRecord } = childResult;
+            statements.push(...childStatements);
+            partStatementRecord.merge(childPartStatementRecord);
         }
         namespaceTraits.transformAliasExports();
         if (namespaceTraits.selfExports.length !== 0) {
@@ -203,59 +252,79 @@ export function recastTopLevelModule({
             );
             statements.push(neNsDeclaration);
         }
-        return statements;
+        return {
+            statements,
+            partStatementRecord,
+        };
     }
 
     function optimizeModuleSpecifierTo(from: rConcepts.ModuleTraits, to: string): string {
         return to;
     }
 
-    function recastStatement(statement: ts.Statement) {
+    function recastStatement(statement: ts.Statement): MultiplexStatementArray | null {
         if (ts.isClassDeclaration(statement)) {
-            return !statement.name ? null : recastClassDeclaration(statement, statement.name.text, false);
+            const decl = !statement.name ? null : recastClassDeclaration(statement, statement.name.text, false);
+            if (decl) {
+                return MultiplexStatementArray.fromSingle(decl);
+            } else {
+                return null;
+            }
         } else if (ts.isFunctionDeclaration(statement)) {
-            return !statement.name ? null : recastFunctionDeclaration(statement, statement.name.text, false);
+            return wrapDeclarationAsMultiplexStatementArray(!statement.name ? null : recastFunctionDeclaration(statement, statement.name.text, false));
         } else if (ts.isInterfaceDeclaration(statement)) {
-            return !statement.name ? null : recastInterfaceDeclaration(statement, statement.name.text, false);
+            return wrapDeclarationAsMultiplexStatementArray(
+                !statement.name ? null : recastInterfaceDeclaration(statement, statement.name.text, false),
+            );
         } else if (ts.isEnumDeclaration(statement)) {
-            return !statement.name ? null : recastEnumDeclaration(statement, statement.name.text, false);
+            return wrapDeclarationAsMultiplexStatementArray(
+                !statement.name ? null : recastEnumDeclaration(statement, statement.name.text, false),
+            );
         } else if (ts.isTypeAliasDeclaration(statement)) {
-            return !statement.name ? null : recastTypeAliasDeclaration(statement, statement.name.text, false);
+            return wrapDeclarationAsMultiplexStatementArray(
+                !statement.name ? null : recastTypeAliasDeclaration(statement, statement.name.text, false),
+            );
         } else if (ts.isVariableStatement(statement)) {
-            return nodeFactor.createVariableStatement(
-                recastDeclarationModifiers(statement, false),
-                nodeFactor.createVariableDeclarationList(
-                    statement.declarationList.declarations.map((declaration) =>
-                        recastVariableDeclaration(declaration, declaration.name.getText(), false)),
-                    statement.declarationList.flags,
+            return wrapDeclarationAsMultiplexStatementArray(
+                nodeFactor.createVariableStatement(
+                    recastDeclarationModifiers(statement, false),
+                    nodeFactor.createVariableDeclarationList(
+                        statement.declarationList.declarations.map((declaration) =>
+                            recastVariableDeclaration(declaration, declaration.name.getText(), false)),
+                        statement.declarationList.flags,
+                    ),
                 ),
             );
         } else if (ts.isImportDeclaration(statement)) {
-            return recastImportDeclaration(statement);
+            const statements = recastImportDeclaration(statement);
+            return statements ? new MultiplexStatementArray(statements) : null;
         } else {
             return null;
         }
     }
 
-    function recastStatements(statements: ts.Statement[] | ts.NodeArray<ts.Statement>): ts.Statement[] {
-        const result: ts.Statement[] = [];
+    function wrapDeclarationAsMultiplexStatementArray(declaration: ts.Statement | null): MultiplexStatementArray | null {
+        return declaration ? new MultiplexStatementArray(declaration) : null;
+    }
+
+    function recastStatements(statements: ts.Statement[] | ts.NodeArray<ts.Statement>): MultiplexStatementArray {
+        const result = new MultiplexStatementArray();
         for (const statement of statements) {
             const newStatement = recastStatement(statement);
-            if (Array.isArray(newStatement)) {
-                result.push(...newStatement);
-            } else if (newStatement) {
-                result.push(newStatement);
+            if (newStatement) {
+                result.merge(newStatement);
             }
         }
         return result;
     }
 
-    function recastDeclaration(declaration: ts.Declaration, newName: string, forceExport: boolean): ts.Statement | null {
+    function recastDeclaration(declaration: ts.Declaration, newName: string, forceExport: boolean): MultiplexDeclarationStatement | null {
         const result = recastDeclarationNoComment(declaration, newName, forceExport);
         if (result) {
-            copyComments(declaration, result);
+            copyComments(declaration, result.main);
+            return result;
         }
-        return result;
+        return null;
     }
 
     function copyComments<T extends ts.Node>(src: ts.Node, dst: T): T {
@@ -290,25 +359,35 @@ export function recastTopLevelModule({
         return dst;
     }
 
-    function recastDeclarationNoComment(declaration: ts.Declaration, newName: string, forceExport: boolean): ts.Statement | null {
+    function recastDeclarationNoComment(declaration: ts.Declaration, newName: string, forceExport: boolean): MultiplexDeclarationStatement | null {
         if (ts.isClassDeclaration(declaration)) {
             return recastClassDeclaration(declaration, newName, forceExport);
         } else if (ts.isFunctionDeclaration(declaration)) {
-            return recastFunctionDeclaration(declaration, newName, forceExport);
+            return {
+                main: recastFunctionDeclaration(declaration, newName, forceExport),
+            };
         } else if (ts.isInterfaceDeclaration(declaration)) {
-            return recastInterfaceDeclaration(declaration, newName, forceExport);
+            return {
+                main: recastInterfaceDeclaration(declaration, newName, forceExport),
+            };
         } else if (ts.isEnumDeclaration(declaration)) {
-            return recastEnumDeclaration(declaration, newName, forceExport);
+            return {
+                main: recastEnumDeclaration(declaration, newName, forceExport),
+            };
         } else if (ts.isTypeAliasDeclaration(declaration)) {
-            return recastTypeAliasDeclaration(declaration, newName, forceExport);
+            return {
+                main: recastTypeAliasDeclaration(declaration, newName, forceExport),
+            };
         } else if (ts.isVariableDeclaration(declaration)) {
-            return nodeFactor.createVariableStatement(
-                recastDeclarationModifiers(declaration, forceExport),
-                nodeFactor.createVariableDeclarationList(
-                    [recastVariableDeclaration(declaration, newName, forceExport)],
-                    declaration.parent.flags,
+            return {
+                    main: nodeFactor.createVariableStatement(
+                    recastDeclarationModifiers(declaration, forceExport),
+                    nodeFactor.createVariableDeclarationList(
+                        [recastVariableDeclaration(declaration, newName, forceExport)],
+                        declaration.parent.flags,
+                    ),
                 ),
-            );
+            }
         } else if (ts.isModuleDeclaration(declaration)) {
             // return recastModuleDeclaration(declaration, newName);
         }
@@ -316,7 +395,7 @@ export function recastTopLevelModule({
     }
 
     function recastSourceFileDeclarationAsNamespaceDeclaration(sourceFile: ts.SourceFile, newName: string) {
-        const newBody = nodeFactor.createModuleBlock(recastStatements(sourceFile.statements));
+        const newBody = nodeFactor.createModuleBlock(recastStatements(sourceFile.statements).main);
         return nodeFactor.createModuleDeclaration(
             undefined, // decorators
             undefined,
@@ -334,7 +413,7 @@ export function recastTopLevelModule({
         } else if (ts.isIdentifier(body)) {
             newBody = nodeFactor.createIdentifier(body.text);
         } else if (ts.isModuleBlock(body)) {
-            newBody = nodeFactor.createModuleBlock(recastStatements(body.statements));
+            newBody = nodeFactor.createModuleBlock(recastStatements(body.statements).main);
         } else {
             console.warn(`Unknown module declaration type ${tsUtils.stringifyNode(body)}`);
         }
@@ -537,13 +616,30 @@ export function recastTopLevelModule({
     }
 
     function recastClassDeclaration(
-        classDeclaration: ts.ClassDeclaration, newName: string, forceExport: boolean) {
+        classDeclaration: ts.ClassDeclaration, newName: string, forceExport: boolean): MultiplexClassDeclaration {
+        const partClassDeclarationTypeElementRecord: Record<string, ts.TypeElement[]> = {};
+        const partClassDeclarationNamespaceElementRecord: Record<string, ts.Statement[]> = {};
         const classElements: ts.ClassElement[] = [];
         // console.log(`Dump class ${newName}`);
         for (const element of classDeclaration.members) {
             if (!exportPrivates && isPrivateMember(element)) {
                 continue;
             }
+
+            const part = getPart(element);
+            if (part) {
+                const partialClassElementDeclaration = recastClassElementAsPartial(element);
+                if (partialClassElementDeclaration) {
+                    if (ts.isFunctionDeclaration(partialClassElementDeclaration) ||
+                        ts.isVariableStatement(partialClassElementDeclaration)) {
+                        (partClassDeclarationNamespaceElementRecord[part] ??= []).push(partialClassElementDeclaration);
+                    } else {
+                        (partClassDeclarationTypeElementRecord[part] ??= []).push(partialClassElementDeclaration);
+                    }
+                    continue;
+                }
+            }
+
             // const name = typeof element.name === 'string' ? typeof element.name :
             //     (element.name ? element.name.getText() : '');
             // console.log(`  Dump member ${name}`);
@@ -580,7 +676,7 @@ export function recastTopLevelModule({
                 console.warn(`Don't know how to handle element ${element.name?.getText()} of class ${newName}`);
             }
         }
-        return nodeFactor.createClassDeclaration(
+        const main = nodeFactor.createClassDeclaration(
             undefined,
             recastDeclarationModifiers(classDeclaration, forceExport),
             newName,
@@ -588,6 +684,120 @@ export function recastTopLevelModule({
             recastHeritageClauses(classDeclaration.heritageClauses),
             classElements,
         );
+        const parts: NonNullable<MultiplexClassDeclaration['parts']> = {};
+        for (const [partName, partClassDeclarationElements] of Object.entries(partClassDeclarationTypeElementRecord)) {
+            (parts[partName] ??= []).push(nodeFactor.createInterfaceDeclaration(
+                undefined,
+                undefined,
+                newName,
+                undefined,
+                undefined,
+                partClassDeclarationElements,
+            ));
+        }
+        for (const [partName, partClassDeclarationElements] of Object.entries(partClassDeclarationNamespaceElementRecord)) {
+            (parts[partName] ??= []).push(nodeFactor.createModuleDeclaration(
+                undefined,
+                undefined,
+                nodeFactor.createIdentifier(newName),
+                nodeFactor.createModuleBlock(partClassDeclarationElements),
+                ts.NodeFlags.Namespace,
+            ));
+        }
+        return {
+            main,
+            parts,
+        };
+    }
+
+    function getPart(node: ts.Node) {
+        const tags = ts.getJSDocTags(node);
+        const partDeclarations = tags.map((tag) => {
+            const match = tag.comment?.match(/\s*(\w+)\s*/);
+            return match?.[1] ?? '';
+        });
+        if (partDeclarations.length === 0) {
+            return '';
+        }
+        const part = partDeclarations[0];
+        if (partDeclarations.some((partDeclaration) => partDeclaration !== part)) {
+            console.error(`You can only specify one part to each element, ` +
+                `received: ${[...new Set(partDeclarations)].join(',')}`);
+            return '';
+        }
+        return part;
+    }
+
+    function recastClassElementAsPartial(classElement: ts.ClassElement) {
+        const isStatic = classElement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword);
+        if (isStatic && (!classElement.name || !ts.isIdentifier(classElement.name))) {
+            console.error(`Can not part an element whose name is not an identifier`);
+            return null;
+        }
+        if (ts.isMethodDeclaration(classElement)) {
+            if (isStatic) {
+                return copyComments(classElement, factory.createFunctionDeclaration(
+                    undefined,
+                    undefined,
+                    recastToken(classElement.asteriskToken),
+                    recastIdentifier(classElement.name as ts.Identifier),
+                    recastTypeParameterArray(classElement.typeParameters),
+                    recastParameterArray(classElement.parameters),
+                    recastTypeNode(classElement.type),
+                    undefined,
+                ));
+            } else {
+                return copyComments(classElement, factory.createMethodSignature(
+                    undefined,
+                    recastPropertyName(classElement.name),
+                    recastToken(classElement.questionToken),
+                    recastTypeParameterArray(classElement.typeParameters),
+                    recastParameterArray(classElement.parameters), // parameters
+                    recastTypeNode(classElement.type),
+                ));
+            }
+        } else if (ts.isConstructorDeclaration(classElement)) {
+            return copyComments(classElement, (nodeFactor.createConstructSignature(
+                recastTypeParameterArray(classElement.typeParameters),
+                recastParameterArray(classElement.parameters), // parameters
+                recastTypeNode(classElement.type),
+            )));
+        } else if (ts.isPropertyDeclaration(classElement)) {
+            if (isStatic) {
+                return copyComments(classElement, nodeFactor.createVariableStatement(
+                    undefined,
+                    [nodeFactor.createVariableDeclaration(
+                        recastIdentifier(classElement.name as ts.Identifier),
+                        recastToken(classElement.exclamationToken),
+                        recastTypeNode(classElement.type),
+                    )],
+                ));
+            } else {
+                return copyComments(classElement, nodeFactor.createPropertySignature(
+                    undefined,
+                    recastPropertyName(classElement.name),
+                    recastToken(classElement.questionToken),
+                    recastTypeNode(classElement.type),
+                ));
+            }
+        } else if (ts.isIndexSignatureDeclaration(classElement)) {
+            return copyComments(classElement, nodeFactor.createIndexSignature(
+                undefined,
+                undefined,
+                recastParameterArray(classElement.parameters),
+                recastTypeNode(classElement.type),
+            ));
+        } else if (ts.isSemicolonClassElement(classElement)) {
+            
+        } else if (ts.isGetAccessor(classElement)) {
+            
+        } else if (ts.isSetAccessor(classElement)) {
+            
+        } else {
+            
+        }
+        
+        return null;
     }
 
     function isPrivateMember(classElement: ts.ClassElement) {
@@ -1144,13 +1354,14 @@ export function recastTopLevelModule({
             return;
         }
 
-        const { addStatements, entity } = registerNonExportedSymbol(symbol, nameResolver.current());
+        const { addStatements, addPartStatements, entity } = registerNonExportedSymbol(symbol, nameResolver.current());
 
         // TODO: ensure that event `rEntity` is not a sub-namespace of current,
         // this also works well
         nameResolver.enter(entity.parent);
 
         const statements: ts.Statement[] = [];
+        const partStatementRecord = new PartStatementRecord();
         for (const declaration of declarations) {
             if (ts.isSourceFile(declaration) || ts.isModuleDeclaration(declaration)) {
                 // `namespace xx {}`, `import * as`, but not exported
@@ -1162,10 +1373,14 @@ export function recastTopLevelModule({
                 statements.push(newNamespaceDeclaration);
                 nameResolver.leave();
             } else {
-                pushIfNonNull(
-                    statements,
-                    recastDeclaration(declaration, entity.name, true),
-                );
+                const result = recastDeclaration(declaration, entity.name, true);
+                if (result) {
+                    const { main, parts } = result;
+                    statements.push(main);
+                    if (parts) {
+                        partStatementRecord.mergeSingle(parts);
+                    }
+                }
             }
         }
 
@@ -1173,6 +1388,64 @@ export function recastTopLevelModule({
 
         addStatements(statements);
 
+        addPartStatements(partStatementRecord.parts);
+
         return entity;
+    }
+}
+
+interface MultiplexClassDeclaration {
+    main: ts.ClassDeclaration;
+    parts?: Record<string, Array<ts.InterfaceDeclaration | ts.ModuleDeclaration>>;
+}
+
+interface MultiplexDeclarationStatement {
+    main: ts.Statement;
+    parts?: Record<string, ts.Statement[]>;
+}
+
+class MultiplexStatementArray {
+    main: ts.Statement[] = [];
+
+    parts: Record<string, ts.Statement[]> = {};
+
+    constructor(statement?: ts.Statement | ts.Statement[]) {
+        if (Array.isArray(statement)) {
+            this.main.push(...statement);
+        } else if (statement) {
+            this.main.push(statement);
+        }
+    }
+
+    static fromSingle(statement: MultiplexDeclarationStatement | MultiplexClassDeclaration) {
+        const result = new MultiplexStatementArray();
+        result.main.push(statement.main);
+        if (statement.parts) {
+            result.parts = statement.parts;
+        }
+        return result;
+    }
+
+    merge(other: MultiplexStatementArray) {
+        this.main.push(...other.main);
+        for (const [partName, statements] of Object.entries(other.parts)) {
+            (this.parts[partName] ??= []).push(...statements);
+        }
+    }
+}
+
+class PartStatementRecord {
+    parts: Record<string, ts.Statement[]> = {};
+
+    public merge(other: PartStatementRecord) {
+        for (const [partName, statements] of Object.entries(other.parts)) {
+            (this.parts[partName] ??= []).push(...statements);
+        }
+    }
+
+    public mergeSingle(parts: Record<string, ts.Statement[]>) {
+        for (const [partName, statement] of Object.entries(parts)) {
+            (this.parts[partName] ??= []).push(...statement);
+        }
     }
 }

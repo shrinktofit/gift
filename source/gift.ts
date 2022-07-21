@@ -53,6 +53,10 @@ export interface GroupResult {
     path: string;
     typeReferencePaths?: string[];
     code: string;
+    parts: Record<string, {
+        path: string;
+        code: string;
+    }>;
 };
 
 export function bundle(options: IOptions): IBundleResult {
@@ -102,6 +106,7 @@ export function rollupTypes(options: IOptions) {
     interface GroupSource {
         path: string;
         statements: ts.Statement[];
+        parts: Record<string, ts.Statement[]>;
     }
 
     function getEntries() {
@@ -221,11 +226,16 @@ export function rollupTypes(options: IOptions) {
                 }
                 groupSource = {
                     statements: [],
+                    parts: {},
                     path: outputPath,
                 };
                 groupSources.set(groupIndex, groupSource);
             }
-            groupSource.statements.push(...myRecast(rModule.moduleTraits!));
+            const { main, parts } = myRecast(rModule.moduleTraits);
+            groupSource.statements.push(main);
+            for (const [partName, partModuleDeclaration] of Object.entries(parts)) {
+                (groupSource.parts[partName] ??= []).push(partModuleDeclaration);
+            }
         }
         return Array.from(groupSources.values());
 
@@ -299,6 +309,9 @@ export function rollupTypes(options: IOptions) {
                 entity,
                 addStatements: (statements: ts.Statement[]) => {
                     neNamespace!.statements.push(...statements);
+                },
+                addPartStatements: (parts: Record<string, ts.Statement[]>) => {
+
                 },
             };
         }
@@ -420,22 +433,56 @@ export function rollupTypes(options: IOptions) {
         const printer = ts.createPrinter({
             newLine: ts.NewLineKind.LineFeed,
         });
+
+        const mainPartPath = groupSource.path;
+
+        const code = emitCodeForGroupPartStatements(
+            groupSource.statements,
+            mainPartPath,
+            printer,
+        );
+
+        const mainPartBaseName = path.basename(mainPartPath);
+        const mainPartExtName = path.extname(mainPartBaseName);
+        const mainPartStemName = path.basename(mainPartBaseName, '.d.ts');
+        const partResults: GroupResult['parts'] = {};
+        for (const [partName, partStatements] of Object.entries(groupSource.parts)) {
+            const partPath = path.join(
+                path.dirname(groupSource.path),
+                `${mainPartStemName}.${partName}.d.ts`,
+            );
+            const code = emitCodeForGroupPartStatements(
+                partStatements,
+                partPath,
+                printer,
+            );
+            partResults[partName] = {
+                code,
+                path: partPath,
+            };
+        }
+
+        return {
+            path: mainPartPath,
+            code,
+            parts: partResults,
+        };
+    }
+
+    function emitCodeForGroupPartStatements(statements: ts.Statement[], path: string, printer: ts.Printer) {
         const sourceFile = ts.createSourceFile(
-            path.basename(groupSource.path),
+            path,
             '',
             ts.ScriptTarget.Latest,
             false,
             ts.ScriptKind.TS,
         );
         const lines: string[] = [];
-        const statementsArray = ts.createNodeArray(groupSource.statements);
+        const statementsArray = ts.createNodeArray(statements);
         const result = printer.printList(
             ts.ListFormat.MultiLine, statementsArray, sourceFile);
         lines.push(result);
         const code = lines.join('\n');
-        return {
-            path: groupSource.path,
-            code,
-        };
+        return code;
     }
 }
