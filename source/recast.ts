@@ -57,9 +57,9 @@ export function recastTopLevelModule({
             const importSpecifiers = importSymbols.map(([importId, localId]): ts.ImportSpecifier => {
                 const lId = nodeFactor.createIdentifier(localId);
                 if (importId === localId) {
-                    return nodeFactor.createImportSpecifier(undefined, lId);
+                    return nodeFactor.createImportSpecifier(false, undefined, lId);
                 } else {
-                    return nodeFactor.createImportSpecifier(nodeFactor.createIdentifier(importId), lId);
+                    return nodeFactor.createImportSpecifier(false, nodeFactor.createIdentifier(importId), lId);
                 }
             });
             statements.push(nodeFactor.createImportDeclaration(
@@ -81,8 +81,8 @@ export function recastTopLevelModule({
                     undefined, // modifiers
                     false, // isTypeOnly
                     nodeFactor.createNamedExports(interop.exports.map(({ importName, asName }) => asName === importName ?
-                        nodeFactor.createExportSpecifier(undefined, nodeFactor.createIdentifier(importName)):
-                        nodeFactor.createExportSpecifier(nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))),
+                        nodeFactor.createExportSpecifier(false, undefined, nodeFactor.createIdentifier(importName)):
+                        nodeFactor.createExportSpecifier(false, nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))),
                     nodeFactor.createStringLiteral(interop.specifier),
                 ));
             }
@@ -94,8 +94,8 @@ export function recastTopLevelModule({
                         false,
                         undefined, // default import name
                         nodeFactor.createNamedImports(interop.imports.map(({ importName, asName }) => asName === importName ?
-                        nodeFactor.createImportSpecifier(undefined, nodeFactor.createIdentifier(importName)):
-                            nodeFactor.createImportSpecifier(nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))), // namespace import or named imports, or no
+                        nodeFactor.createImportSpecifier(false, undefined, nodeFactor.createIdentifier(importName)):
+                            nodeFactor.createImportSpecifier(false, nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))), // namespace import or named imports, or no
                     ),
                     nodeFactor.createStringLiteral(interop.specifier),
                 ));
@@ -177,8 +177,8 @@ export function recastTopLevelModule({
                 undefined, // modifiers
                 false, // isTypeOnly
                 nodeFactor.createNamedExports(namespaceTraits.selfExports.map(({ importName, asName }) => asName === importName ?
-                    nodeFactor.createExportSpecifier(undefined, nodeFactor.createIdentifier(importName)):
-                    nodeFactor.createExportSpecifier(nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))),
+                    nodeFactor.createExportSpecifier(false, undefined, nodeFactor.createIdentifier(importName)):
+                    nodeFactor.createExportSpecifier(false, nodeFactor.createIdentifier(importName), nodeFactor.createIdentifier(asName)))),
                 undefined,
             ));
         }
