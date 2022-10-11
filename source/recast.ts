@@ -418,7 +418,7 @@ export function recastTopLevelModule({
     function recastPropertyDeclaration(propertyDeclaration: ts.PropertyDeclaration) {
         return copyComments(propertyDeclaration, nodeFactor.createPropertyDeclaration(
             undefined,
-            recastModifiers(propertyDeclaration.modifiers),
+            recastModifiers(nodeFactor.createNodeArray(ts.getModifiers(propertyDeclaration))),
             recastPropertyName(propertyDeclaration.name),
             recastToken(propertyDeclaration.questionToken),
             recastTypeNode(propertyDeclaration.type),
@@ -429,7 +429,7 @@ export function recastTopLevelModule({
     function recastMethodDeclaration(methodDeclaration: ts.MethodDeclaration) {
         return copyComments(methodDeclaration, (nodeFactor.createMethodDeclaration(
             undefined,
-            recastModifiers(methodDeclaration.modifiers),
+            recastModifiers(nodeFactor.createNodeArray(ts.getModifiers(methodDeclaration))),
             recastToken(methodDeclaration.asteriskToken),
             recastPropertyName(methodDeclaration.name),
             recastToken(methodDeclaration.questionToken),
@@ -452,7 +452,7 @@ export function recastTopLevelModule({
     function recastParameter(parameter: ts.ParameterDeclaration) {
         return nodeFactor.createParameterDeclaration(
             undefined,
-            recastModifiers(parameter.modifiers),
+            recastModifiers(nodeFactor.createNodeArray(ts.getModifiers(parameter))),
             recastToken(parameter.dotDotDotToken),
             parameter.name.getText(),
             recastToken(parameter.questionToken),
@@ -561,7 +561,7 @@ export function recastTopLevelModule({
                 // Since TS 3.7
                 classElements.push(copyComments(element, nodeFactor.createGetAccessorDeclaration(
                     undefined, // decorators
-                    recastModifiers(element.modifiers), // modifiers
+                    recastModifiers(nodeFactor.createNodeArray(ts.getModifiers(element))), // modifiers
                     recastPropertyName(element.name), // name
                     recastParameterArray(element.parameters), // parameters
                     recastTypeNode(element.type), // type
@@ -571,7 +571,7 @@ export function recastTopLevelModule({
                 // Since TS 3.7
                 classElements.push(copyComments(element, nodeFactor.createSetAccessorDeclaration(
                     undefined, // decorators
-                    recastModifiers(element.modifiers), // modifiers
+                    recastModifiers(nodeFactor.createNodeArray(ts.getModifiers(element))), // modifiers
                     recastPropertyName(element.name), // name
                     recastParameterArray(element.parameters), // parameters
                     undefined, // body
@@ -710,8 +710,10 @@ export function recastTopLevelModule({
     }
 
     function recastDeclarationModifiers(declaration: ts.Declaration | ts.VariableStatement, forceExport: boolean): ts.Modifier[] | undefined {
-        let modifiers = recastModifiers(declaration.modifiers)?.filter((m) => m.kind !== ts.SyntaxKind.DeclareKeyword);
-        
+        if (!ts.canHaveModifiers(declaration)) {
+            return [];
+        }
+        let modifiers = recastModifiers(nodeFactor.createNodeArray(ts.getModifiers(declaration))).filter((m) => m.kind !== ts.SyntaxKind.DeclareKeyword);
         if (forceExport) {
             if (!modifiers) {
                 modifiers = [];
@@ -856,6 +858,7 @@ export function recastTopLevelModule({
                 recastTypeNode(type.nameType),
                 recastToken(type.questionToken),
                 recastTypeNode(type.type),
+                undefined
             );
         } else if (ts.isInferTypeNode(type)) {
             return nodeFactor.createInferTypeNode(
