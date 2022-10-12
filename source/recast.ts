@@ -77,7 +77,6 @@ export function recastTopLevelModule({
         rModule.interopRecord.forEach((interop) => {
             if (interop.exports.length !== 0) {
                 statements.push(nodeFactor.createExportDeclaration(
-                    undefined, // decorators
                     undefined, // modifiers
                     false, // isTypeOnly
                     nodeFactor.createNamedExports(interop.exports.map(({ importName, asName }) => asName === importName ?
@@ -107,7 +106,6 @@ export function recastTopLevelModule({
         // See:
         // https://github.com/microsoft/TypeScript/issues/19545
         statements.push(nodeFactor.createExportDeclaration(
-            undefined, // decorators
             undefined, // modifiers
             false, // isTypeOnly,
             nodeFactor.createNamedExports([]),
@@ -173,7 +171,6 @@ export function recastTopLevelModule({
         namespaceTraits.transformAliasExports();
         if (namespaceTraits.selfExports.length !== 0) {
             statements.push(nodeFactor.createExportDeclaration(
-                undefined, // decorators
                 undefined, // modifiers
                 false, // isTypeOnly
                 nodeFactor.createNamedExports(namespaceTraits.selfExports.map(({ importName, asName }) => asName === importName ?
@@ -475,6 +472,7 @@ export function recastTopLevelModule({
 
     function recastTypeParameter(typeParameter: ts.TypeParameterDeclaration) {
         return nodeFactor.createTypeParameterDeclaration(
+            undefined,
             typeParameter.name.getText(),
             recastTypeNode(typeParameter.constraint),
             recastTypeNode(typeParameter.default),
@@ -777,6 +775,7 @@ export function recastTopLevelModule({
             );
         } else if (ts.isConstructorTypeNode(type)) {
             return nodeFactor.createConstructorTypeNode(
+                undefined,
                 recastTypeParameterArray(type.typeParameters),
                 recastParameterArray(type.parameters), // parameters
                 recastTypeNode(type.type),
