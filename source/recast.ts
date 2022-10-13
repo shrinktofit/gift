@@ -300,7 +300,9 @@ export function recastTopLevelModule({
             return recastTypeAliasDeclaration(declaration, newName, forceExport);
         } else if (ts.isVariableDeclaration(declaration)) {
             return nodeFactor.createVariableStatement(
-                recastDeclarationModifiers(declaration, forceExport),
+                ts.isVariableStatement(declaration.parent.parent) ? 
+                    recastDeclarationModifiers(declaration.parent.parent, forceExport) : 
+                    undefined,
                 nodeFactor.createVariableDeclarationList(
                     [recastVariableDeclaration(declaration, newName, forceExport)],
                     declaration.parent.flags,
