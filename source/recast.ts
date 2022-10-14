@@ -1123,7 +1123,7 @@ export function recastTopLevelModule({
             return;
         }
 
-        if (declarations.some((declaration) => {
+        if (declarations.every((declaration) => {
             const sourceFile = declaration.getSourceFile();
             return program.isSourceFileDefaultLibrary(sourceFile) ||
                 program.isSourceFileFromExternalLibrary(sourceFile);

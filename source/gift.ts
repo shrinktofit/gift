@@ -243,7 +243,7 @@ export function rollupTypes(options: IOptions) {
                 const scopeSymbols = typeChecker.getSymbolsInScope(declaration, -1);
                 for (const scopeSymbol of scopeSymbols) {
                     const declarations = scopeSymbol.getDeclarations();
-                    if (!declarations || declarations.length === 0 || declarations.some((declaration) => {
+                    if (!declarations || declarations.length === 0 || declarations.every((declaration) => {
                         const sourceFile = declaration.getSourceFile();
                         return program.isSourceFileDefaultLibrary(sourceFile) ||
                             program.isSourceFileFromExternalLibrary(sourceFile);
