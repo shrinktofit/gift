@@ -1,6 +1,8 @@
 
 import ts from 'typescript';
 
+const nodeFactory = ts.factory;
+
 export function splitLeftmost(entityName: ts.EntityName) {
     let rights: ts.Identifier[] = [];
     let leftmost: ts.EntityName = entityName;
@@ -20,11 +22,11 @@ export function splitLeftmost(entityName: ts.EntityName) {
 export function createEntityName(identifiers: string[], leftmost: ts.EntityName | null = null): ts.EntityName {
     let result = leftmost;
     for (const id of identifiers) {
-        const newID = ts.createIdentifier(id);
+        const newID = nodeFactory.createIdentifier(id);
         if (!result) {
             result = newID;
         } else {
-            result = ts.createQualifiedName(result, newID);
+            result = nodeFactory.createQualifiedName(result, newID);
         }
     }
     return result!;
@@ -33,7 +35,7 @@ export function createEntityName(identifiers: string[], leftmost: ts.EntityName 
 export function createAccessLink(identifiers: string[], leftmost: ts.Expression | null = null): ts.Expression {
     let result = leftmost;
     for (const id of identifiers) {
-        const newID = ts.createIdentifier(id);
+        const newID = nodeFactory.createIdentifier(id);
         if (!result) {
             result = newID;
         } else {
