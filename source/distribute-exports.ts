@@ -1,9 +1,11 @@
 import ts from 'typescript';
+import { hasJsDocTag } from './ts-utils';
 
 export function distributeExports(
     moduleSymbols: ts.Symbol[],
     typeChecker: ts.TypeChecker,
     priorityList: string[] = [],
+    privateJsDocTag?: string,
 ) {
     const parsedPriorityList = priorityList.map((id) => `"${id.replace(/\\/g, '/').replace(/\.(js|ts|d\.ts)$/, '')}"`);
 
@@ -65,6 +67,11 @@ export function distributeExports(
             let originalSymbol = exportedSymbol;
             if (exportedSymbol.flags & ts.SymbolFlags.Alias) {
                 originalSymbol = typeChecker.getAliasedSymbol(exportedSymbol);
+            }
+            if (privateJsDocTag) {
+                if (hasJsDocTag(originalSymbol, privateJsDocTag)) {
+                    continue;
+                }
             }
 
             if ((exportedSymbol.getFlags() & ts.SymbolFlags.Prototype) &&

@@ -23,6 +23,11 @@ export interface IOptions {
 
     priority?: string[];
 
+    /**
+     * The name of js doc tag, the interface which is marked with this tag, should be racast into the non export namespace called '__private'.
+     */
+    privateJsDocTag?: string;
+
     groups?: Array<{
         test: RegExp;
         path: string;
