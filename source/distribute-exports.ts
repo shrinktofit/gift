@@ -70,6 +70,7 @@ export function distributeExports(
             }
             if (privateJsDocTag) {
                 if (hasJsDocTag(originalSymbol, privateJsDocTag)) {
+                    // TODO: to add a Set to keep the internal originalSymbol, if it's referenced, we put it into the NE namespace. 
                     continue;
                 }
             }
