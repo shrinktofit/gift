@@ -159,7 +159,7 @@ export function rollupTypes(options: IOptions) {
 
         const rEntityMap = new SymbolEntityMap();
 
-        const exportDistribution = distributeExports(entryModules.map((eM) => eM.symbol), typeChecker, options.priority);
+        const exportDistribution = distributeExports(entryModules.map((eM) => eM.symbol), typeChecker, options.priority, options.privateJsDocTag);
 
         const distributionMap = new Map<distributeExports.InternalModuleMeta, rConcepts.NamespaceTraits>();
 
@@ -200,6 +200,7 @@ export function rollupTypes(options: IOptions) {
             nameResolver,
             resolveEntity: (symbol) => rEntityMap.get(symbol),
             registerNonExportedSymbol,
+            privateJsDocTag: options.privateJsDocTag,
         });
 
         const groupSources = new Map<number, GroupSource>();
