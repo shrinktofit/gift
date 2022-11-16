@@ -3,7 +3,7 @@ import ps from 'path';
 import { bundle } from '../../source/gift';
 
 test('Private JS doc tag', async () => {
-    const inputPath = ps.join(__dirname, 'index.d.ts');
+    const inputPath = ps.join(__dirname, './test-case/index.d.ts');
     const { groups } = bundle({
         input: inputPath,
         rootModule: inputPath,

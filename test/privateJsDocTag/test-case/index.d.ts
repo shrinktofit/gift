@@ -7,6 +7,9 @@ export { publicNS };
  */
 export { internalNS };
 
+export * from './all';
+export { internalNamedExport, publicNamedExport } from './named-export';
+
 /**
  * @internal
  */
