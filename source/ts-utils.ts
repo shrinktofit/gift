@@ -52,10 +52,9 @@ export function printSymbol(symbol: ts.Symbol) {
         `  ${stringifySymbolFlags(symbol.flags)}`);
 }
 
-export function hasJsDocTag (symbol: ts.Symbol, tagName: string) {
-    const tags = symbol.getJsDocTags();
-    for (let tag of tags) {
-        if (tag.name === tagName) {
+export function hasJsDocTag (tagInfos: ts.JSDocTagInfo[], tagName: string) {
+    for (let tagInfo of tagInfos) {
+        if (tagInfo.name === tagName) {
             return true;
         }
     }

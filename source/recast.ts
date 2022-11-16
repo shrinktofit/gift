@@ -548,7 +548,7 @@ export function recastTopLevelModule({
             }
             if (privateJsDocTag) {
                 const symbol = typeChecker.getSymbolAtLocation(element.name!);
-                if (symbol && tsUtils.hasJsDocTag(symbol, privateJsDocTag)) {
+                if (symbol && tsUtils.hasJsDocTag(symbol.getJsDocTags(), privateJsDocTag)) {
                     continue;
                 }
             }
@@ -636,7 +636,7 @@ export function recastTopLevelModule({
         for (const typeElement of typeElements) {
             if (privateJsDocTag) {
                 const symbol = typeChecker.getSymbolAtLocation(typeElement.name!);
-                if (symbol && tsUtils.hasJsDocTag(symbol, privateJsDocTag)) {
+                if (symbol && tsUtils.hasJsDocTag(symbol.getJsDocTags(), privateJsDocTag)) {
                     continue;
                 }
             }

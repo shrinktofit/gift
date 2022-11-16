@@ -69,9 +69,20 @@ export function distributeExports(
                 originalSymbol = typeChecker.getAliasedSymbol(exportedSymbol);
             }
             if (privateJsDocTag) {
-                if (hasJsDocTag(originalSymbol, privateJsDocTag)) {
-                    // TODO: to add a Set to keep the internal originalSymbol, if it's referenced, we put it into the NE namespace. 
-                    continue;
+                // TODO: to add a Set to keep the internal originalSymbol, if it's referenced, we put it into the NE namespace. 
+                if (exportedSymbol.flags & ts.SymbolFlags.Alias) {
+                    // We need to detect tag on exported symbol with alias flag.
+                    const parentNode = exportedSymbol.declarations[0]?.parent?.parent;
+                    if (parentNode) {
+                        const tags = ts.getJSDocTags(parentNode).map(tag => {return { name: tag.tagName.escapedText } as ts.JSDocTagInfo});
+                        if (hasJsDocTag(tags, privateJsDocTag)) {
+                            continue;
+                        }
+                    }
+                } else {
+                    if (hasJsDocTag(originalSymbol.getJsDocTags(), privateJsDocTag)) {
+                        continue;
+                    }
                 }
             }
 
