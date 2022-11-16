@@ -70,7 +70,7 @@ export function distributeExports(
             }
             if (privateJsDocTag) {
                 // TODO: to add a Set to keep the internal originalSymbol, if it's referenced, we put it into the NE namespace. 
-                if (exportedSymbol.flags & ts.SymbolFlags.Alias) {
+                if ((exportedSymbol.flags & ts.SymbolFlags.Alias) && (originalSymbol.flags & ts.SymbolFlags.Module)) {
                     // We need to detect tag on exported symbol with alias flag.
                     const parentNode = exportedSymbol.declarations[0]?.parent?.parent;
                     if (parentNode) {

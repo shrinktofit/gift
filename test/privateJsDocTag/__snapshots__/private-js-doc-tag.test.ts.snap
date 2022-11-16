@@ -5,10 +5,6 @@ exports[`Private JS doc tag 1`] = `
     export namespace publicNS {
         export const publicVar: number;
     }
-    /**
-     * @internal
-     */
-    export const internalNamedExport: number;
     export const publicNamedExport: number;
     export class A {
         publicMethod(): __private._index__InternalA;
