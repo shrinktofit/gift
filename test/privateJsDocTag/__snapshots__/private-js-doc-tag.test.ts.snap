@@ -1,0 +1,41 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Private JS doc tag 1`] = `
+"declare module \\"testTag\\" {
+    export namespace publicNS {
+        export const publicVar: number;
+    }
+    export const publicNamedExport: number;
+    export class A {
+        publicMethod(): __private._index__InternalA;
+        get publicAccessor();
+        set publicAccessor(v: __private._index__InternalA);
+        publicField: number;
+    }
+    export const typeLiternal: {
+        publicMethod(): __private._index__InternalA;
+        publicProp: number;
+    };
+    export interface publicInterface {
+        publicMethod(): __private._index__internalInterface;
+        publicProp: number;
+    }
+    export const publicFromAll: number;
+    export namespace __private {
+        /**
+         * @internal
+         */
+        export class _index__InternalA {
+        }
+        /**
+         * @internal
+         */
+        export interface _index__internalInterface {
+            publicMethod(): _index__InternalA;
+            publicProp: number;
+        }
+    }
+    export {};
+}
+"
+`;

@@ -52,6 +52,15 @@ export function printSymbol(symbol: ts.Symbol) {
         `  ${stringifySymbolFlags(symbol.flags)}`);
 }
 
+export function hasJsDocTag (tagInfos: ts.JSDocTagInfo[], tagName: string) {
+    for (let tagInfo of tagInfos) {
+        if (tagInfo.name === tagName) {
+            return true;
+        }
+    }
+    return false;
+}
+
 export function stringifySymbolFlags(flags: ts.SymbolFlags) {
     const satisfies: string[] = [];
     for (const key of Object.keys(ts.SymbolFlags)) {

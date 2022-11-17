@@ -11,6 +11,7 @@ export function recastTopLevelModule({
     exportPrivates,
     resolveEntity,
     registerNonExportedSymbol,
+    privateJsDocTag,
 }: {
     program: ts.Program,
     typeChecker: ts.TypeChecker,
@@ -22,6 +23,7 @@ export function recastTopLevelModule({
         entity: rConcepts.Entity;
         addStatements: (statements: ts.Statement[]) => void;
     },
+    privateJsDocTag?: string,
 }) {
     const nodeFactor = ts.factory;
 
@@ -544,6 +546,12 @@ export function recastTopLevelModule({
             if (!exportPrivates && isPrivateMember(element)) {
                 continue;
             }
+            if (privateJsDocTag) {
+                const symbol = typeChecker.getSymbolAtLocation(element.name!);
+                if (symbol && tsUtils.hasJsDocTag(symbol.getJsDocTags(), privateJsDocTag)) {
+                    continue;
+                }
+            }
             // const name = typeof element.name === 'string' ? typeof element.name :
             //     (element.name ? element.name.getText() : '');
             // console.log(`  Dump member ${name}`);
@@ -626,6 +634,12 @@ export function recastTopLevelModule({
     function recastTypeElements(typeElements: ts.NodeArray<ts.TypeElement>) {
         const result: ts.TypeElement[] = [];
         for (const typeElement of typeElements) {
+            if (privateJsDocTag) {
+                const symbol = typeChecker.getSymbolAtLocation(typeElement.name!);
+                if (symbol && tsUtils.hasJsDocTag(symbol.getJsDocTags(), privateJsDocTag)) {
+                    continue;
+                }
+            }
             const d = recastTypeElement(typeElement);
             if (d) {
                 result.push(d);

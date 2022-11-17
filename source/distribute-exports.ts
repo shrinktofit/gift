@@ -1,9 +1,11 @@
 import ts from 'typescript';
+import { hasJsDocTag } from './ts-utils';
 
 export function distributeExports(
     moduleSymbols: ts.Symbol[],
     typeChecker: ts.TypeChecker,
     priorityList: string[] = [],
+    privateJsDocTag?: string,
 ) {
     const parsedPriorityList = priorityList.map((id) => `"${id.replace(/\\/g, '/').replace(/\.(js|ts|d\.ts)$/, '')}"`);
 
@@ -65,6 +67,23 @@ export function distributeExports(
             let originalSymbol = exportedSymbol;
             if (exportedSymbol.flags & ts.SymbolFlags.Alias) {
                 originalSymbol = typeChecker.getAliasedSymbol(exportedSymbol);
+            }
+            if (privateJsDocTag) {
+                // TODO: to add a Set to keep the internal originalSymbol, if it's referenced, we put it into the NE namespace. 
+                if ((exportedSymbol.flags & ts.SymbolFlags.Alias) && (originalSymbol.flags & ts.SymbolFlags.Module)) {
+                    // We need to detect tag on exported symbol with alias flag.
+                    const parentNode = exportedSymbol.declarations[0]?.parent?.parent;
+                    if (parentNode) {
+                        const tags = ts.getJSDocTags(parentNode).map(tag => {return { name: tag.tagName.escapedText } as ts.JSDocTagInfo});
+                        if (hasJsDocTag(tags, privateJsDocTag)) {
+                            continue;
+                        }
+                    }
+                } else {
+                    if (hasJsDocTag(originalSymbol.getJsDocTags(), privateJsDocTag)) {
+                        continue;
+                    }
+                }
             }
 
             if ((exportedSymbol.getFlags() & ts.SymbolFlags.Prototype) &&
