@@ -51,6 +51,36 @@ declare module "foo" {
      */
     export namespace Ns {
     }
+
+    /**
+     * Var referencing unexported namespace.
+     */
+    export const varReferencingUnexportedNamespace: Function & typeof UnexportedNamespace;
+
+    /**
+     * Unexported namespace.
+     */
+    namespace UnexportedNamespace {
+        /**
+         * Unexported namespace member function.
+         */
+        export const memberVar: number;
+
+        /**
+         * Unexported namespace member function.
+         */
+        export function memberFunction(): void;
+
+        /**
+         * Unexported namespace member class.
+         */
+        export class MemberClass { }
+
+        /**
+         * Unexported namespace member interface.
+         */
+        export interface MemberInterface { }
+    }
 }
 
 declare module "bar" {

@@ -224,14 +224,14 @@ export function recastTopLevelModule({
         } else if (ts.isTypeAliasDeclaration(statement)) {
             return !statement.name ? null : recastTypeAliasDeclaration(statement, statement.name.text, false);
         } else if (ts.isVariableStatement(statement)) {
-            return nodeFactor.createVariableStatement(
+            return copyComments(statement, nodeFactor.createVariableStatement(
                 recastDeclarationModifiers(statement, false),
                 nodeFactor.createVariableDeclarationList(
                     statement.declarationList.declarations.map((declaration) =>
                         recastVariableDeclaration(declaration, declaration.name.getText(), false)),
                     statement.declarationList.flags,
                 ),
-            );
+            ));
         } else if (ts.isImportDeclaration(statement)) {
             return recastImportDeclaration(statement);
         } else {
@@ -253,11 +253,28 @@ export function recastTopLevelModule({
     }
 
     function recastDeclaration(declaration: ts.Declaration, newName: string, forceExport: boolean): ts.Statement | null {
-        const result = recastDeclarationNoComment(declaration, newName, forceExport);
-        if (result) {
-            copyComments(declaration, result);
+        if (ts.isClassDeclaration(declaration)) {
+            return recastClassDeclaration(declaration, newName, forceExport);
+        } else if (ts.isFunctionDeclaration(declaration)) {
+            return recastFunctionDeclaration(declaration, newName, forceExport);
+        } else if (ts.isInterfaceDeclaration(declaration)) {
+            return recastInterfaceDeclaration(declaration, newName, forceExport);
+        } else if (ts.isEnumDeclaration(declaration)) {
+            return recastEnumDeclaration(declaration, newName, forceExport);
+        } else if (ts.isTypeAliasDeclaration(declaration)) {
+            return recastTypeAliasDeclaration(declaration, newName, forceExport);
+        } else if (ts.isVariableDeclaration(declaration)) {
+            return copyComments(declaration, nodeFactor.createVariableStatement(
+                recastDeclarationModifiers(declaration, forceExport),
+                nodeFactor.createVariableDeclarationList(
+                    [recastVariableDeclaration(declaration, newName, forceExport)],
+                    declaration.parent.flags,
+                ),
+            ));
+        } else if (ts.isModuleDeclaration(declaration)) {
+            // return recastModuleDeclaration(declaration, newName);
         }
-        return result;
+        return null;
     }
 
     function copyComments<T extends ts.Node>(src: ts.Node, dst: T): T {
@@ -290,31 +307,6 @@ export function recastTopLevelModule({
             ts.addSyntheticLeadingComment(dst, kind, tex, true);
         });
         return dst;
-    }
-
-    function recastDeclarationNoComment(declaration: ts.Declaration, newName: string, forceExport: boolean): ts.Statement | null {
-        if (ts.isClassDeclaration(declaration)) {
-            return recastClassDeclaration(declaration, newName, forceExport);
-        } else if (ts.isFunctionDeclaration(declaration)) {
-            return recastFunctionDeclaration(declaration, newName, forceExport);
-        } else if (ts.isInterfaceDeclaration(declaration)) {
-            return recastInterfaceDeclaration(declaration, newName, forceExport);
-        } else if (ts.isEnumDeclaration(declaration)) {
-            return recastEnumDeclaration(declaration, newName, forceExport);
-        } else if (ts.isTypeAliasDeclaration(declaration)) {
-            return recastTypeAliasDeclaration(declaration, newName, forceExport);
-        } else if (ts.isVariableDeclaration(declaration)) {
-            return nodeFactor.createVariableStatement(
-                recastDeclarationModifiers(declaration, forceExport),
-                nodeFactor.createVariableDeclarationList(
-                    [recastVariableDeclaration(declaration, newName, forceExport)],
-                    declaration.parent.flags,
-                ),
-            );
-        } else if (ts.isModuleDeclaration(declaration)) {
-            // return recastModuleDeclaration(declaration, newName);
-        }
-        return null;
     }
 
     function recastSourceFileDeclarationAsNamespaceDeclaration(sourceFile: ts.SourceFile, newName: string) {
@@ -351,7 +343,7 @@ export function recastTopLevelModule({
     }
 
     function recastFunctionDeclaration(functionDeclaration: ts.FunctionDeclaration, newName: string, forceExport: boolean) {
-        return nodeFactor.createFunctionDeclaration(
+        return copyComments(functionDeclaration, nodeFactor.createFunctionDeclaration(
             undefined,
             recastModifiers(functionDeclaration.modifiers),
             functionDeclaration.asteriskToken,
@@ -360,7 +352,7 @@ export function recastTopLevelModule({
             recastParameterArray(functionDeclaration.parameters), // parameters
             recastTypeNode(functionDeclaration.type),
             undefined,
-        );
+        ));
     }
 
     function recastVariableDeclaration(variableDeclaration: ts.VariableDeclaration, newName: string, forceExport: boolean) {
@@ -588,14 +580,14 @@ export function recastTopLevelModule({
                 console.warn(`Don't know how to handle element ${element.name?.getText()} of class ${newName}`);
             }
         }
-        return nodeFactor.createClassDeclaration(
+        return copyComments(classDeclaration, nodeFactor.createClassDeclaration(
             undefined,
             recastDeclarationModifiers(classDeclaration, forceExport),
             newName,
             recastTypeParameterArray(classDeclaration.typeParameters),
             recastHeritageClauses(classDeclaration.heritageClauses),
             classElements,
-        );
+        ));
     }
 
     function isPrivateMember(classElement: ts.ClassElement) {
@@ -607,14 +599,14 @@ export function recastTopLevelModule({
 
     function recastInterfaceDeclaration(
         interfaceDeclaration: ts.InterfaceDeclaration, newName: string, forceExport: boolean) {
-        return nodeFactor.createInterfaceDeclaration(
+        return copyComments(interfaceDeclaration, nodeFactor.createInterfaceDeclaration(
             undefined,
             recastDeclarationModifiers(interfaceDeclaration, forceExport),
             newName,
             recastTypeParameterArray(interfaceDeclaration.typeParameters),
             recastHeritageClauses(interfaceDeclaration.heritageClauses),
             recastTypeElements(interfaceDeclaration.members),
-        );
+        ));
     }
 
     function recastTypeElement(typeElement: ts.TypeElement) {
@@ -677,7 +669,7 @@ export function recastTopLevelModule({
     }
 
     function recastEnumDeclaration(enumDeclaration: ts.EnumDeclaration, newName: string, forceExport: boolean) {
-        return nodeFactor.createEnumDeclaration(
+        return copyComments(enumDeclaration, nodeFactor.createEnumDeclaration(
             undefined,
             recastDeclarationModifiers(enumDeclaration, forceExport),
             newName,
@@ -687,18 +679,18 @@ export function recastTopLevelModule({
                     recastExpression(enumerator.initializer),
                 ));
             }),
-        );
+        ));
     }
 
     function recastTypeAliasDeclaration(
         typeAliasDeclaration: ts.TypeAliasDeclaration, newName: string, forceExport: boolean) {
-        return nodeFactor.createTypeAliasDeclaration(
+        return copyComments(typeAliasDeclaration, nodeFactor.createTypeAliasDeclaration(
             undefined,
             recastDeclarationModifiers(typeAliasDeclaration, forceExport),
             newName,
             recastTypeParameterArray(typeAliasDeclaration.typeParameters),
             recastTypeNode(typeAliasDeclaration.type)!,
-        );
+        ));
     }
 
     function recastModifiers(modifiers: ts.NodeArray<ts.Modifier>): ts.Modifier[];
