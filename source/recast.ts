@@ -300,33 +300,6 @@ export function recastTopLevelModule({
         return dst;
     }
 
-    function recastDeclarationNoComment(declaration: ts.Declaration, newName: string, forceExport: boolean): ts.Statement | null {
-        if (ts.isClassDeclaration(declaration)) {
-            return recastClassDeclaration(declaration, newName, forceExport);
-        } else if (ts.isFunctionDeclaration(declaration)) {
-            return recastFunctionDeclaration(declaration, newName, forceExport);
-        } else if (ts.isInterfaceDeclaration(declaration)) {
-            return recastInterfaceDeclaration(declaration, newName, forceExport);
-        } else if (ts.isEnumDeclaration(declaration)) {
-            return recastEnumDeclaration(declaration, newName, forceExport);
-        } else if (ts.isTypeAliasDeclaration(declaration)) {
-            return recastTypeAliasDeclaration(declaration, newName, forceExport);
-        } else if (ts.isVariableDeclaration(declaration)) {
-            return nodeFactor.createVariableStatement(
-                ts.isVariableStatement(declaration.parent.parent) ? 
-                    recastDeclarationModifiers(declaration.parent.parent, forceExport) : 
-                    undefined,
-                nodeFactor.createVariableDeclarationList(
-                    [recastVariableDeclaration(declaration, newName, forceExport)],
-                    declaration.parent.flags,
-                ),
-            );
-        } else if (ts.isModuleDeclaration(declaration)) {
-            // return recastModuleDeclaration(declaration, newName);
-        }
-        return null;
-    }
-
     function recastSourceFileDeclarationAsNamespaceDeclaration(sourceFile: ts.SourceFile, newName: string) {
         const newBody = nodeFactor.createModuleBlock(recastStatements(sourceFile.statements));
         return nodeFactor.createModuleDeclaration(
