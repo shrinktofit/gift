@@ -600,7 +600,7 @@ export function recastTopLevelModule({
     }
 
     function isPrivateMember(classElement: ts.ClassElement) {
-        const modifiers = ts.canHaveModifiers(classElement) ? ts.getModifiers(classElement) : undefined;
+        const modifiers = canHaveModifiers(classElement) ? ts.getModifiers(classElement) : undefined;
         if (!modifiers) {
             return false;
         }
@@ -722,8 +722,14 @@ export function recastTopLevelModule({
         return result;
     }
 
+    function canHaveModifiers (node: ts.Node): node is ts.HasModifiers {
+        // NOTE: `ts.canHaveModifiers` tells that `VariableDeclaration` cannot have modifiers.
+        // I think it's a bug on its implementation.
+        return ts.canHaveModifiers(node) || node.kind === ts.SyntaxKind.VariableDeclaration;
+    }
+
     function recastDeclarationModifiers(declaration: ts.Declaration | ts.VariableStatement, forceExport: boolean): ts.Modifier[] | undefined {
-        if (!ts.canHaveModifiers(declaration)) {
+        if (!canHaveModifiers(declaration)) {
             return [];
         }
         let modifiers = recastModifiers(nodeFactor.createNodeArray(ts.getModifiers(declaration))).filter((m) => m.kind !== ts.SyntaxKind.DeclareKeyword);
