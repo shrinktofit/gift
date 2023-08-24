@@ -8,6 +8,8 @@ import { NameResolver } from './name-resolver';
 import { distributeExports } from './distribute-exports';
 import { recastTopLevelModule } from './recast';
 
+const nodeFactory = ts.factory;
+
 export interface IOptions {
     input: string | string[];
     rootDir?: string;
@@ -247,7 +249,7 @@ export function rollupTypes(options: IOptions) {
                 const scopeSymbols = typeChecker.getSymbolsInScope(declaration, -1);
                 for (const scopeSymbol of scopeSymbols) {
                     const declarations = scopeSymbol.getDeclarations();
-                    if (!declarations || declarations.length === 0 || declarations.some((declaration) => {
+                    if (!declarations || declarations.length === 0 || declarations.every((declaration) => {
                         const sourceFile = declaration.getSourceFile();
                         return program.isSourceFileDefaultLibrary(sourceFile) ||
                             program.isSourceFileFromExternalLibrary(sourceFile);
@@ -434,7 +436,7 @@ export function rollupTypes(options: IOptions) {
             ts.ScriptKind.TS,
         );
         const lines: string[] = [];
-        const statementsArray = ts.createNodeArray(groupSource.statements);
+        const statementsArray = nodeFactory.createNodeArray(groupSource.statements);
         const result = printer.printList(
             ts.ListFormat.MultiLine, statementsArray, sourceFile);
         lines.push(result);
