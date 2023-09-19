@@ -50,6 +50,11 @@ export interface IOptions {
          */
         targetModule: string;
     }>;
+
+    /**
+     * The module map, whose key is module name and value is module path.
+     */
+    moduleMap?: Record<string, string>;
 }
 
 export interface IBundleResult {
@@ -130,9 +135,28 @@ export function rollupTypes(options: IOptions) {
 
     function createProgram(): ts.Program {
         const tscOptions = createTscOptions();
+        const host = ts.createCompilerHost(tscOptions);
+        host.resolveModuleNames = (moduleNames, importer): (ts.ResolvedModule | undefined)[] => {
+            const resolvedModules: (ts.ResolvedModule | undefined)[] = [];
+            for (const moduleName of moduleNames) {
+                if (options.moduleMap && moduleName in options.moduleMap) {
+                    resolvedModules.push({resolvedFileName: options.moduleMap[moduleName]});
+                } else {
+                    const resolvedRes = ts.resolveModuleName(moduleName, importer, tscOptions, host);
+                    if (resolvedRes.resolvedModule) {
+                        resolvedModules.push({resolvedFileName: resolvedRes.resolvedModule.resolvedFileName});
+                    } else {
+                        // Cannot resolve module, treat it as external.
+                        resolvedModules.push(undefined);
+                    }
+                }
+            }
+            return resolvedModules;
+        };
         return ts.createProgram({
             rootNames: inputs,
             options: tscOptions,
+            host,
         });
     }
 
